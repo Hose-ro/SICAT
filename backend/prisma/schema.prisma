@@ -1,0 +1,291 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== ENUMS ====================
+
+enum Rol {
+  ADMIN
+  DOCENTE
+  ALUMNO
+}
+
+enum EstadoUnidad {
+  PENDIENTE
+  ACTIVA
+  FINALIZADA
+}
+
+enum EstadoInscripcion {
+  PENDIENTE
+  ACEPTADA
+  RECHAZADA
+}
+
+enum EstadoAsistencia {
+  ASISTENCIA
+  FALTA
+  RETARDO
+  JUSTIFICADA
+}
+
+enum TipoEntrega {
+  EN_LINEA
+  PRESENCIAL
+  FIRMA
+}
+
+enum EstadoRevision {
+  PENDIENTE
+  REVISADA
+  CALIFICADA
+  INCORRECTA
+}
+
+enum TipoNotificacion {
+  INSCRIPCION_NUEVA
+  INSCRIPCION_ACEPTADA
+  INSCRIPCION_RECHAZADA
+  CLASE_INICIADA
+  CLASE_FINALIZADA
+  TAREA_NUEVA
+  TAREA_REVISADA
+  TAREA_CALIFICADA
+  ENTREGA_RECIBIDA
+}
+
+// ==================== MODELS ====================
+
+model Academia {
+  id          Int       @id @default(autoincrement())
+  nombre      String    @unique
+  descripcion String?
+  activo      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  docentes    Usuario[] @relation("DocenteAcademia")
+  materias    Materia[] @relation("MateriaAcademia")
+}
+
+model Carrera {
+  id               Int               @id @default(autoincrement())
+  nombre           String            @unique
+  codigo           String            @unique
+  planEstudios     String?
+  createdAt        DateTime          @default(now())
+  usuarios         Usuario[]
+  materias         Materia[]
+  grupos           Grupo[]
+  reticulaMaterias ReticulaMateria[]
+}
+
+model Usuario {
+  id            Int      @id @default(autoincrement())
+  nombre        String
+  email         String?  @unique
+  numeroControl String?  @unique
+  username      String?  @unique
+  password      String
+  rol           Rol
+  telefono      String?
+  semestre      Int?
+  carreraId     Int?
+  carrera       Carrera? @relation(fields: [carreraId], references: [id])
+  activo        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  grupoId Int?
+  grupo   Grupo? @relation("AlumnoGrupo", fields: [grupoId], references: [id])
+
+  docenteMaterias     Materia[]      @relation("DocenteMateria")
+  academias           Academia[]     @relation("DocenteAcademia")
+  inscripcionesAlumno Inscripcion[]  @relation("InscripcionAlumno")
+  claseSesiones       ClaseSesion[]  @relation("ClaseSesionDocente")
+  asistenciasAlumno   Asistencia[]   @relation("AsistenciaAlumno")
+  tareasDocente       Tarea[]        @relation("TareaDocente")
+  entregasAlumno      EntregaTarea[] @relation("EntregaAlumno")
+  notificaciones      Notificacion[]
+}
+
+model Aula {
+  id        Int       @id @default(autoincrement())
+  nombre    String    @unique
+  edificio  String?
+  capacidad Int?
+  activo    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  materias  Materia[]
+}
+
+model Materia {
+  id          Int      @id @default(autoincrement())
+  nombre      String
+  clave       String   @unique
+  descripcion String?
+  horaInicio  String
+  horaFin     String
+  dias        String
+  numUnidades Int      @default(3)
+  docenteId   Int?
+  docente     Usuario? @relation("DocenteMateria", fields: [docenteId], references: [id])
+  aulaId      Int?
+  aula        Aula?    @relation(fields: [aulaId], references: [id])
+  carreraId   Int?
+  carrera     Carrera? @relation(fields: [carreraId], references: [id])
+  semestre    Int?
+  createdAt   DateTime @default(now())
+
+  unidades      Unidad[]
+  academias     Academia[]    @relation("MateriaAcademia")
+  grupos        Grupo[]       @relation("GrupoMateria")
+  inscripciones Inscripcion[]
+  claseSesiones ClaseSesion[]
+  tareas        Tarea[]
+}
+
+model ReticulaMateria {
+  id            Int      @id @default(autoincrement())
+  nombre        String
+  clave         String
+  semestre      Int
+  carreraId     Int
+  carrera       Carrera  @relation(fields: [carreraId], references: [id])
+  horasTeoria   Int      @default(0)
+  horasPractica Int      @default(0)
+  creditos      Int      @default(0)
+  activo        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  @@unique([clave, carreraId])
+}
+
+model Unidad {
+  id          Int          @id @default(autoincrement())
+  nombre      String
+  orden       Int
+  status      EstadoUnidad @default(PENDIENTE)
+  fechaInicio DateTime?
+  fechaFin    DateTime?
+  materiaId   Int
+  materia     Materia      @relation(fields: [materiaId], references: [id])
+}
+
+model Inscripcion {
+  id        Int               @id @default(autoincrement())
+  alumnoId  Int
+  materiaId Int
+  estado    EstadoInscripcion @default(PENDIENTE)
+  periodo   String
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  alumno    Usuario           @relation("InscripcionAlumno", fields: [alumnoId], references: [id])
+  materia   Materia           @relation(fields: [materiaId], references: [id])
+
+  @@unique([alumnoId, materiaId, periodo])
+}
+
+model ClaseSesion {
+  id         Int          @id @default(autoincrement())
+  materiaId  Int
+  docenteId  Int
+  fecha      DateTime     @default(now())
+  horaInicio DateTime
+  horaFin    DateTime?
+  unidad     Int
+  activa     Boolean      @default(true)
+  createdAt  DateTime     @default(now())
+  materia    Materia      @relation(fields: [materiaId], references: [id])
+  docente    Usuario      @relation("ClaseSesionDocente", fields: [docenteId], references: [id])
+  asistencias Asistencia[]
+}
+
+model Asistencia {
+  id                   Int              @id @default(autoincrement())
+  claseSesionId        Int
+  alumnoId             Int
+  estado               EstadoAsistencia
+  justificacion        String?
+  archivoJustificacion String?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  claseSesion          ClaseSesion      @relation(fields: [claseSesionId], references: [id])
+  alumno               Usuario          @relation("AsistenciaAlumno", fields: [alumnoId], references: [id])
+
+  @@unique([claseSesionId, alumnoId])
+}
+
+model Tarea {
+  id               Int           @id @default(autoincrement())
+  materiaId        Int
+  docenteId        Int
+  titulo           String
+  instrucciones    String
+  unidad           Int
+  tipoEntrega      TipoEntrega
+  fechaPublicacion DateTime      @default(now())
+  fechaLimite      DateTime
+  archivosAdjuntos String?
+  activa           Boolean       @default(true)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  materia          Materia       @relation(fields: [materiaId], references: [id])
+  docente          Usuario       @relation("TareaDocente", fields: [docenteId], references: [id])
+  entregas         EntregaTarea[]
+}
+
+model EntregaTarea {
+  id               Int            @id @default(autoincrement())
+  tareaId          Int
+  alumnoId         Int
+  archivoUrl       String?
+  firmaUrl         String?
+  comentarioAlumno String?
+  estadoRevision   EstadoRevision @default(PENDIENTE)
+  calificacion     Float?
+  observacion      String?
+  fechaEntrega     DateTime       @default(now())
+  fechaRevision    DateTime?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  tarea            Tarea          @relation(fields: [tareaId], references: [id])
+  alumno           Usuario        @relation("EntregaAlumno", fields: [alumnoId], references: [id])
+
+  @@unique([tareaId, alumnoId])
+}
+
+model Notificacion {
+  id             Int              @id @default(autoincrement())
+  usuarioId      Int
+  tipo           TipoNotificacion
+  titulo         String
+  mensaje        String
+  leida          Boolean          @default(false)
+  referenciaId   Int?
+  referenciaTipo String?
+  createdAt      DateTime         @default(now())
+  usuario        Usuario          @relation(fields: [usuarioId], references: [id])
+}
+
+model Grupo {
+  id        Int       @id @default(autoincrement())
+  nombre    String
+  semestre  Int
+  seccion   String
+  carreraId Int
+  carrera   Carrera   @relation(fields: [carreraId], references: [id])
+  periodo   String
+  activo    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  alumnos   Usuario[] @relation("AlumnoGrupo")
+  materias  Materia[] @relation("GrupoMateria")
+
+  @@unique([semestre, seccion, carreraId, periodo])
+}
