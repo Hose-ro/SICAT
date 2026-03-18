@@ -1,14 +1,18 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { clearToken, saveToken } from '../lib/auth'
 
 export const useAuthStore = create(
   persist(
     (set) => ({
       user: null,
       token: null,
-      setAuth: (user, token) => set({ user, token }),
+      setAuth: (user, token) => {
+        if (token) saveToken(token)
+        set({ user, token })
+      },
       logout: () => {
-        localStorage.removeItem('token')
+        clearToken()
         set({ user: null, token: null })
       },
     }),

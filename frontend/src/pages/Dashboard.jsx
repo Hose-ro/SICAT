@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import api from '../api/axios'
+import { getStoredToken } from '../lib/auth'
 
 export default function Dashboard() {
   const { user } = useAuthStore()
@@ -11,7 +12,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const token = localStorage.getItem('token')
+    const token = getStoredToken()
     if (!token) { navigate('/login'); return }
     api.get('/materias')
       .then((r) => {

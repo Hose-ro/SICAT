@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate, Link, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import api from '../api/axios'
+import { saveToken } from '../lib/auth'
 
 export default function Login() {
   const [identifier, setIdentifier] = useState('')
@@ -19,8 +20,9 @@ export default function Login() {
     setLoading(true)
     try {
       const res = await api.post('/auth/login', { identifier, password })
-      localStorage.setItem('token', res.data.access_token)
-      setAuth(res.data.user, res.data.access_token)
+      const token = res.data.access_token
+      saveToken(token)
+      setAuth(res.data.user, token)
       navigate('/dashboard')
     } catch {
       setError('Credenciales incorrectas')

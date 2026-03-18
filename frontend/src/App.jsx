@@ -1,5 +1,7 @@
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom'
 import { BaseLayout } from '@/components/layout/BaseLayout'
+import { useAuthStore } from './store/authStore'
+import { getStoredToken } from './lib/auth'
 import Login from './pages/Login'
 import Registro from './pages/Registro'
 import Dashboard from './pages/Dashboard'
@@ -23,6 +25,14 @@ import TareaForm from './pages/docente/TareaForm'
 import TareaDetalle from './pages/docente/TareaDetalle'
 
 function LayoutWrapper() {
+  const location = useLocation()
+  const token = useAuthStore((s) => s.token)
+  const hasToken = token || getStoredToken()
+
+  if (!hasToken) {
+    return <Navigate to="/login" replace state={{ from: location.pathname }} />
+  }
+
   return (
     <BaseLayout>
       <Outlet />
