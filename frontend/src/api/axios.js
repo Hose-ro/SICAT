@@ -1,9 +1,16 @@
 import axios from 'axios'
 import { useAuthStore } from '../store/authStore'
-import { AUTH_TOKEN_KEY, clearToken, getStoredToken } from '../lib/auth'
+import { clearToken, getStoredToken } from '../lib/auth'
+
+const DEFAULT_API_URL = 'https://api.sicatapp.com/api'
+const envApiUrl = import.meta.env.VITE_API_URL?.trim()
+const shouldForceProdApi =
+  import.meta.env.PROD &&
+  (!envApiUrl || envApiUrl.includes('localhost') || envApiUrl.includes('onrender.com'))
+const apiBaseUrl = shouldForceProdApi ? DEFAULT_API_URL : (envApiUrl || DEFAULT_API_URL)
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ?? 'https://api.sicatapp.com/api',
+  baseURL: apiBaseUrl,
 })
 
 api.interceptors.request.use((config) => {
@@ -16,6 +23,11 @@ api.interceptors.response.use(
   (res) => res,
   (err) => {
     const isAuthRoute = err.config?.url?.includes('/auth/')
+
+    if (!err.response) {
+      err.response = { data: { message: `No se pudo conectar con la API (${apiBaseUrl})` } }
+    }
+
     if (err.response?.status === 401 && !isAuthRoute) {
       clearToken()
       useAuthStore.getState().logout?.()
@@ -25,5 +37,4 @@ api.interceptors.response.use(
   }
 )
 
-export { AUTH_TOKEN_KEY }
 export default api
