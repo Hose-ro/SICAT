@@ -1,0 +1,2 @@
+ALTER TABLE "HorarioMateria"
+ALTER COLUMN "aulaId" DROP NOT NULL;
