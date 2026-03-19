@@ -26,7 +26,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold dash-title">
+        <h2 className="text-xl font-bold dash-title sm:text-2xl">
           Bienvenido, {user?.nombre?.split(' ')[0] ?? 'Viajero'}
         </h2>
         <p className="dash-subtitle text-sm mt-1">
@@ -35,7 +35,7 @@ export default function Dashboard() {
       </div>
 
       {/* ── Stat cards ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
         <CardMaterias total={stats.materias} />
         <CardAsistencias total={stats.asistencias} />
         <CardTareas total={stats.tareas} />

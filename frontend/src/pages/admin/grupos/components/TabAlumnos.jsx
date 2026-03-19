@@ -20,11 +20,11 @@ export default function TabAlumnos({ grupo, onAgregarClick }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-gray-500">{alumnos.length} alumno(s)</p>
         <button
           onClick={onAgregarClick}
-          className="text-sm bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition"
+          className="w-full rounded-xl bg-blue-600 px-4 py-2 text-sm text-white transition hover:bg-blue-700 sm:w-auto"
         >
           + Agregar alumnos
         </button>
@@ -33,8 +33,8 @@ export default function TabAlumnos({ grupo, onAgregarClick }) {
       {alumnos.length === 0 ? (
         <p className="text-sm text-gray-400 py-8 text-center">No hay alumnos asignados</p>
       ) : (
-        <div className="border border-gray-200 rounded-xl overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto rounded-xl border border-gray-200">
+          <table className="w-full min-w-[720px] text-sm">
             <thead className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
               <tr>
                 <th className="px-4 py-3 text-left">Número de control</th>
@@ -51,7 +51,7 @@ export default function TabAlumnos({ grupo, onAgregarClick }) {
                   <td className="px-4 py-3 text-gray-500">{a.email ?? '—'}</td>
                   <td className="px-4 py-3 text-right">
                     {confirmId === a.id ? (
-                      <span className="flex justify-end gap-2">
+                      <span className="flex flex-wrap justify-end gap-2">
                         <button
                           onClick={() => handleQuitar(a.id)}
                           disabled={loading}

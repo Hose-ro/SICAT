@@ -41,7 +41,7 @@ export default function GrupoDetalle() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start gap-4 flex-wrap">
+      <div className="flex flex-wrap items-start gap-4">
         <button
           onClick={() => navigate('/admin/grupos')}
           className="text-gray-400 hover:text-gray-600 text-xl mt-1"
@@ -49,8 +49,8 @@ export default function GrupoDetalle() {
           ←
         </button>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-3xl font-bold text-blue-600">{grupoActivo.nombre}</h1>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl font-bold text-blue-600 sm:text-3xl">{grupoActivo.nombre}</h1>
             <span className="text-sm bg-blue-50 text-blue-600 px-2.5 py-1 rounded-full font-medium">
               Sem. {grupoActivo.semestre}
             </span>
@@ -74,20 +74,22 @@ export default function GrupoDetalle() {
       )}
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit">
-        {tabs.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-              tab === t.key
-                ? 'bg-white text-blue-600 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
+      <div className="overflow-x-auto pb-1">
+        <div className="flex w-max gap-1 rounded-xl bg-gray-100 p-1">
+          {tabs.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition ${
+                tab === t.key
+                  ? 'bg-white text-blue-600 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Contenido del tab */}
@@ -116,12 +118,12 @@ export default function GrupoDetalle() {
       {/* Confirm eliminar */}
       {confirmEliminar && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6 space-y-4">
+          <div className="mx-4 w-full max-w-sm space-y-4 rounded-2xl bg-white p-4 shadow-xl sm:p-6">
             <h3 className="text-lg font-semibold text-gray-800">¿Desactivar grupo?</h3>
             <p className="text-sm text-gray-500">
               El grupo <strong>{grupoActivo.nombre}</strong> quedará inactivo. Podrás reactivarlo manualmente desde la base de datos.
             </p>
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <button
                 onClick={() => setConfirmEliminar(false)}
                 className="flex-1 border border-gray-300 text-gray-700 py-2 rounded-xl text-sm hover:bg-gray-50 transition"

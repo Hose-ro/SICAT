@@ -195,31 +195,32 @@ export function BaseLayout({ children }) {
       <div className="mobile-topbar">
         <button
           onClick={() => setMobileOpen(true)}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#263C69', padding: 4 }}
+          type="button"
+          className="rounded-lg border border-transparent p-2 text-[20px] text-[#263C69] transition hover:bg-white/60"
         >
           <i className="ri-menu-line" />
         </button>
-        <span style={{ fontWeight: 700, fontSize: 15, color: '#263C69' }}>Academia</span>
+        <span className="flex-1 truncate text-center text-sm font-bold text-[#263C69]">Academia</span>
         <NotificacionesBell />
       </div>
 
       {/* ── Main content ── */}
       <div className={`layout-main${collapsed ? ' collapsed' : ''}`}>
-        <main style={{ padding: '24px 28px', minHeight: '100vh' }}>
+        <main className="min-h-screen px-4 py-4 sm:px-6 sm:py-6 lg:px-7">
           {children}
         </main>
       </div>
 
       {/* ── Change password modal ── */}
       {pwModal && (
-        <div className="fixed inset-0 z-200 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 pw-modal">
-            <div className="flex items-center justify-between p-5 border-b border-gray-100">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 p-4">
+          <div className="pw-modal w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-gray-100 p-4 sm:p-5">
               <h3 className="text-lg font-semibold text-gray-800">Cambiar contraseña</h3>
-              <button onClick={() => setPwModal(false)} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+              <button onClick={() => setPwModal(false)} type="button" className="text-2xl leading-none text-gray-400 hover:text-gray-600">&times;</button>
             </div>
             <form
-              className="p-5 space-y-4"
+              className="max-h-[calc(100vh-9rem)] space-y-4 overflow-y-auto p-4 sm:p-5"
               onSubmit={async (e) => {
                 e.preventDefault()
                 setPwError(''); setPwSuccess('')

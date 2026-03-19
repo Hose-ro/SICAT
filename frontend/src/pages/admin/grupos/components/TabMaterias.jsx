@@ -53,8 +53,8 @@ export default function TabMaterias({ grupo, onAgregarClick }) {
   return (
     <div className="space-y-4">
       {/* Header con toggle de vista */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex w-max gap-1 rounded-xl bg-gray-100 p-1">
           <button
             onClick={() => setVistaReticula(true)}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
@@ -74,7 +74,7 @@ export default function TabMaterias({ grupo, onAgregarClick }) {
         </div>
         <button
           onClick={onAgregarClick}
-          className="text-sm bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition"
+          className="w-full rounded-xl bg-blue-600 px-4 py-2 text-sm text-white transition hover:bg-blue-700 sm:w-auto"
         >
           + Agregar materias
         </button>
@@ -107,8 +107,8 @@ export default function TabMaterias({ grupo, onAgregarClick }) {
             No hay materias en la retícula para semestre {grupo.semestre} de esta carrera
           </p>
         ) : (
-          <div className="border border-gray-200 rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto rounded-xl border border-gray-200">
+            <table className="w-full min-w-[760px] text-sm">
               <thead className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
                 <tr>
                   <th className="px-4 py-3 text-left">Materia</th>
@@ -145,7 +145,7 @@ export default function TabMaterias({ grupo, onAgregarClick }) {
                         )}
                         {rm.estado === 'ASIGNADA' && (
                           confirmId === rm.materiaId ? (
-                            <span className="flex justify-end gap-1">
+                            <span className="flex flex-wrap justify-end gap-1">
                               <button
                                 onClick={() => handleQuitar(rm.materiaId)}
                                 disabled={loadingId === rm.materiaId}
@@ -184,8 +184,8 @@ export default function TabMaterias({ grupo, onAgregarClick }) {
         materias.length === 0 ? (
           <p className="text-sm text-gray-400 py-8 text-center">No hay materias asignadas</p>
         ) : (
-          <div className="border border-gray-200 rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto rounded-xl border border-gray-200">
+            <table className="w-full min-w-[820px] text-sm">
               <thead className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
                 <tr>
                   <th className="px-4 py-3 text-left">Materia</th>
@@ -224,7 +224,7 @@ export default function TabMaterias({ grupo, onAgregarClick }) {
                     </td>
                     <td className="px-4 py-3 text-right">
                       {confirmId === m.id ? (
-                        <span className="flex justify-end gap-2">
+                        <span className="flex flex-wrap justify-end gap-2">
                           <button
                             onClick={() => handleQuitar(m.id)}
                             disabled={loadingId === m.id}

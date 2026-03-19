@@ -52,11 +52,11 @@ export default function PasarLista() {
   Object.values(registros).forEach((e) => { if (conteos[e] !== undefined) conteos[e]++ })
 
   return (
-    <div className="p-6 max-w-2xl mx-auto">
-      <h1 className="text-2xl font-bold mb-2">Pasar Lista</h1>
+    <div className="mx-auto max-w-2xl px-4 py-4 sm:px-6 sm:py-6">
+      <h1 className="mb-2 text-xl font-bold sm:text-2xl">Pasar Lista</h1>
       <p className="text-gray-500 text-sm mb-4">Sesión #{sesionId}</p>
 
-      <div className="flex gap-4 mb-4 text-sm">
+      <div className="mb-4 flex flex-wrap gap-4 text-sm">
         <span className="text-green-700 font-semibold">A: {conteos.ASISTENCIA}</span>
         <span className="text-red-700 font-semibold">F: {conteos.FALTA}</span>
         <span className="text-yellow-700 font-semibold">R: {conteos.RETARDO}</span>
@@ -64,12 +64,12 @@ export default function PasarLista() {
 
       <div className="space-y-2 mb-6">
         {listaAlumnos.map((a) => (
-          <div key={a.alumnoId} className="bg-white border rounded-lg p-3 flex justify-between items-center">
+          <div key={a.alumnoId} className="flex flex-col gap-3 rounded-lg border bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="font-medium text-sm">{a.alumno?.nombre}</p>
               <p className="text-xs text-gray-500">{a.alumno?.numeroControl}</p>
             </div>
-            <div className="flex gap-1">
+            <div className="flex flex-wrap gap-1">
               {ESTADOS.map((e) => (
                 <button key={e}
                   onClick={() => setEstado(a.alumnoId, e)}

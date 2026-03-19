@@ -38,14 +38,14 @@ export default function TareaDetalle() {
     } catch (e) { alert('Error') }
   }
 
-  if (!tareaActiva) return <div className="p-6">Cargando...</div>
+  if (!tareaActiva) return <div className="px-4 py-4 sm:px-6 sm:py-6">Cargando...</div>
 
   return (
-    <div className="p-6">
+    <div className="px-4 py-4 sm:px-6 sm:py-6">
       <div className="bg-white border rounded-lg p-4 mb-6">
         <h1 className="text-xl font-bold">{tareaActiva.titulo}</h1>
         <p className="text-gray-500 text-sm mt-1">{tareaActiva.instrucciones}</p>
-        <div className="flex gap-4 mt-3 text-sm text-gray-500">
+        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm text-gray-500">
           <span>Unidad {tareaActiva.unidad}</span>
           <span>Tipo: {tareaActiva.tipoEntrega}</span>
           <span>Límite: {tareaActiva.fechaLimite ? new Date(tareaActiva.fechaLimite).toLocaleDateString('es-MX') : '-'}</span>
@@ -81,7 +81,7 @@ export default function TareaDetalle() {
                   </td>
                   <td className="border px-3 py-2 text-center">{e.calificacion ?? '-'}</td>
                   <td className="border px-3 py-2 text-center">
-                    <div className="flex gap-1 justify-center">
+                    <div className="flex flex-wrap justify-center gap-1">
                       <button onClick={() => { setModal({ type: 'revisar', entregaId: e.id }); setForm({ observacion: '', calificacion: '' }) }}
                         className="text-xs px-2 py-1 bg-yellow-100 text-yellow-700 rounded hover:bg-yellow-200">Revisar</button>
                       <button onClick={() => { setModal({ type: 'calificar', entregaId: e.id }); setForm({ observacion: '', calificacion: '' }) }}
@@ -110,7 +110,7 @@ export default function TareaDetalle() {
 
       {modal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-80">
+          <div className="w-full max-w-sm rounded-lg bg-white p-4 sm:p-6">
             <h3 className="font-semibold mb-3 capitalize">{modal.type} entrega</h3>
             {modal.type === 'calificar' && (
               <input type="number" min="0" max="100" placeholder="Calificación (0-100)"
@@ -120,7 +120,7 @@ export default function TareaDetalle() {
             <textarea placeholder="Observación (opcional)" value={form.observacion}
               onChange={(e) => setForm((p) => ({ ...p, observacion: e.target.value }))}
               className="w-full border rounded px-3 py-2 text-sm mb-3" rows={3} />
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <button onClick={handleAccion} className="flex-1 py-2 bg-blue-600 text-white rounded text-sm">Confirmar</button>
               <button onClick={() => setModal(null)} className="flex-1 py-2 border rounded text-sm">Cancelar</button>
             </div>

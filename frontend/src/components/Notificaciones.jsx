@@ -52,7 +52,7 @@ export default function Notificaciones() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-12 w-80 bg-white rounded-2xl shadow-xl border border-gray-100 z-50">
+        <div className="absolute right-0 top-12 z-50 w-[min(20rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] rounded-2xl border border-gray-100 bg-white shadow-xl">
           <div className="flex items-center justify-between px-4 py-3 border-b">
             <h3 className="font-semibold text-gray-800">Notificaciones</h3>
             {count > 0 && (

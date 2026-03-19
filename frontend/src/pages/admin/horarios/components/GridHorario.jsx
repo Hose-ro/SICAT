@@ -61,7 +61,7 @@ export default function GridHorario({ onMateriaClick, modo = 'docente' }) {
   return (
     <div className="flex flex-col gap-4">
       {contextoSeleccionado && (
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-lg font-semibold">
               {modo === 'grupo' ? contextoSeleccionado.nombre : contextoSeleccionado.nombre}
@@ -84,7 +84,7 @@ export default function GridHorario({ onMateriaClick, modo = 'docente' }) {
       {contextoSeleccionado && (
         <div className="overflow-x-auto">
           <div
-            className="grid min-w-[640px]"
+            className="grid min-w-[720px]"
             style={{ gridTemplateColumns: '64px repeat(6, 1fr)' }}
           >
             {/* Header */}
@@ -148,7 +148,7 @@ export default function GridHorario({ onMateriaClick, modo = 'docente' }) {
           onClick={() => setDetalle(null)}
         >
           <div
-            className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm space-y-3"
+            className="w-full max-w-sm space-y-3 rounded-xl bg-white p-4 shadow-xl sm:p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between">

@@ -37,30 +37,30 @@ export default function InscripcionesAlumno() {
   }
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">Inscripciones</h1>
+    <div className="px-4 py-4 sm:px-6 sm:py-6">
+      <h1 className="mb-6 text-xl font-bold sm:text-2xl">Inscripciones</h1>
 
       <div className="bg-white border rounded-lg p-4 mb-6">
         <h2 className="font-semibold mb-3">Solicitar inscripción</h2>
-        <div className="flex gap-3 mb-3">
+        <div className="mb-3 flex flex-col gap-3 sm:flex-row">
           <input value={busqueda} onChange={(e) => setBusqueda(e.target.value)}
             placeholder="Buscar materia..."
             className="flex-1 border rounded px-3 py-2 text-sm" />
           <input value={periodo} onChange={(e) => setPeriodo(e.target.value)}
             placeholder="Periodo (ej. 2026-A)"
-            className="border rounded px-3 py-2 text-sm w-36" />
+            className="w-full border rounded px-3 py-2 text-sm sm:w-36" />
         </div>
         {materias.length > 0 && (
           <div className="space-y-2">
             {materias.map((m) => (
-              <div key={m.id} className="flex justify-between items-center border rounded p-2 text-sm">
+              <div key={m.id} className="flex flex-col gap-3 rounded border p-2 text-sm sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <span className="font-medium">{m.nombre}</span>
                   <span className="text-gray-500 ml-2">({m.clave})</span>
                   <span className="text-xs text-gray-400 ml-2">{m.docente?.nombre}</span>
                 </div>
                 <button onClick={() => handleSolicitar(m.id)} disabled={solicitando === m.id}
-                  className="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700 disabled:opacity-50">
+                  className="w-full rounded bg-blue-600 px-3 py-1 text-xs text-white hover:bg-blue-700 disabled:opacity-50 sm:w-auto">
                   Solicitar
                 </button>
               </div>
@@ -77,7 +77,7 @@ export default function InscripcionesAlumno() {
       ) : (
         <div className="space-y-2">
           {misSolicitudes.map((s) => (
-            <div key={s.id} className="bg-white border rounded-lg p-3 flex justify-between items-center">
+            <div key={s.id} className="flex flex-col gap-2 rounded-lg border bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="font-medium text-sm">{s.materia?.nombre}</p>
                 <p className="text-xs text-gray-500">

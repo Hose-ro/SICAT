@@ -107,7 +107,7 @@ export default function MateriaDetalle() {
       <PageHeader
         title={materia.nombre}
         subtitle={
-          <span className="flex items-center gap-3 text-sm">
+          <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
             <span className="font-bold text-blue-600">{materia.clave}</span>
             <span>🕐 {materia.horaInicio}–{materia.horaFin}</span>
             <span>📅 {materia.dias}</span>
@@ -117,13 +117,15 @@ export default function MateriaDetalle() {
       />
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-5 bg-gray-100 p-1 rounded-xl w-fit">
-        {['unidades', 'alumnos', ...(solicitudes.length > 0 ? ['solicitudes'] : [])].map((tab) => (
-          <button key={tab} onClick={() => setTabActivo(tab)}
-            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition capitalize ${tabActivo === tab ? 'bg-white shadow text-gray-800' : 'text-gray-500 hover:text-gray-700'}`}>
-            {tab} {tab === 'solicitudes' && `(${solicitudes.length})`}
-          </button>
-        ))}
+      <div className="mb-5 overflow-x-auto pb-1">
+        <div className="flex w-max gap-1 rounded-xl bg-gray-100 p-1">
+          {['unidades', 'alumnos', ...(solicitudes.length > 0 ? ['solicitudes'] : [])].map((tab) => (
+            <button key={tab} onClick={() => setTabActivo(tab)}
+              className={`shrink-0 rounded-lg px-4 py-1.5 text-sm font-medium capitalize transition ${tabActivo === tab ? 'bg-white text-gray-800 shadow' : 'text-gray-500 hover:text-gray-700'}`}>
+              {tab} {tab === 'solicitudes' && `(${solicitudes.length})`}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* UNIDADES */}
@@ -132,14 +134,14 @@ export default function MateriaDetalle() {
           {materia.unidades?.map((u) => {
             const claseActiva = u.clases?.find((c) => c.status === 'ACTIVA')
             return (
-              <div key={u.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-3">
+              <div key={u.id} className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
+                <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex flex-wrap items-center gap-3">
                     <h3 className="font-semibold text-gray-800">Unidad {u.orden}: {u.nombre}</h3>
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ESTADO_COLORS[u.status]}`}>{u.status}</span>
                   </div>
                   {esDocente && (
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       {u.status === 'PENDIENTE' && (
                         <button onClick={() => iniciarUnidad(u.id)}
                           className="text-xs bg-green-50 text-green-700 px-3 py-1.5 rounded-lg hover:bg-green-100 transition">
@@ -167,12 +169,12 @@ export default function MateriaDetalle() {
                 </div>
 
                 {claseActiva && esDocente && (
-                  <div className="bg-green-50 border border-green-200 rounded-xl p-3 mb-3 flex items-center justify-between">
+                  <div className="mb-3 flex flex-col gap-3 rounded-xl border border-green-200 bg-green-50 p-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-2">
                       <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
                       <span className="text-sm font-medium text-green-800">Clase en curso: {claseActiva.tema ?? 'Sin tema'}</span>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <button onClick={() => abrirAsistencia(claseActiva.id)}
                         className="text-xs bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 transition">
                         Pasar lista
@@ -186,9 +188,9 @@ export default function MateriaDetalle() {
                 )}
 
                 {u.clases?.filter((c) => c.status !== 'ACTIVA').length > 0 && (
-                  <div className="space-y-1 mb-3">
+                  <div className="mb-3 space-y-1">
                     {u.clases.filter((c) => c.status !== 'ACTIVA').map((c) => (
-                      <div key={c.id} className="flex items-center justify-between text-sm bg-gray-50 rounded-lg px-3 py-2">
+                      <div key={c.id} className="flex flex-col gap-1 rounded-lg bg-gray-50 px-3 py-2 text-sm sm:flex-row sm:items-center sm:justify-between">
                         <span className="text-gray-700">{c.tema ?? 'Clase'}</span>
                         <span className="text-gray-400 text-xs">{new Date(c.fecha).toLocaleDateString('es-MX')}</span>
                       </div>
@@ -200,7 +202,7 @@ export default function MateriaDetalle() {
                   <div className="border-t pt-3 space-y-1">
                     <p className="text-xs text-gray-500 font-medium mb-1">Tareas ({u.tareas.length})</p>
                     {u.tareas.map((t) => (
-                      <div key={t.id} className="flex items-center justify-between text-sm bg-yellow-50 rounded-lg px-3 py-2">
+                      <div key={t.id} className="flex flex-col gap-1 rounded-lg bg-yellow-50 px-3 py-2 text-sm sm:flex-row sm:items-center sm:justify-between">
                         <span className="text-gray-700">{t.titulo}</span>
                         <span className="text-xs text-orange-500">{t.tipoEntrega}</span>
                       </div>
@@ -215,8 +217,8 @@ export default function MateriaDetalle() {
 
       {/* ALUMNOS */}
       {tabActivo === 'alumnos' && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-sm">
+          <table className="w-full min-w-[720px] text-sm">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
                 <th className="text-left px-4 py-3 font-medium text-gray-500">Alumno</th>
@@ -246,18 +248,18 @@ export default function MateriaDetalle() {
       {tabActivo === 'solicitudes' && (
         <div className="space-y-3">
           {solicitudes.map((s) => (
-            <div key={s.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center justify-between gap-4">
+            <div key={s.id} className="flex flex-col gap-4 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
                 <p className="font-medium text-gray-800">{s.alumno.nombre}</p>
                 <p className="text-sm text-gray-500">{s.alumno.numeroControl} · {s.alumno.email}</p>
               </div>
-              <div className="flex gap-2 shrink-0">
+              <div className="flex w-full flex-col gap-2 shrink-0 sm:w-auto sm:flex-row">
                 <button onClick={() => responderSolicitud(s.id, true)}
-                  className="text-sm bg-green-600 text-white px-4 py-2 rounded-xl hover:bg-green-700 transition">
+                  className="rounded-xl bg-green-600 px-4 py-2 text-sm text-white transition hover:bg-green-700">
                   Aceptar
                 </button>
                 <button onClick={() => abrirDenegar(s.id)}
-                  className="text-sm bg-red-50 text-red-600 px-4 py-2 rounded-xl hover:bg-red-100 transition">
+                  className="rounded-xl bg-red-50 px-4 py-2 text-sm text-red-600 transition hover:bg-red-100">
                   Denegar
                 </button>
               </div>
@@ -270,12 +272,12 @@ export default function MateriaDetalle() {
       <Modal open={modalAsistencia.open} onClose={() => setModalAsistencia({ open: false, claseId: null, alumnos: [] })} title="Pasar lista">
         <div className="space-y-2 max-h-96 overflow-y-auto">
           {modalAsistencia.alumnos.map((alumno) => (
-            <div key={alumno.id} className="flex items-center justify-between py-2 border-b border-gray-50">
+            <div key={alumno.id} className="flex flex-col gap-2 border-b border-gray-50 py-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-800">{alumno.nombre}</p>
                 <p className="text-xs text-gray-400">{alumno.numeroControl}</p>
               </div>
-              <div className="flex gap-1">
+              <div className="flex flex-wrap gap-1">
                 {['PRESENTE', 'RETARDO', 'FALTA'].map((tipo) => (
                   <button key={tipo} onClick={() => setAsistencias((p) => ({ ...p, [alumno.id]: tipo }))}
                     className={`text-xs px-2.5 py-1.5 rounded-lg font-medium transition ${asistencias[alumno.id] === tipo
@@ -309,7 +311,7 @@ export default function MateriaDetalle() {
               className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
             />
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row">
             <button
               onClick={() => setMensajeDenegar({ open: false, solicitudId: null, texto: '' })}
               className="flex-1 border border-gray-300 text-gray-600 py-2.5 rounded-xl font-medium hover:bg-gray-50 transition text-sm"

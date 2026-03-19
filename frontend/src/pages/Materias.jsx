@@ -159,11 +159,11 @@ export default function Materias() {
         title="Materias"
         subtitle={esAlumno ? 'Materias disponibles para tu carrera y semestre' : 'Materias disponibles este semestre'}
         action={
-          <div className="flex gap-2">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
             {esAlumno && (
               <button
                 onClick={() => setModalBuscar(true)}
-                className="bg-gray-100 text-gray-700 px-4 py-2 rounded-xl text-sm font-medium hover:bg-gray-200 transition"
+                className="w-full rounded-xl bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-200 sm:w-auto"
               >
                 Buscar por clave
               </button>
@@ -171,7 +171,7 @@ export default function Materias() {
             {canCreate && (
               <button
                 onClick={() => setModal(true)}
-                className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-blue-700 transition"
+                className="w-full rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 sm:w-auto"
               >
                 + Nueva materia
               </button>
@@ -182,18 +182,18 @@ export default function Materias() {
 
       {/* Filtros — solo para admin/docente */}
       {!esAlumno && (
-        <div className="flex flex-wrap gap-3 mb-5">
+        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
           <input
             type="text"
             placeholder="Buscar por nombre o clave..."
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
-            className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-60"
+            className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-60"
           />
           <select
             value={filtroCarrera}
             onChange={(e) => { setFiltroCarrera(e.target.value); setFiltroSemestre('') }}
-            className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-60"
+            className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-60"
           >
             <option value="">Todas las carreras</option>
             {carreras.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
@@ -201,7 +201,7 @@ export default function Materias() {
           <select
             value={filtroSemestre}
             onChange={(e) => setFiltroSemestre(e.target.value)}
-            className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-36"
+            className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-36"
           >
             <option value="">Todos los semestres</option>
             {[1,2,3,4,5,6,7,8].map((s) => (
@@ -227,7 +227,7 @@ export default function Materias() {
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {materiasFiltradas.map((m) => <MateriaCard key={m.id} m={m} />)}
         {materiasFiltradas.length === 0 && (
-          <div className="col-span-3 text-center py-16 text-gray-400">
+          <div className="col-span-full text-center py-16 text-gray-400">
             {esAlumno
               ? 'No hay materias disponibles para tu carrera y semestre. Usa "Buscar por clave" para encontrar otras.'
               : hayFiltros ? 'No hay materias que coincidan con los filtros.'
@@ -267,7 +267,7 @@ export default function Materias() {
           )}
 
           {/* Carrera y semestre */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">Carrera</label>
               <select value={form.carreraId} onChange={(e) => setForm({ ...form, carreraId: e.target.value })}
@@ -288,7 +288,7 @@ export default function Materias() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">Hora inicio</label>
               <input type="time" required value={form.horaInicio} onChange={(e) => setForm({ ...form, horaInicio: e.target.value })}
@@ -328,14 +328,14 @@ export default function Materias() {
       <Modal open={modalBuscar} onClose={() => { setModalBuscar(false); setMateriaEncontrada(null); setClaveBuscar(''); setErrorBuscar('') }} title="Buscar materia por clave">
         <div className="space-y-4">
           <p className="text-sm text-gray-500">Si tu materia no aparece en la lista, puedes buscarla por su clave.</p>
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row">
             <input
               value={claveBuscar}
               onChange={(e) => setClaveBuscar(e.target.value.toUpperCase())}
               placeholder="Clave de materia (RSB-2403)"
               className="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-            <button onClick={buscarMateria} className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-blue-700 transition">
+            <button onClick={buscarMateria} className="w-full rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 sm:w-auto">
               Buscar
             </button>
           </div>

@@ -28,10 +28,10 @@ export default function TareaDetalleAlumno() {
     api.get(`/tareas/${id}`).then((r) => setTarea(r.data))
   }
 
-  if (!tarea) return <div className="p-6">Cargando...</div>
+  if (!tarea) return <div className="px-4 py-4 sm:px-6 sm:py-6">Cargando...</div>
 
   return (
-    <div className="p-6 max-w-2xl mx-auto">
+    <div className="mx-auto max-w-2xl px-4 py-4 sm:px-6 sm:py-6">
       <div className="bg-white border rounded-lg p-4 mb-6">
         <h1 className="text-xl font-bold">{tarea.titulo}</h1>
         <p className="text-gray-600 mt-2 text-sm">{tarea.instrucciones}</p>
@@ -48,7 +48,7 @@ export default function TareaDetalleAlumno() {
       {miEntrega ? (
         <div className="bg-white border rounded-lg p-4">
           <h2 className="font-semibold mb-3">Mi entrega</h2>
-          <div className="flex items-center gap-3 mb-3">
+          <div className="mb-3 flex flex-wrap items-center gap-3">
             <span className={`px-3 py-1 rounded-full text-sm font-medium ${ESTADO_STYLE[miEntrega.estadoRevision]}`}>
               {miEntrega.estadoRevision}
             </span>

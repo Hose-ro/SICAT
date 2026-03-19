@@ -69,7 +69,7 @@ export default function NotificacionesBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-10 w-80 bg-white border rounded-xl shadow-lg z-50 overflow-hidden">
+        <div className="absolute right-0 top-10 z-50 w-[min(20rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] overflow-hidden rounded-xl border bg-white shadow-lg">
           <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50">
             <h3 className="font-semibold text-sm">Notificaciones</h3>
             {noLeidas > 0 && (

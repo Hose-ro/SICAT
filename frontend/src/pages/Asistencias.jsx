@@ -47,38 +47,38 @@ export default function Asistencias() {
   const top5Faltas = [...resumen].sort((a, b) => b.faltas - a.faltas).slice(0, 5)
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">Asistencias</h1>
+    <div className="space-y-6 px-4 py-4 sm:px-6 sm:py-6">
+      <h1 className="text-xl font-bold sm:text-2xl">Asistencias</h1>
 
       {/* Filtros */}
-      <div className="bg-white border rounded-lg p-4 mb-6">
+      <div className="rounded-lg border bg-white p-4">
         <h2 className="font-semibold mb-3">Filtrar por docente y materia</h2>
-        <div className="flex gap-3 flex-wrap">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           <select value={docenteId} onChange={(e) => setDocenteId(e.target.value)}
-            className="border rounded px-3 py-2 text-sm">
+            className="w-full rounded border px-3 py-2 text-sm sm:w-auto">
             <option value="">Seleccionar docente...</option>
             {docentes.map((d) => <option key={d.id} value={d.id}>{d.nombre}</option>)}
           </select>
           <select value={materiaId} onChange={(e) => setMateriaId(e.target.value)}
             disabled={!docenteId}
-            className="border rounded px-3 py-2 text-sm disabled:opacity-50">
+            className="w-full rounded border px-3 py-2 text-sm disabled:opacity-50 sm:w-auto">
             <option value="">Seleccionar materia...</option>
             {materias.map((m) => <option key={m.id} value={m.id}>{m.nombre}</option>)}
           </select>
           <select value={unidad} onChange={(e) => setUnidad(e.target.value)}
             disabled={!materiaId}
-            className="border rounded px-3 py-2 text-sm disabled:opacity-50">
+            className="w-full rounded border px-3 py-2 text-sm disabled:opacity-50 sm:w-auto">
             <option value="">Todas las unidades</option>
             {[1,2,3,4,5].map((u) => <option key={u} value={u}>Unidad {u}</option>)}
           </select>
           {materiaId && (
             <>
               <button onClick={() => exportar('excel')}
-                className="px-3 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700">
+                className="w-full rounded bg-green-600 px-3 py-2 text-sm text-white hover:bg-green-700 sm:w-auto">
                 Excel
               </button>
               <button onClick={() => exportar('pdf')}
-                className="px-3 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700">
+                className="w-full rounded bg-red-600 px-3 py-2 text-sm text-white hover:bg-red-700 sm:w-auto">
                 PDF
               </button>
             </>

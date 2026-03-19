@@ -32,13 +32,13 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-blue-600 to-blue-800 flex items-center justify-center p-4">
-      <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl mb-4">
+    <div className="flex min-h-screen items-start justify-center bg-linear-to-br from-blue-600 to-blue-800 p-4 py-6 sm:items-center sm:py-8">
+      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl sm:p-8">
+        <div className="mb-6 text-center sm:mb-8">
+          <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 sm:h-16 sm:w-16">
             <span className="text-white text-2xl font-bold">S</span>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900">SICAT</h1>
+          <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">SICAT</h1>
           <p className="text-gray-500 mt-1 text-sm">Sistema de Control de Asistencias y Tareas</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">

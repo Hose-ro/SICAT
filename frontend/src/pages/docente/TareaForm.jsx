@@ -28,8 +28,8 @@ export default function TareaForm() {
   }
 
   return (
-    <div className="p-6 max-w-xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">Nueva Tarea</h1>
+    <div className="mx-auto max-w-xl px-4 py-4 sm:px-6 sm:py-6">
+      <h1 className="mb-6 text-xl font-bold sm:text-2xl">Nueva Tarea</h1>
       {error && <p className="text-red-600 text-sm mb-4">{error}</p>}
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
@@ -42,7 +42,7 @@ export default function TareaForm() {
           <textarea name="instrucciones" value={form.instrucciones} onChange={handleChange} required rows={4}
             className="w-full border rounded-lg px-3 py-2 text-sm" />
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label className="block text-sm font-medium mb-1">Unidad</label>
             <select name="unidad" value={form.unidad} onChange={handleChange}
@@ -65,7 +65,7 @@ export default function TareaForm() {
           <input type="datetime-local" name="fechaLimite" value={form.fechaLimite} onChange={handleChange} required
             className="w-full border rounded-lg px-3 py-2 text-sm" />
         </div>
-        <div className="flex gap-3 pt-2">
+        <div className="flex flex-col gap-3 pt-2 sm:flex-row">
           <button type="submit" disabled={loading}
             className="flex-1 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50">
             {loading ? 'Guardando...' : 'Crear Tarea'}

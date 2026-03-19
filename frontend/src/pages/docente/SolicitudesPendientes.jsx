@@ -18,8 +18,8 @@ export default function SolicitudesPendientes() {
   }
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">Solicitudes Pendientes</h1>
+    <div className="px-4 py-4 sm:px-6 sm:py-6">
+      <h1 className="mb-6 text-xl font-bold sm:text-2xl">Solicitudes Pendientes</h1>
       {loading ? (
         <p className="text-gray-500">Cargando...</p>
       ) : pendientesDocente.length === 0 ? (
@@ -29,7 +29,7 @@ export default function SolicitudesPendientes() {
       ) : (
         <div className="space-y-3">
           {pendientesDocente.map((s) => (
-            <div key={s.id} className="bg-white rounded-lg border p-4 flex items-center justify-between">
+            <div key={s.id} className="flex flex-col gap-3 rounded-lg border bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="font-semibold">{s.alumno?.nombre}</p>
                 <p className="text-sm text-gray-500">
@@ -37,7 +37,7 @@ export default function SolicitudesPendientes() {
                 </p>
                 <p className="text-xs text-gray-400">{new Date(s.createdAt).toLocaleDateString('es-MX')}</p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
                 <button
                   onClick={() => handleAceptar(s.id)}
                   disabled={procesando === s.id}

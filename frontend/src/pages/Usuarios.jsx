@@ -103,7 +103,7 @@ export default function Usuarios() {
         action={
           <button
             onClick={() => setModal(true)}
-            className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-blue-700 transition"
+            className="w-full rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 sm:w-auto"
           >
             + Nuevo usuario
           </button>
@@ -122,18 +122,18 @@ export default function Usuarios() {
         ))}
       </div>
 
-      <div className="flex flex-wrap gap-3 mb-5">
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         <input
           type="text"
           placeholder="Buscar por nombre..."
           value={filtroNombre}
           onChange={(e) => setFiltroNombre(e.target.value)}
-          className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-56"
+          className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-56"
         />
         <select
           value={filtroCarrera}
           onChange={(e) => setFiltroCarrera(e.target.value)}
-          className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-56"
+          className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-56"
         >
           <option value="">Todas las carreras</option>
           {carreras.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
@@ -148,8 +148,8 @@ export default function Usuarios() {
         )}
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-sm">
+        <table className="w-full min-w-[760px] text-sm">
           <thead className="bg-gray-50 border-b border-gray-100">
             <tr>
               <th className="text-left px-4 py-3 font-medium text-gray-500">Nombre</th>
@@ -173,7 +173,7 @@ export default function Usuarios() {
                   </span>
                 </td>
                 <td className="px-4 py-3">
-                  <div className="flex items-center justify-end gap-2">
+                  <div className="flex flex-wrap items-center justify-end gap-2">
                     {/* Ver detalle */}
                     <button
                       onClick={() => setDetailModal({ open: true, user: u })}
@@ -320,7 +320,7 @@ export default function Usuarios() {
           return (
             <div className="space-y-0 divide-y divide-gray-100">
               {rows.map(({ label, value }) => (
-                <div key={label} className="flex justify-between py-2.5 text-sm">
+                <div key={label} className="flex flex-col gap-1 py-2.5 text-sm sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                   <span className="text-gray-500 font-medium">{label}</span>
                   <span className="text-gray-800 text-right">{value}</span>
                 </div>

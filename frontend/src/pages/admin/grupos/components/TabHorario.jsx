@@ -58,7 +58,7 @@ export default function TabHorario({ grupo }) {
   return (
     <div className="overflow-x-auto">
       <div
-        className="grid min-w-[640px]"
+        className="grid min-w-[720px]"
         style={{ gridTemplateColumns: `60px repeat(${DIAS.length}, 1fr)` }}
       >
         {/* Header */}
