@@ -16,7 +16,6 @@ export const useHorarioStore = create((set, get) => ({
   materiasCatalogo: [],
   docentesCatalogo: [],
   horarios: [],
-  aulas: [],
   loading: false,
   saving: false,
   validating: false,
@@ -26,18 +25,16 @@ export const useHorarioStore = create((set, get) => ({
   cargarCatalogos: async () => {
     set({ error: null })
     try {
-      const [materiasRes, docentesRes, gruposRes, aulasRes] = await Promise.all([
+      const [materiasRes, docentesRes, gruposRes] = await Promise.all([
         api.get('/materias'),
         api.get('/usuarios?rol=DOCENTE'),
         api.get('/grupos'),
-        api.get('/aulas'),
       ])
 
       set({
         materiasCatalogo: materiasRes.data,
         docentesCatalogo: docentesRes.data.filter((usuario) => usuario.rol === 'DOCENTE' && usuario.activo),
         grupos: gruposRes.data,
-        aulas: aulasRes.data,
       })
     } catch (error) {
       set({ error: getErrorMessage(error, 'Error al cargar catálogos de horarios') })

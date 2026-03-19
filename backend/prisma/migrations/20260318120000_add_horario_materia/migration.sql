@@ -3,7 +3,7 @@ CREATE TABLE "HorarioMateria" (
     "id" SERIAL NOT NULL,
     "materiaId" INTEGER NOT NULL,
     "docenteId" INTEGER NOT NULL,
-    "aulaId" INTEGER NOT NULL,
+    "aulaId" INTEGER,
     "grupoId" INTEGER,
     "dias" TEXT NOT NULL,
     "horaInicio" TEXT NOT NULL,
@@ -59,7 +59,6 @@ SELECT
     CURRENT_TIMESTAMP
 FROM "Materia" m
 WHERE m."docenteId" IS NOT NULL
-  AND m."aulaId" IS NOT NULL
   AND COALESCE(TRIM(m."dias"), '') <> ''
   AND COALESCE(TRIM(m."horaInicio"), '') <> ''
   AND COALESCE(TRIM(m."horaFin"), '') <> ''

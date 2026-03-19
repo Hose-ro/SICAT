@@ -157,7 +157,7 @@ model HorarioMateria {
   id         Int      @id @default(autoincrement())
   materiaId   Int
   docenteId   Int
-  aulaId      Int
+  aulaId      Int?
   grupoId     Int?
   dias        String
   horaInicio  String
@@ -168,7 +168,7 @@ model HorarioMateria {
   updatedAt   DateTime @updatedAt
   materia     Materia  @relation(fields: [materiaId], references: [id], onDelete: Cascade)
   docente     Usuario  @relation("HorarioDocente", fields: [docenteId], references: [id])
-  aula        Aula     @relation("HorarioAula", fields: [aulaId], references: [id])
+  aula        Aula?    @relation("HorarioAula", fields: [aulaId], references: [id])
   grupo       Grupo?   @relation("HorarioGrupo", fields: [grupoId], references: [id])
 
   @@index([materiaId, activo])

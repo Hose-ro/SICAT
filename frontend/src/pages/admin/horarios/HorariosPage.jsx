@@ -26,7 +26,7 @@ export default function HorariosPage() {
     <div className="flex h-full flex-col gap-4 px-4 py-4 sm:px-6 sm:py-6">
       <div>
         <h1 className="text-xl font-bold text-slate-800 sm:text-2xl">Gestión de Horarios</h1>
-        <p className="text-sm text-slate-500">Programa materias por docente, aula y grupo con validación de conflictos</p>
+        <p className="text-sm text-slate-500">Programa materias por docente y grupo con bloques por día y validación de conflictos</p>
       </div>
 
       {error && (
