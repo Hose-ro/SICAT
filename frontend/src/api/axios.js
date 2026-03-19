@@ -4,10 +4,7 @@ import { clearToken, getStoredToken } from '../lib/auth'
 
 const DEFAULT_API_URL = 'https://api.sicatapp.com/api'
 const envApiUrl = import.meta.env.VITE_API_URL?.trim()
-const shouldForceProdApi =
-  import.meta.env.PROD &&
-  (!envApiUrl || envApiUrl.includes('localhost') || envApiUrl.includes('onrender.com'))
-const apiBaseUrl = shouldForceProdApi ? DEFAULT_API_URL : (envApiUrl || DEFAULT_API_URL)
+const apiBaseUrl = envApiUrl || DEFAULT_API_URL
 
 const api = axios.create({
   baseURL: apiBaseUrl,
