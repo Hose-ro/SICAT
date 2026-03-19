@@ -5,8 +5,6 @@ import Modal from '../components/Modal'
 import api from '../api/axios'
 import { useAuthStore } from '../store/authStore'
 
-const DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
-
 export default function Materias() {
   const { user } = useAuthStore()
   const navigate = useNavigate()
@@ -20,12 +18,10 @@ export default function Materias() {
   const [claveBuscar, setClaveBuscar] = useState('')
   const [materiaEncontrada, setMateriaEncontrada] = useState(null)
   const [errorBuscar, setErrorBuscar] = useState('')
-  const [diasSeleccionados, setDiasSeleccionados] = useState([])
   const [carreras, setCarreras] = useState([])
-  const [docentes, setDocentes] = useState([])
   const [form, setForm] = useState({
-    nombre: '', clave: '', descripcion: '', horaInicio: '08:00', horaFin: '10:00',
-    numUnidades: 3, carreraId: '', semestre: '', docenteId: '',
+    nombre: '', clave: '', descripcion: '',
+    numUnidades: 3, carreraId: '', semestre: '',
   })
   const [error, setError] = useState('')
 
@@ -41,34 +37,21 @@ export default function Materias() {
   useEffect(() => {
     fetchMaterias()
     api.get('/carreras').then((r) => setCarreras(r.data))
-    if (esAdmin) {
-      api.get('/usuarios?rol=DOCENTE').then((r) => setDocentes(r.data))
-    }
   }, [])
-
-  const toggleDia = (dia) => {
-    setDiasSeleccionados((prev) =>
-      prev.includes(dia) ? prev.filter((d) => d !== dia) : [...prev, dia]
-    )
-  }
 
   const crear = async (e) => {
     e.preventDefault()
     setError('')
-    if (diasSeleccionados.length === 0) { setError('Selecciona al menos un día'); return }
     try {
       const payload = {
         ...form,
-        dias: diasSeleccionados.join(','),
         numUnidades: parseInt(form.numUnidades),
         carreraId: form.carreraId ? parseInt(form.carreraId) : undefined,
         semestre: form.semestre ? parseInt(form.semestre) : undefined,
-        docenteId: form.docenteId ? parseInt(form.docenteId) : undefined,
       }
       await api.post('/materias', payload)
       setModal(false)
-      setForm({ nombre: '', clave: '', descripcion: '', horaInicio: '08:00', horaFin: '10:00', numUnidades: 3, carreraId: '', semestre: '', docenteId: '' })
-      setDiasSeleccionados([])
+      setForm({ nombre: '', clave: '', descripcion: '', numUnidades: 3, carreraId: '', semestre: '' })
       fetchMaterias()
     } catch (err) {
       setError(err.response?.data?.message ?? 'Error al crear')
@@ -128,9 +111,9 @@ export default function Materias() {
         <span className="text-xs text-gray-400 ml-2 shrink-0">{m._count?.inscripciones ?? 0} alumnos</span>
       </div>
       <div className="text-xs text-gray-500 space-y-1">
-        <p>👨‍🏫 {m.docente?.nombre} {m.docente?.academia ? `· ${m.docente.academia}` : ''}</p>
-        <p>🕐 {m.horaInicio} – {m.horaFin}</p>
-        <p>📅 {m.dias}</p>
+        <p>👨‍🏫 {m.docente?.nombre ? m.docente.nombre : 'Por asignar desde horarios'}</p>
+        <p>🕐 {m.horaInicio && m.horaFin ? `${m.horaInicio} – ${m.horaFin}` : 'Horario por asignar'}</p>
+        <p>📅 {m.dias || 'Días por asignar'}</p>
         {m.carrera && <p>🎓 {m.carrera.nombre} {m.semestre ? `· Sem. ${m.semestre}` : ''}</p>}
       </div>
       {esAlumno && (
@@ -252,20 +235,6 @@ export default function Materias() {
               className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
 
-          {/* Admin: asignar docente */}
-          {esAdmin && (
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Docente *</label>
-              <select required value={form.docenteId} onChange={(e) => setForm({ ...form, docenteId: e.target.value })}
-                className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="">Selecciona un docente</option>
-                {docentes.map((d) => (
-                  <option key={d.id} value={d.id}>{d.nombre}{d.academia ? ` – ${d.academia}` : ''}</option>
-                ))}
-              </select>
-            </div>
-          )}
-
           {/* Carrera y semestre */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
@@ -288,34 +257,14 @@ export default function Materias() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Hora inicio</label>
-              <input type="time" required value={form.horaInicio} onChange={(e) => setForm({ ...form, horaInicio: e.target.value })}
-                className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Hora fin</label>
-              <input type="time" required value={form.horaFin} onChange={(e) => setForm({ ...form, horaFin: e.target.value })}
-                className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-2">Días de clase</label>
-            <div className="flex flex-wrap gap-2">
-              {DIAS.map((d) => (
-                <button key={d} type="button" onClick={() => toggleDia(d)}
-                  className={`text-xs px-3 py-1.5 rounded-full border font-medium transition ${diasSeleccionados.includes(d) ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
-                  {d}
-                </button>
-              ))}
-            </div>
-          </div>
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Número de unidades</label>
             <input type="number" min={1} max={10} required value={form.numUnidades}
               onChange={(e) => setForm({ ...form, numUnidades: e.target.value })}
               className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div className="rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-700">
+            El horario, docente, aula y grupo se asignan después desde el módulo <strong>Gestión de Horarios</strong>.
           </div>
           {error && <p className="text-red-500 text-xs">{error}</p>}
           <button type="submit" className="w-full bg-blue-600 text-white py-2.5 rounded-xl font-medium hover:bg-blue-700 transition">
@@ -347,8 +296,13 @@ export default function Materias() {
                 <span className="text-xs text-gray-400">{materiaEncontrada._count?.inscripciones ?? 0} alumnos</span>
               </div>
               <p className="font-semibold text-gray-800">{materiaEncontrada.nombre}</p>
-              <p className="text-sm text-gray-500">👨‍🏫 {materiaEncontrada.docente?.nombre}</p>
-              <p className="text-sm text-gray-500">🕐 {materiaEncontrada.horaInicio} – {materiaEncontrada.horaFin} · {materiaEncontrada.dias}</p>
+              <p className="text-sm text-gray-500">👨‍🏫 {materiaEncontrada.docente?.nombre || 'Por asignar desde horarios'}</p>
+              <p className="text-sm text-gray-500">
+                🕐 {materiaEncontrada.horaInicio && materiaEncontrada.horaFin
+                  ? `${materiaEncontrada.horaInicio} – ${materiaEncontrada.horaFin}`
+                  : 'Horario por asignar'}
+                {materiaEncontrada.dias ? ` · ${materiaEncontrada.dias}` : ''}
+              </p>
               {materiaEncontrada.carrera && (
                 <p className="text-sm text-gray-500">🎓 {materiaEncontrada.carrera.nombre} {materiaEncontrada.semestre ? `· Sem. ${materiaEncontrada.semestre}` : ''}</p>
               )}

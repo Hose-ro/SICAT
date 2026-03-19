@@ -6,17 +6,17 @@ import { CreateMateriaDto } from './dto/create-materia.dto';
 export class MateriasService {
   constructor(private prisma: PrismaService) {}
 
-  async create(dto: CreateMateriaDto, docenteId: number) {
+  async create(dto: CreateMateriaDto, docenteId?: number | null) {
     const materia = await this.prisma.materia.create({
       data: {
         nombre: dto.nombre,
         clave: dto.clave,
         descripcion: dto.descripcion,
-        horaInicio: dto.horaInicio,
-        horaFin: dto.horaFin,
-        dias: dto.dias,
+        horaInicio: dto.horaInicio ?? '',
+        horaFin: dto.horaFin ?? '',
+        dias: dto.dias ?? '',
         numUnidades: dto.numUnidades,
-        docenteId,
+        docenteId: docenteId ?? null,
         carreraId: dto.carreraId ?? null,
         semestre: dto.semestre ?? null,
       },
@@ -31,11 +31,12 @@ export class MateriasService {
     return this.findOne(materia.id);
   }
 
-  findAll(carreraId?: number, semestre?: number) {
+  findAll(carreraId?: number, semestre?: number, docenteId?: number) {
     return this.prisma.materia.findMany({
       where: {
         ...(carreraId && { carreraId }),
         ...(semestre && { semestre }),
+        ...(docenteId && { docenteId }),
       },
       include: {
         docente: { select: { id: true, nombre: true, email: true, academias: { select: { id: true, nombre: true } } } },

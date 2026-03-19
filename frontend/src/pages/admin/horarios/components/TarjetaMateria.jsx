@@ -13,18 +13,21 @@ export function colorParaMateria(index) {
   return COLORES[index % COLORES.length]
 }
 
-export default function TarjetaMateria({ materia, colorIndex, onClick }) {
+export default function TarjetaMateria({ horario, colorIndex, onClick }) {
   const color = colorParaMateria(colorIndex)
 
   return (
     <div
-      onClick={() => onClick?.(materia)}
+      onClick={() => onClick?.(horario)}
       className={`${color} text-white rounded-md p-1.5 cursor-pointer h-full overflow-hidden hover:brightness-110 transition-all`}
-      title={`${materia.nombre} | ${materia.horaInicio}–${materia.horaFin}${materia.aula ? ` | ${materia.aula.nombre}` : ''}`}
+      title={`${horario.materia.nombre} | ${horario.horaInicio}–${horario.horaFin}${horario.aula ? ` | ${horario.aula.nombre}` : ''}`}
     >
-      <p className="text-xs font-semibold leading-tight truncate">{materia.nombre}</p>
-      {materia.aula && (
-        <p className="text-xs opacity-80 truncate">{materia.aula.nombre}</p>
+      <p className="text-xs font-semibold leading-tight truncate">{horario.materia.nombre}</p>
+      {horario.grupo && (
+        <p className="text-xs opacity-85 truncate">{horario.grupo.nombre}</p>
+      )}
+      {horario.aula && (
+        <p className="text-xs opacity-80 truncate">{horario.aula.nombre}</p>
       )}
     </div>
   )

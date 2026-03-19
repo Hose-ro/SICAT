@@ -109,8 +109,8 @@ export default function MateriaDetalle() {
         subtitle={
           <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
             <span className="font-bold text-blue-600">{materia.clave}</span>
-            <span>🕐 {materia.horaInicio}–{materia.horaFin}</span>
-            <span>📅 {materia.dias}</span>
+            <span>🕐 {materia.horaInicio && materia.horaFin ? `${materia.horaInicio}–${materia.horaFin}` : 'Horario por asignar'}</span>
+            <span>📅 {materia.dias || 'Días por asignar'}</span>
             <span>👥 {materia.inscripciones?.length} alumno(s)</span>
           </span>
         }

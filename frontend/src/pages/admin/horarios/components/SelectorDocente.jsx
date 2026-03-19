@@ -1,28 +1,28 @@
-import { useState, useEffect } from 'react'
-import api from '../../../../api/axios'
+import { useEffect, useMemo, useState } from 'react'
 import { useHorarioStore } from '../../../../store/horarioStore'
 
 export default function SelectorDocente() {
-  const [docentes, setDocentes] = useState([])
   const [busqueda, setBusqueda] = useState('')
   const [abierto, setAbierto] = useState(false)
-  const { seleccionarDocente, docenteSeleccionado } = useHorarioStore()
+  const { seleccionarDocente, docenteSeleccionado, docentesCatalogo } = useHorarioStore()
 
-  useEffect(() => {
-    api.get('/usuarios').then((res) => {
-      setDocentes(res.data.filter((u) => u.rol === 'DOCENTE' && u.activo))
-    })
-  }, [])
-
-  const filtrados = docentes.filter((d) =>
-    d.nombre.toLowerCase().includes(busqueda.toLowerCase())
-  )
+  const filtrados = useMemo(() => (
+    docentesCatalogo.filter((docente) =>
+      docente.nombre.toLowerCase().includes(busqueda.toLowerCase()),
+    )
+  ), [docentesCatalogo, busqueda])
 
   async function handleSelect(docente) {
     setBusqueda(docente.nombre)
     setAbierto(false)
     await seleccionarDocente(docente.id)
   }
+
+  useEffect(() => {
+    if (docenteSeleccionado?.nombre) {
+      setBusqueda(docenteSeleccionado.nombre)
+    }
+  }, [docenteSeleccionado?.nombre])
 
   return (
     <div className="relative">

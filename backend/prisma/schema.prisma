@@ -104,6 +104,7 @@ model Usuario {
   grupo   Grupo? @relation("AlumnoGrupo", fields: [grupoId], references: [id])
 
   docenteMaterias     Materia[]      @relation("DocenteMateria")
+  horariosDocente     HorarioMateria[] @relation("HorarioDocente")
   academias           Academia[]     @relation("DocenteAcademia")
   inscripcionesAlumno Inscripcion[]  @relation("InscripcionAlumno")
   claseSesiones       ClaseSesion[]  @relation("ClaseSesionDocente")
@@ -122,6 +123,7 @@ model Aula {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   materias  Materia[]
+  horarios  HorarioMateria[] @relation("HorarioAula")
 }
 
 model Materia {
@@ -129,9 +131,9 @@ model Materia {
   nombre      String
   clave       String   @unique
   descripcion String?
-  horaInicio  String
-  horaFin     String
-  dias        String
+  horaInicio  String   @default("")
+  horaFin     String   @default("")
+  dias        String   @default("")
   numUnidades Int      @default(3)
   docenteId   Int?
   docente     Usuario? @relation("DocenteMateria", fields: [docenteId], references: [id])
@@ -145,9 +147,34 @@ model Materia {
   unidades      Unidad[]
   academias     Academia[]    @relation("MateriaAcademia")
   grupos        Grupo[]       @relation("GrupoMateria")
+  horarios      HorarioMateria[]
   inscripciones Inscripcion[]
   claseSesiones ClaseSesion[]
   tareas        Tarea[]
+}
+
+model HorarioMateria {
+  id         Int      @id @default(autoincrement())
+  materiaId   Int
+  docenteId   Int
+  aulaId      Int
+  grupoId     Int?
+  dias        String
+  horaInicio  String
+  horaFin     String
+  semestre    Int?
+  activo      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  materia     Materia  @relation(fields: [materiaId], references: [id], onDelete: Cascade)
+  docente     Usuario  @relation("HorarioDocente", fields: [docenteId], references: [id])
+  aula        Aula     @relation("HorarioAula", fields: [aulaId], references: [id])
+  grupo       Grupo?   @relation("HorarioGrupo", fields: [grupoId], references: [id])
+
+  @@index([materiaId, activo])
+  @@index([docenteId, activo])
+  @@index([aulaId, activo])
+  @@index([grupoId, activo])
 }
 
 model ReticulaMateria {
@@ -286,6 +313,7 @@ model Grupo {
   updatedAt DateTime  @updatedAt
   alumnos   Usuario[] @relation("AlumnoGrupo")
   materias  Materia[] @relation("GrupoMateria")
+  horarios  HorarioMateria[] @relation("HorarioGrupo")
 
   @@unique([semestre, seccion, carreraId, periodo])
 }

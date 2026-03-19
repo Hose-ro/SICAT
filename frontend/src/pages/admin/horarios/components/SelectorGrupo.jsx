@@ -4,17 +4,12 @@ import { useHorarioStore } from '../../../../store/horarioStore'
 export default function SelectorGrupo() {
   const {
     grupos,
-    cargarGrupos,
     seleccionarGrupo,
     grupoSeleccionado,
   } = useHorarioStore()
 
   const [busqueda, setBusqueda] = useState('')
   const [abierto, setAbierto] = useState(false)
-
-  useEffect(() => {
-    cargarGrupos()
-  }, [cargarGrupos])
 
   const filtrados = useMemo(() => {
     const query = busqueda.toLowerCase()
@@ -30,6 +25,12 @@ export default function SelectorGrupo() {
     setAbierto(false)
     await seleccionarGrupo(grupo.id)
   }
+
+  useEffect(() => {
+    if (grupoSeleccionado?.nombre) {
+      setBusqueda(grupoSeleccionado.nombre)
+    }
+  }, [grupoSeleccionado?.nombre])
 
   return (
     <div className="relative">
@@ -64,5 +65,5 @@ export default function SelectorGrupo() {
         <p className="mt-1 text-xs text-slate-500">Mostrando horario de {grupoSeleccionado.nombre}</p>
       )}
     </div>
-  )}
-
+  )
+}

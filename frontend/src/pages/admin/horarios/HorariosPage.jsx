@@ -2,22 +2,31 @@ import { useEffect, useState } from 'react'
 import { useHorarioStore } from '../../../store/horarioStore'
 import SelectorDocente from './components/SelectorDocente'
 import GridHorario from './components/GridHorario'
-import ListaMateriasDisponibles from './components/ListaMateriasDisponibles'
 import SelectorGrupo from './components/SelectorGrupo'
+import HorarioForm from './components/HorarioForm'
 
 export default function HorariosPage() {
-  const { cargarAulas, error, clearError } = useHorarioStore()
+  const { cargarCatalogos, error, clearError, docenteSeleccionado, grupoSeleccionado } = useHorarioStore()
   const [modo, setModo] = useState('docente') // 'docente' | 'grupo'
+  const [editingHorario, setEditingHorario] = useState(null)
 
   useEffect(() => {
-    cargarAulas()
-  }, [cargarAulas])
+    cargarCatalogos()
+  }, [cargarCatalogos])
+
+  useEffect(() => {
+    setEditingHorario(null)
+  }, [modo])
+
+  useEffect(() => {
+    setEditingHorario(null)
+  }, [docenteSeleccionado?.id, grupoSeleccionado?.id])
 
   return (
     <div className="flex h-full flex-col gap-4 px-4 py-4 sm:px-6 sm:py-6">
       <div>
         <h1 className="text-xl font-bold text-slate-800 sm:text-2xl">Gestión de Horarios</h1>
-        <p className="text-sm text-slate-500">Asigna docentes y aulas a cada materia</p>
+        <p className="text-sm text-slate-500">Programa materias por docente, aula y grupo con validación de conflictos</p>
       </div>
 
       {error && (
@@ -48,21 +57,29 @@ export default function HorariosPage() {
           {modo === 'docente' ? (
             <>
               <SelectorDocente />
-              <div className="border-t border-slate-200 pt-4">
-                <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">
-                  Materias sin docente
-                </h2>
-                <ListaMateriasDisponibles />
-              </div>
+              <HorarioForm
+                modo={modo}
+                editingHorario={editingHorario}
+                onSaved={() => setEditingHorario(null)}
+                onCancelEdit={() => setEditingHorario(null)}
+              />
             </>
           ) : (
-            <SelectorGrupo />
+            <>
+              <SelectorGrupo />
+              <HorarioForm
+                modo={modo}
+                editingHorario={editingHorario}
+                onSaved={() => setEditingHorario(null)}
+                onCancelEdit={() => setEditingHorario(null)}
+              />
+            </>
           )}
         </aside>
 
         {/* Main grid */}
         <main className="min-w-0 flex-1 overflow-y-auto rounded-xl border border-slate-200 bg-white p-3 sm:p-4">
-          <GridHorario modo={modo} />
+          <GridHorario modo={modo} onEdit={setEditingHorario} />
         </main>
       </div>
     </div>

@@ -1,49 +1,46 @@
 import { create } from 'zustand'
 import api from '../api/axios'
 
+function getErrorMessage(error, fallback) {
+  const message = error?.response?.data?.message
+  if (typeof message === 'string') return message
+  if (Array.isArray(message)) return message.join(', ')
+  if (typeof message?.message === 'string') return message.message
+  return fallback
+}
+
 export const useHorarioStore = create((set, get) => ({
   docenteSeleccionado: null,
   grupoSeleccionado: null,
   grupos: [],
-  materias: [],
-  materiasSinDocente: [],
-  materiasSinAula: [],
+  materiasCatalogo: [],
+  docentesCatalogo: [],
+  horarios: [],
   aulas: [],
-  ocupacionDocente: [],
   loading: false,
+  saving: false,
+  validating: false,
+  validation: { ok: true, message: '', conflicts: [] },
   error: null,
 
-  seleccionarDocente: async (docenteId) => {
-    set({ loading: true, error: null })
+  cargarCatalogos: async () => {
+    set({ error: null })
     try {
-      const [horarioRes, sinDocenteRes] = await Promise.all([
-        api.get(`/horarios/docente/${docenteId}`),
-        api.get('/horarios/sin-docente'),
+      const [materiasRes, docentesRes, gruposRes, aulasRes] = await Promise.all([
+        api.get('/materias'),
+        api.get('/usuarios?rol=DOCENTE'),
+        api.get('/grupos'),
+        api.get('/aulas'),
       ])
-      set({
-        docenteSeleccionado: horarioRes.data.docente,
-        grupoSeleccionado: null,
-        materias: horarioRes.data.materias,
-        materiasSinDocente: sinDocenteRes.data,
-        loading: false,
-      })
-    } catch (e) {
-      set({ error: e.response?.data?.message || 'Error al cargar horario', loading: false })
-    }
-  },
 
-  seleccionarGrupo: async (grupoId) => {
-    set({ loading: true, error: null })
-    try {
-      const res = await api.get(`/grupos/${grupoId}/horario`)
       set({
-        grupoSeleccionado: res.data,
-        docenteSeleccionado: null,
-        materias: res.data.materias,
-        loading: false,
+        materiasCatalogo: materiasRes.data,
+        docentesCatalogo: docentesRes.data.filter((usuario) => usuario.rol === 'DOCENTE' && usuario.activo),
+        grupos: gruposRes.data,
+        aulas: aulasRes.data,
       })
-    } catch (e) {
-      set({ error: e.response?.data?.message || 'Error al cargar horario', loading: false })
+    } catch (error) {
+      set({ error: getErrorMessage(error, 'Error al cargar catálogos de horarios') })
     }
   },
 
@@ -51,87 +48,126 @@ export const useHorarioStore = create((set, get) => ({
     try {
       const res = await api.get('/grupos', { params: filtros })
       set({ grupos: res.data })
-    } catch (e) {
-      set({ error: e.response?.data?.message || 'Error al cargar grupos' })
+    } catch (error) {
+      set({ error: getErrorMessage(error, 'Error al cargar grupos') })
     }
   },
 
-  asignarDocente: async (materiaId, docenteId) => {
+  seleccionarDocente: async (docenteId) => {
+    if (!docenteId) {
+      set({ docenteSeleccionado: null, horarios: [], grupoSeleccionado: null })
+      return
+    }
+
     set({ loading: true, error: null })
     try {
-      await api.post('/horarios/asignar-docente', { materiaId, docenteId })
-      await get().seleccionarDocente(docenteId)
-    } catch (e) {
-      const msg = e.response?.data?.message || 'Error al asignar docente'
-      set({ error: msg, loading: false })
-      throw new Error(msg)
+      const res = await api.get(`/horarios/docente/${docenteId}`)
+      set({
+        docenteSeleccionado: res.data.docente,
+        grupoSeleccionado: null,
+        horarios: res.data.horarios,
+        loading: false,
+      })
+    } catch (error) {
+      set({ error: getErrorMessage(error, 'Error al cargar horario del docente'), loading: false })
     }
   },
 
-  quitarDocente: async (materiaId) => {
+  seleccionarGrupo: async (grupoId) => {
+    if (!grupoId) {
+      set({ grupoSeleccionado: null, horarios: [], docenteSeleccionado: null })
+      return
+    }
+
     set({ loading: true, error: null })
-    const docenteId = get().docenteSeleccionado?.id
-    const grupoId = get().grupoSeleccionado?.id
     try {
-      await api.delete(`/horarios/quitar-docente/${materiaId}`)
-      if (docenteId) await get().seleccionarDocente(docenteId)
-      else if (grupoId) await get().seleccionarGrupo(grupoId)
-      else set({ loading: false })
-    } catch (e) {
-      set({ error: e.response?.data?.message || 'Error al quitar docente', loading: false })
+      const res = await api.get(`/horarios/grupo/${grupoId}`)
+      set({
+        grupoSeleccionado: res.data.grupo,
+        docenteSeleccionado: null,
+        horarios: res.data.horarios,
+        loading: false,
+      })
+    } catch (error) {
+      set({ error: getErrorMessage(error, 'Error al cargar horario del grupo'), loading: false })
     }
   },
 
-  asignarAula: async (materiaId, aulaId) => {
-    set({ loading: true, error: null })
-    const docenteId = get().docenteSeleccionado?.id
-    const grupoId = get().grupoSeleccionado?.id
+  refrescarContexto: async () => {
+    const { docenteSeleccionado, grupoSeleccionado } = get()
+    if (docenteSeleccionado?.id) {
+      await get().seleccionarDocente(docenteSeleccionado.id)
+      return
+    }
+    if (grupoSeleccionado?.id) {
+      await get().seleccionarGrupo(grupoSeleccionado.id)
+      return
+    }
+    set({ horarios: [] })
+  },
+
+  crearHorario: async (payload) => {
+    set({ saving: true, error: null })
     try {
-      await api.post('/horarios/asignar-aula', { materiaId, aulaId })
-      if (docenteId) await get().seleccionarDocente(docenteId)
-      else if (grupoId) await get().seleccionarGrupo(grupoId)
-      else set({ loading: false })
-    } catch (e) {
-      const msg = e.response?.data?.message || 'Error al asignar aula'
-      set({ error: msg, loading: false })
-      throw new Error(msg)
+      const res = await api.post('/horarios', payload)
+      await get().refrescarContexto()
+      set({ saving: false })
+      return res.data
+    } catch (error) {
+      const message = getErrorMessage(error, 'Error al crear horario')
+      set({ error: message, saving: false })
+      throw new Error(message)
     }
   },
 
-  quitarAula: async (materiaId) => {
-    set({ loading: true, error: null })
-    const docenteId = get().docenteSeleccionado?.id
-    const grupoId = get().grupoSeleccionado?.id
+  actualizarHorario: async (horarioId, payload) => {
+    set({ saving: true, error: null })
     try {
-      await api.delete(`/horarios/quitar-aula/${materiaId}`)
-      if (docenteId) await get().seleccionarDocente(docenteId)
-      else if (grupoId) await get().seleccionarGrupo(grupoId)
-      else set({ loading: false })
-    } catch (e) {
-      set({ error: e.response?.data?.message || 'Error al quitar aula', loading: false })
+      const res = await api.patch(`/horarios/${horarioId}`, payload)
+      await get().refrescarContexto()
+      set({ saving: false })
+      return res.data
+    } catch (error) {
+      const message = getErrorMessage(error, 'Error al actualizar horario')
+      set({ error: message, saving: false })
+      throw new Error(message)
     }
   },
 
-  cargarAulas: async () => {
+  eliminarHorario: async (horarioId) => {
+    set({ saving: true, error: null })
     try {
-      const res = await api.get('/aulas')
-      set({ aulas: res.data })
-    } catch (e) {
-      set({ error: e.response?.data?.message || 'Error al cargar aulas' })
+      await api.delete(`/horarios/${horarioId}`)
+      await get().refrescarContexto()
+      set({ saving: false })
+    } catch (error) {
+      const message = getErrorMessage(error, 'Error al eliminar horario')
+      set({ error: message, saving: false })
+      throw new Error(message)
     }
   },
 
-  cargarOcupacion: async (docenteId, aulaId) => {
+  validarHorario: async (payload, horarioId) => {
+    set({ validating: true, error: null })
     try {
-      const params = {}
-      if (docenteId) params.docenteId = docenteId
-      if (aulaId) params.aulaId = aulaId
-      const res = await api.get('/horarios/ocupacion', { params })
-      set({ ocupacionDocente: res.data })
-    } catch (e) {
-      set({ error: e.response?.data?.message || 'Error al cargar ocupación' })
+      const res = await api.post('/horarios/validar-conflicto', {
+        ...payload,
+        ...(horarioId ? { horarioId } : {}),
+      })
+      set({ validation: res.data, validating: false })
+      return res.data
+    } catch (error) {
+      const message = getErrorMessage(error, 'Error al validar horario')
+      const result = {
+        ok: false,
+        message,
+        conflicts: error?.response?.data?.conflicts ?? [],
+      }
+      set({ validation: result, validating: false })
+      return result
     }
   },
 
+  clearValidation: () => set({ validation: { ok: true, message: '', conflicts: [] }, validating: false }),
   clearError: () => set({ error: null }),
 }))

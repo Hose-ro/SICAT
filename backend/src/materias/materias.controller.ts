@@ -17,7 +17,9 @@ export class MateriasController {
   @Roles('ADMIN', 'DOCENTE')
   @ApiOperation({ summary: 'Crear materia (admin puede asignar docente)' })
   create(@Body() dto: CreateMateriaDto, @Request() req: any) {
-    const docenteId = req.user.rol === 'ADMIN' && dto.docenteId ? dto.docenteId : req.user.id;
+    const docenteId = req.user.rol === 'DOCENTE'
+      ? req.user.id
+      : dto.docenteId ?? null;
     return this.materias.create(dto, docenteId);
   }
 
@@ -26,10 +28,12 @@ export class MateriasController {
   findAll(
     @Query('carreraId') carreraId?: string,
     @Query('semestre') semestre?: string,
+    @Query('docenteId') docenteId?: string,
   ) {
     return this.materias.findAll(
       carreraId ? Number(carreraId) : undefined,
       semestre ? Number(semestre) : undefined,
+      docenteId ? Number(docenteId) : undefined,
     );
   }
 
