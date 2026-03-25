@@ -1,5 +1,21 @@
-import { Controller, Get, Patch, Delete, Body, Param, ParseIntPipe, Query, UseGuards, Request } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  ParseIntPipe,
+  Query,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiTags,
+  ApiOperation,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { UsuariosService } from './usuarios.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -14,7 +30,11 @@ export class UsuariosController {
 
   @Get()
   @Roles('ADMIN')
-  @ApiQuery({ name: 'rol', required: false, enum: ['ADMIN', 'DOCENTE', 'ALUMNO'] })
+  @ApiQuery({
+    name: 'rol',
+    required: false,
+    enum: ['ADMIN', 'DOCENTE', 'ALUMNO'],
+  })
   @ApiOperation({ summary: 'Listar usuarios (admin)' })
   findAll(@Query('rol') rol?: string) {
     return this.usuarios.findAll(rol);

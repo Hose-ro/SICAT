@@ -1,5 +1,19 @@
-import { Controller, Get, Param, ParseIntPipe, Query, Post, Body, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Param,
+  ParseIntPipe,
+  Query,
+  Post,
+  Body,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
 import { ReticulaService } from './reticula.service';
 import { GenerarSeccionesDto } from './dto/generar-secciones.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -15,14 +29,19 @@ export class ReticulaController {
   constructor(private reticula: ReticulaService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Consultar retícula por carrera y opcionalmente semestre' })
+  @ApiOperation({
+    summary: 'Consultar retícula por carrera y opcionalmente semestre',
+  })
   @ApiQuery({ name: 'carreraId', required: true, type: Number })
   @ApiQuery({ name: 'semestre', required: false, type: Number })
   obtener(
     @Query('carreraId') carreraId: string,
     @Query('semestre') semestre?: string,
   ) {
-    return this.reticula.obtenerPorCarrera(Number(carreraId), semestre ? Number(semestre) : undefined);
+    return this.reticula.obtenerPorCarrera(
+      Number(carreraId),
+      semestre ? Number(semestre) : undefined,
+    );
   }
 
   @Get('completa/:carreraId')
@@ -32,7 +51,9 @@ export class ReticulaController {
   }
 
   @Post('generar-secciones')
-  @ApiOperation({ summary: 'Generar secciones (Materia) desde la retícula para un semestre' })
+  @ApiOperation({
+    summary: 'Generar secciones (Materia) desde la retícula para un semestre',
+  })
   generarSecciones(@Body() dto: GenerarSeccionesDto) {
     return this.reticula.generarSecciones(dto);
   }

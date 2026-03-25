@@ -1,4 +1,11 @@
-import { IsInt, IsArray, ValidateNested, IsEnum } from 'class-validator';
+import {
+  IsInt,
+  IsArray,
+  ValidateNested,
+  IsEnum,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { EstadoAsistencia } from '@prisma/client';
 
@@ -8,6 +15,10 @@ export class RegistroAsistenciaDto {
 
   @IsEnum(EstadoAsistencia)
   estado: EstadoAsistencia;
+
+  @IsOptional()
+  @IsString()
+  observacion?: string;
 }
 
 export class PasarListaDto {

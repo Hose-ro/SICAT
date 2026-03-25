@@ -1,4 +1,14 @@
-import { Controller, Post, Patch, Get, Param, Body, UseGuards, Req, ParseIntPipe } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Patch,
+  Get,
+  Param,
+  Body,
+  UseGuards,
+  Req,
+  ParseIntPipe,
+} from '@nestjs/common';
 import { ClasesService } from './clases.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -24,8 +34,29 @@ export class ClasesController {
 
   @Get('activa/:materiaId')
   @Roles('DOCENTE', 'ADMIN')
-  obtenerActiva(@Param('materiaId', ParseIntPipe) materiaId: number, @Req() req) {
+  obtenerActiva(
+    @Param('materiaId', ParseIntPipe) materiaId: number,
+    @Req() req,
+  ) {
     return this.clasesService.obtenerActiva(materiaId, req.user.id);
+  }
+
+  @Get('docente/panel')
+  @Roles('DOCENTE', 'ADMIN')
+  obtenerPanel(@Req() req) {
+    return this.clasesService.obtenerPanelDocente(req.user.id);
+  }
+
+  @Get('docente/actual')
+  @Roles('DOCENTE', 'ADMIN')
+  obtenerClaseActual(@Req() req) {
+    return this.clasesService.obtenerClaseActualDocente(req.user.id);
+  }
+
+  @Get('docente/hoy')
+  @Roles('DOCENTE', 'ADMIN')
+  obtenerClasesHoy(@Req() req) {
+    return this.clasesService.obtenerClasesHoyDocente(req.user.id);
   }
 
   @Get('historial/:materiaId')

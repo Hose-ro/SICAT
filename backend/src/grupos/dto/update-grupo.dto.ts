@@ -5,7 +5,9 @@ export class UpdateGrupoDto {
   @ApiPropertyOptional({ example: 'B' })
   @IsOptional()
   @IsString()
-  @Matches(/^[A-Z]$/, { message: 'La sección debe ser una sola letra mayúscula (A-Z)' })
+  @Matches(/^[A-Z]$/, {
+    message: 'La sección debe ser una sola letra mayúscula (A-Z)',
+  })
   seccion?: string;
 
   @ApiPropertyOptional({ example: '2026-B' })

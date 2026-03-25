@@ -1,4 +1,9 @@
-import { Injectable, ConflictException, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import { SolicitarInscripcionDto } from './dto/solicitar-inscripcion.dto';
@@ -13,9 +18,18 @@ export class InscripcionesService {
 
   async solicitar(alumnoId: number, dto: SolicitarInscripcionDto) {
     const existe = await this.prisma.inscripcion.findUnique({
-      where: { alumnoId_materiaId_periodo: { alumnoId, materiaId: dto.materiaId, periodo: dto.periodo } },
+      where: {
+        alumnoId_materiaId_periodo: {
+          alumnoId,
+          materiaId: dto.materiaId,
+          periodo: dto.periodo,
+        },
+      },
     });
-    if (existe) throw new ConflictException('Ya existe una solicitud para esta materia en este periodo');
+    if (existe)
+      throw new ConflictException(
+        'Ya existe una solicitud para esta materia en este periodo',
+      );
 
     const materia = await this.prisma.materia.findUnique({
       where: { id: dto.materiaId },
@@ -27,7 +41,9 @@ export class InscripcionesService {
       data: { alumnoId, materiaId: dto.materiaId, periodo: dto.periodo },
     });
 
-    const alumno = await this.prisma.usuario.findUnique({ where: { id: alumnoId } });
+    const alumno = await this.prisma.usuario.findUnique({
+      where: { id: alumnoId },
+    });
 
     if (materia.docenteId) {
       await this.notificaciones.crear({
@@ -65,8 +81,10 @@ export class InscripcionesService {
       include: { materia: true },
     });
     if (!inscripcion) throw new NotFoundException('Inscripción no encontrada');
-    if (inscripcion.materia.docenteId !== docenteId) throw new ForbiddenException();
-    if (inscripcion.estado !== 'PENDIENTE') throw new ConflictException('La solicitud ya fue procesada');
+    if (inscripcion.materia.docenteId !== docenteId)
+      throw new ForbiddenException();
+    if (inscripcion.estado !== 'PENDIENTE')
+      throw new ConflictException('La solicitud ya fue procesada');
 
     const updated = await this.prisma.inscripcion.update({
       where: { id },
@@ -91,8 +109,10 @@ export class InscripcionesService {
       include: { materia: true },
     });
     if (!inscripcion) throw new NotFoundException('Inscripción no encontrada');
-    if (inscripcion.materia.docenteId !== docenteId) throw new ForbiddenException();
-    if (inscripcion.estado !== 'PENDIENTE') throw new ConflictException('La solicitud ya fue procesada');
+    if (inscripcion.materia.docenteId !== docenteId)
+      throw new ForbiddenException();
+    if (inscripcion.estado !== 'PENDIENTE')
+      throw new ConflictException('La solicitud ya fue procesada');
 
     const updated = await this.prisma.inscripcion.update({
       where: { id },
@@ -112,8 +132,11 @@ export class InscripcionesService {
   }
 
   async obtenerAlumnosMateria(materiaId: number, docenteId: number) {
-    const materia = await this.prisma.materia.findUnique({ where: { id: materiaId } });
-    if (!materia || materia.docenteId !== docenteId) throw new ForbiddenException();
+    const materia = await this.prisma.materia.findUnique({
+      where: { id: materiaId },
+    });
+    if (!materia || materia.docenteId !== docenteId)
+      throw new ForbiddenException();
 
     return this.prisma.inscripcion.findMany({
       where: { materiaId, estado: 'ACEPTADA' },

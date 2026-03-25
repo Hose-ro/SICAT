@@ -42,7 +42,9 @@ export class GruposService {
   // ─── Crear grupo ────────────────────────────────────────────────────────────
 
   async crearGrupo(dto: CreateGrupoDto) {
-    const carrera = await this.prisma.carrera.findUnique({ where: { id: dto.carreraId } });
+    const carrera = await this.prisma.carrera.findUnique({
+      where: { id: dto.carreraId },
+    });
     if (!carrera) throw new NotFoundException('Carrera no encontrada');
 
     const nombre = `${dto.semestre}${carrera.codigo}${dto.seccion}`;
@@ -50,7 +52,10 @@ export class GruposService {
     const existe = await this.prisma.grupo.findFirst({
       where: { nombre, periodo: dto.periodo },
     });
-    if (existe) throw new ConflictException(`Ya existe el grupo "${nombre}" en el periodo ${dto.periodo}`);
+    if (existe)
+      throw new ConflictException(
+        `Ya existe el grupo "${nombre}" en el periodo ${dto.periodo}`,
+      );
 
     // Obtener materias del catálogo de retícula para este semestre/carrera
     const reticulaMaterias = await this.prisma.reticulaMateria.findMany({
@@ -59,7 +64,9 @@ export class GruposService {
 
     // Auto-crear Materia records que aún no existan (sin horario ni docente asignados)
     for (const rm of reticulaMaterias) {
-      const existente = await this.prisma.materia.findUnique({ where: { clave: rm.clave } });
+      const existente = await this.prisma.materia.findUnique({
+        where: { clave: rm.clave },
+      });
       if (!existente) {
         const nueva = await this.prisma.materia.create({
           data: {
@@ -103,7 +110,11 @@ export class GruposService {
 
   // ─── Listar grupos ──────────────────────────────────────────────────────────
 
-  listarGrupos(filtros: { carreraId?: number; semestre?: number; periodo?: string }) {
+  listarGrupos(filtros: {
+    carreraId?: number;
+    semestre?: number;
+    periodo?: string;
+  }) {
     return this.prisma.grupo.findMany({
       where: {
         activo: true,
@@ -147,7 +158,9 @@ export class GruposService {
         where: { nombre: nuevoNombre, periodo: nuevoPeriodo, id: { not: id } },
       });
       if (existe) {
-        throw new ConflictException(`Ya existe el grupo "${nuevoNombre}" en el periodo ${nuevoPeriodo}`);
+        throw new ConflictException(
+          `Ya existe el grupo "${nuevoNombre}" en el periodo ${nuevoPeriodo}`,
+        );
       }
     }
 
@@ -172,7 +185,9 @@ export class GruposService {
   // ─── Asignar alumnos ────────────────────────────────────────────────────────
 
   async asignarAlumnos(grupoId: number, alumnoIds: number[]) {
-    const grupo = await this.prisma.grupo.findUnique({ where: { id: grupoId } });
+    const grupo = await this.prisma.grupo.findUnique({
+      where: { id: grupoId },
+    });
     if (!grupo) throw new NotFoundException('Grupo no encontrado');
 
     const alumnos = await this.prisma.usuario.findMany({
@@ -186,14 +201,18 @@ export class GruposService {
       );
     }
 
-    const deOtraCarrera = alumnos.filter((a) => a.carreraId !== grupo.carreraId);
+    const deOtraCarrera = alumnos.filter(
+      (a) => a.carreraId !== grupo.carreraId,
+    );
     if (deOtraCarrera.length > 0) {
       throw new BadRequestException(
         `Los siguientes alumnos no pertenecen a la carrera del grupo: ${deOtraCarrera.map((a) => a.nombre).join(', ')}`,
       );
     }
 
-    const yaEnOtroGrupo = alumnos.filter((a) => a.grupoId !== null && a.grupoId !== grupoId);
+    const yaEnOtroGrupo = alumnos.filter(
+      (a) => a.grupoId !== null && a.grupoId !== grupoId,
+    );
     if (yaEnOtroGrupo.length > 0) {
       throw new ConflictException(
         `Los siguientes alumnos ya están en otro grupo: ${yaEnOtroGrupo.map((a) => a.nombre).join(', ')}`,
@@ -211,15 +230,22 @@ export class GruposService {
   // ─── Quitar alumno ──────────────────────────────────────────────────────────
 
   async quitarAlumno(grupoId: number, alumnoId: number) {
-    const grupo = await this.prisma.grupo.findUnique({ where: { id: grupoId } });
+    const grupo = await this.prisma.grupo.findUnique({
+      where: { id: grupoId },
+    });
     if (!grupo) throw new NotFoundException('Grupo no encontrado');
 
-    const alumno = await this.prisma.usuario.findUnique({ where: { id: alumnoId } });
+    const alumno = await this.prisma.usuario.findUnique({
+      where: { id: alumnoId },
+    });
     if (!alumno || alumno.grupoId !== grupoId) {
       throw new NotFoundException('El alumno no pertenece a este grupo');
     }
 
-    await this.prisma.usuario.update({ where: { id: alumnoId }, data: { grupoId: null } });
+    await this.prisma.usuario.update({
+      where: { id: alumnoId },
+      data: { grupoId: null },
+    });
     return this.obtenerGrupo(grupoId);
   }
 
@@ -258,7 +284,10 @@ export class GruposService {
     // Validar conflictos de horario con las materias ya asignadas al grupo
     for (const nueva of materias) {
       for (const existente of grupo.materias) {
-        if (nueva.id !== existente.id && hayConflictoHorario(nueva, existente)) {
+        if (
+          nueva.id !== existente.id &&
+          hayConflictoHorario(nueva, existente)
+        ) {
           throw new ConflictException(
             `Conflicto de horario: "${nueva.nombre}" (${nueva.dias} ${nueva.horaInicio}-${nueva.horaFin}) ` +
               `choca con "${existente.nombre}" (${existente.dias} ${existente.horaInicio}-${existente.horaFin})`,
@@ -350,7 +379,11 @@ export class GruposService {
     if (!grupo) throw new NotFoundException('Grupo no encontrado');
 
     const reticulaMaterias = await this.prisma.reticulaMateria.findMany({
-      where: { semestre: grupo.semestre, carreraId: grupo.carreraId, activo: true },
+      where: {
+        semestre: grupo.semestre,
+        carreraId: grupo.carreraId,
+        activo: true,
+      },
       orderBy: { nombre: 'asc' },
     });
 
@@ -361,7 +394,15 @@ export class GruposService {
       reticulaMaterias.map(async (rm) => {
         const materia = await this.prisma.materia.findUnique({
           where: { clave: rm.clave },
-          select: { id: true, nombre: true, clave: true, horaInicio: true, horaFin: true, dias: true, docenteId: true },
+          select: {
+            id: true,
+            nombre: true,
+            clave: true,
+            horaInicio: true,
+            horaFin: true,
+            dias: true,
+            docenteId: true,
+          },
         });
         let estado: 'ASIGNADA' | 'DISPONIBLE' | 'FALTANTE' = 'FALTANTE';
         if (materia) {

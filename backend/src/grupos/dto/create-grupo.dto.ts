@@ -1,4 +1,11 @@
-import { IsInt, IsString, IsNotEmpty, Min, Max, Matches } from 'class-validator';
+import {
+  IsInt,
+  IsString,
+  IsNotEmpty,
+  Min,
+  Max,
+  Matches,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateGrupoDto {
@@ -10,7 +17,9 @@ export class CreateGrupoDto {
 
   @ApiProperty({ example: 'A' })
   @IsString()
-  @Matches(/^[A-Z]$/, { message: 'La sección debe ser una sola letra mayúscula (A-Z)' })
+  @Matches(/^[A-Z]$/, {
+    message: 'La sección debe ser una sola letra mayúscula (A-Z)',
+  })
   seccion: string;
 
   @ApiProperty({ example: 1 })

@@ -10,7 +10,12 @@ import {
   ParseIntPipe,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiTags,
+  ApiOperation,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { GruposService } from './grupos.service';
 import { CreateGrupoDto } from './dto/create-grupo.dto';
 import { UpdateGrupoDto } from './dto/update-grupo.dto';
@@ -31,7 +36,9 @@ export class GruposController {
   // ─── CRUD básico ─────────────────────────────────────────────────────────────
 
   @Post()
-  @ApiOperation({ summary: 'Crear grupo (auto-asigna materias de la retícula)' })
+  @ApiOperation({
+    summary: 'Crear grupo (auto-asigna materias de la retícula)',
+  })
   crear(@Body() dto: CreateGrupoDto) {
     return this.grupos.crearGrupo(dto);
   }
@@ -75,7 +82,10 @@ export class GruposController {
 
   @Post(':id/alumnos')
   @ApiOperation({ summary: 'Asignar alumnos al grupo' })
-  asignarAlumnos(@Param('id', ParseIntPipe) id: number, @Body() dto: AsignarAlumnosDto) {
+  asignarAlumnos(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AsignarAlumnosDto,
+  ) {
     return this.grupos.asignarAlumnos(id, dto.alumnoIds);
   }
 
@@ -98,7 +108,10 @@ export class GruposController {
 
   @Post(':id/materias')
   @ApiOperation({ summary: 'Agregar materias al grupo' })
-  agregarMaterias(@Param('id', ParseIntPipe) id: number, @Body() dto: ModificarMateriasDto) {
+  agregarMaterias(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ModificarMateriasDto,
+  ) {
     return this.grupos.agregarMaterias(id, dto.materiaIds);
   }
 
@@ -124,7 +137,10 @@ export class GruposController {
   }
 
   @Get(':id/reticula-status')
-  @ApiOperation({ summary: 'Estado de la retícula para el grupo (ASIGNADA/DISPONIBLE/FALTANTE)' })
+  @ApiOperation({
+    summary:
+      'Estado de la retícula para el grupo (ASIGNADA/DISPONIBLE/FALTANTE)',
+  })
   getReticulaStatus(@Param('id', ParseIntPipe) id: number) {
     return this.grupos.getReticulaStatus(id);
   }

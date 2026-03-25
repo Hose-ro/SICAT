@@ -23,6 +23,7 @@ import SolicitudesPendientes from './pages/docente/SolicitudesPendientes'
 import PasarLista from './pages/docente/PasarLista'
 import TareaForm from './pages/docente/TareaForm'
 import TareaDetalle from './pages/docente/TareaDetalle'
+import PwaInstallPrompt from '@/components/PwaInstallPrompt'
 
 function LayoutWrapper() {
   const location = useLocation()
@@ -75,6 +76,7 @@ function App() {
           <Route path="/docente/tareas/:id" element={<TareaDetalle />} />
         </Route>
       </Routes>
+      <PwaInstallPrompt />
     </BrowserRouter>
   )
 }

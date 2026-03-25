@@ -47,7 +47,10 @@ export class AcademiasController {
 
   @Patch(':id')
   @ApiOperation({ summary: 'Editar academia' })
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateAcademiaDto) {
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateAcademiaDto,
+  ) {
     return this.academias.update(id, dto);
   }
 
@@ -59,7 +62,10 @@ export class AcademiasController {
 
   @Post(':id/docentes')
   @ApiOperation({ summary: 'Asignar docentes a la academia' })
-  asignarDocentes(@Param('id', ParseIntPipe) id: number, @Body() dto: AsignarDocentesDto) {
+  asignarDocentes(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AsignarDocentesDto,
+  ) {
     return this.academias.asignarDocentes(id, dto.docenteIds);
   }
 
@@ -74,7 +80,10 @@ export class AcademiasController {
 
   @Post(':id/materias')
   @ApiOperation({ summary: 'Asignar materias a la academia' })
-  asignarMaterias(@Param('id', ParseIntPipe) id: number, @Body() dto: AsignarMateriasDto) {
+  asignarMaterias(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AsignarMateriasDto,
+  ) {
     return this.academias.asignarMaterias(id, dto.materiaIds);
   }
 

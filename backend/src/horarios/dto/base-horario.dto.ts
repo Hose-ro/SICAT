@@ -12,7 +12,8 @@ import {
 } from 'class-validator';
 
 function normalizarDiasEntrada(value: unknown): string[] {
-  if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean);
+  if (Array.isArray(value))
+    return value.map((item) => String(item).trim()).filter(Boolean);
   if (typeof value === 'string') {
     return value
       .split(',')

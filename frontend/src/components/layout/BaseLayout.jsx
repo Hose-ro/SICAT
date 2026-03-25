@@ -3,6 +3,8 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import api from '@/api/axios'
 import NotificacionesBell from '@/components/shared/NotificacionesBell'
+import BrandMark from '@/components/branding/BrandMark'
+import { getInitialDarkMode, setThemeMode } from '@/lib/theme'
 
 export function BaseLayout({ children }) {
   const { user, logout } = useAuthStore()
@@ -10,7 +12,7 @@ export function BaseLayout({ children }) {
 
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [dark, setDark] = useState(false)
+  const [dark, setDark] = useState(() => getInitialDarkMode())
   const [pwModal, setPwModal] = useState(false)
   const [pwForm, setPwForm] = useState({ current: '', newPw: '', confirm: '' })
   const [pwError, setPwError] = useState('')
@@ -23,14 +25,7 @@ export function BaseLayout({ children }) {
   }, [mobileOpen])
 
   useEffect(() => {
-    // Sync dark mode class with state
-    if (dark) {
-      document.body.classList.add('dark')
-      document.documentElement.classList.add('dark')
-    } else {
-      document.body.classList.remove('dark')
-      document.documentElement.classList.remove('dark')
-    }
+    setThemeMode(dark)
   }, [dark])
 
   const handleLogout = () => {
@@ -59,8 +54,10 @@ export function BaseLayout({ children }) {
         {/* Header: logo + toggle */}
         <div className="sidebar__header">
           <div className="sidebar__logo">
-            <div className="logo__icon">🎓</div>
-            <span className="logo__text">Academia</span>
+            <div className="logo__icon">
+              <BrandMark className="logo__icon-image" decorative />
+            </div>
+            <span className="logo__text">SICAT</span>
           </div>
           <button
             className="sidebar__toggle"
@@ -200,7 +197,10 @@ export function BaseLayout({ children }) {
         >
           <i className="ri-menu-line" />
         </button>
-        <span className="flex-1 truncate text-center text-sm font-bold text-[#263C69]">Academia</span>
+        <div className="mobile-topbar__brand">
+          <BrandMark className="mobile-topbar__brand-icon" decorative />
+          <span className="mobile-topbar__brand-text">SICAT</span>
+        </div>
         <NotificacionesBell />
       </div>
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
 import Modal from '../components/Modal'
 import api from '../api/axios'
@@ -13,6 +13,7 @@ const ESTADO_COLORS = {
 
 export default function MateriaDetalle() {
   const { id } = useParams()
+  const navigate = useNavigate()
   const { user } = useAuthStore()
   const [materia, setMateria] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -154,7 +155,7 @@ export default function MateriaDetalle() {
                             className="text-xs bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition">
                             + Clase
                           </button>
-                          <button onClick={() => setModalTarea({ open: true, unidadId: u.id })}
+                          <button onClick={() => navigate(`/docente/tareas/crear?materiaId=${id}&unidadId=${u.id}`)}
                             className="text-xs bg-yellow-50 text-yellow-700 px-3 py-1.5 rounded-lg hover:bg-yellow-100 transition">
                             + Tarea
                           </button>

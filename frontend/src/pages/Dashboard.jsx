@@ -30,7 +30,7 @@ export default function Dashboard() {
           Bienvenido, {user?.nombre?.split(' ')[0] ?? 'Viajero'}
         </h2>
         <p className="dash-subtitle text-sm mt-1">
-          Panel de control — SICAT
+          Panel de control — SIISTEMA DE GESTION DE ASISTENCIAS Y CALIFICACIONES
         </p>
       </div>
 

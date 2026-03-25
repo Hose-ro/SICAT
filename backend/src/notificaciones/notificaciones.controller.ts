@@ -1,4 +1,12 @@
-import { Controller, Get, Patch, Param, Query, UseGuards, ParseIntPipe } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Patch,
+  Param,
+  Query,
+  UseGuards,
+  ParseIntPipe,
+} from '@nestjs/common';
 import { NotificacionesService } from './notificaciones.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Request } from '@nestjs/common';
@@ -10,7 +18,11 @@ export class NotificacionesController {
   constructor(private readonly notificacionesService: NotificacionesService) {}
 
   @Get()
-  obtener(@Req() req, @Query('skip') skip?: string, @Query('take') take?: string) {
+  obtener(
+    @Req() req,
+    @Query('skip') skip?: string,
+    @Query('take') take?: string,
+  ) {
     return this.notificacionesService.obtenerPorUsuario(
       req.user.id,
       skip ? parseInt(skip) : 0,

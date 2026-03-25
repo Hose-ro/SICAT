@@ -9,7 +9,10 @@ function aMinutos(hora: string): number {
   return h * 60 + m;
 }
 
-export function hayConflictoHorario(a: BloqueHorario, b: BloqueHorario): boolean {
+export function hayConflictoHorario(
+  a: BloqueHorario,
+  b: BloqueHorario,
+): boolean {
   const diasA = a.dias.split(',').map((d) => d.trim().toLowerCase());
   const diasB = b.dias.split(',').map((d) => d.trim().toLowerCase());
 

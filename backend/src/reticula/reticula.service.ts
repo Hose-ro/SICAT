@@ -7,7 +7,9 @@ export class ReticulaService {
   constructor(private prisma: PrismaService) {}
 
   async obtenerPorCarrera(carreraId: number, semestre?: number) {
-    const carrera = await this.prisma.carrera.findUnique({ where: { id: carreraId } });
+    const carrera = await this.prisma.carrera.findUnique({
+      where: { id: carreraId },
+    });
     if (!carrera) throw new NotFoundException('Carrera no encontrada');
 
     const where: any = { carreraId, activo: true };
@@ -30,7 +32,9 @@ export class ReticulaService {
   }
 
   async generarSecciones(dto: GenerarSeccionesDto) {
-    const carrera = await this.prisma.carrera.findUnique({ where: { id: dto.carreraId } });
+    const carrera = await this.prisma.carrera.findUnique({
+      where: { id: dto.carreraId },
+    });
     if (!carrera) throw new NotFoundException('Carrera no encontrada');
 
     const reticula = await this.prisma.reticulaMateria.findMany({
@@ -40,7 +44,9 @@ export class ReticulaService {
     let creadas = 0;
 
     for (const materia of reticula) {
-      const existe = await this.prisma.materia.findUnique({ where: { clave: materia.clave } });
+      const existe = await this.prisma.materia.findUnique({
+        where: { clave: materia.clave },
+      });
       if (!existe) {
         await this.prisma.materia.create({
           data: {

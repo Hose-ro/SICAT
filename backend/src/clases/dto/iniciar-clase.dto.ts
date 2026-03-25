@@ -1,10 +1,10 @@
-import { IsInt, Min } from 'class-validator';
+import { IsInt, IsOptional, IsDateString } from 'class-validator';
 
 export class IniciarClaseDto {
   @IsInt()
-  materiaId: number;
+  horarioId: number;
 
-  @IsInt()
-  @Min(1)
-  unidad: number;
+  @IsOptional()
+  @IsDateString()
+  fecha?: string;
 }

@@ -18,8 +18,11 @@ export class AcademiasService {
   constructor(private prisma: PrismaService) {}
 
   async create(dto: CreateAcademiaDto) {
-    const existe = await this.prisma.academia.findUnique({ where: { nombre: dto.nombre } });
-    if (existe) throw new ConflictException('Ya existe una academia con ese nombre');
+    const existe = await this.prisma.academia.findUnique({
+      where: { nombre: dto.nombre },
+    });
+    if (existe)
+      throw new ConflictException('Ya existe una academia con ese nombre');
     return this.prisma.academia.create({ data: dto });
   }
 
@@ -44,8 +47,11 @@ export class AcademiasService {
     const academia = await this.prisma.academia.findUnique({ where: { id } });
     if (!academia) throw new NotFoundException('Academia no encontrada');
     if (dto.nombre && dto.nombre !== academia.nombre) {
-      const existe = await this.prisma.academia.findUnique({ where: { nombre: dto.nombre } });
-      if (existe) throw new ConflictException('Ya existe una academia con ese nombre');
+      const existe = await this.prisma.academia.findUnique({
+        where: { nombre: dto.nombre },
+      });
+      if (existe)
+        throw new ConflictException('Ya existe una academia con ese nombre');
     }
     return this.prisma.academia.update({ where: { id }, data: dto });
   }
@@ -53,18 +59,25 @@ export class AcademiasService {
   async remove(id: number) {
     const academia = await this.prisma.academia.findUnique({ where: { id } });
     if (!academia) throw new NotFoundException('Academia no encontrada');
-    return this.prisma.academia.update({ where: { id }, data: { activo: false } });
+    return this.prisma.academia.update({
+      where: { id },
+      data: { activo: false },
+    });
   }
 
   async asignarDocentes(academiaId: number, docenteIds: number[]) {
-    const academia = await this.prisma.academia.findUnique({ where: { id: academiaId } });
+    const academia = await this.prisma.academia.findUnique({
+      where: { id: academiaId },
+    });
     if (!academia) throw new NotFoundException('Academia no encontrada');
 
     const docentes = await this.prisma.usuario.findMany({
       where: { id: { in: docenteIds }, rol: 'DOCENTE' },
     });
     if (docentes.length !== docenteIds.length) {
-      throw new BadRequestException('Uno o más IDs no corresponden a docentes válidos');
+      throw new BadRequestException(
+        'Uno o más IDs no corresponden a docentes válidos',
+      );
     }
 
     return this.prisma.academia.update({
@@ -75,7 +88,9 @@ export class AcademiasService {
   }
 
   async quitarDocente(academiaId: number, docenteId: number) {
-    const academia = await this.prisma.academia.findUnique({ where: { id: academiaId } });
+    const academia = await this.prisma.academia.findUnique({
+      where: { id: academiaId },
+    });
     if (!academia) throw new NotFoundException('Academia no encontrada');
 
     const docente = await this.prisma.usuario.findUnique({
@@ -83,7 +98,11 @@ export class AcademiasService {
       include: {
         academias: { select: { id: true } },
         docenteMaterias: {
-          select: { id: true, nombre: true, academias: { select: { id: true } } },
+          select: {
+            id: true,
+            nombre: true,
+            academias: { select: { id: true } },
+          },
         },
       },
     });
@@ -113,7 +132,9 @@ export class AcademiasService {
   }
 
   async asignarMaterias(academiaId: number, materiaIds: number[]) {
-    const academia = await this.prisma.academia.findUnique({ where: { id: academiaId } });
+    const academia = await this.prisma.academia.findUnique({
+      where: { id: academiaId },
+    });
     if (!academia) throw new NotFoundException('Academia no encontrada');
 
     const materias = await this.prisma.materia.findMany({
@@ -150,7 +171,9 @@ export class AcademiasService {
   async getDocentes(academiaId: number) {
     const academia = await this.prisma.academia.findUnique({
       where: { id: academiaId },
-      include: { docentes: { select: { id: true, nombre: true, email: true } } },
+      include: {
+        docentes: { select: { id: true, nombre: true, email: true } },
+      },
     });
     if (!academia) throw new NotFoundException('Academia no encontrada');
     return academia.docentes;
@@ -160,7 +183,9 @@ export class AcademiasService {
     const academia = await this.prisma.academia.findUnique({
       where: { id: academiaId },
       include: {
-        materias: { select: { id: true, nombre: true, clave: true, semestre: true } },
+        materias: {
+          select: { id: true, nombre: true, clave: true, semestre: true },
+        },
       },
     });
     if (!academia) throw new NotFoundException('Academia no encontrada');

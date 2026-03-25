@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  ConflictException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma.service';
 import * as bcrypt from 'bcrypt';
@@ -14,15 +18,22 @@ export class AuthService {
 
   async register(dto: RegisterDto) {
     if (dto.email) {
-      const exists = await this.prisma.usuario.findUnique({ where: { email: dto.email } });
+      const exists = await this.prisma.usuario.findUnique({
+        where: { email: dto.email },
+      });
       if (exists) throw new ConflictException('El correo ya está registrado');
     }
     if (dto.numeroControl) {
-      const exists = await this.prisma.usuario.findUnique({ where: { numeroControl: dto.numeroControl } });
-      if (exists) throw new ConflictException('El número de control ya está registrado');
+      const exists = await this.prisma.usuario.findUnique({
+        where: { numeroControl: dto.numeroControl },
+      });
+      if (exists)
+        throw new ConflictException('El número de control ya está registrado');
     }
     if (dto.username) {
-      const exists = await this.prisma.usuario.findUnique({ where: { username: dto.username } });
+      const exists = await this.prisma.usuario.findUnique({
+        where: { username: dto.username },
+      });
       if (exists) throw new ConflictException('El usuario ya está en uso');
     }
 
@@ -39,7 +50,15 @@ export class AuthService {
         carreraId: dto.carreraId ? Number(dto.carreraId) : undefined,
         semestre: dto.semestre ? Number(dto.semestre) : undefined,
       },
-      select: { id: true, nombre: true, email: true, numeroControl: true, username: true, rol: true, createdAt: true },
+      select: {
+        id: true,
+        nombre: true,
+        email: true,
+        numeroControl: true,
+        username: true,
+        rol: true,
+        createdAt: true,
+      },
     });
     return user;
   }
@@ -74,15 +93,25 @@ export class AuthService {
     };
   }
 
-  async changePassword(userId: number, currentPassword: string, newPassword: string) {
-    const user = await this.prisma.usuario.findUnique({ where: { id: userId } });
+  async changePassword(
+    userId: number,
+    currentPassword: string,
+    newPassword: string,
+  ) {
+    const user = await this.prisma.usuario.findUnique({
+      where: { id: userId },
+    });
     if (!user) throw new UnauthorizedException('Usuario no encontrado');
 
     const valid = await bcrypt.compare(currentPassword, user.password);
-    if (!valid) throw new UnauthorizedException('La contraseña actual es incorrecta');
+    if (!valid)
+      throw new UnauthorizedException('La contraseña actual es incorrecta');
 
     const hash = await bcrypt.hash(newPassword, 10);
-    await this.prisma.usuario.update({ where: { id: userId }, data: { password: hash } });
+    await this.prisma.usuario.update({
+      where: { id: userId },
+      data: { password: hash },
+    });
     return { message: 'Contraseña actualizada correctamente' };
   }
 }

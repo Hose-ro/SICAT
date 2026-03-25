@@ -4,19 +4,21 @@ import api from '../api/axios'
 export const useClaseStore = create((set) => ({
   sesionActiva: null,
   historial: [],
+  panelDocente: null,
   misClasesActivas: [],
   loading: false,
   error: null,
 
-  iniciar: async (materiaId, unidad) => {
+  iniciar: async (payload) => {
     set({ loading: true, error: null })
     try {
-      const res = await api.post('/clases/iniciar', { materiaId, unidad })
-      set({ sesionActiva: res.data })
-      return res.data
-    } catch (err) {
-      set({ error: err.response?.data?.message || 'Error al iniciar clase' })
-      throw err
+      const body = typeof payload === 'number' ? { horarioId: payload } : payload
+      const response = await api.post('/clases/iniciar', body)
+      set({ sesionActiva: response.data })
+      return response.data
+    } catch (error) {
+      set({ error: error.response?.data?.message || 'Error al iniciar la clase' })
+      throw error
     } finally {
       set({ loading: false })
     }
@@ -25,11 +27,26 @@ export const useClaseStore = create((set) => ({
   finalizar: async (id) => {
     set({ loading: true, error: null })
     try {
-      await api.patch(`/clases/${id}/finalizar`)
+      const response = await api.patch(`/clases/${id}/finalizar`)
       set({ sesionActiva: null })
-    } catch (err) {
-      set({ error: err.response?.data?.message || 'Error al finalizar clase' })
-      throw err
+      return response.data
+    } catch (error) {
+      set({ error: error.response?.data?.message || 'Error al finalizar la clase' })
+      throw error
+    } finally {
+      set({ loading: false })
+    }
+  },
+
+  cargarPanelDocente: async () => {
+    set({ loading: true, error: null })
+    try {
+      const response = await api.get('/clases/docente/panel')
+      set({ panelDocente: response.data })
+      return response.data
+    } catch (error) {
+      set({ error: error.response?.data?.message || 'Error al cargar tus clases' })
+      throw error
     } finally {
       set({ loading: false })
     }
@@ -37,19 +54,24 @@ export const useClaseStore = create((set) => ({
 
   obtenerActiva: async (materiaId) => {
     try {
-      const res = await api.get(`/clases/activa/${materiaId}`)
-      set({ sesionActiva: res.data })
-      return res.data
-    } catch {
+      const response = await api.get(`/clases/activa/${materiaId}`)
+      set({ sesionActiva: response.data })
+      return response.data
+    } catch (error) {
       set({ sesionActiva: null })
+      throw error
     }
   },
 
   obtenerHistorial: async (materiaId) => {
-    set({ loading: true })
+    set({ loading: true, error: null })
     try {
-      const res = await api.get(`/clases/historial/${materiaId}`)
-      set({ historial: res.data })
+      const response = await api.get(`/clases/historial/${materiaId}`)
+      set({ historial: response.data })
+      return response.data
+    } catch (error) {
+      set({ error: error.response?.data?.message || 'Error al cargar el historial' })
+      throw error
     } finally {
       set({ loading: false })
     }
@@ -57,8 +79,12 @@ export const useClaseStore = create((set) => ({
 
   obtenerMisClasesActivas: async () => {
     try {
-      const res = await api.get('/clases/mis-clases-activas')
-      set({ misClasesActivas: res.data })
-    } catch {}
+      const response = await api.get('/clases/mis-clases-activas')
+      set({ misClasesActivas: response.data })
+      return response.data
+    } catch (error) {
+      set({ misClasesActivas: [] })
+      throw error
+    }
   },
 }))

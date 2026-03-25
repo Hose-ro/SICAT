@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNotificacionStore } from '../../store/notificacionStore'
 import { useNavigate } from 'react-router-dom'
+import { useAuthStore } from '../../store/authStore'
 
 const TIPO_ICONS = {
   INSCRIPCION_NUEVA: '📝',
@@ -29,6 +30,7 @@ export default function NotificacionesBell() {
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
   const navigate = useNavigate()
+  const user = useAuthStore((state) => state.user)
 
   useEffect(() => {
     contarNoLeidas()
@@ -49,7 +51,10 @@ export default function NotificacionesBell() {
   const handleClick = async (notif) => {
     if (!notif.leida) await marcarLeida(notif.id)
     setOpen(false)
-    if (notif.referenciaTipo === 'Tarea' && notif.referenciaId) navigate(`/alumno/tareas/${notif.referenciaId}`)
+    if (notif.referenciaTipo === 'Tarea' && notif.referenciaId) {
+      navigate(user?.rol === 'ALUMNO' ? `/alumno/tareas/${notif.referenciaId}` : `/docente/tareas/${notif.referenciaId}`)
+    }
+    else if (notif.referenciaTipo === 'EntregaTarea') navigate('/tareas')
     else if (notif.referenciaTipo === 'Inscripcion') navigate('/inscripciones')
   }
 

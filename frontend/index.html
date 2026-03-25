@@ -1,10 +1,33 @@
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="es" class="dark">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/svg+xml" href="/app-icon.svg?v=20260319b" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=20260319b" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
+    <meta name="description" content="SICAT: sistema de control de asistencias, tareas, grupos y horarios para alumnos, docentes y administradores." />
+    <meta name="theme-color" content="#1d4ed8" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="SICAT" />
+    <title>SICAT</title>
+    <script>
+      (() => {
+        const key = 'sicat-theme'
+        const storedTheme = window.localStorage.getItem(key)
+        const isDark = storedTheme === 'dark'
+          ? true
+          : storedTheme === 'light'
+            ? false
+            : document.documentElement.classList.contains('dark')
+
+        document.documentElement.classList.toggle('dark', isDark)
+        window.addEventListener('DOMContentLoaded', () => {
+          document.body?.classList.toggle('dark', isDark)
+        }, { once: true })
+      })()
+    </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/4.6.0/remixicon.min.css" />
   </head>
   <body>

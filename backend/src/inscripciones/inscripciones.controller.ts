@@ -1,4 +1,15 @@
-import { Controller, Post, Get, Patch, Param, Body, UseGuards, Req, Query, ParseIntPipe } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Patch,
+  Param,
+  Body,
+  UseGuards,
+  Req,
+  Query,
+  ParseIntPipe,
+} from '@nestjs/common';
 import { InscripcionesService } from './inscripciones.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -36,8 +47,14 @@ export class InscripcionesController {
 
   @Get('alumnos/:materiaId')
   @Roles('DOCENTE', 'ADMIN')
-  alumnosMateria(@Param('materiaId', ParseIntPipe) materiaId: number, @Req() req) {
-    return this.inscripcionesService.obtenerAlumnosMateria(materiaId, req.user.id);
+  alumnosMateria(
+    @Param('materiaId', ParseIntPipe) materiaId: number,
+    @Req() req,
+  ) {
+    return this.inscripcionesService.obtenerAlumnosMateria(
+      materiaId,
+      req.user.id,
+    );
   }
 
   @Patch(':id/aceptar')

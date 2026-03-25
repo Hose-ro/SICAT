@@ -2,7 +2,11 @@ import { hayConflictoHorario } from './conflicto-horario.util';
 
 describe('hayConflictoHorario', () => {
   it('dos materias en días diferentes → sin conflicto', () => {
-    const a = { dias: 'Lunes,Miercoles', horaInicio: '07:00', horaFin: '09:00' };
+    const a = {
+      dias: 'Lunes,Miercoles',
+      horaInicio: '07:00',
+      horaFin: '09:00',
+    };
     const b = { dias: 'Martes,Jueves', horaInicio: '07:00', horaFin: '09:00' };
     expect(hayConflictoHorario(a, b)).toBe(false);
   });
@@ -26,8 +30,16 @@ describe('hayConflictoHorario', () => {
   });
 
   it('un día en común de varios → conflicto', () => {
-    const a = { dias: 'Lunes,Miercoles,Viernes', horaInicio: '07:00', horaFin: '09:00' };
-    const b = { dias: 'Miercoles,Jueves', horaInicio: '08:00', horaFin: '10:00' };
+    const a = {
+      dias: 'Lunes,Miercoles,Viernes',
+      horaInicio: '07:00',
+      horaFin: '09:00',
+    };
+    const b = {
+      dias: 'Miercoles,Jueves',
+      horaInicio: '08:00',
+      horaFin: '10:00',
+    };
     expect(hayConflictoHorario(a, b)).toBe(true);
   });
 
@@ -38,8 +50,16 @@ describe('hayConflictoHorario', () => {
   });
 
   it('días con espacios extra → normaliza correctamente', () => {
-    const a = { dias: 'Lunes, Miercoles', horaInicio: '07:00', horaFin: '09:00' };
-    const b = { dias: 'Miercoles ,Viernes', horaInicio: '07:30', horaFin: '09:30' };
+    const a = {
+      dias: 'Lunes, Miercoles',
+      horaInicio: '07:00',
+      horaFin: '09:00',
+    };
+    const b = {
+      dias: 'Miercoles ,Viernes',
+      horaInicio: '07:30',
+      horaFin: '09:30',
+    };
     expect(hayConflictoHorario(a, b)).toBe(true);
   });
 });

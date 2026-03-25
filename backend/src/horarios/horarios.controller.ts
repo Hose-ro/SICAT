@@ -64,31 +64,45 @@ export class HorariosController {
   }
 
   @Post('validar-conflicto')
-  @ApiOperation({ summary: 'Validar si un horario tiene conflicto antes de guardar' })
+  @ApiOperation({
+    summary: 'Validar si un horario tiene conflicto antes de guardar',
+  })
   validarConflicto(@Body() dto: ValidarConflictoHorarioDto) {
     return this.horarios.validarConflicto(dto);
   }
 
   @Post('asignar-docente')
-  @ApiOperation({ summary: 'Compatibilidad: asignar docente a los horarios activos de una materia' })
+  @ApiOperation({
+    summary:
+      'Compatibilidad: asignar docente a los horarios activos de una materia',
+  })
   asignarDocente(@Body() dto: AsignarDocenteDto) {
     return this.horarios.asignarDocente(dto.materiaId, dto.docenteId);
   }
 
   @Post('asignar-aula')
-  @ApiOperation({ summary: 'Compatibilidad: asignar aula a los horarios activos de una materia' })
+  @ApiOperation({
+    summary:
+      'Compatibilidad: asignar aula a los horarios activos de una materia',
+  })
   asignarAula(@Body() dto: AsignarAulaDto) {
     return this.horarios.asignarAula(dto.materiaId, dto.aulaId);
   }
 
   @Delete('quitar-docente/:materiaId')
-  @ApiOperation({ summary: 'Compatibilidad: quitar docente legado de una materia sin horarios activos' })
+  @ApiOperation({
+    summary:
+      'Compatibilidad: quitar docente legado de una materia sin horarios activos',
+  })
   quitarDocente(@Param('materiaId', ParseIntPipe) materiaId: number) {
     return this.horarios.quitarDocente(materiaId);
   }
 
   @Delete('quitar-aula/:materiaId')
-  @ApiOperation({ summary: 'Compatibilidad: quitar aula legado de una materia sin horarios activos' })
+  @ApiOperation({
+    summary:
+      'Compatibilidad: quitar aula legado de una materia sin horarios activos',
+  })
   quitarAula(@Param('materiaId', ParseIntPipe) materiaId: number) {
     return this.horarios.quitarAula(materiaId);
   }

@@ -1,131 +1,427 @@
-import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useParams } from 'react-router-dom'
+import {
+  AlertTriangle,
+  ArrowLeft,
+  CheckCircle2,
+  Download,
+  FileBadge2,
+  MessageSquare,
+  SquareCheckBig,
+  Upload,
+} from 'lucide-react'
+import api from '../../api/axios'
 import { useTareaStore } from '../../store/tareaStore'
 
-const ESTADO_STYLE = {
-  PENDIENTE: 'bg-gray-100 text-gray-700',
-  REVISADA: 'bg-yellow-100 text-yellow-700',
-  CALIFICADA: 'bg-green-100 text-green-700',
-  INCORRECTA: 'bg-red-100 text-red-700',
+const STATE_CLASS = {
+  PENDIENTE: 'bg-slate-100 text-slate-700',
+  ENTREGADA: 'bg-sky-100 text-sky-700',
+  REVISADA: 'bg-violet-100 text-violet-700',
+  INCORRECTA: 'bg-rose-100 text-rose-700',
+  CALIFICADA: 'bg-emerald-100 text-emerald-700',
+  NO_ENTREGADA: 'bg-amber-100 text-amber-700',
+}
+
+const CALIFICATION_TYPES = [
+  { value: 'NUMERICA', label: 'Numérica' },
+  { value: 'REVISADO', label: 'Revisado' },
+  { value: 'FIRMA', label: 'Firma' },
+]
+
+function resolveApiUrl(url) {
+  if (!url) return '#'
+  return new URL(url, api.defaults.baseURL).toString()
+}
+
+function formatDateTime(date) {
+  if (!date) return 'Sin fecha'
+  return new Date(date).toLocaleString('es-MX', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 
 export default function TareaDetalle() {
   const { id } = useParams()
-  const { tareaActiva, entregas, obtenerDetalle, obtenerEntregas, revisar, calificar, marcarIncorrecta, loading } = useTareaStore()
-  const [modal, setModal] = useState(null) // { type, entregaId }
-  const [form, setForm] = useState({ observacion: '', calificacion: '' })
-  const [noEntregaron, setNoEntregaron] = useState([])
+  const tareaId = Number(id)
+  const {
+    tareaActiva,
+    entregas,
+    entregasStats,
+    obtenerDetalle,
+    obtenerEntregas,
+    revisar,
+    revisarMasivo,
+    calificar,
+    marcarIncorrecta,
+    devolverParaCorreccion,
+    descargarEntregas,
+    marcarPresencial,
+    loading,
+  } = useTareaStore()
+
+  const [filters, setFilters] = useState({ estado: '', tardia: false, q: '' })
+  const [selectedIds, setSelectedIds] = useState([])
+  const [drafts, setDrafts] = useState({})
+  const [running, setRunning] = useState(null)
+
+  const load = async () => {
+    await Promise.all([
+      obtenerDetalle(tareaId),
+      obtenerEntregas(tareaId, {
+        estado: filters.estado || undefined,
+        tardia: filters.tardia || undefined,
+        q: filters.q || undefined,
+      }),
+    ])
+  }
 
   useEffect(() => {
-    obtenerDetalle(Number(id))
-    loadEntregas()
-  }, [id])
+    load().catch(() => {})
+  }, [tareaId, filters.estado, filters.tardia, filters.q])
 
-  const loadEntregas = async () => {
-    const res = await import('../../api/axios').then(m => m.default.get(`/tareas/${id}/entregas`))
-    setNoEntregaron(res.data.noEntregaron || [])
+  useEffect(() => {
+    setSelectedIds([])
+  }, [filters])
+
+  const selectedDeliveries = useMemo(
+    () => entregas.filter((item) => !item.esSintetica && selectedIds.includes(item.id)),
+    [entregas, selectedIds],
+  )
+
+  const updateDraft = (deliveryId, changes) => {
+    setDrafts((prev) => ({
+      ...prev,
+      [deliveryId]: {
+        observacion: prev[deliveryId]?.observacion ?? '',
+        calificacion: prev[deliveryId]?.calificacion ?? '',
+        calificacionTipo: prev[deliveryId]?.calificacionTipo ?? 'NUMERICA',
+        ...changes,
+      },
+    }))
   }
 
-  const handleAccion = async () => {
-    if (!modal) return
+  const perform = async (key, callback) => {
+    setRunning(key)
     try {
-      if (modal.type === 'revisar') await revisar(modal.entregaId, form.observacion)
-      else if (modal.type === 'calificar') await calificar(modal.entregaId, Number(form.calificacion), form.observacion)
-      else if (modal.type === 'incorrecta') await marcarIncorrecta(modal.entregaId, form.observacion)
-      setModal(null)
-      setForm({ observacion: '', calificacion: '' })
-      obtenerEntregas(Number(id))
-    } catch (e) { alert('Error') }
+      await callback()
+      await load()
+    } finally {
+      setRunning(null)
+    }
   }
 
-  if (!tareaActiva) return <div className="px-4 py-4 sm:px-6 sm:py-6">Cargando...</div>
+  if (!tareaActiva && loading) {
+    return <div className="px-4 py-8 text-sm text-slate-500">Cargando revisión de entregas...</div>
+  }
 
   return (
-    <div className="px-4 py-4 sm:px-6 sm:py-6">
-      <div className="bg-white border rounded-lg p-4 mb-6">
-        <h1 className="text-xl font-bold">{tareaActiva.titulo}</h1>
-        <p className="text-gray-500 text-sm mt-1">{tareaActiva.instrucciones}</p>
-        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm text-gray-500">
-          <span>Unidad {tareaActiva.unidad}</span>
-          <span>Tipo: {tareaActiva.tipoEntrega}</span>
-          <span>Límite: {tareaActiva.fechaLimite ? new Date(tareaActiva.fechaLimite).toLocaleDateString('es-MX') : '-'}</span>
-          <span>{tareaActiva._count?.entregas ?? 0} entregas</span>
-        </div>
-      </div>
+    <div className="space-y-6">
+      <section className="task-hero px-6 py-7">
+        <Link
+          to="/tareas"
+          className="task-hero-button inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Volver al módulo
+        </Link>
 
-      <h2 className="font-semibold mb-3">Entregas</h2>
-      {loading ? (
-        <p className="text-gray-400">Cargando...</p>
-      ) : (
-        <div className="overflow-x-auto mb-6">
-          <table className="min-w-full text-sm border">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="border px-3 py-2 text-left">Alumno</th>
-                <th className="border px-3 py-2">Fecha</th>
-                <th className="border px-3 py-2">Estado</th>
-                <th className="border px-3 py-2">Calificación</th>
-                <th className="border px-3 py-2">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {entregas.map((e) => (
-                <tr key={e.id} className="hover:bg-gray-50">
-                  <td className="border px-3 py-2">
-                    <p className="font-medium">{e.alumno?.nombre}</p>
-                    <p className="text-xs text-gray-500">{e.alumno?.numeroControl}</p>
-                  </td>
-                  <td className="border px-3 py-2 text-center text-xs">{new Date(e.fechaEntrega).toLocaleDateString('es-MX')}</td>
-                  <td className="border px-3 py-2 text-center">
-                    <span className={`px-2 py-0.5 rounded-full text-xs ${ESTADO_STYLE[e.estadoRevision] || ''}`}>{e.estadoRevision}</span>
-                  </td>
-                  <td className="border px-3 py-2 text-center">{e.calificacion ?? '-'}</td>
-                  <td className="border px-3 py-2 text-center">
-                    <div className="flex flex-wrap justify-center gap-1">
-                      <button onClick={() => { setModal({ type: 'revisar', entregaId: e.id }); setForm({ observacion: '', calificacion: '' }) }}
-                        className="text-xs px-2 py-1 bg-yellow-100 text-yellow-700 rounded hover:bg-yellow-200">Revisar</button>
-                      <button onClick={() => { setModal({ type: 'calificar', entregaId: e.id }); setForm({ observacion: '', calificacion: '' }) }}
-                        className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200">Calificar</button>
-                      <button onClick={() => { setModal({ type: 'incorrecta', entregaId: e.id }); setForm({ observacion: '', calificacion: '' }) }}
-                        className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200">Incorrecta</button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+        {tareaActiva && (
+          <div className="mt-5 grid gap-6 xl:grid-cols-[1.4fr_0.8fr]">
+            <div className="space-y-3">
+              <div className="flex flex-wrap gap-2">
+                <span className={`rounded-full px-3 py-1 text-xs font-semibold ${STATE_CLASS[tareaActiva.estado] || 'task-hero-badge'}`}>
+                  {tareaActiva.estado}
+                </span>
+                {tareaActiva.entregasTardias > 0 && (
+                  <span className="rounded-full border border-amber-200/80 bg-amber-100/85 px-3 py-1 text-xs font-semibold text-amber-800">
+                    {tareaActiva.entregasTardias} tardías
+                  </span>
+                )}
+              </div>
+              <div>
+                <h1 className="text-3xl font-semibold tracking-tight">{tareaActiva.titulo}</h1>
+                <p className="task-hero-subtitle mt-2 max-w-3xl text-sm">{tareaActiva.instrucciones}</p>
+              </div>
+              <div className="task-hero-meta grid gap-2 text-sm md:grid-cols-2">
+                <p><span className="task-hero-emphasis font-semibold">Materia:</span> {tareaActiva.materia?.nombre}</p>
+                <p><span className="task-hero-emphasis font-semibold">Grupo:</span> {tareaActiva.grupo?.nombre || 'Sin grupo'}</p>
+                <p><span className="task-hero-emphasis font-semibold">Unidad:</span> {tareaActiva.unidadRef?.nombre || 'Sin unidad'}</p>
+                <p><span className="task-hero-emphasis font-semibold">Límite:</span> {tareaActiva.tieneFechaLimite ? formatDateTime(tareaActiva.fechaLimite) : 'Sin límite'}</p>
+              </div>
+            </div>
 
-      {noEntregaron.length > 0 && (
-        <div>
-          <h3 className="font-semibold text-red-600 mb-2">No han entregado ({noEntregaron.length})</h3>
-          <div className="flex flex-wrap gap-2">
-            {noEntregaron.map((a) => (
-              <span key={a.id} className="px-3 py-1 bg-red-50 border border-red-200 rounded text-xs">{a.nombre}</span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {modal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="w-full max-w-sm rounded-lg bg-white p-4 sm:p-6">
-            <h3 className="font-semibold mb-3 capitalize">{modal.type} entrega</h3>
-            {modal.type === 'calificar' && (
-              <input type="number" min="0" max="100" placeholder="Calificación (0-100)"
-                value={form.calificacion} onChange={(e) => setForm((p) => ({ ...p, calificacion: e.target.value }))}
-                className="w-full border rounded px-3 py-2 text-sm mb-3" />
-            )}
-            <textarea placeholder="Observación (opcional)" value={form.observacion}
-              onChange={(e) => setForm((p) => ({ ...p, observacion: e.target.value }))}
-              className="w-full border rounded px-3 py-2 text-sm mb-3" rows={3} />
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <button onClick={handleAccion} className="flex-1 py-2 bg-blue-600 text-white rounded text-sm">Confirmar</button>
-              <button onClick={() => setModal(null)} className="flex-1 py-2 border rounded text-sm">Cancelar</button>
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
+              <div className="task-hero-surface rounded-3xl p-4">
+                <p className="task-hero-meta text-xs uppercase tracking-[0.16em]">Entrega</p>
+                <p className="mt-2 text-3xl font-semibold">{tareaActiva.porcentajeEntrega}%</p>
+                <p className="task-hero-meta mt-1 text-sm">{tareaActiva.entregadas}/{tareaActiva.totalAlumnos} entregadas</p>
+              </div>
+              <div className="task-hero-surface rounded-3xl p-4">
+                <p className="task-hero-meta text-xs uppercase tracking-[0.16em]">Pendientes</p>
+                <p className="mt-2 text-3xl font-semibold">{tareaActiva.pendientesRevision}</p>
+                <p className="task-hero-meta mt-1 text-sm">Sin revisar o sin calificar</p>
+              </div>
             </div>
           </div>
+        )}
+      </section>
+
+      <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+          <div className="flex flex-col gap-4 xl:flex-row">
+            <label className="flex min-w-[11rem] flex-col gap-1">
+              <span className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Estado</span>
+              <select
+                value={filters.estado}
+                onChange={(event) => setFilters((prev) => ({ ...prev, estado: event.target.value }))}
+                className="rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-sky-400"
+              >
+                <option value="">Todas</option>
+                <option value="PENDIENTES">Pendientes</option>
+                <option value="REVISADA">Revisadas</option>
+                <option value="INCORRECTA">Incorrectas</option>
+                <option value="CALIFICADA">Calificadas</option>
+                <option value="NO_ENTREGADAS">No entregadas</option>
+              </select>
+            </label>
+
+            <label className="flex min-w-[11rem] flex-col gap-1">
+              <span className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Buscar alumno</span>
+              <input
+                type="search"
+                value={filters.q}
+                onChange={(event) => setFilters((prev) => ({ ...prev, q: event.target.value }))}
+                placeholder="Nombre o control"
+                className="rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-sky-400"
+              />
+            </label>
+
+            <label className="mt-auto inline-flex items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-600">
+              <input
+                type="checkbox"
+                checked={filters.tardia}
+                onChange={(event) => setFilters((prev) => ({ ...prev, tardia: event.target.checked }))}
+              />
+              Solo tardías
+            </label>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={selectedDeliveries.length === 0 || running === 'bulk-review'}
+              onClick={() => perform('bulk-review', () => revisarMasivo(tareaId, selectedDeliveries.map((item) => item.id), 'Revisión masiva docente'))}
+              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+            >
+              <SquareCheckBig className="h-4 w-4" />
+              Marcar seleccionadas
+            </button>
+            <button
+              type="button"
+              disabled={selectedDeliveries.length === 0 || running === 'bulk-download'}
+              onClick={() => perform('bulk-download', () => descargarEntregas(tareaId, selectedDeliveries.map((item) => item.id)))}
+              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+            >
+              <Download className="h-4 w-4" />
+              Descargar seleccionadas
+            </button>
+          </div>
         </div>
+
+        <div className="mt-4 flex flex-wrap gap-2 text-xs text-slate-500">
+          <span className="rounded-full bg-slate-100 px-3 py-1">{entregasStats?.pendientes ?? 0} pendientes</span>
+          <span className="rounded-full bg-slate-100 px-3 py-1">{entregasStats?.revisadas ?? 0} revisadas</span>
+          <span className="rounded-full bg-slate-100 px-3 py-1">{entregasStats?.incorrectas ?? 0} incorrectas</span>
+          <span className="rounded-full bg-slate-100 px-3 py-1">{entregasStats?.tardias ?? 0} tardías</span>
+          <span className="rounded-full bg-slate-100 px-3 py-1">{entregasStats?.noEntregadas ?? 0} no entregadas</span>
+        </div>
+      </section>
+
+      {loading ? (
+        <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 px-6 py-16 text-center text-sm text-slate-500">
+          Cargando cards de revisión...
+        </div>
+      ) : (
+        <section className="grid gap-4 2xl:grid-cols-2">
+          {entregas.map((delivery) => {
+            const draft = drafts[delivery.id] || {
+              observacion: delivery.observacion || '',
+              calificacion: delivery.calificacion ?? '',
+              calificacionTipo: delivery.calificacionTipo || 'NUMERICA',
+            }
+
+            return (
+              <article key={delivery.id} className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex flex-col gap-4 lg:flex-row lg:justify-between">
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {!delivery.esSintetica && (
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(delivery.id)}
+                          onChange={() => setSelectedIds((prev) => prev.includes(delivery.id)
+                            ? prev.filter((value) => value !== delivery.id)
+                            : [...prev, delivery.id])}
+                        />
+                      )}
+                      <span className={`rounded-full px-3 py-1 text-xs font-semibold ${STATE_CLASS[delivery.estadoRevision] || 'bg-slate-100 text-slate-700'}`}>
+                        {delivery.estadoRevision}
+                      </span>
+                      {delivery.fueTardia && (
+                        <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
+                          Tardía
+                        </span>
+                      )}
+                    </div>
+
+                    <div>
+                      <h3 className="text-xl font-semibold text-slate-900">{delivery.alumno.nombre}</h3>
+                      <p className="mt-1 text-sm text-slate-500">No. control: {delivery.alumno.numeroControl || 'Sin registro'}</p>
+                    </div>
+
+                    <div className="grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
+                      <p><span className="font-semibold text-slate-800">Fecha:</span> {delivery.fechaEntrega ? formatDateTime(delivery.fechaEntrega) : 'Sin entrega'}</p>
+                      <p><span className="font-semibold text-slate-800">Versión:</span> {delivery.versionEntrega || 0}</p>
+                    </div>
+
+                    {delivery.comentarioAlumno && (
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                        <div className="mb-2 flex items-center gap-2 text-slate-800">
+                          <MessageSquare className="h-4 w-4" />
+                          <span className="font-semibold">Comentario del alumno</span>
+                        </div>
+                        <p>{delivery.comentarioAlumno}</p>
+                      </div>
+                    )}
+
+                    {delivery.archivos?.length > 0 && (
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                        <div className="mb-3 flex items-center gap-2 text-slate-800">
+                          <Upload className="h-4 w-4" />
+                          <span className="font-semibold">Archivos enviados</span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {delivery.archivos.map((file) => (
+                            <a
+                              key={file.id}
+                              href={resolveApiUrl(file.url)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                            >
+                              <FileBadge2 className="h-3.5 w-3.5" />
+                              {file.nombre}
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="w-full max-w-md space-y-3 rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <label className="flex flex-col gap-1">
+                        <span className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Calificación</span>
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          disabled={draft.calificacionTipo !== 'NUMERICA' || delivery.esSintetica}
+                          value={draft.calificacion}
+                          onChange={(event) => updateDraft(delivery.id, { calificacion: event.target.value })}
+                          className="rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-sky-400 disabled:bg-slate-100"
+                        />
+                      </label>
+
+                      <label className="flex flex-col gap-1">
+                        <span className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Tipo</span>
+                        <select
+                          disabled={delivery.esSintetica}
+                          value={draft.calificacionTipo}
+                          onChange={(event) => updateDraft(delivery.id, { calificacionTipo: event.target.value })}
+                          className="rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-sky-400 disabled:bg-slate-100"
+                        >
+                          {CALIFICATION_TYPES.map((item) => (
+                            <option key={item.value} value={item.value}>{item.label}</option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+
+                    <label className="flex flex-col gap-1">
+                      <span className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Observación docente</span>
+                      <textarea
+                        rows={4}
+                        disabled={delivery.esSintetica}
+                        value={draft.observacion}
+                        onChange={(event) => updateDraft(delivery.id, { observacion: event.target.value })}
+                        className="rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-sky-400 disabled:bg-slate-100"
+                      />
+                    </label>
+
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {delivery.esSintetica ? (
+                        tareaActiva?.tipoEntrega === 'PRESENCIAL' ? (
+                          <button
+                            type="button"
+                            onClick={() => perform(`presence-${delivery.alumno.id}`, () => marcarPresencial(tareaId, delivery.alumno.id))}
+                            className="col-span-full rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+                          >
+                            Registrar entrega presencial
+                          </button>
+                        ) : (
+                          <div className="col-span-full inline-flex items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                            <AlertTriangle className="h-4 w-4" />
+                            El alumno aún no entrega evidencia.
+                          </div>
+                        )
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => perform(`review-${delivery.id}`, () => revisar(delivery.id, draft.observacion))}
+                            className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                          >
+                            Revisar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => perform(`wrong-${delivery.id}`, () => marcarIncorrecta(delivery.id, draft.observacion))}
+                            className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 transition hover:bg-rose-100"
+                          >
+                            Incorrecta
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => perform(`return-${delivery.id}`, () => devolverParaCorreccion(delivery.id, draft.observacion, true))}
+                            className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-700 transition hover:bg-amber-100"
+                          >
+                            Pedir corrección
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => perform(`grade-${delivery.id}`, () => calificar(delivery.id, {
+                              observacion: draft.observacion,
+                              calificacion: draft.calificacion === '' ? undefined : Number(draft.calificacion),
+                              calificacionTipo: draft.calificacionTipo,
+                            }))}
+                            className="rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+                          >
+                            Calificar
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </article>
+            )
+          })}
+        </section>
       )}
     </div>
   )

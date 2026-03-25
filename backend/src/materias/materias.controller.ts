@@ -1,4 +1,15 @@
-import { Controller, Get, Post, Delete, Body, Param, ParseIntPipe, Query, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Body,
+  Param,
+  ParseIntPipe,
+  Query,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags, ApiOperation } from '@nestjs/swagger';
 import { MateriasService } from './materias.service';
 import { CreateMateriaDto } from './dto/create-materia.dto';
@@ -17,14 +28,15 @@ export class MateriasController {
   @Roles('ADMIN', 'DOCENTE')
   @ApiOperation({ summary: 'Crear materia (admin puede asignar docente)' })
   create(@Body() dto: CreateMateriaDto, @Request() req: any) {
-    const docenteId = req.user.rol === 'DOCENTE'
-      ? req.user.id
-      : dto.docenteId ?? null;
+    const docenteId =
+      req.user.rol === 'DOCENTE' ? req.user.id : (dto.docenteId ?? null);
     return this.materias.create(dto, docenteId);
   }
 
   @Get()
-  @ApiOperation({ summary: 'Listar materias (filtros opcionales: carreraId, semestre)' })
+  @ApiOperation({
+    summary: 'Listar materias (filtros opcionales: carreraId, semestre)',
+  })
   findAll(
     @Query('carreraId') carreraId?: string,
     @Query('semestre') semestre?: string,
@@ -46,7 +58,9 @@ export class MateriasController {
 
   @Get('para-alumno')
   @Roles('ALUMNO')
-  @ApiOperation({ summary: 'Materias disponibles según carrera y semestre del alumno' })
+  @ApiOperation({
+    summary: 'Materias disponibles según carrera y semestre del alumno',
+  })
   paraAlumno(@Request() req: any) {
     return this.materias.findForAlumno(req.user.id);
   }

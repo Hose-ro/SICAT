@@ -38,13 +38,34 @@ enum TipoEntrega {
   EN_LINEA
   PRESENCIAL
   FIRMA
+  REVISION_EN_LINEA
 }
 
 enum EstadoRevision {
   PENDIENTE
+  ENTREGADA
   REVISADA
   CALIFICADA
   INCORRECTA
+  NO_ENTREGADA
+}
+
+enum EstadoTarea {
+  BORRADOR
+  PUBLICADA
+  VENCIDA
+  CERRADA
+}
+
+enum TipoEvaluacion {
+  DIRECTA
+  RUBRICA
+}
+
+enum TipoCalificacion {
+  NUMERICA
+  FIRMA
+  REVISADO
 }
 
 enum TipoNotificacion {
@@ -109,6 +130,7 @@ model Usuario {
   inscripcionesAlumno Inscripcion[]  @relation("InscripcionAlumno")
   claseSesiones       ClaseSesion[]  @relation("ClaseSesionDocente")
   asistenciasAlumno   Asistencia[]   @relation("AsistenciaAlumno")
+  asistenciasEditadas Asistencia[]   @relation("AsistenciaEditor")
   tareasDocente       Tarea[]        @relation("TareaDocente")
   entregasAlumno      EntregaTarea[] @relation("EntregaAlumno")
   notificaciones      Notificacion[]
@@ -170,6 +192,7 @@ model HorarioMateria {
   docente     Usuario  @relation("HorarioDocente", fields: [docenteId], references: [id])
   aula        Aula?    @relation("HorarioAula", fields: [aulaId], references: [id])
   grupo       Grupo?   @relation("HorarioGrupo", fields: [grupoId], references: [id])
+  claseSesiones ClaseSesion[]
 
   @@index([materiaId, activo])
   @@index([docenteId, activo])
@@ -202,6 +225,8 @@ model Unidad {
   fechaFin    DateTime?
   materiaId   Int
   materia     Materia      @relation(fields: [materiaId], references: [id])
+  claseSesiones ClaseSesion[]
+  tareas      Tarea[]      @relation("TareaUnidad")
 }
 
 model Inscripcion {
@@ -219,18 +244,32 @@ model Inscripcion {
 }
 
 model ClaseSesion {
-  id         Int          @id @default(autoincrement())
-  materiaId  Int
-  docenteId  Int
-  fecha      DateTime     @default(now())
-  horaInicio DateTime
-  horaFin    DateTime?
-  unidad     Int
-  activa     Boolean      @default(true)
-  createdAt  DateTime     @default(now())
-  materia    Materia      @relation(fields: [materiaId], references: [id])
-  docente    Usuario      @relation("ClaseSesionDocente", fields: [docenteId], references: [id])
-  asistencias Asistencia[]
+  id                 Int             @id @default(autoincrement())
+  materiaId          Int
+  docenteId          Int
+  horarioMateriaId   Int?
+  grupoId            Int?
+  unidadId           Int?
+  fecha              DateTime        @default(now())
+  semanaClave        String
+  horaInicio         DateTime
+  horaFin            DateTime?
+  unidad             Int
+  activa             Boolean         @default(true)
+  fueFueraDeHorario  Boolean         @default(false)
+  notificacionEnviada Boolean        @default(false)
+  createdAt          DateTime        @default(now())
+  materia            Materia         @relation(fields: [materiaId], references: [id])
+  docente            Usuario         @relation("ClaseSesionDocente", fields: [docenteId], references: [id])
+  horarioMateria     HorarioMateria? @relation(fields: [horarioMateriaId], references: [id])
+  grupo              Grupo?          @relation("ClaseSesionGrupo", fields: [grupoId], references: [id])
+  unidadRef          Unidad?         @relation(fields: [unidadId], references: [id])
+  asistencias        Asistencia[]
+
+  @@index([docenteId, fecha])
+  @@index([horarioMateriaId, fecha])
+  @@index([materiaId, grupoId, fecha])
+  @@index([semanaClave])
 }
 
 model Asistencia {
@@ -238,33 +277,51 @@ model Asistencia {
   claseSesionId        Int
   alumnoId             Int
   estado               EstadoAsistencia
+  observacion          String?
   justificacion        String?
   archivoJustificacion String?
+  editadaPorId         Int?
   createdAt            DateTime         @default(now())
   updatedAt            DateTime         @updatedAt
   claseSesion          ClaseSesion      @relation(fields: [claseSesionId], references: [id])
   alumno               Usuario          @relation("AsistenciaAlumno", fields: [alumnoId], references: [id])
+  editadaPor           Usuario?         @relation("AsistenciaEditor", fields: [editadaPorId], references: [id])
 
   @@unique([claseSesionId, alumnoId])
+  @@index([editadaPorId])
 }
 
 model Tarea {
   id               Int           @id @default(autoincrement())
   materiaId        Int
+  grupoId          Int?
   docenteId        Int
   titulo           String
   instrucciones    String
-  unidad           Int
+  unidad           Int?
+  unidadId         Int?
   tipoEntrega      TipoEntrega
-  fechaPublicacion DateTime      @default(now())
-  fechaLimite      DateTime
+  tipoEvaluacion   TipoEvaluacion @default(DIRECTA)
+  permiteReenvio   Boolean       @default(false)
+  tieneFechaLimite Boolean       @default(true)
+  fechaPublicacion DateTime?
+  fechaLimite      DateTime?
+  horaLimite       String?
+  estado           EstadoTarea   @default(BORRADOR)
+  rubricJson       String?
   archivosAdjuntos String?
   activa           Boolean       @default(true)
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
   materia          Materia       @relation(fields: [materiaId], references: [id])
+  grupo            Grupo?        @relation(fields: [grupoId], references: [id])
   docente          Usuario       @relation("TareaDocente", fields: [docenteId], references: [id])
+  unidadRef        Unidad?       @relation("TareaUnidad", fields: [unidadId], references: [id])
   entregas         EntregaTarea[]
+  archivos         TareaArchivo[]
+
+  @@index([docenteId, estado])
+  @@index([materiaId, grupoId, unidadId])
 }
 
 model EntregaTarea {
@@ -276,15 +333,46 @@ model EntregaTarea {
   comentarioAlumno String?
   estadoRevision   EstadoRevision @default(PENDIENTE)
   calificacion     Float?
+  calificacionTipo TipoCalificacion?
   observacion      String?
   fechaEntrega     DateTime       @default(now())
   fechaRevision    DateTime?
+  fueTardia        Boolean        @default(false)
+  permiteCorreccion Boolean       @default(false)
+  versionEntrega   Int            @default(1)
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
   tarea            Tarea          @relation(fields: [tareaId], references: [id])
   alumno           Usuario        @relation("EntregaAlumno", fields: [alumnoId], references: [id])
+  archivos         EntregaArchivo[]
 
   @@unique([tareaId, alumnoId])
+  @@index([tareaId, estadoRevision])
+  @@index([alumnoId, estadoRevision])
+}
+
+model TareaArchivo {
+  id          Int      @id @default(autoincrement())
+  tareaId      Int
+  nombre       String
+  url          String
+  tipoArchivo  String
+  createdAt    DateTime @default(now())
+  tarea        Tarea    @relation(fields: [tareaId], references: [id], onDelete: Cascade)
+
+  @@index([tareaId])
+}
+
+model EntregaArchivo {
+  id          Int          @id @default(autoincrement())
+  entregaId   Int
+  nombre      String
+  url         String
+  tipoArchivo String
+  createdAt   DateTime     @default(now())
+  entrega     EntregaTarea @relation(fields: [entregaId], references: [id], onDelete: Cascade)
+
+  @@index([entregaId])
 }
 
 model Notificacion {
@@ -314,6 +402,8 @@ model Grupo {
   alumnos   Usuario[] @relation("AlumnoGrupo")
   materias  Materia[] @relation("GrupoMateria")
   horarios  HorarioMateria[] @relation("HorarioGrupo")
+  claseSesiones ClaseSesion[] @relation("ClaseSesionGrupo")
+  tareas    Tarea[]
 
   @@unique([semestre, seccion, carreraId, periodo])
 }

@@ -39,8 +39,24 @@ export class MateriasService {
         ...(docenteId && { docenteId }),
       },
       include: {
-        docente: { select: { id: true, nombre: true, email: true, academias: { select: { id: true, nombre: true } } } },
+        docente: {
+          select: {
+            id: true,
+            nombre: true,
+            email: true,
+            academias: { select: { id: true, nombre: true } },
+          },
+        },
         carrera: { select: { id: true, nombre: true } },
+        grupos: {
+          select: {
+            id: true,
+            nombre: true,
+            semestre: true,
+            seccion: true,
+            periodo: true,
+          },
+        },
         _count: { select: { inscripciones: true } },
       },
       orderBy: { nombre: 'asc' },
@@ -60,8 +76,24 @@ export class MateriasService {
         include: {
           materias: {
             include: {
-              docente: { select: { id: true, nombre: true, email: true, academias: { select: { id: true, nombre: true } } } },
+              docente: {
+                select: {
+                  id: true,
+                  nombre: true,
+                  email: true,
+                  academias: { select: { id: true, nombre: true } },
+                },
+              },
               carrera: { select: { id: true, nombre: true } },
+              grupos: {
+                select: {
+                  id: true,
+                  nombre: true,
+                  semestre: true,
+                  seccion: true,
+                  periodo: true,
+                },
+              },
               _count: { select: { inscripciones: true } },
             },
             orderBy: { nombre: 'asc' },
@@ -79,8 +111,24 @@ export class MateriasService {
     return this.prisma.materia.findMany({
       where: Object.keys(where).length > 0 ? where : undefined,
       include: {
-        docente: { select: { id: true, nombre: true, email: true, academias: { select: { id: true, nombre: true } } } },
+        docente: {
+          select: {
+            id: true,
+            nombre: true,
+            email: true,
+            academias: { select: { id: true, nombre: true } },
+          },
+        },
         carrera: { select: { id: true, nombre: true } },
+        grupos: {
+          select: {
+            id: true,
+            nombre: true,
+            semestre: true,
+            seccion: true,
+            periodo: true,
+          },
+        },
         _count: { select: { inscripciones: true } },
       },
       orderBy: { nombre: 'asc' },
@@ -93,6 +141,15 @@ export class MateriasService {
       include: {
         unidades: { orderBy: { orden: 'asc' } },
         carrera: { select: { id: true, nombre: true } },
+        grupos: {
+          select: {
+            id: true,
+            nombre: true,
+            semestre: true,
+            seccion: true,
+            periodo: true,
+          },
+        },
         _count: { select: { inscripciones: true } },
       },
     });
@@ -102,8 +159,24 @@ export class MateriasService {
     const materia = await this.prisma.materia.findUnique({
       where: { id },
       include: {
-        docente: { select: { id: true, nombre: true, email: true, academias: { select: { id: true, nombre: true } } } },
+        docente: {
+          select: {
+            id: true,
+            nombre: true,
+            email: true,
+            academias: { select: { id: true, nombre: true } },
+          },
+        },
         carrera: { select: { id: true, nombre: true } },
+        grupos: {
+          select: {
+            id: true,
+            nombre: true,
+            semestre: true,
+            seccion: true,
+            periodo: true,
+          },
+        },
         unidades: {
           orderBy: { orden: 'asc' },
         },
@@ -111,7 +184,17 @@ export class MateriasService {
           orderBy: { fecha: 'desc' },
         },
         inscripciones: {
-          include: { alumno: { select: { id: true, nombre: true, email: true, numeroControl: true, telefono: true } } },
+          include: {
+            alumno: {
+              select: {
+                id: true,
+                nombre: true,
+                email: true,
+                numeroControl: true,
+                telefono: true,
+              },
+            },
+          },
         },
       },
     });
@@ -123,12 +206,28 @@ export class MateriasService {
     const materia = await this.prisma.materia.findUnique({
       where: { clave },
       include: {
-        docente: { select: { id: true, nombre: true, academias: { select: { id: true, nombre: true } } } },
+        docente: {
+          select: {
+            id: true,
+            nombre: true,
+            academias: { select: { id: true, nombre: true } },
+          },
+        },
         carrera: { select: { id: true, nombre: true } },
+        grupos: {
+          select: {
+            id: true,
+            nombre: true,
+            semestre: true,
+            seccion: true,
+            periodo: true,
+          },
+        },
         _count: { select: { inscripciones: true } },
       },
     });
-    if (!materia) throw new NotFoundException('Materia no encontrada con esa clave');
+    if (!materia)
+      throw new NotFoundException('Materia no encontrada con esa clave');
     return materia;
   }
 

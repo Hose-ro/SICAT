@@ -19,7 +19,10 @@ export class NotificacionesService {
     return this.prisma.notificacion.create({ data: dto });
   }
 
-  async crearParaVarios(usuarioIds: number[], data: Omit<CrearNotificacionDto, 'usuarioId'>) {
+  async crearParaVarios(
+    usuarioIds: number[],
+    data: Omit<CrearNotificacionDto, 'usuarioId'>,
+  ) {
     if (!usuarioIds.length) return;
     return this.prisma.notificacion.createMany({
       data: usuarioIds.map((usuarioId) => ({ ...data, usuarioId })),
@@ -40,7 +43,9 @@ export class NotificacionesService {
   }
 
   async contarNoLeidas(usuarioId: number) {
-    return this.prisma.notificacion.count({ where: { usuarioId, leida: false } });
+    return this.prisma.notificacion.count({
+      where: { usuarioId, leida: false },
+    });
   }
 
   async marcarLeida(id: number, usuarioId: number) {

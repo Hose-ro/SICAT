@@ -14,7 +14,13 @@ export default function TablaAsistenciasAlumno({ materiaId }) {
   const [justModal, setJustModal] = useState(null)
   const [justText, setJustText] = useState('')
 
-  useEffect(() => { obtenerMisAsistencias(materiaId) }, [materiaId])
+  useEffect(() => {
+    obtenerMisAsistencias(materiaId)
+    const interval = setInterval(() => {
+      obtenerMisAsistencias(materiaId).catch(() => {})
+    }, 20000)
+    return () => clearInterval(interval)
+  }, [materiaId])
 
   const filtradas = unidad ? misAsistencias.filter((a) => a.unidad === Number(unidad)) : misAsistencias
   const totales = filtradas.reduce((acc, a) => {
@@ -31,8 +37,25 @@ export default function TablaAsistenciasAlumno({ materiaId }) {
     } catch { alert('Error al justificar') }
   }
 
+  const hoy = new Date().toDateString()
+  const asistenciaDeHoy = filtradas.find((asistencia) => new Date(asistencia.fecha).toDateString() === hoy)
+
   return (
     <div className="space-y-3">
+      {asistenciaDeHoy?.estado && (
+        <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Asistencia de hoy</p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <span className={`rounded-full px-3 py-1 text-xs font-semibold ${ESTADO_STYLE[asistenciaDeHoy.estado]}`}>
+              {asistenciaDeHoy.estado}
+            </span>
+            <span className="text-sm text-slate-500">
+              {asistenciaDeHoy.grupo?.nombre ?? 'Grupo'} · {asistenciaDeHoy.unidadId ? `Unidad ${asistenciaDeHoy.unidad}` : 'Sin unidad'}
+            </span>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col gap-3 text-sm sm:flex-row sm:flex-wrap sm:items-center">
         {Object.entries(totales).map(([e, c]) => (
           <span key={e} className={`px-3 py-1 rounded-full font-medium ${ESTADO_STYLE[e]}`}>{e}: {c}</span>

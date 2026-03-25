@@ -121,13 +121,15 @@ export class HorariosService {
     return creados.length === 1 ? creados[0] : creados;
   }
 
-  async findAll(filters: {
-    materiaId?: number;
-    docenteId?: number;
-    aulaId?: number;
-    grupoId?: number;
-    activo?: boolean;
-  } = {}) {
+  async findAll(
+    filters: {
+      materiaId?: number;
+      docenteId?: number;
+      aulaId?: number;
+      grupoId?: number;
+      activo?: boolean;
+    } = {},
+  ) {
     const horarios = await this.prisma.horarioMateria.findMany({
       where: {
         ...(filters.materiaId ? { materiaId: filters.materiaId } : {}),
@@ -152,7 +154,9 @@ export class HorariosService {
   }
 
   async update(id: number, dto: UpdateHorarioDto) {
-    const actual = await this.prisma.horarioMateria.findUnique({ where: { id } });
+    const actual = await this.prisma.horarioMateria.findUnique({
+      where: { id },
+    });
     if (!actual) throw new NotFoundException('Horario no encontrado');
 
     const payloads = await this.prepararHorarios({
@@ -166,7 +170,9 @@ export class HorariosService {
       dias: dto.bloques
         ? undefined
         : (dto.dias ?? actual.dias.split(',').map((dia) => dia.trim())),
-      horaInicio: dto.bloques ? undefined : (dto.horaInicio ?? actual.horaInicio),
+      horaInicio: dto.bloques
+        ? undefined
+        : (dto.horaInicio ?? actual.horaInicio),
       horaFin: dto.bloques ? undefined : (dto.horaFin ?? actual.horaFin),
       bloques: dto.bloques,
       semestre: dto.semestre ?? actual.semestre ?? undefined,
@@ -228,7 +234,9 @@ export class HorariosService {
   }
 
   async remove(id: number) {
-    const horario = await this.prisma.horarioMateria.findUnique({ where: { id } });
+    const horario = await this.prisma.horarioMateria.findUnique({
+      where: { id },
+    });
     if (!horario) throw new NotFoundException('Horario no encontrado');
 
     return this.prisma.$transaction(async (tx) => {
@@ -335,14 +343,19 @@ export class HorariosService {
     });
 
     if (horariosActivos.length === 0) {
-      const materia = await this.prisma.materia.findUnique({ where: { id: materiaId } });
+      const materia = await this.prisma.materia.findUnique({
+        where: { id: materiaId },
+      });
       if (!materia) throw new NotFoundException('Materia no encontrada');
 
       await this.validarDocenteMateria(materiaId, docenteId);
       return this.prisma.materia.update({
         where: { id: materiaId },
         data: { docenteId },
-        include: { docente: { select: { id: true, nombre: true, email: true } }, aula: true },
+        include: {
+          docente: { select: { id: true, nombre: true, email: true } },
+          aula: true,
+        },
       });
     }
 
@@ -384,7 +397,9 @@ export class HorariosService {
       );
     }
 
-    const materia = await this.prisma.materia.findUnique({ where: { id: materiaId } });
+    const materia = await this.prisma.materia.findUnique({
+      where: { id: materiaId },
+    });
     if (!materia) throw new NotFoundException('Materia no encontrada');
 
     return this.prisma.materia.update({
@@ -400,14 +415,19 @@ export class HorariosService {
     });
 
     if (horariosActivos.length === 0) {
-      const materia = await this.prisma.materia.findUnique({ where: { id: materiaId } });
+      const materia = await this.prisma.materia.findUnique({
+        where: { id: materiaId },
+      });
       if (!materia) throw new NotFoundException('Materia no encontrada');
 
       await this.validarAula(aulaId);
       return this.prisma.materia.update({
         where: { id: materiaId },
         data: { aulaId },
-        include: { docente: { select: { id: true, nombre: true } }, aula: true },
+        include: {
+          docente: { select: { id: true, nombre: true } },
+          aula: true,
+        },
       });
     }
 
@@ -449,7 +469,9 @@ export class HorariosService {
       );
     }
 
-    const materia = await this.prisma.materia.findUnique({ where: { id: materiaId } });
+    const materia = await this.prisma.materia.findUnique({
+      where: { id: materiaId },
+    });
     if (!materia) throw new NotFoundException('Materia no encontrada');
 
     return this.prisma.materia.update({
@@ -459,7 +481,9 @@ export class HorariosService {
     });
   }
 
-  private async prepararHorarios(input: HorarioInput | ValidarConflictoHorarioDto) {
+  private async prepararHorarios(
+    input: HorarioInput | ValidarConflictoHorarioDto,
+  ) {
     const materia = await this.prisma.materia.findUnique({
       where: { id: input.materiaId },
       include: {
@@ -509,7 +533,9 @@ export class HorariosService {
     ignorarHorarioId?: number,
   ) {
     const resultados = await Promise.all(
-      payloads.map((payload) => this.validarConflictoInterno(payload, ignorarHorarioId)),
+      payloads.map((payload) =>
+        this.validarConflictoInterno(payload, ignorarHorarioId),
+      ),
     );
     const conflictos = resultados.flatMap((resultado) => resultado.conflicts);
 
@@ -535,17 +561,37 @@ export class HorariosService {
   ) {
     const conflictos: ConflictoHorario[] = [];
 
-    const [docenteConflictos, aulaConflictos, grupoConflictos] = await Promise.all([
-      this.buscarConflictosPorEntidad('docente', payload.docenteId, payload, ignorarHorarioId),
-      payload.aulaId
-        ? this.buscarConflictosPorEntidad('aula', payload.aulaId, payload, ignorarHorarioId)
-        : Promise.resolve([]),
-      payload.grupoId
-        ? this.buscarConflictosPorEntidad('grupo', payload.grupoId, payload, ignorarHorarioId)
-        : Promise.resolve([]),
-    ]);
+    const [docenteConflictos, aulaConflictos, grupoConflictos] =
+      await Promise.all([
+        this.buscarConflictosPorEntidad(
+          'docente',
+          payload.docenteId,
+          payload,
+          ignorarHorarioId,
+        ),
+        payload.aulaId
+          ? this.buscarConflictosPorEntidad(
+              'aula',
+              payload.aulaId,
+              payload,
+              ignorarHorarioId,
+            )
+          : Promise.resolve([]),
+        payload.grupoId
+          ? this.buscarConflictosPorEntidad(
+              'grupo',
+              payload.grupoId,
+              payload,
+              ignorarHorarioId,
+            )
+          : Promise.resolve([]),
+      ]);
 
-    conflictos.push(...docenteConflictos, ...aulaConflictos, ...grupoConflictos);
+    conflictos.push(
+      ...docenteConflictos,
+      ...aulaConflictos,
+      ...grupoConflictos,
+    );
 
     return {
       ok: conflictos.length === 0,
@@ -584,7 +630,10 @@ export class HorariosService {
       }));
   }
 
-  private construirMensajeConflicto(tipo: 'docente' | 'aula' | 'grupo', horario: any) {
+  private construirMensajeConflicto(
+    tipo: 'docente' | 'aula' | 'grupo',
+    horario: any,
+  ) {
     if (tipo === 'docente') {
       return `El docente ${horario.docente.nombre} ya tiene asignada la materia ${horario.materia.nombre} en ${horario.dias} de ${horario.horaInicio} a ${horario.horaFin}.`;
     }
@@ -615,7 +664,9 @@ export class HorariosService {
         include: { academias: { select: { id: true, nombre: true } } },
       }));
     if (!docente || docente.rol !== 'DOCENTE') {
-      throw new BadRequestException('El usuario no existe o no tiene rol DOCENTE');
+      throw new BadRequestException(
+        'El usuario no existe o no tiene rol DOCENTE',
+      );
     }
 
     if (docente.academias.length === 0) {
@@ -629,8 +680,12 @@ export class HorariosService {
       const idsMateria = materia.academias.map((academia) => academia.id);
       const compartidas = idsDocente.filter((id) => idsMateria.includes(id));
       if (compartidas.length === 0) {
-        const nombresDocente = docente.academias.map((academia) => academia.nombre).join(', ');
-        const nombresMateria = materia.academias.map((academia) => academia.nombre).join(', ');
+        const nombresDocente = docente.academias
+          .map((academia) => academia.nombre)
+          .join(', ');
+        const nombresMateria = materia.academias
+          .map((academia) => academia.nombre)
+          .join(', ');
         throw new ConflictException(
           `El docente no pertenece a ninguna academia de esta materia. Academias del docente: [${nombresDocente}]. Academias de la materia: [${nombresMateria}].`,
         );
@@ -643,48 +698,57 @@ export class HorariosService {
   private async validarAula(aulaId?: number | null) {
     if (!aulaId) return null;
     const aula = await this.prisma.aula.findUnique({ where: { id: aulaId } });
-    if (!aula || !aula.activo) throw new NotFoundException('Aula no encontrada o inactiva');
+    if (!aula || !aula.activo)
+      throw new NotFoundException('Aula no encontrada o inactiva');
     return aula;
   }
 
   private async validarGrupo(grupoId: number) {
-    const grupo = await this.prisma.grupo.findUnique({ where: { id: grupoId } });
-    if (!grupo || !grupo.activo) throw new NotFoundException('Grupo no encontrado');
+    const grupo = await this.prisma.grupo.findUnique({
+      where: { id: grupoId },
+    });
+    if (!grupo || !grupo.activo)
+      throw new NotFoundException('Grupo no encontrado');
     return grupo;
   }
 
   private validarHoras(horaInicio: string, horaFin: string) {
     if (horaInicio >= horaFin) {
-      throw new BadRequestException('La hora de inicio debe ser menor que la hora de fin');
+      throw new BadRequestException(
+        'La hora de inicio debe ser menor que la hora de fin',
+      );
     }
   }
 
   private normalizarBloques(
     input: Pick<HorarioInput, 'dias' | 'horaInicio' | 'horaFin' | 'bloques'>,
   ) {
-    const bloquesBase = Array.isArray(input.bloques) && input.bloques.length > 0
-      ? input.bloques
-      : (() => {
-          if (!input.dias || !input.horaInicio || !input.horaFin) {
-            throw new BadRequestException(
-              'Debes enviar al menos un bloque por día o un conjunto de días con hora de inicio y fin.',
-            );
-          }
+    const bloquesBase =
+      Array.isArray(input.bloques) && input.bloques.length > 0
+        ? input.bloques
+        : (() => {
+            if (!input.dias || !input.horaInicio || !input.horaFin) {
+              throw new BadRequestException(
+                'Debes enviar al menos un bloque por día o un conjunto de días con hora de inicio y fin.',
+              );
+            }
 
-          return this.normalizarDias(input.dias)
-            .split(',')
-            .map((dia) => ({
-              dia,
-              horaInicio: input.horaInicio as string,
-              horaFin: input.horaFin as string,
-            }));
-        })();
+            return this.normalizarDias(input.dias)
+              .split(',')
+              .map((dia) => ({
+                dia,
+                horaInicio: input.horaInicio as string,
+                horaFin: input.horaFin as string,
+              }));
+          })();
 
     const dias = new Set<string>();
     const normalizados = bloquesBase.map((bloque) => {
       const dia = this.normalizarDia(bloque.dia);
       if (dias.has(dia)) {
-        throw new BadRequestException(`El día ${dia} está repetido en el horario.`);
+        throw new BadRequestException(
+          `El día ${dia} está repetido en el horario.`,
+        );
       }
       dias.add(dia);
       this.validarHoras(bloque.horaInicio, bloque.horaFin);
@@ -716,16 +780,17 @@ export class HorariosService {
   private normalizarDias(dias: string[] | string) {
     const lista = Array.isArray(dias)
       ? dias
-      : dias.split(',').map((dia) => dia.trim()).filter(Boolean);
+      : dias
+          .split(',')
+          .map((dia) => dia.trim())
+          .filter(Boolean);
 
     if (lista.length === 0) {
       throw new BadRequestException('Debes seleccionar al menos un día');
     }
 
     const normalizados = Array.from(
-      new Set(
-        lista.map((dia) => this.normalizarDia(dia)),
-      ),
+      new Set(lista.map((dia) => this.normalizarDia(dia))),
     );
 
     normalizados.sort((a, b) => {
@@ -737,10 +802,14 @@ export class HorariosService {
     return normalizados.join(',');
   }
 
-  private ordenarHorarios<T extends { dias: string; horaInicio: string }>(horarios: T[]) {
+  private ordenarHorarios<T extends { dias: string; horaInicio: string }>(
+    horarios: T[],
+  ) {
     return [...horarios].sort((a, b) => {
-      const primerDiaA = ORDEN_DIAS[a.dias.split(',')[0].trim().toLowerCase()] ?? 99;
-      const primerDiaB = ORDEN_DIAS[b.dias.split(',')[0].trim().toLowerCase()] ?? 99;
+      const primerDiaA =
+        ORDEN_DIAS[a.dias.split(',')[0].trim().toLowerCase()] ?? 99;
+      const primerDiaB =
+        ORDEN_DIAS[b.dias.split(',')[0].trim().toLowerCase()] ?? 99;
       if (primerDiaA !== primerDiaB) return primerDiaA - primerDiaB;
       return a.horaInicio.localeCompare(b.horaInicio);
     });
@@ -808,11 +877,19 @@ export class HorariosService {
     if (!materia) throw new NotFoundException('Materia no encontrada');
 
     const gruposObjetivo = Array.from(
-      new Set(horariosActivos.map((horario) => horario.grupoId).filter((grupoId): grupoId is number => grupoId !== null)),
+      new Set(
+        horariosActivos
+          .map((horario) => horario.grupoId)
+          .filter((grupoId): grupoId is number => grupoId !== null),
+      ),
     );
     const gruposActuales = materia.grupos.map((grupo) => grupo.id);
-    const conectar = gruposObjetivo.filter((grupoId) => !gruposActuales.includes(grupoId));
-    const desconectar = gruposActuales.filter((grupoId) => !gruposObjetivo.includes(grupoId));
+    const conectar = gruposObjetivo.filter(
+      (grupoId) => !gruposActuales.includes(grupoId),
+    );
+    const desconectar = gruposActuales.filter(
+      (grupoId) => !gruposObjetivo.includes(grupoId),
+    );
 
     if (conectar.length === 0 && desconectar.length === 0) return;
 

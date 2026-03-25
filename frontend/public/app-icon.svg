@@ -1,0 +1,144 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="logo-shadow" x="0" y="0" width="512" height="512" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="4" dy="6" stdDeviation="6" flood-color="#0F172A" flood-opacity="0.10" />
+    </filter>
+    <path
+      id="gear-shape"
+      d="M 256.0 20.0 L 308.5 94.3 L 394.7 65.1 L 393.5 156.1 L 480.4 183.1 L 426.0 256.0 L 480.4 328.9 L 393.5 355.9 L 394.7 446.9 L 308.5 417.7 L 256.0 492.0 L 203.5 417.7 L 117.3 446.9 L 118.5 355.9 L 31.6 328.9 L 86.0 256.0 L 31.6 183.1 L 118.5 156.1 L 117.3 65.1 L 203.5 94.3 Z"
+    />
+    <clipPath id="gear-clip">
+      <use href="#gear-shape" />
+    </clipPath>
+  </defs>
+
+  <rect width="512" height="512" fill="#FFFFFF" />
+
+  <g transform="translate(28 16) scale(0.82)" filter="url(#logo-shadow)">
+    <use href="#gear-shape" fill="#143B84" />
+
+    <g clip-path="url(#gear-clip)">
+      <path
+        d="M86 126C131 102 190 99 246 116C289 129 326 152 354 185C389 226 406 283 401 337"
+        fill="none"
+        stroke="#FFFFFF"
+        stroke-width="14"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+      <path
+        d="M120 103C171 112 219 133 258 162"
+        fill="none"
+        stroke="#FFFFFF"
+        stroke-width="11"
+        stroke-linecap="round"
+      />
+      <path
+        d="M154 98C199 112 240 136 273 166"
+        fill="none"
+        stroke="#FFFFFF"
+        stroke-width="10"
+        stroke-linecap="round"
+      />
+      <path
+        d="M79 158C147 160 211 173 269 197"
+        fill="none"
+        stroke="#FFFFFF"
+        stroke-width="13"
+        stroke-linecap="round"
+      />
+      <path
+        d="M71 188C140 191 201 204 254 226"
+        fill="none"
+        stroke="#FFFFFF"
+        stroke-width="12"
+        stroke-linecap="round"
+      />
+      <path
+        d="M64 218C129 222 185 235 233 257"
+        fill="none"
+        stroke="#FFFFFF"
+        stroke-width="12"
+        stroke-linecap="round"
+      />
+      <path
+        d="M60 248C114 255 159 272 199 297"
+        fill="none"
+        stroke="#FFFFFF"
+        stroke-width="10"
+        stroke-linecap="round"
+      />
+      <path
+        d="M67 287C108 297 142 315 173 340"
+        fill="none"
+        stroke="#FFFFFF"
+        stroke-width="9"
+        stroke-linecap="round"
+      />
+      <path
+        d="M81 326C111 341 136 361 158 388"
+        fill="none"
+        stroke="#FFFFFF"
+        stroke-width="9"
+        stroke-linecap="round"
+      />
+      <path
+        d="M72 109C109 159 125 214 117 278C110 336 122 384 151 424"
+        fill="#143B84"
+        stroke="#FFFFFF"
+        stroke-width="12"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+      <path
+        d="M246 191C223 197 205 216 196 239C187 263 188 292 198 316C211 347 241 370 271 370C290 370 307 360 320 343C309 346 296 345 284 339C264 329 249 308 247 286C261 286 275 281 287 272C301 262 309 247 309 230C309 214 301 199 287 190C273 181 256 182 246 191Z"
+        fill="#143B84"
+        stroke="#FFFFFF"
+        stroke-width="12"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+      <path
+        d="M219 242C235 237 249 228 260 216"
+        fill="none"
+        stroke="#FFFFFF"
+        stroke-width="9"
+        stroke-linecap="round"
+      />
+      <path
+        d="M244 367C230 385 223 409 224 435"
+        fill="none"
+        stroke="#FFFFFF"
+        stroke-width="11"
+        stroke-linecap="round"
+      />
+      <path
+        d="M143 355C180 365 203 393 207 438"
+        fill="none"
+        stroke="#FFFFFF"
+        stroke-width="11"
+        stroke-linecap="round"
+      />
+      <path
+        d="M278 166C329 189 362 241 364 298C365 331 355 363 335 389"
+        fill="none"
+        stroke="#FFFFFF"
+        stroke-width="14"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+      <path
+        d="M308 224C326 236 337 257 337 279C337 300 328 319 314 334"
+        fill="none"
+        stroke="#FFFFFF"
+        stroke-width="11"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+      <circle cx="196" cy="169" r="22" fill="#143B84" stroke="#FFFFFF" stroke-width="12" />
+      <circle cx="204" cy="161" r="7" fill="#FFFFFF" />
+      <circle cx="182" cy="245" r="17" fill="#143B84" stroke="#FFFFFF" stroke-width="10" />
+      <circle cx="182" cy="245" r="5" fill="#FFFFFF" />
+    </g>
+  </g>
+</svg>

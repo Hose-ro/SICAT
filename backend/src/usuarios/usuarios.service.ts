@@ -10,9 +10,18 @@ export class UsuariosService {
     return this.prisma.usuario.findMany({
       where: rol ? { rol: rol as any } : undefined,
       select: {
-        id: true, nombre: true, email: true, numeroControl: true,
-        username: true, rol: true, telefono: true, semestre: true,
-        academias: { select: { id: true, nombre: true } }, activo: true, carrera: true, createdAt: true,
+        id: true,
+        nombre: true,
+        email: true,
+        numeroControl: true,
+        username: true,
+        rol: true,
+        telefono: true,
+        semestre: true,
+        academias: { select: { id: true, nombre: true } },
+        activo: true,
+        carrera: true,
+        createdAt: true,
       },
       orderBy: { nombre: 'asc' },
     });
@@ -22,9 +31,18 @@ export class UsuariosService {
     const user = await this.prisma.usuario.findUnique({
       where: { id },
       select: {
-        id: true, nombre: true, email: true, numeroControl: true,
-        username: true, rol: true, telefono: true, semestre: true,
-        academias: { select: { id: true, nombre: true } }, activo: true, carrera: true, createdAt: true,
+        id: true,
+        nombre: true,
+        email: true,
+        numeroControl: true,
+        username: true,
+        rol: true,
+        telefono: true,
+        semestre: true,
+        academias: { select: { id: true, nombre: true } },
+        activo: true,
+        carrera: true,
+        createdAt: true,
       },
     });
     if (!user) throw new NotFoundException('Usuario no encontrado');
@@ -40,14 +58,23 @@ export class UsuariosService {
       where: { id },
       data,
       select: {
-        id: true, nombre: true, email: true, rol: true,
-        telefono: true, semestre: true, academias: { select: { id: true, nombre: true } }, activo: true,
+        id: true,
+        nombre: true,
+        email: true,
+        rol: true,
+        telefono: true,
+        semestre: true,
+        academias: { select: { id: true, nombre: true } },
+        activo: true,
       },
     });
   }
 
   async remove(id: number) {
     await this.findOne(id);
-    return this.prisma.usuario.update({ where: { id }, data: { activo: false } });
+    return this.prisma.usuario.update({
+      where: { id },
+      data: { activo: false },
+    });
   }
 }
