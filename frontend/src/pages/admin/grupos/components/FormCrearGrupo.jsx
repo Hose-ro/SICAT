@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import api from '../../../../api/axios'
 import { useGrupoStore } from '../../../../store/grupoStore'
 import Modal from '../../../../components/Modal'
+import { getCurrentAcademicPeriod } from '../../../../lib/periodo'
 
 const SEMESTRES = [1, 2, 3, 4, 5, 6, 7, 8, 9]
 const SECCIONES = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
@@ -12,7 +13,7 @@ export default function FormCrearGrupo({ open, onClose }) {
   const { crearGrupo } = useGrupoStore()
   const [carreras, setCarreras] = useState([])
   const [grupos, setGrupos] = useState([])
-  const [form, setForm] = useState({ carreraId: '', semestre: '', seccion: '', periodo: '2026-A' })
+  const [form, setForm] = useState({ carreraId: '', semestre: '', seccion: '', periodo: getCurrentAcademicPeriod() })
   const [preview, setPreview] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -20,7 +21,7 @@ export default function FormCrearGrupo({ open, onClose }) {
 
   useEffect(() => {
     if (open) {
-      setForm({ carreraId: '', semestre: '', seccion: '', periodo: '2026-A' })
+      setForm({ carreraId: '', semestre: '', seccion: '', periodo: getCurrentAcademicPeriod() })
       setPreview(null)
       setError('')
       setStep('form')

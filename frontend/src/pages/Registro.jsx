@@ -67,7 +67,6 @@ export default function Registro() {
         nombre: form.nombre,
         numeroControl: form.numeroControl,
         password: form.password,
-        rol: 'ALUMNO',
         carreraId: form.carreraId ? parseInt(form.carreraId) : undefined,
         semestre: form.semestre ? parseInt(form.semestre) : undefined,
       }

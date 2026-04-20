@@ -6,9 +6,10 @@ import {
   Body,
   Param,
   ParseIntPipe,
-  Query,
-  UseGuards,
-  Request,
+    Query,
+    UseGuards,
+    Request,
+    ForbiddenException,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags, ApiOperation } from '@nestjs/swagger';
 import { MateriasService } from './materias.service';
@@ -30,7 +31,7 @@ export class MateriasController {
   create(@Body() dto: CreateMateriaDto, @Request() req: any) {
     const docenteId =
       req.user.rol === 'DOCENTE' ? req.user.id : (dto.docenteId ?? null);
-    return this.materias.create(dto, docenteId);
+    return this.materias.create(dto, req.user, docenteId);
   }
 
   @Get()
@@ -53,7 +54,9 @@ export class MateriasController {
   @Roles('DOCENTE', 'ADMIN')
   @ApiOperation({ summary: 'Materias del docente autenticado' })
   misMaterias(@Request() req: any) {
-    return this.materias.findByDocente(req.user.id);
+    return this.materias.findByDocente(
+      req.user.rol === 'ADMIN' ? undefined : req.user.id,
+    );
   }
 
   @Get('para-alumno')
@@ -72,9 +75,10 @@ export class MateriasController {
   }
 
   @Get(':id')
+  @Roles('DOCENTE', 'ADMIN')
   @ApiOperation({ summary: 'Ver detalle de materia' })
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.materias.findOne(id);
+  findOne(@Param('id', ParseIntPipe) id: number, @Request() req: any) {
+    return this.materias.findOne(id, req.user);
   }
 
   @Delete(':id')

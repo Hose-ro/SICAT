@@ -1,5 +1,21 @@
 import { useState, useEffect } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
+import {
+  CiBoxes,
+  CiCalendar,
+  CiCalendarDate,
+  CiDark,
+  CiHome,
+  CiLock,
+  CiLogout,
+  CiMenuBurger,
+  CiRead,
+  CiSearch,
+  CiShop,
+  CiSun,
+  CiUser,
+  CiViewList,
+} from 'react-icons/ci'
 import { useAuthStore } from '@/store/authStore'
 import api from '@/api/axios'
 import NotificacionesBell from '@/components/shared/NotificacionesBell'
@@ -9,6 +25,10 @@ import { getInitialDarkMode, setThemeMode } from '@/lib/theme'
 export function BaseLayout({ children }) {
   const { user, logout } = useAuthStore()
   const navigate = useNavigate()
+  const role = user?.rol
+  const displayName = user?.nombre || user?.username || user?.email || 'Usuario'
+  const displayRole = role || 'Miembro'
+  const avatarText = displayName?.[0]?.toUpperCase() || '?'
 
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -39,6 +59,7 @@ export function BaseLayout({ children }) {
 
   const navClass = ({ isActive }) =>
     `nav__item${isActive ? ' active' : ''}`
+  const ThemeIcon = dark ? CiSun : CiDark
 
   return (
     <div>
@@ -72,7 +93,7 @@ export function BaseLayout({ children }) {
 
         {/* Search */}
         <div className="sidebar__search">
-          <i className="ri-search-line" />
+          <CiSearch className="sidebar__search-icon" />
           <input type="text" placeholder="Buscar..." />
         </div>
 
@@ -81,51 +102,51 @@ export function BaseLayout({ children }) {
           <span className="nav__section">Principal</span>
 
           <NavLink to="/dashboard" className={navClass} data-tip="Inicio" onClick={() => setMobileOpen(false)}>
-            <i className="ri-home-5-fill nav__icon" />
+            <CiHome className="nav__icon" />
             <span className="nav__label">Inicio</span>
           </NavLink>
 
           <NavLink to="/materias" className={navClass} data-tip="Materias" onClick={() => setMobileOpen(false)}>
-            <i className="ri-book-3-fill nav__icon" />
+            <CiRead className="nav__icon" />
             <span className="nav__label">Materias</span>
           </NavLink>
 
           <NavLink to="/asistencias" className={navClass} data-tip="Asistencias" onClick={() => setMobileOpen(false)}>
-            <i className="ri-calendar-check-fill nav__icon" />
+            <CiCalendar className="nav__icon" />
             <span className="nav__label">Asistencias</span>
           </NavLink>
 
           <NavLink to="/tareas" className={navClass} data-tip="Tareas" onClick={() => setMobileOpen(false)}>
-            <i className="ri-task-fill nav__icon" />
+            <CiViewList className="nav__icon" />
             <span className="nav__label">Tareas</span>
           </NavLink>
 
-          {(user?.rol === 'ADMIN' || user?.user_metadata?.custom_claims?.rol === 'ADMIN') && (
+          {role === 'ADMIN' && (
             <>
               <span className="nav__section">Administración</span>
 
               <NavLink to="/carreras" className={navClass} data-tip="Carreras" onClick={() => setMobileOpen(false)}>
-                <i className="ri-book-2-fill nav__icon" />
+                <CiRead className="nav__icon" />
                 <span className="nav__label">Carreras</span>
               </NavLink>
 
               <NavLink to="/usuarios" className={navClass} data-tip="Usuarios" onClick={() => setMobileOpen(false)}>
-                <i className="ri-group-fill nav__icon" />
+                <CiUser className="nav__icon" />
                 <span className="nav__label">Usuarios</span>
               </NavLink>
 
               <NavLink to="/admin/horarios" className={navClass} data-tip="Horarios" onClick={() => setMobileOpen(false)}>
-                <i className="ri-calendar-schedule-fill nav__icon" />
+                <CiCalendarDate className="nav__icon" />
                 <span className="nav__label">Horarios</span>
               </NavLink>
 
               <NavLink to="/admin/academias" className={navClass} data-tip="Academias" onClick={() => setMobileOpen(false)}>
-                <i className="ri-building-4-fill nav__icon" />
+                <CiShop className="nav__icon" />
                 <span className="nav__label">Academias</span>
               </NavLink>
 
               <NavLink to="/admin/grupos" className={navClass} data-tip="Grupos" onClick={() => setMobileOpen(false)}>
-                <i className="ri-team-fill nav__icon" />
+                <CiBoxes className="nav__icon" />
                 <span className="nav__label">Grupos</span>
               </NavLink>
             </>
@@ -139,7 +160,7 @@ export function BaseLayout({ children }) {
 
           {/* Dark mode toggle */}
           <div className="dark-toggle">
-            <i className={`${dark ? 'ri-sun-fill' : 'ri-moon-fill'} dark-toggle__icon`} />
+            <ThemeIcon className="dark-toggle__icon" />
             <span className="dark-toggle__label">{dark ? 'Modo claro' : 'Modo oscuro'}</span>
             <input
               id="dark-check"
@@ -158,19 +179,15 @@ export function BaseLayout({ children }) {
           {/* User */}
           <div className="sidebar__user">
             <div className="user__avatar">
-              {user?.user_metadata?.custom_claims?.nombre?.[0]?.toUpperCase() ?? user?.email?.[0]?.toUpperCase() ?? '?'}
+              {avatarText}
             </div>
             <div className="user__info">
-              <div className="user__name">{user?.user_metadata?.custom_claims?.nombre ?? user?.email ?? 'Usuario'}</div>
-              <div className="user__role">{user?.user_metadata?.custom_claims?.rol ?? 'Miembro'}</div>
+              <div className="user__name">{displayName}</div>
+              <div className="user__role">{displayRole}</div>
             </div>
             <button className="btn-logout" onClick={handleLogout} title="Cerrar sesión">
               <span className="btn-logout__sign">
-                <svg viewBox="0 0 24 24">
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                  <polyline points="16 17 21 12 16 7" />
-                  <line x1="21" y1="12" x2="9" y2="12" />
-                </svg>
+                <CiLogout />
               </span>
               <span className="btn-logout__text">Salir</span>
             </button>
@@ -181,7 +198,7 @@ export function BaseLayout({ children }) {
             className="sidebar__pw-btn"
             onClick={() => { setPwModal(true); setPwError(''); setPwSuccess(''); setPwForm({ current: '', newPw: '', confirm: '' }); }}
           >
-            <i className="ri-lock-password-line" style={{ fontSize: 14 }} />
+            <CiLock className="sidebar__pw-icon" />
             <span className="sidebar__pw-label">Cambiar contraseña</span>
           </button>
 
@@ -195,7 +212,7 @@ export function BaseLayout({ children }) {
           type="button"
           className="rounded-lg border border-transparent p-2 text-[20px] text-[#263C69] transition hover:bg-white/60"
         >
-          <i className="ri-menu-line" />
+          <CiMenuBurger />
         </button>
         <div className="mobile-topbar__brand">
           <BrandMark className="mobile-topbar__brand-icon" decorative />
@@ -206,6 +223,9 @@ export function BaseLayout({ children }) {
 
       {/* ── Main content ── */}
       <div className={`layout-main${collapsed ? ' collapsed' : ''}`}>
+        <div className="hidden items-center justify-end px-4 pt-4 sm:px-6 lg:flex lg:px-7">
+          <NotificacionesBell />
+        </div>
         <main className="min-h-screen px-4 py-4 sm:px-6 sm:py-6 lg:px-7">
           {children}
         </main>

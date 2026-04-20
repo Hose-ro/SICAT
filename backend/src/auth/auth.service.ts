@@ -1,66 +1,37 @@
 import {
   Injectable,
   UnauthorizedException,
-  ConflictException,
+  ForbiddenException,
 } from '@nestjs/common';
+import { Rol } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma.service';
 import * as bcrypt from 'bcrypt';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { UsuariosService } from '../usuarios/usuarios.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwt: JwtService,
+    private usuarios: UsuariosService,
   ) {}
 
   async register(dto: RegisterDto) {
-    if (dto.email) {
-      const exists = await this.prisma.usuario.findUnique({
-        where: { email: dto.email },
-      });
-      if (exists) throw new ConflictException('El correo ya está registrado');
-    }
-    if (dto.numeroControl) {
-      const exists = await this.prisma.usuario.findUnique({
-        where: { numeroControl: dto.numeroControl },
-      });
-      if (exists)
-        throw new ConflictException('El número de control ya está registrado');
-    }
-    if (dto.username) {
-      const exists = await this.prisma.usuario.findUnique({
-        where: { username: dto.username },
-      });
-      if (exists) throw new ConflictException('El usuario ya está en uso');
+    if (dto.rol && dto.rol !== Rol.ALUMNO) {
+      throw new ForbiddenException(
+        'El registro público solo está disponible para alumnos',
+      );
     }
 
-    const hash = await bcrypt.hash(dto.password, 10);
-    const user = await this.prisma.usuario.create({
-      data: {
-        nombre: dto.nombre,
-        email: dto.email,
-        numeroControl: dto.numeroControl,
-        username: dto.username,
-        password: hash,
-        rol: dto.rol,
-        telefono: dto.telefono,
-        carreraId: dto.carreraId ? Number(dto.carreraId) : undefined,
-        semestre: dto.semestre ? Number(dto.semestre) : undefined,
-      },
-      select: {
-        id: true,
-        nombre: true,
-        email: true,
-        numeroControl: true,
-        username: true,
-        rol: true,
-        createdAt: true,
-      },
+    return this.usuarios.create({
+      ...dto,
+      rol: Rol.ALUMNO,
+      username: undefined,
+      academiaId: undefined,
     });
-    return user;
   }
 
   async login(dto: LoginDto) {
@@ -79,7 +50,7 @@ export class AuthService {
     const valid = await bcrypt.compare(dto.password, user.password);
     if (!valid) throw new UnauthorizedException('Credenciales inválidas');
 
-    const payload = { sub: user.id, rol: user.rol };
+    const payload = { sub: user.id, rol: user.rol, email: user.email };
     return {
       access_token: this.jwt.sign(payload),
       user: {

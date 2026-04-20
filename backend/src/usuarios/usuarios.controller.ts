@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Post,
   Patch,
   Delete,
   Body,
@@ -9,6 +10,7 @@ import {
   Query,
   UseGuards,
   Request,
+  ForbiddenException,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -20,6 +22,7 @@ import { UsuariosService } from './usuarios.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+import { RegisterDto } from '../auth/dto/register.dto';
 
 @ApiTags('Usuarios')
 @ApiBearerAuth()
@@ -27,6 +30,13 @@ import { Roles } from '../auth/roles.decorator';
 @Controller('usuarios')
 export class UsuariosController {
   constructor(private usuarios: UsuariosService) {}
+
+  @Post()
+  @Roles('ADMIN')
+  @ApiOperation({ summary: 'Crear usuario (admin)' })
+  create(@Body() dto: RegisterDto) {
+    return this.usuarios.create(dto);
+  }
 
   @Get()
   @Roles('ADMIN')
@@ -48,7 +58,10 @@ export class UsuariosController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Ver usuario por ID' })
-  findOne(@Param('id', ParseIntPipe) id: number) {
+  findOne(@Param('id', ParseIntPipe) id: number, @Request() req: any) {
+    if (req.user.rol !== 'ADMIN' && req.user.id !== id) {
+      throw new ForbiddenException('No puedes consultar este usuario');
+    }
     return this.usuarios.findOne(id);
   }
 

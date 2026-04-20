@@ -12,7 +12,8 @@ export const useInscripcionStore = create((set) => ({
   solicitar: async (materiaId, periodo) => {
     set({ loading: true, error: null })
     try {
-      const res = await api.post('/inscripciones/solicitar', { materiaId, periodo })
+      const payload = periodo ? { materiaId, periodo } : { materiaId }
+      const res = await api.post('/inscripciones/solicitar', payload)
       return res.data
     } catch (err) {
       set({ error: err.response?.data?.message || 'Error al solicitar' })

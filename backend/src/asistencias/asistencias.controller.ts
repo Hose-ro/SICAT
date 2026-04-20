@@ -14,8 +14,10 @@ import {
   Patch,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { TipoNotificacion } from '@prisma/client';
 import { AsistenciasService } from './asistencias.service';
 import { ReportesService } from '../reportes/reportes.service';
+import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
@@ -28,6 +30,7 @@ export class AsistenciasController {
   constructor(
     private readonly asistenciasService: AsistenciasService,
     private readonly reportesService: ReportesService,
+    private readonly notificacionesService: NotificacionesService,
   ) {}
 
   @Post('pasar-lista')
@@ -179,6 +182,13 @@ export class AsistenciasController {
     );
     if (formato === 'pdf') {
       const buffer = await this.reportesService.generarPdfAsistencias(datos);
+      await this.notificacionesService.crearParaAdmins({
+        tipo: TipoNotificacion.REPORTE_DISPONIBLE,
+        titulo: 'Reporte disponible',
+        mensaje: 'Se generó un reporte de asistencias en PDF.',
+        referenciaId: materiaId,
+        referenciaTipo: 'ReporteAsistencias',
+      });
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader(
         'Content-Disposition',
@@ -187,6 +197,13 @@ export class AsistenciasController {
       return res.send(buffer);
     }
     const buffer = await this.reportesService.generarExcelAsistencias(datos);
+    await this.notificacionesService.crearParaAdmins({
+      tipo: TipoNotificacion.REPORTE_DISPONIBLE,
+      titulo: 'Reporte disponible',
+      mensaje: 'Se generó un reporte de asistencias en Excel.',
+      referenciaId: materiaId,
+      referenciaTipo: 'ReporteAsistencias',
+    });
     res.setHeader(
       'Content-Type',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

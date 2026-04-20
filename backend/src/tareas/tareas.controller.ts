@@ -15,8 +15,10 @@ import {
   UploadedFiles,
 } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
+import { TipoNotificacion } from '@prisma/client';
 import { TareasService } from './tareas.service';
 import { ReportesService } from '../reportes/reportes.service';
+import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
@@ -39,6 +41,7 @@ export class TareasController {
   constructor(
     private readonly tareasService: TareasService,
     private readonly reportesService: ReportesService,
+    private readonly notificacionesService: NotificacionesService,
   ) {}
 
   @Post()
@@ -184,6 +187,11 @@ export class TareasController {
     if (formato === 'pdf') {
       const buffer =
         await this.reportesService.generarPdfReporteTareas(reporte);
+      await this.registrarReporteDisponible(
+        `Reporte de tareas exportado en PDF`,
+        materiaId ? Number(materiaId) : undefined,
+        'ReporteTareas',
+      );
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', 'attachment; filename=tareas.pdf');
       return res.send(buffer);
@@ -191,6 +199,11 @@ export class TareasController {
 
     const buffer =
       await this.reportesService.generarExcelReporteTareas(reporte);
+    await this.registrarReporteDisponible(
+      `Reporte de tareas exportado en Excel`,
+      materiaId ? Number(materiaId) : undefined,
+      'ReporteTareas',
+    );
     res.setHeader(
       'Content-Type',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -231,6 +244,11 @@ export class TareasController {
     ];
 
     const buffer = await buildZipArchive(entries);
+    await this.registrarReporteDisponible(
+      `Cierre de unidad ${unidadId} disponible`,
+      unidadId,
+      'ReporteTareas',
+    );
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader(
       'Content-Disposition',
@@ -319,6 +337,11 @@ export class TareasController {
     if (formato === 'pdf') {
       const buffer =
         await this.reportesService.generarPdfReporteTareas(reporte);
+      await this.registrarReporteDisponible(
+        `Reporte de tarea ${id} exportado en PDF`,
+        id,
+        'ReporteTareas',
+      );
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader(
         'Content-Disposition',
@@ -329,6 +352,11 @@ export class TareasController {
 
     const buffer =
       await this.reportesService.generarExcelReporteTareas(reporte);
+    await this.registrarReporteDisponible(
+      `Reporte de tarea ${id} exportado en Excel`,
+      id,
+      'ReporteTareas',
+    );
     res.setHeader(
       'Content-Type',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -545,5 +573,19 @@ export class TareasController {
   @Get(':id')
   detalle(@Param('id', ParseIntPipe) id: number, @Req() req) {
     return this.tareasService.obtenerDetalle(id, req.user);
+  }
+
+  private async registrarReporteDisponible(
+    titulo: string,
+    referenciaId?: number,
+    referenciaTipo: string = 'ReporteTareas',
+  ) {
+    await this.notificacionesService.crearParaAdmins({
+      tipo: TipoNotificacion.REPORTE_DISPONIBLE,
+      titulo: 'Reporte disponible',
+      mensaje: titulo,
+      referenciaId,
+      referenciaTipo,
+    });
   }
 }

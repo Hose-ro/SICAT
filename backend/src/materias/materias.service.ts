@@ -1,12 +1,25 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { TipoNotificacion } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { CreateMateriaDto } from './dto/create-materia.dto';
+import { NotificacionesService } from '../notificaciones/notificaciones.service';
 
 @Injectable()
 export class MateriasService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificaciones: NotificacionesService,
+  ) {}
 
-  async create(dto: CreateMateriaDto, docenteId?: number | null) {
+  async create(
+    dto: CreateMateriaDto,
+    actor?: { id: number; rol: string },
+    docenteId?: number | null,
+  ) {
     const materia = await this.prisma.materia.create({
       data: {
         nombre: dto.nombre,
@@ -25,6 +38,16 @@ export class MateriasService {
     for (let i = 1; i <= dto.numUnidades; i++) {
       await this.prisma.unidad.create({
         data: { nombre: `Unidad ${i}`, orden: i, materiaId: materia.id },
+      });
+    }
+
+    if (actor?.rol === 'DOCENTE') {
+      await this.notificaciones.crearParaAdmins({
+        tipo: TipoNotificacion.MATERIA_CREADA,
+        titulo: 'Nueva materia creada',
+        mensaje: `Se creó la materia ${materia.nombre}.`,
+        referenciaId: materia.id,
+        referenciaTipo: 'Materia',
       });
     }
 
@@ -135,9 +158,9 @@ export class MateriasService {
     });
   }
 
-  findByDocente(docenteId: number) {
+  findByDocente(docenteId?: number) {
     return this.prisma.materia.findMany({
-      where: { docenteId },
+      where: docenteId ? { docenteId } : undefined,
       include: {
         unidades: { orderBy: { orden: 'asc' } },
         carrera: { select: { id: true, nombre: true } },
@@ -155,7 +178,7 @@ export class MateriasService {
     });
   }
 
-  async findOne(id: number) {
+  async findOne(id: number, actor?: { id: number; rol: string }) {
     const materia = await this.prisma.materia.findUnique({
       where: { id },
       include: {
@@ -184,6 +207,7 @@ export class MateriasService {
           orderBy: { fecha: 'desc' },
         },
         inscripciones: {
+          where: { estado: 'ACEPTADA' },
           include: {
             alumno: {
               select: {
@@ -199,6 +223,9 @@ export class MateriasService {
       },
     });
     if (!materia) throw new NotFoundException('Materia no encontrada');
+    if (actor?.rol === 'DOCENTE' && materia.docente?.id !== actor.id) {
+      throw new ForbiddenException('No puedes consultar esta materia');
+    }
     return materia;
   }
 

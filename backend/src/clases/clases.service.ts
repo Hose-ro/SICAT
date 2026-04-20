@@ -20,6 +20,7 @@ import {
   obtenerFinDelDia,
   obtenerInicioDelDia,
 } from './clases.utils';
+import { getCurrentAcademicPeriod } from '../common/periodo.util';
 
 @Injectable()
 export class ClasesService {
@@ -135,9 +136,19 @@ export class ClasesService {
       await this.notificaciones.crearParaVarios(alumnoIds, {
         tipo: TipoNotificacion.CLASE_INICIADA,
         titulo: `Clase iniciada: ${horario.materia.nombre}`,
-        mensaje: `${horario.grupo?.nombre ?? 'Grupo'} ya está en curso`,
-        referenciaId: sesion.id,
-        referenciaTipo: 'ClaseSesion',
+        mensaje: `La clase de ${horario.materia.nombre} ha iniciado.`,
+        referenciaId: horario.materiaId,
+        referenciaTipo: 'Materia',
+      });
+    }
+
+    if (!dentroDeHorario) {
+      await this.notificaciones.crearParaAdmins({
+        tipo: TipoNotificacion.ALERTA_ADMIN,
+        titulo: 'Clase iniciada fuera de horario',
+        mensaje: `Se inició ${horario.materia.nombre} fuera del horario programado.`,
+        referenciaId: horario.materiaId,
+        referenciaTipo: 'Asistencias',
       });
     }
 
@@ -205,8 +216,8 @@ export class ClasesService {
         tipo: TipoNotificacion.CLASE_FINALIZADA,
         titulo: `Clase finalizada: ${actualizada.materia.nombre}`,
         mensaje: `${actualizada.grupo?.nombre ?? 'Grupo'} ha finalizado la sesión del día`,
-        referenciaId: sesionId,
-        referenciaTipo: 'ClaseSesion',
+        referenciaId: actualizada.materia.id,
+        referenciaTipo: 'Materia',
       });
     }
 
@@ -384,6 +395,7 @@ export class ClasesService {
       where: {
         alumnoId,
         estado: 'ACEPTADA',
+        periodo: getCurrentAcademicPeriod(),
       },
       select: { materiaId: true },
     });

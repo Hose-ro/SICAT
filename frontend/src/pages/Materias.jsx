@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { CiCalendarDate, CiClock2, CiRead, CiUser } from 'react-icons/ci'
 import PageHeader from '../components/PageHeader'
 import Modal from '../components/Modal'
 import api from '../api/axios'
@@ -9,15 +10,10 @@ export default function Materias() {
   const { user } = useAuthStore()
   const navigate = useNavigate()
   const [materias, setMaterias] = useState([])
-  const [solicitudesEnviadas, setSolicitudesEnviadas] = useState(new Set())
   const [busqueda, setBusqueda] = useState('')
   const [filtroCarrera, setFiltroCarrera] = useState('')
   const [filtroSemestre, setFiltroSemestre] = useState('')
   const [modal, setModal] = useState(false)
-  const [modalBuscar, setModalBuscar] = useState(false)
-  const [claveBuscar, setClaveBuscar] = useState('')
-  const [materiaEncontrada, setMateriaEncontrada] = useState(null)
-  const [errorBuscar, setErrorBuscar] = useState('')
   const [carreras, setCarreras] = useState([])
   const [form, setForm] = useState({
     nombre: '', clave: '', descripcion: '',
@@ -29,15 +25,15 @@ export default function Materias() {
   const esAdmin = user?.rol === 'ADMIN'
   const canCreate = esAdmin || user?.rol === 'DOCENTE'
 
-  const fetchMaterias = () => {
+  const fetchMaterias = useCallback(() => {
     const endpoint = esAlumno ? '/materias/para-alumno' : user?.rol === 'DOCENTE' ? '/materias/mis-materias' : '/materias'
     api.get(endpoint).then((r) => setMaterias(r.data))
-  }
+  }, [esAlumno, user?.rol])
 
   useEffect(() => {
     fetchMaterias()
     api.get('/carreras').then((r) => setCarreras(r.data))
-  }, [])
+  }, [fetchMaterias])
 
   const crear = async (e) => {
     e.preventDefault()
@@ -58,36 +54,6 @@ export default function Materias() {
     }
   }
 
-  const buscarMateria = async () => {
-    setErrorBuscar('')
-    setMateriaEncontrada(null)
-    try {
-      const r = await api.get(`/materias/clave/${claveBuscar}`)
-      setMateriaEncontrada(r.data)
-    } catch {
-      setErrorBuscar('No se encontró ninguna materia con esa clave')
-    }
-  }
-
-  const solicitarInscripcion = async (materiaId, desdeModal = false) => {
-    try {
-      await api.post('/inscripciones/solicitar', { materiaId, periodo: '2026-A' })
-      setSolicitudesEnviadas((prev) => new Set([...prev, materiaId]))
-      if (desdeModal) {
-        setModalBuscar(false)
-        setClaveBuscar('')
-        setMateriaEncontrada(null)
-      }
-    } catch (err) {
-      const msg = err.response?.data?.message ?? 'Error al enviar solicitud'
-      if (msg.includes('Ya')) {
-        setSolicitudesEnviadas((prev) => new Set([...prev, materiaId]))
-      } else {
-        alert(msg)
-      }
-    }
-  }
-
   const materiasFiltradas = materias.filter((m) => {
     const q = busqueda.toLowerCase()
     const matchBusqueda = !q || m.nombre.toLowerCase().includes(q) || m.clave.toLowerCase().includes(q)
@@ -100,8 +66,8 @@ export default function Materias() {
 
   const MateriaCard = ({ m }) => (
     <div
-      className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col gap-3 hover:shadow-md transition cursor-pointer"
-      onClick={() => navigate(`/materias/${m.id}`)}
+      className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex cursor-pointer flex-col gap-3 transition hover:shadow-md"
+      onClick={() => navigate(esAlumno ? `/alumno/materias/${m.id}` : `/materias/${m.id}`)}
     >
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
@@ -111,28 +77,25 @@ export default function Materias() {
         <span className="text-xs text-gray-400 ml-2 shrink-0">{m._count?.inscripciones ?? 0} alumnos</span>
       </div>
       <div className="text-xs text-gray-500 space-y-1">
-        <p>👨‍🏫 {m.docente?.nombre ? m.docente.nombre : 'Por asignar desde horarios'}</p>
-        <p>🕐 {m.horaInicio && m.horaFin ? `${m.horaInicio} – ${m.horaFin}` : 'Horario por asignar'}</p>
-        <p>📅 {m.dias || 'Días por asignar'}</p>
-        {m.carrera && <p>🎓 {m.carrera.nombre} {m.semestre ? `· Sem. ${m.semestre}` : ''}</p>}
+        <p className="flex items-center gap-2">
+          <CiUser className="shrink-0" />
+          <span>{m.docente?.nombre ? m.docente.nombre : 'Por asignar desde horarios'}</span>
+        </p>
+        <p className="flex items-center gap-2">
+          <CiClock2 className="shrink-0" />
+          <span>{m.horaInicio && m.horaFin ? `${m.horaInicio} – ${m.horaFin}` : 'Horario por asignar'}</span>
+        </p>
+        <p className="flex items-center gap-2">
+          <CiCalendarDate className="shrink-0" />
+          <span>{m.dias || 'Días por asignar'}</span>
+        </p>
+        {m.carrera && (
+          <p className="flex items-center gap-2">
+            <CiRead className="shrink-0" />
+            <span>{m.carrera.nombre} {m.semestre ? `· Sem. ${m.semestre}` : ''}</span>
+          </p>
+        )}
       </div>
-      {esAlumno && (
-        solicitudesEnviadas.has(m.id) ? (
-          <div className="mt-auto w-full flex items-center justify-center gap-1.5 bg-green-50 border border-green-200 text-green-700 text-xs py-2 rounded-xl font-medium">
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
-            Solicitud enviada
-          </div>
-        ) : (
-          <button
-            onClick={(e) => { e.stopPropagation(); solicitarInscripcion(m.id) }}
-            className="mt-auto w-full bg-green-600 text-white text-xs py-2 rounded-xl font-medium hover:bg-green-700 transition"
-          >
-            Solicitar unirme
-          </button>
-        )
-      )}
     </div>
   )
 
@@ -140,17 +103,9 @@ export default function Materias() {
     <>
       <PageHeader
         title="Materias"
-        subtitle={esAlumno ? 'Materias disponibles para tu carrera y semestre' : 'Materias disponibles este semestre'}
+        subtitle={esAlumno ? 'Materias disponibles para tu grupo, carrera o semestre' : 'Materias disponibles este semestre'}
         action={
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-            {esAlumno && (
-              <button
-                onClick={() => setModalBuscar(true)}
-                className="w-full rounded-xl bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-200 sm:w-auto"
-              >
-                Buscar por clave
-              </button>
-            )}
             {canCreate && (
               <button
                 onClick={() => setModal(true)}
@@ -212,7 +167,7 @@ export default function Materias() {
         {materiasFiltradas.length === 0 && (
           <div className="col-span-full text-center py-16 text-gray-400">
             {esAlumno
-              ? 'No hay materias disponibles para tu carrera y semestre. Usa "Buscar por clave" para encontrar otras.'
+              ? 'No hay materias disponibles para tu grupo, carrera o semestre.'
               : hayFiltros ? 'No hay materias que coincidan con los filtros.'
               : 'No hay materias registradas'}
           </div>
@@ -273,58 +228,6 @@ export default function Materias() {
         </form>
       </Modal>
 
-      {/* Modal: Buscar materia por clave */}
-      <Modal open={modalBuscar} onClose={() => { setModalBuscar(false); setMateriaEncontrada(null); setClaveBuscar(''); setErrorBuscar('') }} title="Buscar materia por clave">
-        <div className="space-y-4">
-          <p className="text-sm text-gray-500">Si tu materia no aparece en la lista, puedes buscarla por su clave.</p>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <input
-              value={claveBuscar}
-              onChange={(e) => setClaveBuscar(e.target.value.toUpperCase())}
-              placeholder="Clave de materia (RSB-2403)"
-              className="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <button onClick={buscarMateria} className="w-full rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 sm:w-auto">
-              Buscar
-            </button>
-          </div>
-          {errorBuscar && <p className="text-red-500 text-sm">{errorBuscar}</p>}
-          {materiaEncontrada && (
-            <div className="bg-gray-50 rounded-xl p-4 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg">{materiaEncontrada.clave}</span>
-                <span className="text-xs text-gray-400">{materiaEncontrada._count?.inscripciones ?? 0} alumnos</span>
-              </div>
-              <p className="font-semibold text-gray-800">{materiaEncontrada.nombre}</p>
-              <p className="text-sm text-gray-500">👨‍🏫 {materiaEncontrada.docente?.nombre || 'Por asignar desde horarios'}</p>
-              <p className="text-sm text-gray-500">
-                🕐 {materiaEncontrada.horaInicio && materiaEncontrada.horaFin
-                  ? `${materiaEncontrada.horaInicio} – ${materiaEncontrada.horaFin}`
-                  : 'Horario por asignar'}
-                {materiaEncontrada.dias ? ` · ${materiaEncontrada.dias}` : ''}
-              </p>
-              {materiaEncontrada.carrera && (
-                <p className="text-sm text-gray-500">🎓 {materiaEncontrada.carrera.nombre} {materiaEncontrada.semestre ? `· Sem. ${materiaEncontrada.semestre}` : ''}</p>
-              )}
-              {solicitudesEnviadas.has(materiaEncontrada.id) ? (
-                <div className="w-full flex items-center justify-center gap-2 bg-green-50 border border-green-200 text-green-700 text-sm py-2 rounded-xl font-medium mt-2">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                  </svg>
-                  Solicitud enviada
-                </div>
-              ) : (
-                <button
-                  onClick={() => solicitarInscripcion(materiaEncontrada.id, true)}
-                  className="w-full bg-green-600 text-white py-2 rounded-xl text-sm font-medium hover:bg-green-700 transition mt-2"
-                >
-                  Enviar solicitud de inscripción
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-      </Modal>
     </>
   )
 }

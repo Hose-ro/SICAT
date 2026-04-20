@@ -119,7 +119,7 @@ export const useGrupoStore = create((set, get) => ({
 
   cargarHorario: async (grupoId) => {
     try {
-      const res = await api.get(`/grupos/${grupoId}/horario`)
+      const res = await api.get(`/horarios/grupo/${grupoId}`)
       return res.data
     } catch (e) {
       return null

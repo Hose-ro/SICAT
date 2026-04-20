@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import PageHeader from '../components/PageHeader'
 import Modal from '../components/Modal'
 import api from '../api/axios'
@@ -14,17 +14,19 @@ export default function Usuarios() {
   const [filtroRol, setFiltroRol] = useState('')
   const [filtroNombre, setFiltroNombre] = useState('')
   const [filtroCarrera, setFiltroCarrera] = useState('')
+  const [academias, setAcademias] = useState([])
   const [modal, setModal] = useState(false)
   const [detailModal, setDetailModal] = useState({ open: false, user: null })
   const [carreras, setCarreras] = useState([])
   const [form, setForm] = useState({
     nombre: '', email: '', username: '', numeroControl: '',
-    password: '', rol: 'DOCENTE', academia: '', telefono: '',
+    password: '', rol: 'DOCENTE', academiaId: '', telefono: '',
     semestre: '', carreraId: '',
   })
   const [pwModal, setPwModal] = useState({ open: false, user: null })
   const [newPassword, setNewPassword] = useState('')
   const [pwMsg, setPwMsg] = useState('')
+  const [formError, setFormError] = useState('')
 
   const usuariosFiltrados = usuarios.filter((u) => {
     const matchNombre = u.nombre.toLowerCase().includes(filtroNombre.toLowerCase())
@@ -32,32 +34,39 @@ export default function Usuarios() {
     return matchNombre && matchCarrera
   })
 
-  const fetchUsuarios = () => {
+  const fetchUsuarios = useCallback(() => {
     const q = filtroRol ? `?rol=${filtroRol}` : ''
     api.get(`/usuarios${q}`).then((r) => setUsuarios(r.data))
-  }
+  }, [filtroRol])
 
   useEffect(() => {
     fetchUsuarios()
     api.get('/carreras').then((r) => setCarreras(r.data))
-  }, [filtroRol])
+    api.get('/academias').then((r) => setAcademias(r.data)).catch(() => {})
+  }, [fetchUsuarios])
 
   const crear = async (e) => {
     e.preventDefault()
+    setFormError('')
     const data = { ...form }
     if (!data.email) delete data.email
     if (!data.username) delete data.username
     if (!data.numeroControl) delete data.numeroControl
-    if (!data.academia) delete data.academia
+    if (!data.academiaId || data.rol !== 'DOCENTE') delete data.academiaId
+    else data.academiaId = parseInt(data.academiaId)
     if (!data.telefono) delete data.telefono
     if (!data.semestre) delete data.semestre
     else data.semestre = parseInt(data.semestre)
     if (!data.carreraId) delete data.carreraId
     else data.carreraId = parseInt(data.carreraId)
-    await api.post('/auth/register', data)
-    setModal(false)
-    setForm({ nombre: '', email: '', username: '', numeroControl: '', password: '', rol: 'DOCENTE', academia: '', telefono: '', semestre: '', carreraId: '' })
-    fetchUsuarios()
+    try {
+      await api.post('/usuarios', data)
+      setModal(false)
+      setForm({ nombre: '', email: '', username: '', numeroControl: '', password: '', rol: 'DOCENTE', academiaId: '', telefono: '', semestre: '', carreraId: '' })
+      fetchUsuarios()
+    } catch (err) {
+      setFormError(err.response?.data?.message ?? 'No se pudo crear el usuario')
+    }
   }
 
   const toggleActivo = async (u) => {
@@ -226,7 +235,15 @@ export default function Usuarios() {
             <label className="block text-xs font-medium text-gray-700 mb-1">Rol *</label>
             <select
               value={form.rol}
-              onChange={(e) => setForm({ ...form, rol: e.target.value })}
+              onChange={(e) => setForm({
+                ...form,
+                rol: e.target.value,
+                academiaId: e.target.value === 'DOCENTE' ? form.academiaId : '',
+                carreraId: e.target.value === 'ALUMNO' ? form.carreraId : '',
+                semestre: e.target.value === 'ALUMNO' ? form.semestre : '',
+                numeroControl: e.target.value === 'ALUMNO' ? form.numeroControl : '',
+                username: e.target.value === 'ALUMNO' ? '' : form.username,
+              })}
               className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="DOCENTE">Docente</option>
@@ -266,9 +283,23 @@ export default function Usuarios() {
           {form.rol === 'DOCENTE' && (
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">Academia</label>
-              <input value={form.academia} onChange={(e) => setForm({ ...form, academia: e.target.value })}
-                placeholder="Ej: Matemáticas"
-                className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <select
+                value={form.academiaId}
+                onChange={(e) => setForm({ ...form, academiaId: e.target.value })}
+                className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Selecciona academia</option>
+                {academias.map((academia) => (
+                  <option key={academia.id} value={academia.id}>
+                    {academia.nombre}
+                  </option>
+                ))}
+              </select>
+              {academias.length === 0 && (
+                <p className="mt-1 text-xs text-amber-600">
+                  No hay academias activas registradas.
+                </p>
+              )}
             </div>
           )}
           {form.rol === 'ALUMNO' && (
@@ -293,6 +324,7 @@ export default function Usuarios() {
             <input value={form.telefono} onChange={(e) => setForm({ ...form, telefono: e.target.value })}
               className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
+          {formError && <p className="text-sm text-red-500">{formError}</p>}
           <button type="submit" className="w-full bg-blue-600 text-white py-2.5 rounded-xl font-medium hover:bg-blue-700 transition mt-2">
             Crear usuario
           </button>
@@ -313,7 +345,7 @@ export default function Usuarios() {
             { label: 'Teléfono', value: u.telefono || '—' },
             u.rol === 'ALUMNO' && { label: 'Carrera', value: u.carrera?.nombre || '—' },
             u.rol === 'ALUMNO' && { label: 'Semestre', value: u.semestre ?? '—' },
-            u.rol === 'DOCENTE' && { label: 'Academia', value: u.academia || '—' },
+            u.rol === 'DOCENTE' && { label: 'Academia', value: u.academias?.length ? u.academias.map((a) => a.nombre).join(', ') : '—' },
             { label: 'Registro', value: new Date(u.createdAt).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' }) },
           ].filter(Boolean)
 

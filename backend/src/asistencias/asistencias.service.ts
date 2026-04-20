@@ -4,10 +4,11 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { EstadoAsistencia } from '@prisma/client';
+import { EstadoAsistencia, TipoNotificacion } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { PasarListaDto } from './dto/pasar-lista.dto';
 import { ActualizarAsistenciaDto } from './dto/actualizar-asistencia.dto';
+import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import {
   formatearFechaClave,
   obtenerClaveSemana,
@@ -22,7 +23,10 @@ type Actor = {
 
 @Injectable()
 export class AsistenciasService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificaciones: NotificacionesService,
+  ) {}
 
   async pasarLista(actor: Actor, dto: PasarListaDto) {
     const sesion = await this.prisma.claseSesion.findUnique({
@@ -74,6 +78,17 @@ export class AsistenciasService {
       else if (registro.estado === 'FALTA') faltas++;
       else if (registro.estado === 'RETARDO') retardos++;
       else if (registro.estado === 'JUSTIFICADA') justificados++;
+    }
+
+    if (sesion.fueFueraDeHorario) {
+      await this.notificaciones.crearSiNoExisteNoLeida({
+        usuarioId: sesion.docenteId,
+        tipo: TipoNotificacion.ASISTENCIA_FUERA_HORARIO,
+        titulo: 'Asistencia fuera de horario',
+        mensaje: 'Se registró una asistencia fuera del horario programado.',
+        referenciaId: sesion.id,
+        referenciaTipo: 'Asistencias',
+      });
     }
 
     return {

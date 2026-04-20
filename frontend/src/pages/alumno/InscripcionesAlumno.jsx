@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useInscripcionStore } from '../../store/inscripcionStore'
 import api from '../../api/axios'
+import { getCurrentAcademicPeriod } from '../../lib/periodo'
 
 const ESTADO_STYLE = {
   PENDIENTE: 'bg-yellow-100 text-yellow-700',
@@ -10,18 +11,25 @@ const ESTADO_STYLE = {
 
 export default function InscripcionesAlumno() {
   const { misSolicitudes, obtenerMisSolicitudes, solicitar, loading } = useInscripcionStore()
-  const [materias, setMaterias] = useState([])
+  const [catalogoMaterias, setCatalogoMaterias] = useState([])
   const [busqueda, setBusqueda] = useState('')
-  const [periodo, setPeriodo] = useState('2026-A')
+  const [periodo, setPeriodo] = useState(getCurrentAcademicPeriod())
   const [solicitando, setSolicitando] = useState(null)
 
-  useEffect(() => { obtenerMisSolicitudes() }, [])
-
   useEffect(() => {
-    if (busqueda.length > 1) {
-      api.get(`/materias?search=${busqueda}`).then((r) => setMaterias(r.data)).catch(() => {})
-    }
-  }, [busqueda])
+    obtenerMisSolicitudes()
+    api.get('/materias/para-alumno').then((r) => setCatalogoMaterias(r.data || [])).catch(() => {})
+  }, [obtenerMisSolicitudes])
+
+  const materias = useMemo(() => {
+    const texto = busqueda.trim().toLowerCase()
+    if (texto.length < 2) return []
+    return catalogoMaterias.filter((materia) => {
+      const nombre = materia.nombre?.toLowerCase() || ''
+      const clave = materia.clave?.toLowerCase() || ''
+      return nombre.includes(texto) || clave.includes(texto)
+    })
+  }, [busqueda, catalogoMaterias])
 
   const handleSolicitar = async (materiaId) => {
     setSolicitando(materiaId)

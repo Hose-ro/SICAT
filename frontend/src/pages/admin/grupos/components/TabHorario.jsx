@@ -1,3 +1,6 @@
+import { useEffect, useMemo, useState } from 'react'
+import { useGrupoStore } from '../../../../store/grupoStore'
+
 const DIAS = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado']
 const DIAS_LOWER = DIAS.map((d) => d.toLowerCase())
 
@@ -29,31 +32,104 @@ const COLORES = [
 ]
 
 export default function TabHorario({ grupo }) {
-  const materias = grupo?.materias ?? []
+  const { cargarHorario } = useGrupoStore()
+  const [horarios, setHorarios] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
-  if (materias.length === 0) {
-    return <p className="text-sm text-gray-400 py-8 text-center">No hay materias con horario asignado</p>
+  useEffect(() => {
+    let activo = true
+
+    async function cargar() {
+      if (!grupo?.id) {
+        if (activo) {
+          setHorarios([])
+          setLoading(false)
+          setError('')
+        }
+        return
+      }
+
+      setLoading(true)
+      setError('')
+
+      const respuesta = await cargarHorario(grupo.id)
+
+      if (!activo) return
+
+      if (!respuesta || !Array.isArray(respuesta.horarios)) {
+        setHorarios([])
+        setLoading(false)
+        setError('No se pudo cargar el horario del grupo')
+        return
+      }
+
+      setHorarios(respuesta.horarios)
+      setLoading(false)
+    }
+
+    cargar()
+    return () => {
+      activo = false
+    }
+  }, [grupo?.id, cargarHorario])
+
+  const celdas = useMemo(() => {
+    const resultado = {}
+    DIAS_LOWER.forEach((dia) => {
+      resultado[dia] = []
+    })
+
+    const colorPorMateria = new Map()
+
+    horarios.forEach((horario) => {
+      if (!horario?.dias || !horario?.horaInicio || !horario?.horaFin) return
+
+      if (!colorPorMateria.has(horario.materiaId)) {
+        colorPorMateria.set(horario.materiaId, colorPorMateria.size % COLORES.length)
+      }
+
+      const diasHorario = horario.dias.split(',').map((dia) => dia.trim().toLowerCase())
+      const inicioMin = aMinutos(horario.horaInicio) - HORA_INICIO_GRID
+      const finMin = aMinutos(horario.horaFin) - HORA_INICIO_GRID
+      const rowStart = Math.floor(inicioMin / 60) + 1
+      const rowSpan = Math.max(1, Math.ceil((finMin - inicioMin) / 60))
+      const colorIndex = colorPorMateria.get(horario.materiaId) ?? 0
+
+      diasHorario.forEach((dia) => {
+        const diaIdx = DIAS_LOWER.indexOf(dia)
+        if (diaIdx !== -1) {
+          resultado[DIAS_LOWER[diaIdx]].push({
+            horario,
+            colorIndex,
+            rowStart,
+            rowSpan,
+          })
+        }
+      })
+    })
+
+    DIAS_LOWER.forEach((dia) => {
+      resultado[dia].sort((a, b) => {
+        if (a.rowStart !== b.rowStart) return a.rowStart - b.rowStart
+        return a.horario.horaInicio.localeCompare(b.horario.horaInicio)
+      })
+    })
+
+    return resultado
+  }, [horarios])
+
+  if (loading) {
+    return <p className="text-sm text-gray-400 py-8 text-center">Cargando horario...</p>
   }
 
-  // Build a map: dia -> list of celdas
-  const celdas = {}
-  DIAS_LOWER.forEach((d) => (celdas[d] = []))
+  if (error) {
+    return <p className="text-sm text-red-500 py-8 text-center">{error}</p>
+  }
 
-  materias.forEach((materia, idx) => {
-    if (!materia.dias || !materia.horaInicio || !materia.horaFin) return
-    const diasMateria = materia.dias.split(',').map((d) => d.trim().toLowerCase())
-    const inicioMin = aMinutos(materia.horaInicio) - HORA_INICIO_GRID
-    const finMin = aMinutos(materia.horaFin) - HORA_INICIO_GRID
-    const rowStart = Math.floor(inicioMin / 60) + 1
-    const rowSpan = Math.max(1, Math.ceil((finMin - inicioMin) / 60))
-
-    diasMateria.forEach((dia) => {
-      const diaIdx = DIAS_LOWER.indexOf(dia)
-      if (diaIdx !== -1) {
-        celdas[DIAS_LOWER[diaIdx]].push({ materia, colorIndex: idx % COLORES.length, rowStart, rowSpan })
-      }
-    })
-  })
+  if (horarios.length === 0) {
+    return <p className="text-sm text-gray-400 py-8 text-center">No hay bloques de horario asignados</p>
+  }
 
   return (
     <div className="overflow-x-auto">
@@ -71,44 +147,41 @@ export default function TabHorario({ grupo }) {
 
         {/* Body */}
         {HORAS.map((hora, rowIdx) => (
-          <>
-            {/* Hora label */}
+          <div key={`fila-${hora}`} className="contents">
             <div
-              key={`hora-${hora}`}
               className="text-right pr-2 text-xs text-gray-400"
               style={{ gridRow: rowIdx + 1, gridColumn: 1 }}
             >
               {hora}
             </div>
 
-            {/* Empty cells */}
-            {DIAS.map((d) => (
+            {DIAS.map((dia) => (
               <div
-                key={`${d}-${hora}`}
+                key={`${dia}-${hora}`}
                 className="border-t border-l border-gray-100"
-                style={{ gridRow: rowIdx + 1, gridColumn: DIAS.indexOf(d) + 2, minHeight: 48 }}
+                style={{ gridRow: rowIdx + 1, gridColumn: DIAS.indexOf(dia) + 2, minHeight: 48 }}
               />
             ))}
-          </>
+          </div>
         ))}
 
-        {/* Materias */}
+        {/* Horarios */}
         {DIAS_LOWER.map((dia, diaIdx) =>
-          celdas[dia].map(({ materia, colorIndex, rowStart, rowSpan }) => (
+          celdas[dia].map(({ horario, colorIndex, rowStart, rowSpan }) => (
             <div
-              key={`${dia}-${materia.id}`}
+              key={`${dia}-${horario.id}`}
               className={`m-0.5 rounded-lg border p-1.5 text-xs overflow-hidden ${COLORES[colorIndex]}`}
               style={{
                 gridColumn: diaIdx + 2,
                 gridRow: `${rowStart} / span ${rowSpan}`,
               }}
             >
-              <p className="font-semibold truncate">{materia.nombre}</p>
-              {materia.docente && (
-                <p className="truncate opacity-80">{materia.docente.nombre}</p>
+              <p className="font-semibold truncate">{horario.materia?.nombre}</p>
+              {horario.docente && (
+                <p className="truncate opacity-80">{horario.docente.nombre}</p>
               )}
-              {materia.aula && (
-                <p className="truncate opacity-70">{materia.aula.nombre}</p>
+              {horario.aula && (
+                <p className="truncate opacity-70">{horario.aula.nombre}</p>
               )}
             </div>
           ))

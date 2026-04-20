@@ -76,9 +76,7 @@ export default function Login() {
             </div>
 
             <div className="space-y-4">
-              <span className="inline-flex rounded-full border border-[#dbeafe] bg-white/60 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-[#4f7cff] backdrop-blur-sm dark:border-[#273246] dark:bg-[#151b25]/70 dark:text-[#60a5fa]">
-                Portal académico
-              </span>
+              
               <h2 className="text-4xl font-semibold leading-tight text-[#223354] dark:text-[rgba(255,255,255,0.92)]">
                 Bienvenido de vuelta al panel institucional.
               </h2>
@@ -207,20 +205,6 @@ export default function Login() {
                       {error}
                     </div>
                   )}
-
-                  <div className="rounded-2xl border border-[rgba(79,124,255,0.20)] bg-[rgba(79,124,255,0.08)] p-4 dark:border-[rgba(96,165,250,0.20)] dark:bg-[rgba(96,165,250,0.08)]">
-                    <div className="flex items-start gap-3">
-                      <UserCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#4f7cff] dark:text-[#60a5fa]" />
-                      <div className="space-y-1 text-sm">
-                        <p className="text-[#223354] dark:text-[rgba(255,255,255,0.92)]">
-                          <span className="font-semibold">Alumnos:</span> ingresa con tu N° de control
-                        </p>
-                        <p className="text-[#223354] dark:text-[rgba(255,255,255,0.92)]">
-                          <span className="font-semibold">Docentes:</span> usuario o correo
-                        </p>
-                      </div>
-                    </div>
-                  </div>
 
                   <button
                     type="submit"

@@ -21,19 +21,19 @@ export class ClasesController {
   constructor(private readonly clasesService: ClasesService) {}
 
   @Post('iniciar')
-  @Roles('DOCENTE', 'ADMIN')
+  @Roles('DOCENTE')
   iniciar(@Req() req, @Body() dto: IniciarClaseDto) {
     return this.clasesService.iniciar(req.user.id, dto);
   }
 
   @Patch(':id/finalizar')
-  @Roles('DOCENTE', 'ADMIN')
+  @Roles('DOCENTE')
   finalizar(@Param('id', ParseIntPipe) id: number, @Req() req) {
     return this.clasesService.finalizar(id, req.user.id);
   }
 
   @Get('activa/:materiaId')
-  @Roles('DOCENTE', 'ADMIN')
+  @Roles('DOCENTE')
   obtenerActiva(
     @Param('materiaId', ParseIntPipe) materiaId: number,
     @Req() req,
@@ -42,25 +42,25 @@ export class ClasesController {
   }
 
   @Get('docente/panel')
-  @Roles('DOCENTE', 'ADMIN')
+  @Roles('DOCENTE')
   obtenerPanel(@Req() req) {
     return this.clasesService.obtenerPanelDocente(req.user.id);
   }
 
   @Get('docente/actual')
-  @Roles('DOCENTE', 'ADMIN')
+  @Roles('DOCENTE')
   obtenerClaseActual(@Req() req) {
     return this.clasesService.obtenerClaseActualDocente(req.user.id);
   }
 
   @Get('docente/hoy')
-  @Roles('DOCENTE', 'ADMIN')
+  @Roles('DOCENTE')
   obtenerClasesHoy(@Req() req) {
     return this.clasesService.obtenerClasesHoyDocente(req.user.id);
   }
 
   @Get('historial/:materiaId')
-  @Roles('DOCENTE', 'ADMIN')
+  @Roles('DOCENTE')
   obtenerHistorial(@Param('materiaId', ParseIntPipe) materiaId: number) {
     return this.clasesService.obtenerHistorial(materiaId);
   }

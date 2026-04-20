@@ -1,5 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import {
+  CiCalendarDate,
+  CiRead,
+  CiSquareChevLeft,
+  CiSquareChevRight,
+  CiStickyNote,
+  CiUser,
+} from 'react-icons/ci'
 import { useAuthStore } from '../store/authStore'
 import api from '../api/axios'
 import { getStoredToken } from '../lib/auth'
@@ -110,7 +118,9 @@ function CardMaterias({ total }) {
   return (
     <div className="scard scard--blue">
       <div className="scard__head">
-        <div className="scard__icon scard__icon--blue">📚</div>
+        <div className="scard__icon scard__icon--blue">
+          <CiRead />
+        </div>
         <span className="scard__label">Materias</span>
       </div>
       <div className="scard__count">{total}</div>
@@ -118,11 +128,15 @@ function CardMaterias({ total }) {
       {/* Mini Calendar */}
       <div className="scard__inner">
         <div className="scard__cal-nav">
-          <button onClick={prevMonth} className="scard__cal-btn">‹</button>
+          <button onClick={prevMonth} className="scard__cal-btn" type="button" aria-label="Mes anterior">
+            <CiSquareChevLeft />
+          </button>
           <span className="scard__cal-title">
             {MONTH_NAMES[calMonth.month]} {calMonth.year}
           </span>
-          <button onClick={nextMonth} className="scard__cal-btn">›</button>
+          <button onClick={nextMonth} className="scard__cal-btn" type="button" aria-label="Mes siguiente">
+            <CiSquareChevRight />
+          </button>
         </div>
 
         <div className="scard__cal-weekdays">
@@ -155,7 +169,9 @@ function CardAsistencias({ total }) {
   return (
     <div className="scard scard--amber">
       <div className="scard__head">
-        <div className="scard__icon scard__icon--amber">✨</div>
+        <div className="scard__icon scard__icon--amber">
+          <CiCalendarDate />
+        </div>
         <span className="scard__label">Asistencias</span>
       </div>
       <div className="scard__count">{total}</div>
@@ -164,7 +180,10 @@ function CardAsistencias({ total }) {
         <p className="scard__inner-title">Control diario</p>
         <p className="scard__inner-sub">Listas actualizadas</p>
         <div className="scard__inner-meta">
-          <span>👥 Último registro: Hoy</span>
+          <span className="inline-flex items-center gap-1.5">
+            <CiUser />
+            Último registro: Hoy
+          </span>
         </div>
       </div>
     </div>
@@ -176,7 +195,9 @@ function CardTareas({ total }) {
   return (
     <div className="scard scard--violet">
       <div className="scard__head">
-        <div className="scard__icon scard__icon--violet">📝</div>
+        <div className="scard__icon scard__icon--violet">
+          <CiStickyNote />
+        </div>
         <span className="scard__label">Tareas</span>
       </div>
       <div className="scard__count">{total}</div>

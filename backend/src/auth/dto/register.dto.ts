@@ -1,6 +1,7 @@
 import {
   IsEmail,
   IsEnum,
+  IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -16,7 +17,7 @@ export class RegisterDto {
   @ApiPropertyOptional() @IsOptional() @IsString() username?: string;
   @ApiProperty() @MinLength(6) password: string;
   @ApiProperty({ enum: Rol }) @IsEnum(Rol) rol: Rol;
-  @ApiPropertyOptional() @IsOptional() @IsString() academia?: string;
+  @ApiPropertyOptional() @IsOptional() @IsInt() academiaId?: number;
   @ApiPropertyOptional() @IsOptional() @IsString() telefono?: string;
   @ApiPropertyOptional() @IsOptional() carreraId?: number;
   @ApiPropertyOptional() @IsOptional() semestre?: number;

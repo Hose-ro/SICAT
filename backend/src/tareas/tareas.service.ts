@@ -28,6 +28,7 @@ import {
   getUploadAbsolutePath,
   isImageFile,
 } from './tareas.storage';
+import { getCurrentAcademicPeriod } from '../common/periodo.util';
 
 type Actor = {
   id: number;
@@ -470,9 +471,16 @@ export class TareasService {
       tipo: TipoNotificacion.TAREA_REVISADA,
       titulo: `Entrega revisada: ${entrega.tarea.titulo}`,
       mensaje: dto.observacion ?? 'Tu entrega fue revisada',
-      referenciaId: entregaId,
-      referenciaTipo: 'EntregaTarea',
+      referenciaId: entrega.tareaId,
+      referenciaTipo: 'Tarea',
     });
+
+    await this.notificarObservacionDocente(
+      entrega.alumnoId,
+      entrega.tareaId,
+      entrega.tarea.titulo,
+      dto.observacion,
+    );
 
     return updated;
   }
@@ -515,15 +523,22 @@ export class TareasService {
 
     await this.notificaciones.crear({
       usuarioId: entrega.alumnoId,
-      tipo: TipoNotificacion.TAREA_CALIFICADA,
+      tipo: TipoNotificacion.CALIFICACION_DISPONIBLE,
       titulo: `Tarea calificada: ${entrega.tarea.titulo}`,
       mensaje:
         dto.calificacionTipo === TipoCalificacion.NUMERICA
           ? `Obtuviste ${dto.calificacion}/100 en "${entrega.tarea.titulo}"`
           : (dto.observacion ?? 'Tu tarea fue evaluada'),
-      referenciaId: entregaId,
-      referenciaTipo: 'EntregaTarea',
+      referenciaId: entrega.tareaId,
+      referenciaTipo: 'Tarea',
     });
+
+    await this.notificarObservacionDocente(
+      entrega.alumnoId,
+      entrega.tareaId,
+      entrega.tarea.titulo,
+      dto.observacion,
+    );
 
     return updated;
   }
@@ -554,12 +569,19 @@ export class TareasService {
 
     await this.notificaciones.crear({
       usuarioId: entrega.alumnoId,
-      tipo: TipoNotificacion.TAREA_REVISADA,
+      tipo: TipoNotificacion.ENTREGA_INCORRECTA,
       titulo: `Entrega incorrecta: ${entrega.tarea.titulo}`,
       mensaje: observacion || 'Tu entrega fue marcada como incorrecta',
-      referenciaId: entregaId,
-      referenciaTipo: 'EntregaTarea',
+      referenciaId: entrega.tareaId,
+      referenciaTipo: 'Tarea',
     });
+
+    await this.notificarObservacionDocente(
+      entrega.alumnoId,
+      entrega.tareaId,
+      entrega.tarea.titulo,
+      observacion,
+    );
 
     return updated;
   }
@@ -591,12 +613,19 @@ export class TareasService {
 
     await this.notificaciones.crear({
       usuarioId: entrega.alumnoId,
-      tipo: TipoNotificacion.TAREA_REVISADA,
+      tipo: TipoNotificacion.ENTREGA_INCORRECTA,
       titulo: `Corrección solicitada: ${entrega.tarea.titulo}`,
       mensaje: dto.observacion ?? 'Tu entrega fue devuelta para corrección',
-      referenciaId: entregaId,
-      referenciaTipo: 'EntregaTarea',
+      referenciaId: entrega.tareaId,
+      referenciaTipo: 'Tarea',
     });
+
+    await this.notificarObservacionDocente(
+      entrega.alumnoId,
+      entrega.tareaId,
+      entrega.tarea.titulo,
+      dto.observacion,
+    );
 
     return updated;
   }
@@ -639,7 +668,8 @@ export class TareasService {
         tipo: TipoNotificacion.TAREA_REVISADA,
         titulo: `Entregas revisadas: ${entregas[0]?.tarea.titulo ?? 'Tarea'}`,
         mensaje: dto.observacion ?? 'Tu entrega fue revisada',
-        referenciaTipo: 'EntregaTarea',
+        referenciaId: tareaId,
+        referenciaTipo: 'Tarea',
       },
     );
 
@@ -656,6 +686,7 @@ export class TareasService {
       where: {
         alumnoId,
         estado: 'ACEPTADA',
+        periodo: getCurrentAcademicPeriod(),
         ...(materiaId ? { materiaId } : {}),
       },
       select: { materiaId: true },
@@ -1000,6 +1031,13 @@ export class TareasService {
 
     const fueTardia = this.esEntregaTardia(tarea);
     const versionEntrega = (entregaActual?.versionEntrega ?? 0) + 1;
+    const esCorreccion =
+      Boolean(entregaActual) &&
+      Boolean(
+        entregaActual?.permiteCorreccion ||
+          entregaActual?.estadoRevision === EstadoRevision.INCORRECTA ||
+          (entregaActual?.versionEntrega ?? 0) >= 1,
+      );
     const archivoUrl =
       archivosRestantes.find((item) => item.tipoArchivo !== 'IMAGEN')?.url ??
       archivosRestantes[0]?.url ??
@@ -1077,16 +1115,35 @@ export class TareasService {
 
     await this.notificaciones.crear({
       usuarioId: tarea.docenteId,
-      tipo: TipoNotificacion.ENTREGA_RECIBIDA,
+      tipo: fueTardia
+        ? TipoNotificacion.ENTREGA_TARDIA_DOCENTE
+        : esCorreccion
+          ? TipoNotificacion.ENTREGA_CORREGIDA
+          : TipoNotificacion.ENTREGA_TAREA,
       titulo: fueTardia
         ? `Entrega tardía: ${tarea.titulo}`
-        : `Nueva entrega: ${tarea.titulo}`,
+        : esCorreccion
+          ? `Entrega corregida: ${tarea.titulo}`
+          : `Nueva entrega: ${tarea.titulo}`,
       mensaje: fueTardia
-        ? `Un alumno entregó tarde la tarea "${tarea.titulo}"`
-        : `Un alumno entregó la tarea "${tarea.titulo}"`,
-      referenciaId: entrega.id,
-      referenciaTipo: 'EntregaTarea',
+        ? `Un alumno realizó una entrega tardía de "${tarea.titulo}".`
+        : esCorreccion
+          ? `Un alumno reenvió una tarea corregida: "${tarea.titulo}".`
+          : `Un alumno entregó la tarea "${tarea.titulo}".`,
+      referenciaId: tarea.id,
+      referenciaTipo: 'Tarea',
     });
+
+    if (fueTardia) {
+      await this.notificaciones.crear({
+        usuarioId: alumnoId,
+        tipo: TipoNotificacion.ENTREGA_TARDIA,
+        titulo: `Entrega tardía: ${tarea.titulo}`,
+        mensaje: 'Tu entrega fue registrada como tardía.',
+        referenciaId: tarea.id,
+        referenciaTipo: 'Tarea',
+      });
+    }
 
     return entrega;
   }
@@ -1604,7 +1661,7 @@ export class TareasService {
     const alumnoIds = alumnos.map((item) => item.id);
     if (!alumnoIds.length) return;
     await this.notificaciones.crearParaVarios(alumnoIds, {
-      tipo: TipoNotificacion.TAREA_NUEVA,
+      tipo: TipoNotificacion.NUEVA_TAREA,
       titulo: `Nueva tarea: ${tarea.titulo}`,
       mensaje: `Se publicó una nueva tarea en ${tarea.materia.nombre}: ${tarea.titulo}`,
       referenciaId: tarea.id,
@@ -1632,5 +1689,26 @@ export class TareasService {
     const filename = url.split('/').pop();
     if (!filename) return;
     await unlink(getUploadAbsolutePath(filename)).catch(() => undefined);
+  }
+
+  private async notificarObservacionDocente(
+    alumnoId: number,
+    tareaId: number,
+    tituloTarea: string,
+    observacion?: string | null,
+  ) {
+    const texto = observacion?.trim();
+    if (!texto) {
+      return;
+    }
+
+    await this.notificaciones.crear({
+      usuarioId: alumnoId,
+      tipo: TipoNotificacion.OBSERVACION_DOCENTE,
+      titulo: `Observación del docente: ${tituloTarea}`,
+      mensaje: texto,
+      referenciaId: tareaId,
+      referenciaTipo: 'Tarea',
+    });
   }
 }

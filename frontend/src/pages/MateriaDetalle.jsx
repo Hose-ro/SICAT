@@ -1,367 +1,251 @@
-import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useParams } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
-import Modal from '../components/Modal'
 import api from '../api/axios'
-import { useAuthStore } from '../store/authStore'
 
-const ESTADO_COLORS = {
-  PENDIENTE: 'bg-gray-100 text-gray-500',
-  ACTIVA: 'bg-green-100 text-green-700',
+const ESTADO_UNIDAD = {
+  PENDIENTE: 'bg-slate-100 text-slate-700',
+  ACTIVA: 'bg-emerald-100 text-emerald-700',
   FINALIZADA: 'bg-blue-100 text-blue-700',
+}
+
+function formatDate(value) {
+  if (!value) return 'Sin fecha'
+  return new Date(value).toLocaleDateString('es-MX', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  })
 }
 
 export default function MateriaDetalle() {
   const { id } = useParams()
-  const navigate = useNavigate()
-  const { user } = useAuthStore()
   const [materia, setMateria] = useState(null)
+  const [historial, setHistorial] = useState([])
+  const [tareas, setTareas] = useState([])
+  const [estadisticas, setEstadisticas] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [tabActivo, setTabActivo] = useState('unidades')
-  const [modalTarea, setModalTarea] = useState({ open: false, unidadId: null })
-  const [modalAsistencia, setModalAsistencia] = useState({ open: false, claseId: null, alumnos: [] })
-  const [asistencias, setAsistencias] = useState({})
-  const [tarea, setTarea] = useState({ titulo: '', instrucciones: '', tipoEntrega: 'ONLINE', requiereFirma: false, fechaLimite: '' })
-  const [solicitudes, setSolicitudes] = useState([])
-  const [mensajeDenegar, setMensajeDenegar] = useState({ open: false, solicitudId: null, texto: '' })
+  const [error, setError] = useState('')
 
-  const esDocente = user?.rol === 'DOCENTE' || user?.rol === 'ADMIN'
+  useEffect(() => {
+    let active = true
 
-  const fetchMateria = () => {
-    setLoading(true)
-    api.get(`/materias/${id}`).then((r) => {
-      setMateria(r.data)
-      setSolicitudes(r.data.solicitudes ?? [])
-    }).finally(() => setLoading(false))
-  }
+    async function cargarDetalle() {
+      setLoading(true)
+      setError('')
 
-  useEffect(() => { fetchMateria() }, [id])
+      try {
+        const [materiaRes, historialRes, tareasRes] = await Promise.all([
+          api.get(`/materias/${id}`),
+          api.get('/asistencias/historial', { params: { materiaId: id } }),
+          api.get(`/tareas/materia/${id}`),
+        ])
 
-  const iniciarClase = async (unidadId, tema) => {
-    try {
-      await api.post(`/clases/unidad/${unidadId}/iniciar`, { tema: tema || undefined })
-      fetchMateria()
-    } catch (err) {
-      alert(err.response?.data?.message ?? 'Error')
+        if (!active) return
+
+        setMateria(materiaRes.data)
+        setHistorial(historialRes.data?.items ?? [])
+        setEstadisticas(historialRes.data?.estadisticas ?? null)
+        setTareas(tareasRes.data ?? [])
+      } catch (err) {
+        if (!active) return
+        setError(err.response?.data?.message ?? 'No se pudo cargar la materia')
+      } finally {
+        if (active) setLoading(false)
+      }
     }
+
+    cargarDetalle()
+    return () => {
+      active = false
+    }
+  }, [id])
+
+  const resumen = useMemo(() => ({
+    unidades: materia?.unidades?.length ?? 0,
+    alumnos: materia?.inscripciones?.length ?? 0,
+    clases: historial.length,
+    tareas: tareas.length,
+  }), [historial.length, materia?.inscripciones?.length, materia?.unidades?.length, tareas.length])
+
+  if (loading) {
+    return <div className="py-16 text-center text-sm text-gray-500">Cargando materia...</div>
   }
 
-  const finalizarClase = async (claseId) => {
-    await api.patch(`/clases/${claseId}/finalizar`)
-    fetchMateria()
+  if (error || !materia) {
+    return <div className="py-16 text-center text-sm text-red-500">{error || 'Materia no encontrada'}</div>
   }
-
-  const iniciarUnidad = async (unidadId) => {
-    await api.patch(`/unidades/${unidadId}/iniciar`)
-    fetchMateria()
-  }
-
-  const finalizarUnidad = async (unidadId) => {
-    await api.patch(`/unidades/${unidadId}/finalizar`)
-    fetchMateria()
-  }
-
-  const abrirAsistencia = (claseId) => {
-    const alumnos = materia.inscripciones.map((i) => i.alumno)
-    const init = {}
-    alumnos.forEach((a) => (init[a.id] = 'PRESENTE'))
-    setAsistencias(init)
-    setModalAsistencia({ open: true, claseId, alumnos })
-  }
-
-  const guardarAsistencia = async () => {
-    await api.post('/asistencias', {
-      claseId: modalAsistencia.claseId,
-      asistencias: modalAsistencia.alumnos.map((a) => ({ alumnoId: a.id, tipo: asistencias[a.id] })),
-    })
-    setModalAsistencia({ open: false, claseId: null, alumnos: [] })
-    fetchMateria()
-  }
-
-  const crearTarea = async (e) => {
-    e.preventDefault()
-    await api.post('/tareas', { ...tarea, unidadId: modalTarea.unidadId })
-    setModalTarea({ open: false, unidadId: null })
-    setTarea({ titulo: '', instrucciones: '', tipoEntrega: 'ONLINE', requiereFirma: false, fechaLimite: '' })
-    fetchMateria()
-  }
-
-  const responderSolicitud = async (solicitudId, aprobar, mensaje) => {
-    await api.patch(`/solicitudes/${solicitudId}/responder`, { aprobar, mensaje: mensaje || undefined })
-    fetchMateria()
-  }
-
-  const abrirDenegar = (solicitudId) => {
-    setMensajeDenegar({ open: true, solicitudId, texto: '' })
-  }
-
-  const confirmarDenegar = async () => {
-    await responderSolicitud(mensajeDenegar.solicitudId, false, mensajeDenegar.texto)
-    setMensajeDenegar({ open: false, solicitudId: null, texto: '' })
-  }
-
-  if (loading) return <><div className="text-center py-20 text-gray-400">Cargando...</div></>
-  if (!materia) return <><div className="text-center py-20 text-gray-400">Materia no encontrada</div></>
 
   return (
-    <>
+    <div className="space-y-6">
       <PageHeader
         title={materia.nombre}
         subtitle={
-          <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-            <span className="font-bold text-blue-600">{materia.clave}</span>
-            <span>🕐 {materia.horaInicio && materia.horaFin ? `${materia.horaInicio}–${materia.horaFin}` : 'Horario por asignar'}</span>
-            <span>📅 {materia.dias || 'Días por asignar'}</span>
-            <span>👥 {materia.inscripciones?.length} alumno(s)</span>
-          </span>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+            <span className="font-semibold text-blue-600">{materia.clave}</span>
+            <span>{materia.carrera?.nombre ?? 'Sin carrera'}</span>
+            <span>{materia.semestre ? `Semestre ${materia.semestre}` : 'Semestre sin asignar'}</span>
+            <span>{materia.docente?.nombre ? `Docente: ${materia.docente.nombre}` : 'Docente pendiente'}</span>
+          </div>
+        }
+        action={
+          <div className="flex flex-wrap gap-2">
+            <Link
+              to="/asistencias"
+              className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+            >
+              Ver asistencias
+            </Link>
+            <Link
+              to="/tareas"
+              className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+            >
+              Ver tareas
+            </Link>
+          </div>
         }
       />
 
-      {/* Tabs */}
-      <div className="mb-5 overflow-x-auto pb-1">
-        <div className="flex w-max gap-1 rounded-xl bg-gray-100 p-1">
-          {['unidades', 'alumnos', ...(solicitudes.length > 0 ? ['solicitudes'] : [])].map((tab) => (
-            <button key={tab} onClick={() => setTabActivo(tab)}
-              className={`shrink-0 rounded-lg px-4 py-1.5 text-sm font-medium capitalize transition ${tabActivo === tab ? 'bg-white text-gray-800 shadow' : 'text-gray-500 hover:text-gray-700'}`}>
-              {tab} {tab === 'solicitudes' && `(${solicitudes.length})`}
-            </button>
-          ))}
-        </div>
-      </div>
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {[
+          ['Unidades', resumen.unidades],
+          ['Alumnos activos', resumen.alumnos],
+          ['Clases registradas', resumen.clases],
+          ['Tareas creadas', resumen.tareas],
+        ].map(([label, value]) => (
+          <article key={label} className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+            <p className="text-sm text-gray-500">{label}</p>
+            <p className="mt-2 text-3xl font-semibold text-gray-900">{value}</p>
+          </article>
+        ))}
+      </section>
 
-      {/* UNIDADES */}
-      {tabActivo === 'unidades' && (
-        <div className="space-y-4">
-          {materia.unidades?.map((u) => {
-            const claseActiva = u.clases?.find((c) => c.status === 'ACTIVA')
-            return (
-              <div key={u.id} className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
-                <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <h3 className="font-semibold text-gray-800">Unidad {u.orden}: {u.nombre}</h3>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ESTADO_COLORS[u.status]}`}>{u.status}</span>
+      {estadisticas && (
+        <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Resumen de asistencias</h3>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">A: {estadisticas.asistencias ?? 0}</span>
+            <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-700">F: {estadisticas.faltas ?? 0}</span>
+            <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-700">R: {estadisticas.retardos ?? 0}</span>
+            <span className="rounded-full bg-sky-100 px-3 py-1 text-xs font-medium text-sky-700">J: {estadisticas.justificados ?? 0}</span>
+            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">%: {estadisticas.porcentaje ?? 0}</span>
+          </div>
+        </section>
+      )}
+
+      <section className="grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+        <article className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+          <h3 className="text-lg font-semibold text-gray-900">Unidades</h3>
+          <div className="mt-4 space-y-3">
+            {materia.unidades?.map((unidad) => (
+              <div key={unidad.id} className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="font-medium text-gray-800">{unidad.orden}. {unidad.nombre}</p>
+                    <p className="mt-1 text-xs text-gray-500">
+                      {unidad.fechaInicio ? `Inicio: ${formatDate(unidad.fechaInicio)}` : 'Sin inicio'} · {unidad.fechaFin ? `Fin: ${formatDate(unidad.fechaFin)}` : 'Sin cierre'}
+                    </p>
                   </div>
-                  {esDocente && (
-                    <div className="flex flex-wrap gap-2">
-                      {u.status === 'PENDIENTE' && (
-                        <button onClick={() => iniciarUnidad(u.id)}
-                          className="text-xs bg-green-50 text-green-700 px-3 py-1.5 rounded-lg hover:bg-green-100 transition">
-                          Iniciar unidad
-                        </button>
-                      )}
-                      {u.status === 'ACTIVA' && (
-                        <>
-                          <button onClick={() => iniciarClase(u.id)}
-                            className="text-xs bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition">
-                            + Clase
-                          </button>
-                          <button onClick={() => navigate(`/docente/tareas/crear?materiaId=${id}&unidadId=${u.id}`)}
-                            className="text-xs bg-yellow-50 text-yellow-700 px-3 py-1.5 rounded-lg hover:bg-yellow-100 transition">
-                            + Tarea
-                          </button>
-                          <button onClick={() => finalizarUnidad(u.id)}
-                            className="text-xs bg-gray-100 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-200 transition">
-                            Finalizar unidad
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  )}
+                  <span className={`rounded-full px-2 py-1 text-xs font-medium ${ESTADO_UNIDAD[unidad.status] || ESTADO_UNIDAD.PENDIENTE}`}>
+                    {unidad.status}
+                  </span>
                 </div>
-
-                {claseActiva && esDocente && (
-                  <div className="mb-3 flex flex-col gap-3 rounded-xl border border-green-200 bg-green-50 p-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                      <span className="text-sm font-medium text-green-800">Clase en curso: {claseActiva.tema ?? 'Sin tema'}</span>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <button onClick={() => abrirAsistencia(claseActiva.id)}
-                        className="text-xs bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 transition">
-                        Pasar lista
-                      </button>
-                      <button onClick={() => finalizarClase(claseActiva.id)}
-                        className="text-xs bg-red-50 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-100 transition">
-                        Finalizar clase
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {u.clases?.filter((c) => c.status !== 'ACTIVA').length > 0 && (
-                  <div className="mb-3 space-y-1">
-                    {u.clases.filter((c) => c.status !== 'ACTIVA').map((c) => (
-                      <div key={c.id} className="flex flex-col gap-1 rounded-lg bg-gray-50 px-3 py-2 text-sm sm:flex-row sm:items-center sm:justify-between">
-                        <span className="text-gray-700">{c.tema ?? 'Clase'}</span>
-                        <span className="text-gray-400 text-xs">{new Date(c.fecha).toLocaleDateString('es-MX')}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {u.tareas?.length > 0 && (
-                  <div className="border-t pt-3 space-y-1">
-                    <p className="text-xs text-gray-500 font-medium mb-1">Tareas ({u.tareas.length})</p>
-                    {u.tareas.map((t) => (
-                      <div key={t.id} className="flex flex-col gap-1 rounded-lg bg-yellow-50 px-3 py-2 text-sm sm:flex-row sm:items-center sm:justify-between">
-                        <span className="text-gray-700">{t.titulo}</span>
-                        <span className="text-xs text-orange-500">{t.tipoEntrega}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
-            )
-          })}
-        </div>
-      )}
+            ))}
+            {materia.unidades?.length === 0 && (
+              <p className="text-sm text-gray-400">No hay unidades registradas.</p>
+            )}
+          </div>
+        </article>
 
-      {/* ALUMNOS */}
-      {tabActivo === 'alumnos' && (
-        <div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-sm">
-          <table className="w-full min-w-[720px] text-sm">
-            <thead className="bg-gray-50 border-b border-gray-100">
-              <tr>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Alumno</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">N° Control</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Email</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Teléfono</th>
-              </tr>
-            </thead>
-            <tbody>
-              {materia.inscripciones?.map((i) => (
-                <tr key={i.alumno.id} className="border-b border-gray-50 hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-gray-800">{i.alumno.nombre}</td>
-                  <td className="px-4 py-3 text-gray-500">{i.alumno.numeroControl ?? '—'}</td>
-                  <td className="px-4 py-3 text-gray-500">{i.alumno.email ?? '—'}</td>
-                  <td className="px-4 py-3 text-gray-500">{i.alumno.telefono ?? '—'}</td>
+        <article className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+          <h3 className="text-lg font-semibold text-gray-900">Alumnos inscritos</h3>
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full min-w-[520px] text-sm">
+              <thead className="border-b border-gray-100 text-left text-xs uppercase tracking-wide text-gray-500">
+                <tr>
+                  <th className="px-2 py-3">Nombre</th>
+                  <th className="px-2 py-3">Control</th>
+                  <th className="px-2 py-3">Correo</th>
+                  <th className="px-2 py-3">Teléfono</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          {materia.inscripciones?.length === 0 && (
-            <p className="text-center text-gray-400 py-10">Sin alumnos inscritos</p>
-          )}
-        </div>
-      )}
-
-      {/* SOLICITUDES */}
-      {tabActivo === 'solicitudes' && (
-        <div className="space-y-3">
-          {solicitudes.map((s) => (
-            <div key={s.id} className="flex flex-col gap-4 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0">
-                <p className="font-medium text-gray-800">{s.alumno.nombre}</p>
-                <p className="text-sm text-gray-500">{s.alumno.numeroControl} · {s.alumno.email}</p>
-              </div>
-              <div className="flex w-full flex-col gap-2 shrink-0 sm:w-auto sm:flex-row">
-                <button onClick={() => responderSolicitud(s.id, true)}
-                  className="rounded-xl bg-green-600 px-4 py-2 text-sm text-white transition hover:bg-green-700">
-                  Aceptar
-                </button>
-                <button onClick={() => abrirDenegar(s.id)}
-                  className="rounded-xl bg-red-50 px-4 py-2 text-sm text-red-600 transition hover:bg-red-100">
-                  Denegar
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Modal: Pasar lista */}
-      <Modal open={modalAsistencia.open} onClose={() => setModalAsistencia({ open: false, claseId: null, alumnos: [] })} title="Pasar lista">
-        <div className="space-y-2 max-h-96 overflow-y-auto">
-          {modalAsistencia.alumnos.map((alumno) => (
-            <div key={alumno.id} className="flex flex-col gap-2 border-b border-gray-50 py-2 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-800">{alumno.nombre}</p>
-                <p className="text-xs text-gray-400">{alumno.numeroControl}</p>
-              </div>
-              <div className="flex flex-wrap gap-1">
-                {['PRESENTE', 'RETARDO', 'FALTA'].map((tipo) => (
-                  <button key={tipo} onClick={() => setAsistencias((p) => ({ ...p, [alumno.id]: tipo }))}
-                    className={`text-xs px-2.5 py-1.5 rounded-lg font-medium transition ${asistencias[alumno.id] === tipo
-                      ? tipo === 'PRESENTE' ? 'bg-green-500 text-white'
-                        : tipo === 'RETARDO' ? 'bg-yellow-500 text-white'
-                        : 'bg-red-500 text-white'
-                      : 'bg-gray-100 text-gray-500'}`}>
-                    {tipo === 'PRESENTE' ? '✓' : tipo === 'RETARDO' ? 'R' : '✗'}
-                  </button>
+              </thead>
+              <tbody>
+                {materia.inscripciones?.map((inscripcion) => (
+                  <tr key={inscripcion.id} className="border-b border-gray-50">
+                    <td className="px-2 py-3 font-medium text-gray-800">{inscripcion.alumno.nombre}</td>
+                    <td className="px-2 py-3 text-gray-500">{inscripcion.alumno.numeroControl ?? '—'}</td>
+                    <td className="px-2 py-3 text-gray-500">{inscripcion.alumno.email ?? '—'}</td>
+                    <td className="px-2 py-3 text-gray-500">{inscripcion.alumno.telefono ?? '—'}</td>
+                  </tr>
                 ))}
+              </tbody>
+            </table>
+            {materia.inscripciones?.length === 0 && (
+              <p className="py-6 text-center text-sm text-gray-400">No hay alumnos aceptados en esta materia.</p>
+            )}
+          </div>
+        </article>
+      </section>
+
+      <section className="grid gap-6 xl:grid-cols-2">
+        <article className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="text-lg font-semibold text-gray-900">Sesiones recientes</h3>
+            <span className="text-xs text-gray-400">{historial.length} registro(s)</span>
+          </div>
+          <div className="mt-4 space-y-3">
+            {historial.slice(0, 8).map((sesion) => (
+              <div key={sesion.id} className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="font-medium text-gray-800">{sesion.grupo?.nombre ?? 'Sin grupo'} · {sesion.unidad?.nombre ?? 'Sin unidad'}</p>
+                    <p className="mt-1 text-xs text-gray-500">{formatDate(sesion.fecha)} · Semana {sesion.semanaClave}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    <span className="rounded-full bg-green-100 px-2 py-1 font-medium text-green-700">A {sesion.resumen?.asistencias ?? 0}</span>
+                    <span className="rounded-full bg-red-100 px-2 py-1 font-medium text-red-700">F {sesion.resumen?.faltas ?? 0}</span>
+                    <span className="rounded-full bg-amber-100 px-2 py-1 font-medium text-amber-700">R {sesion.resumen?.retardos ?? 0}</span>
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-        <button onClick={guardarAsistencia} className="w-full mt-4 bg-blue-600 text-white py-2.5 rounded-xl font-medium hover:bg-blue-700 transition">
-          Guardar asistencia
-        </button>
-      </Modal>
+            ))}
+            {historial.length === 0 && (
+              <p className="text-sm text-gray-400">No hay sesiones registradas todavía.</p>
+            )}
+          </div>
+        </article>
 
-      {/* Modal: Denegar solicitud con mensaje */}
-      <Modal open={mensajeDenegar.open} onClose={() => setMensajeDenegar({ open: false, solicitudId: null, texto: '' })} title="Denegar solicitud">
-        <div className="space-y-4">
-          <p className="text-sm text-gray-600">Puedes enviar un mensaje al alumno explicando el motivo.</p>
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Mensaje (opcional)</label>
-            <textarea
-              rows={3}
-              value={mensajeDenegar.texto}
-              onChange={(e) => setMensajeDenegar((p) => ({ ...p, texto: e.target.value }))}
-              placeholder="Ej: El grupo ya está lleno, intenta el próximo semestre."
-              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
-            />
+        <article className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="text-lg font-semibold text-gray-900">Tareas recientes</h3>
+            <span className="text-xs text-gray-400">{tareas.length} tarea(s)</span>
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <button
-              onClick={() => setMensajeDenegar({ open: false, solicitudId: null, texto: '' })}
-              className="flex-1 border border-gray-300 text-gray-600 py-2.5 rounded-xl font-medium hover:bg-gray-50 transition text-sm"
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={confirmarDenegar}
-              className="flex-1 bg-red-500 text-white py-2.5 rounded-xl font-medium hover:bg-red-600 transition text-sm"
-            >
-              Denegar
-            </button>
+          <div className="mt-4 space-y-3">
+            {tareas.slice(0, 8).map((item) => (
+              <div key={item.id} className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="font-medium text-gray-800">{item.titulo}</p>
+                    <p className="mt-1 text-xs text-gray-500">
+                      {item.unidadRef?.nombre ?? 'Sin unidad'} · {item.tieneFechaLimite ? `Límite ${formatDate(item.fechaLimite)}` : 'Sin límite'}
+                    </p>
+                  </div>
+                  <Link
+                    to={`/docente/tareas/${item.id}`}
+                    className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-white"
+                  >
+                    Ver tarea
+                  </Link>
+                </div>
+              </div>
+            ))}
+            {tareas.length === 0 && (
+              <p className="text-sm text-gray-400">No hay tareas publicadas para esta materia.</p>
+            )}
           </div>
-        </div>
-      </Modal>
-
-      {/* Modal: Nueva tarea */}
-      <Modal open={modalTarea.open} onClose={() => setModalTarea({ open: false, unidadId: null })} title="Nueva tarea">
-        <form onSubmit={crearTarea} className="space-y-3">
-          <input required value={tarea.titulo} onChange={(e) => setTarea({ ...tarea, titulo: e.target.value })}
-            placeholder="Título de la tarea"
-            className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          <textarea rows={3} value={tarea.instrucciones} onChange={(e) => setTarea({ ...tarea, instrucciones: e.target.value })}
-            placeholder="Instrucciones..."
-            className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Tipo de entrega</label>
-            <select value={tarea.tipoEntrega} onChange={(e) => setTarea({ ...tarea, tipoEntrega: e.target.value })}
-              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="ONLINE">En línea (subir archivo)</option>
-              <option value="PRESENCIAL">Presencial</option>
-            </select>
-          </div>
-          {tarea.tipoEntrega === 'PRESENCIAL' && (
-            <label className="flex items-center gap-2 text-sm text-gray-700">
-              <input type="checkbox" checked={tarea.requiereFirma} onChange={(e) => setTarea({ ...tarea, requiereFirma: e.target.checked })} />
-              Requiere foto de firma
-            </label>
-          )}
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Fecha límite (opcional)</label>
-            <input type="datetime-local" value={tarea.fechaLimite} onChange={(e) => setTarea({ ...tarea, fechaLimite: e.target.value })}
-              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          </div>
-          <button type="submit" className="w-full bg-blue-600 text-white py-2.5 rounded-xl font-medium hover:bg-blue-700 transition">
-            Publicar tarea
-          </button>
-        </form>
-      </Modal>
-    </>
+        </article>
+      </section>
+    </div>
   )
 }

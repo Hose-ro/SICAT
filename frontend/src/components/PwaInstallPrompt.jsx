@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { CiCircleRemove, CiMobile3 } from 'react-icons/ci'
 import { usePwaInstall } from '@/hooks/usePwaInstall'
 
 const DISMISS_KEY = 'sicat-pwa-dismissed-at'
@@ -47,7 +48,7 @@ export default function PwaInstallPrompt() {
       <div className="pointer-events-auto w-full max-w-md rounded-3xl border border-blue-200 bg-white/95 p-4 shadow-2xl backdrop-blur">
         <div className="flex items-start gap-3">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-lg text-white">
-            <i className="ri-smartphone-line" />
+            <CiMobile3 />
           </div>
 
           <div className="min-w-0 flex-1">
@@ -85,7 +86,7 @@ export default function PwaInstallPrompt() {
             className="rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
             aria-label="Cerrar aviso de instalacion"
           >
-            <i className="ri-close-line text-lg" />
+            <CiCircleRemove className="text-lg" />
           </button>
         </div>
       </div>

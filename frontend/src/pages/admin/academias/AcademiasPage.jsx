@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { CiCircleRemove, CiRead, CiShop, CiUser } from 'react-icons/ci'
 import { useAcademiaStore } from '../../../store/academiaStore'
 import PageHeader from '../../../components/PageHeader'
 import Modal from '../../../components/Modal'
@@ -50,7 +51,9 @@ export default function AcademiasPage() {
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700 flex items-center justify-between mb-4">
           <span>{error}</span>
-          <button onClick={clearError} className="text-red-400 hover:text-red-600 ml-4">✕</button>
+          <button onClick={clearError} className="text-red-400 hover:text-red-600 ml-4" type="button" aria-label="Cerrar error">
+            <CiCircleRemove className="h-5 w-5" />
+          </button>
         </div>
       )}
 
@@ -65,7 +68,9 @@ export default function AcademiasPage() {
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-3">
-                  <span className="text-2xl">🏛️</span>
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                    <CiShop className="h-5 w-5" />
+                  </span>
                   <div>
                     <p className="font-semibold text-gray-800">{a.nombre}</p>
                     {a.descripcion && (
@@ -77,11 +82,11 @@ export default function AcademiasPage() {
 
               <div className="flex gap-3 text-xs text-gray-500">
                 <span className="flex items-center gap-1">
-                  <i className="ri-user-3-line" />
+                  <CiUser className="h-4 w-4" />
                   {a._count.docentes} docente{a._count.docentes !== 1 ? 's' : ''}
                 </span>
                 <span className="flex items-center gap-1">
-                  <i className="ri-book-2-line" />
+                  <CiRead className="h-4 w-4" />
                   {a._count.materias} materia{a._count.materias !== 1 ? 's' : ''}
                 </span>
               </div>

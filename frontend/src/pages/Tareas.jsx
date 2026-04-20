@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   CalendarDays,
@@ -57,15 +57,6 @@ const TASK_TYPE_LABEL = {
   REVISION_EN_LINEA: 'Revisión en línea',
 }
 
-function formatDate(date) {
-  if (!date) return 'Sin fecha'
-  return new Date(date).toLocaleDateString('es-MX', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  })
-}
-
 function formatDateTime(date) {
   if (!date) return 'Sin fecha'
   return new Date(date).toLocaleString('es-MX', {
@@ -77,7 +68,8 @@ function formatDateTime(date) {
   })
 }
 
-function SummaryCard({ icon: Icon, label, value, tone = 'blue' }) {
+function SummaryCard({ icon, label, value, tone = 'blue' }) {
+  const IconComponent = icon
   const tones = {
     blue: 'border-sky-200 bg-sky-50 text-sky-700',
     green: 'border-emerald-200 bg-emerald-50 text-emerald-700',
@@ -93,7 +85,7 @@ function SummaryCard({ icon: Icon, label, value, tone = 'blue' }) {
           <p className="mt-2 text-3xl font-semibold">{value ?? 0}</p>
         </div>
         <div className="rounded-2xl bg-white/80 p-3">
-          <Icon className="h-5 w-5" />
+          <IconComponent className="h-5 w-5" />
         </div>
       </div>
     </div>
@@ -129,11 +121,15 @@ function DocenteTareasModule() {
   const [busyId, setBusyId] = useState(null)
   const [closingUnit, setClosingUnit] = useState(false)
 
-  useEffect(() => {
+  const cargarMaterias = useCallback(() => {
     api.get('/materias/mis-materias')
       .then((res) => setMaterias(res.data || []))
       .catch(() => setMaterias([]))
   }, [])
+
+  useEffect(() => {
+    cargarMaterias()
+  }, [cargarMaterias])
 
   useEffect(() => {
     obtenerDocente({
@@ -172,7 +168,7 @@ function DocenteTareasModule() {
     }
   }
 
-  const handleCloseUnit = async () => {
+  const handleCloseUnit = useCallback(async () => {
     if (!selectedUnit) return
     setClosingUnit(true)
     try {
@@ -180,8 +176,7 @@ function DocenteTareasModule() {
         await api.patch(`/unidades/${selectedUnit.id}/finalizar`)
       }
       await descargarCierreUnidad(selectedUnit.id)
-      const materiasRes = await api.get('/materias/mis-materias')
-      setMaterias(materiasRes.data || [])
+      await cargarMaterias()
       await obtenerDocente({
         materiaId: filters.materiaId || undefined,
         grupoId: filters.grupoId || undefined,
@@ -192,7 +187,7 @@ function DocenteTareasModule() {
     } finally {
       setClosingUnit(false)
     }
-  }
+  }, [cargarMaterias, descargarCierreUnidad, filters.estado, filters.fecha, filters.grupoId, filters.materiaId, filters.unidadId, obtenerDocente, selectedUnit])
 
   return (
     <div className="space-y-6">
@@ -638,7 +633,7 @@ function AlumnoTareasModule() {
 
 export default function Tareas() {
   const user = useAuthStore((state) => state.user)
-  const role = user?.rol || user?.user_metadata?.custom_claims?.rol
+  const role = user?.rol
 
   return role === 'ALUMNO'
     ? <AlumnoTareasModule />

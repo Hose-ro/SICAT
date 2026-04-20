@@ -38,7 +38,14 @@ export class ReticulaService {
     if (!carrera) throw new NotFoundException('Carrera no encontrada');
 
     const reticula = await this.prisma.reticulaMateria.findMany({
-      where: { carreraId: dto.carreraId, semestre: dto.semestre, activo: true },
+      where: {
+        carreraId: dto.carreraId,
+        semestre: dto.semestre,
+        activo: true,
+        NOT: {
+          AND: [{ horasTeoria: 0 }, { horasPractica: 0 }],
+        },
+      },
     });
 
     let creadas = 0;

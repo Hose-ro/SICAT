@@ -50,19 +50,16 @@ async function main() {
     console.log(`✅ Creadas ${academias.length} academias`);
   }
 
-  // Check if carreras exist, create some if not
+  // Check if carreras exist, create ISC if not
   let carreras = await prisma.carrera.findMany();
   if (carreras.length === 0) {
-    const datosCarreras = [
-      { nombre: 'Ingeniería en Sistemas Computacionales', codigo: 'ISC' },
-      { nombre: 'Ingeniería Industrial',                  codigo: 'II'  },
-      { nombre: 'Ingeniería Electrónica',                 codigo: 'IE'  },
-      { nombre: 'Ingeniería Mecánica',                    codigo: 'IM'  },
-      { nombre: 'Licenciatura en Administración',         codigo: 'LA'  },
-    ];
-    for (const data of datosCarreras) {
-      await prisma.carrera.create({ data });
-    }
+    await prisma.carrera.create({
+      data: {
+        nombre: 'Ingeniería en Sistemas Computacionales',
+        codigo: '06',
+        planEstudios: 'ISIC-2010-224',
+      },
+    });
     carreras = await prisma.carrera.findMany();
     console.log(`✅ Creadas ${carreras.length} carreras`);
   }
@@ -108,7 +105,7 @@ async function main() {
     usedNames.add(nombre);
 
     const nc = numControl();
-    const carrera = pick(carreras);
+    const carrera = carreras.find((c) => c.codigo === '06') ?? carreras[0];
     const semestre = Math.floor(Math.random() * 8) + 1;
 
     try {

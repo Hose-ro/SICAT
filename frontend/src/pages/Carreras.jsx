@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { CiRead } from 'react-icons/ci'
 import PageHeader from '../components/PageHeader'
 import Modal from '../components/Modal'
 import api from '../api/axios'
@@ -43,7 +44,9 @@ export default function Carreras() {
         {carreras.map((c) => (
           <div key={c.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <span className="text-2xl">🎓</span>
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                <CiRead className="h-5 w-5" />
+              </span>
               <span className="font-medium text-gray-800">{c.nombre}</span>
             </div>
             <button

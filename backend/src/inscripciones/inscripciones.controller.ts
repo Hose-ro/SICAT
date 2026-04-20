@@ -34,7 +34,7 @@ export class InscripcionesController {
   }
 
   @Get('pendientes')
-  @Roles('DOCENTE', 'ADMIN')
+  @Roles('DOCENTE')
   pendientes(@Req() req) {
     return this.inscripcionesService.obtenerPendientes(req.user.id);
   }
@@ -46,7 +46,7 @@ export class InscripcionesController {
   }
 
   @Get('alumnos/:materiaId')
-  @Roles('DOCENTE', 'ADMIN')
+  @Roles('DOCENTE')
   alumnosMateria(
     @Param('materiaId', ParseIntPipe) materiaId: number,
     @Req() req,
@@ -58,13 +58,13 @@ export class InscripcionesController {
   }
 
   @Patch(':id/aceptar')
-  @Roles('DOCENTE', 'ADMIN')
+  @Roles('DOCENTE')
   aceptar(@Param('id', ParseIntPipe) id: number, @Req() req) {
     return this.inscripcionesService.aceptar(id, req.user.id);
   }
 
   @Patch(':id/rechazar')
-  @Roles('DOCENTE', 'ADMIN')
+  @Roles('DOCENTE')
   rechazar(@Param('id', ParseIntPipe) id: number, @Req() req) {
     return this.inscripcionesService.rechazar(id, req.user.id);
   }

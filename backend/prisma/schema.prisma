@@ -72,12 +72,30 @@ enum TipoNotificacion {
   INSCRIPCION_NUEVA
   INSCRIPCION_ACEPTADA
   INSCRIPCION_RECHAZADA
+  SOLICITUD_MATERIA
+  SOLICITUD_ACEPTADA
+  SOLICITUD_RECHAZADA
   CLASE_INICIADA
   CLASE_FINALIZADA
   TAREA_NUEVA
+  NUEVA_TAREA
   TAREA_REVISADA
   TAREA_CALIFICADA
+  CALIFICACION_DISPONIBLE
   ENTREGA_RECIBIDA
+  OBSERVACION_DOCENTE
+  ENTREGA_INCORRECTA
+  RECORDATORIO_FECHA_LIMITE
+  ENTREGA_TARDIA
+  ENTREGA_TAREA
+  ENTREGA_TARDIA_DOCENTE
+  ENTREGA_CORREGIDA
+  TAREAS_PENDIENTES_REVISION
+  ASISTENCIA_FUERA_HORARIO
+  NUEVO_USUARIO
+  MATERIA_CREADA
+  REPORTE_DISPONIBLE
+  ALERTA_ADMIN
 }
 
 // ==================== MODELS ====================
@@ -386,6 +404,10 @@ model Notificacion {
   referenciaTipo String?
   createdAt      DateTime         @default(now())
   usuario        Usuario          @relation(fields: [usuarioId], references: [id])
+
+  @@index([usuarioId, createdAt])
+  @@index([usuarioId, leida])
+  @@index([usuarioId, tipo, referenciaId])
 }
 
 model Grupo {

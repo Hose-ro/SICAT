@@ -8,6 +8,7 @@ import { PrismaService } from '../prisma.service';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import { SolicitarInscripcionDto } from './dto/solicitar-inscripcion.dto';
 import { TipoNotificacion } from '@prisma/client';
+import { normalizeAcademicPeriod } from '../common/periodo.util';
 
 @Injectable()
 export class InscripcionesService {
@@ -17,12 +18,13 @@ export class InscripcionesService {
   ) {}
 
   async solicitar(alumnoId: number, dto: SolicitarInscripcionDto) {
+    const periodo = normalizeAcademicPeriod(dto.periodo);
     const existe = await this.prisma.inscripcion.findUnique({
       where: {
         alumnoId_materiaId_periodo: {
           alumnoId,
           materiaId: dto.materiaId,
-          periodo: dto.periodo,
+          periodo,
         },
       },
     });
@@ -38,7 +40,7 @@ export class InscripcionesService {
     if (!materia) throw new NotFoundException('Materia no encontrada');
 
     const inscripcion = await this.prisma.inscripcion.create({
-      data: { alumnoId, materiaId: dto.materiaId, periodo: dto.periodo },
+      data: { alumnoId, materiaId: dto.materiaId, periodo },
     });
 
     const alumno = await this.prisma.usuario.findUnique({
@@ -48,11 +50,11 @@ export class InscripcionesService {
     if (materia.docenteId) {
       await this.notificaciones.crear({
         usuarioId: materia.docenteId,
-        tipo: TipoNotificacion.INSCRIPCION_NUEVA,
+        tipo: TipoNotificacion.SOLICITUD_MATERIA,
         titulo: 'Nueva solicitud de inscripción',
         mensaje: `${alumno?.nombre ?? 'Un alumno'} solicita inscribirse a ${materia.nombre}`,
         referenciaId: inscripcion.id,
-        referenciaTipo: 'Inscripcion',
+        referenciaTipo: 'Solicitud',
       });
     }
 
@@ -93,11 +95,11 @@ export class InscripcionesService {
 
     await this.notificaciones.crear({
       usuarioId: inscripcion.alumnoId,
-      tipo: TipoNotificacion.INSCRIPCION_ACEPTADA,
+      tipo: TipoNotificacion.SOLICITUD_ACEPTADA,
       titulo: 'Inscripción aceptada',
       mensaje: `Tu inscripción a ${inscripcion.materia.nombre} fue aceptada`,
       referenciaId: id,
-      referenciaTipo: 'Inscripcion',
+      referenciaTipo: 'Solicitud',
     });
 
     return updated;
@@ -121,11 +123,11 @@ export class InscripcionesService {
 
     await this.notificaciones.crear({
       usuarioId: inscripcion.alumnoId,
-      tipo: TipoNotificacion.INSCRIPCION_RECHAZADA,
+      tipo: TipoNotificacion.SOLICITUD_RECHAZADA,
       titulo: 'Inscripción rechazada',
       mensaje: `Tu inscripción a ${inscripcion.materia.nombre} fue rechazada`,
       referenciaId: id,
-      referenciaTipo: 'Inscripcion',
+      referenciaTipo: 'Solicitud',
     });
 
     return updated;
@@ -145,8 +147,13 @@ export class InscripcionesService {
   }
 
   async obtenerMisMaterias(alumnoId: number, periodo?: string) {
+    const periodoNormalizado = normalizeAcademicPeriod(periodo);
     return this.prisma.inscripcion.findMany({
-      where: { alumnoId, estado: 'ACEPTADA', ...(periodo && { periodo }) },
+      where: {
+        alumnoId,
+        estado: 'ACEPTADA',
+        periodo: periodoNormalizado,
+      },
       include: { materia: { include: { docente: true } } },
     });
   }
