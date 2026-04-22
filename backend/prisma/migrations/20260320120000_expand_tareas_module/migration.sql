@@ -1,29 +1,6 @@
 ALTER TYPE "TipoEntrega" ADD VALUE IF NOT EXISTS 'REVISION_EN_LINEA';
-
-ALTER TYPE "EstadoRevision" RENAME TO "EstadoRevision_old";
-CREATE TYPE "EstadoRevision" AS ENUM (
-  'PENDIENTE',
-  'ENTREGADA',
-  'REVISADA',
-  'CALIFICADA',
-  'INCORRECTA',
-  'NO_ENTREGADA'
-);
-
-ALTER TABLE "EntregaTarea"
-  ALTER COLUMN "estadoRevision" DROP DEFAULT,
-  ALTER COLUMN "estadoRevision" TYPE "EstadoRevision"
-  USING (
-    CASE
-      WHEN "estadoRevision"::text = 'PENDIENTE' THEN 'ENTREGADA'
-      ELSE "estadoRevision"::text
-    END
-  )::"EstadoRevision";
-
-ALTER TABLE "EntregaTarea"
-  ALTER COLUMN "estadoRevision" SET DEFAULT 'PENDIENTE';
-
-DROP TYPE "EstadoRevision_old";
+ALTER TYPE "EstadoRevision" ADD VALUE IF NOT EXISTS 'ENTREGADA';
+ALTER TYPE "EstadoRevision" ADD VALUE IF NOT EXISTS 'NO_ENTREGADA';
 
 CREATE TYPE "EstadoTarea" AS ENUM ('BORRADOR', 'PUBLICADA', 'VENCIDA', 'CERRADA');
 CREATE TYPE "TipoEvaluacion" AS ENUM ('DIRECTA', 'RUBRICA');
@@ -86,6 +63,10 @@ SET
 FROM "Unidad"
 WHERE "Unidad"."materiaId" = "Tarea"."materiaId"
   AND "Unidad"."orden" = "Tarea"."unidad";
+
+UPDATE "EntregaTarea"
+SET "estadoRevision" = 'ENTREGADA'
+WHERE "estadoRevision" = 'PENDIENTE';
 
 UPDATE "EntregaTarea"
 SET "calificacionTipo" = 'NUMERICA'
