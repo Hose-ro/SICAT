@@ -16,6 +16,8 @@ import {
   CiUser,
   CiViewList,
 } from 'react-icons/ci'
+import { X } from 'lucide-react'
+import { Dialog } from '@base-ui/react/dialog'
 import { useAuthStore } from '@/store/authStore'
 import api from '@/api/axios'
 import NotificacionesBell from '@/components/shared/NotificacionesBell'
@@ -195,8 +197,9 @@ export function BaseLayout({ children }) {
 
           {/* Change password button */}
           <button
+            type="button"
             className="sidebar__pw-btn"
-            onClick={() => { setPwModal(true); setPwError(''); setPwSuccess(''); setPwForm({ current: '', newPw: '', confirm: '' }); }}
+            onClick={() => setPwModal(true)}
           >
             <CiLock className="sidebar__pw-icon" />
             <span className="sidebar__pw-label">Cambiar contraseña</span>
@@ -232,12 +235,33 @@ export function BaseLayout({ children }) {
       </div>
 
       {/* ── Change password modal ── */}
-      {pwModal && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 p-4">
-          <div className="pw-modal w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-xl">
+      <Dialog.Root
+        open={pwModal}
+        onOpenChange={(open) => {
+          setPwModal(open)
+          if (open) {
+            setPwError('')
+            setPwSuccess('')
+            setPwForm({ current: '', newPw: '', confirm: '' })
+          }
+        }}
+      >
+        <Dialog.Portal>
+          <Dialog.Backdrop className="fixed inset-0 z-[199] bg-black/40 transition-opacity duration-200 data-[ending-style]:opacity-0 data-[starting-style]:opacity-0" />
+          <Dialog.Popup
+            aria-describedby={pwError ? 'pw-modal-error' : pwSuccess ? 'pw-modal-success' : undefined}
+            className="pw-modal fixed left-1/2 top-1/2 z-[200] w-[calc(100vw-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl bg-white shadow-xl transition-all duration-200 data-[ending-style]:scale-95 data-[ending-style]:opacity-0 data-[starting-style]:scale-95 data-[starting-style]:opacity-0"
+          >
             <div className="flex items-center justify-between border-b border-gray-100 p-4 sm:p-5">
-              <h3 className="text-lg font-semibold text-gray-800">Cambiar contraseña</h3>
-              <button onClick={() => setPwModal(false)} type="button" className="text-2xl leading-none text-gray-400 hover:text-gray-600">&times;</button>
+              <Dialog.Title className="text-lg font-semibold text-gray-800">
+                Cambiar contraseña
+              </Dialog.Title>
+              <Dialog.Close
+                aria-label="Cerrar"
+                className="-mr-1 rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-300"
+              >
+                <X className="h-5 w-5" aria-hidden="true" />
+              </Dialog.Close>
             </div>
             <form
               className="max-h-[calc(100vh-9rem)] space-y-4 overflow-y-auto p-4 sm:p-5"
@@ -263,35 +287,49 @@ export function BaseLayout({ children }) {
               }}
             >
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Contraseña actual</label>
+                <label htmlFor="pw-current" className="block text-xs font-medium text-gray-700 mb-1">Contraseña actual</label>
                 <input
-                  type="password" required
+                  id="pw-current"
+                  type="password" required autoFocus
+                  autoComplete="current-password"
                   value={pwForm.current}
                   onChange={(e) => setPwForm({ ...pwForm, current: e.target.value })}
                   className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Nueva contraseña</label>
+                <label htmlFor="pw-new" className="block text-xs font-medium text-gray-700 mb-1">Nueva contraseña</label>
                 <input
+                  id="pw-new"
                   type="password" required minLength={6}
+                  autoComplete="new-password"
                   value={pwForm.newPw}
                   onChange={(e) => setPwForm({ ...pwForm, newPw: e.target.value })}
                   className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Confirmar nueva contraseña</label>
+                <label htmlFor="pw-confirm" className="block text-xs font-medium text-gray-700 mb-1">Confirmar nueva contraseña</label>
                 <input
+                  id="pw-confirm"
                   type="password" required
+                  autoComplete="new-password"
                   value={pwForm.confirm}
                   onChange={(e) => setPwForm({ ...pwForm, confirm: e.target.value })}
                   className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
-              {pwError && <p className="text-sm text-red-500 font-medium">{pwError}</p>}
-              {pwSuccess && <p className="text-sm text-green-600 font-medium">{pwSuccess}</p>}
+              {pwError && (
+                <p id="pw-modal-error" role="alert" className="text-sm text-red-500 font-medium">
+                  {pwError}
+                </p>
+              )}
+              {pwSuccess && (
+                <p id="pw-modal-success" role="status" className="text-sm text-green-600 font-medium">
+                  {pwSuccess}
+                </p>
+              )}
 
               <button
                 type="submit"
@@ -301,9 +339,9 @@ export function BaseLayout({ children }) {
                 {pwLoading ? 'Guardando...' : 'Actualizar contraseña'}
               </button>
             </form>
-          </div>
-        </div>
-      )}
+          </Dialog.Popup>
+        </Dialog.Portal>
+      </Dialog.Root>
     </div>
   )
 }
