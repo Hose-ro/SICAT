@@ -125,6 +125,8 @@ model Carrera {
 
 model Usuario {
   id            Int      @id @default(autoincrement())
+  googleId      String?  @unique
+  avatar        String?
   nombre        String
   email         String?  @unique
   numeroControl String?  @unique

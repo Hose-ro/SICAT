@@ -4,6 +4,7 @@ import { useAuthStore } from './store/authStore'
 import { getStoredToken } from './lib/auth'
 import Login from './pages/Login'
 import Registro from './pages/Registro'
+import AuthCallback from './pages/AuthCallback'
 import Dashboard from './pages/Dashboard'
 import Materias from './pages/Materias'
 import MateriaDetalle from './pages/MateriaDetalle'
@@ -59,6 +60,7 @@ function App() {
         {/* Rutas Públicas (sin Sidebar) */}
         <Route path="/login" element={<Login />} />
         <Route path="/registro" element={<Registro />} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
         
         {/* Rutas Privadas (con Sidebar y Layout) */}
         <Route element={<LayoutWrapper />}>

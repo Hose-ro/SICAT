@@ -6,6 +6,7 @@ import {
 import { Rol, TipoNotificacion } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import * as bcrypt from 'bcrypt';
+import { randomBytes } from 'crypto';
 import { RegisterDto } from '../auth/dto/register.dto';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 
@@ -16,7 +17,10 @@ export class UsuariosService {
     private notificaciones: NotificacionesService,
   ) {}
 
-  async create(dto: RegisterDto) {
+  async create(
+    dto: RegisterDto,
+    google?: { googleId?: string; avatar?: string },
+  ) {
     if (dto.email) {
       const exists = await this.prisma.usuario.findUnique({
         where: { email: dto.email },
@@ -47,7 +51,8 @@ export class UsuariosService {
       if (!academia) throw new NotFoundException('Academia no encontrada');
     }
 
-    const hash = await bcrypt.hash(dto.password, 10);
+    const rawPassword = dto.password ?? randomBytes(32).toString('hex');
+    const hash = await bcrypt.hash(rawPassword, 10);
     const usuario = await this.prisma.usuario.create({
       data: {
         nombre: dto.nombre,
@@ -59,6 +64,8 @@ export class UsuariosService {
         telefono: dto.telefono,
         carreraId: dto.carreraId ? Number(dto.carreraId) : undefined,
         semestre: dto.semestre ? Number(dto.semestre) : undefined,
+        googleId: google?.googleId,
+        avatar: google?.avatar,
         academias:
           dto.rol === Rol.DOCENTE && dto.academiaId
             ? { connect: [{ id: Number(dto.academiaId) }] }

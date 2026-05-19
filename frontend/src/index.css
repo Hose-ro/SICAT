@@ -442,6 +442,182 @@ body.dark input::placeholder,
 body.dark textarea::placeholder { color: rgba(255,255,255,0.32) !important; }
 body.dark select option          { background: #151b25; color: rgba(255,255,255,0.90); }
 
+/* ─── Colores semánticos dark (emerald / rose / amber / sky / indigo) ── */
+
+/* Texto */
+body.dark .text-slate-950   { color: rgba(255,255,255,0.97) !important; }
+body.dark .text-emerald-800 { color: rgba(110,231,183,0.95) !important; }
+body.dark .text-emerald-700 { color: rgba(110,231,183,0.88) !important; }
+body.dark .text-emerald-600 { color: rgba(52,211,153,0.82) !important; }
+body.dark .text-emerald-500 { color: rgba(52,211,153,0.72) !important; }
+body.dark .text-emerald-400 { color: rgba(52,211,153,0.58) !important; }
+body.dark .text-rose-900    { color: rgba(253,164,175,0.97) !important; }
+body.dark .text-rose-800    { color: rgba(253,164,175,0.92) !important; }
+body.dark .text-rose-700    { color: rgba(253,164,175,0.85) !important; }
+body.dark .text-rose-600    { color: rgba(253,164,175,0.78) !important; }
+body.dark .text-rose-500    { color: rgba(253,164,175,0.68) !important; }
+body.dark .text-amber-900   { color: rgba(253,230,138,0.97) !important; }
+body.dark .text-amber-800   { color: rgba(253,230,138,0.92) !important; }
+body.dark .text-amber-700   { color: rgba(253,230,138,0.85) !important; }
+body.dark .text-amber-600   { color: rgba(253,230,138,0.78) !important; }
+body.dark .text-amber-500   { color: rgba(253,230,138,0.68) !important; }
+body.dark .text-amber-400   { color: rgba(253,230,138,0.55) !important; }
+body.dark .text-sky-800     { color: rgba(125,211,252,0.92) !important; }
+body.dark .text-sky-700     { color: rgba(125,211,252,0.85) !important; }
+body.dark .text-sky-600     { color: rgba(125,211,252,0.78) !important; }
+body.dark .text-sky-500     { color: rgba(125,211,252,0.68) !important; }
+body.dark .text-indigo-800  { color: rgba(165,180,252,0.92) !important; }
+body.dark .text-indigo-700  { color: rgba(165,180,252,0.85) !important; }
+body.dark .text-indigo-600  { color: rgba(165,180,252,0.78) !important; }
+
+/* Fondos — emerald */
+body.dark .bg-emerald-50  { background-color: rgba(16,185,129,0.08) !important; }
+body.dark .bg-emerald-100 { background-color: rgba(16,185,129,0.14) !important; }
+body.dark .bg-emerald-200 { background-color: rgba(16,185,129,0.22) !important; }
+
+/* Fondos — rose */
+body.dark .bg-rose-50  { background-color: rgba(244,63,94,0.08) !important; }
+body.dark .bg-rose-100 { background-color: rgba(244,63,94,0.14) !important; }
+body.dark .bg-rose-200 { background-color: rgba(244,63,94,0.22) !important; }
+
+/* Fondos — amber */
+body.dark .bg-amber-50  { background-color: rgba(245,158,11,0.08) !important; }
+body.dark .bg-amber-100 { background-color: rgba(245,158,11,0.14) !important; }
+body.dark .bg-amber-200 { background-color: rgba(245,158,11,0.22) !important; }
+
+/* Fondos — sky */
+body.dark .bg-sky-50  { background-color: rgba(14,165,233,0.08) !important; }
+body.dark .bg-sky-100 { background-color: rgba(14,165,233,0.14) !important; }
+body.dark .bg-sky-200 { background-color: rgba(14,165,233,0.22) !important; }
+
+/* Fondos — indigo */
+body.dark .bg-indigo-50  { background-color: rgba(99,102,241,0.08) !important; }
+body.dark .bg-indigo-100 { background-color: rgba(99,102,241,0.14) !important; }
+
+/* Fondos — slate adicionales */
+body.dark .bg-slate-200 { background-color: #273246 !important; }
+body.dark .bg-slate-900 { background-color: #1e2d45 !important; }
+body.dark .bg-slate-800 { background-color: #253554 !important; }
+
+/* Hover — colores semánticos */
+body.dark .hover\:bg-emerald-50:hover  { background-color: rgba(16,185,129,0.12) !important; }
+body.dark .hover\:bg-emerald-100:hover { background-color: rgba(16,185,129,0.20) !important; }
+body.dark .hover\:bg-emerald-200:hover { background-color: rgba(16,185,129,0.28) !important; }
+body.dark .hover\:bg-rose-50:hover     { background-color: rgba(244,63,94,0.12) !important; }
+body.dark .hover\:bg-rose-100:hover    { background-color: rgba(244,63,94,0.20) !important; }
+body.dark .hover\:bg-amber-50:hover    { background-color: rgba(245,158,11,0.12) !important; }
+body.dark .hover\:bg-amber-100:hover   { background-color: rgba(245,158,11,0.20) !important; }
+body.dark .hover\:bg-amber-200:hover   { background-color: rgba(245,158,11,0.28) !important; }
+body.dark .hover\:bg-sky-50:hover      { background-color: rgba(14,165,233,0.12) !important; }
+body.dark .hover\:bg-sky-100:hover     { background-color: rgba(14,165,233,0.20) !important; }
+body.dark .hover\:bg-slate-700:hover   { background-color: #2a3d5e !important; }
+body.dark .hover\:bg-slate-800:hover   { background-color: #253554 !important; }
+body.dark .hover\:bg-slate-900:hover   { background-color: #1a2740 !important; }
+
+/* Bordes — colores semánticos */
+body.dark .border-slate-100    { border-color: #212d40 !important; }
+body.dark .border-emerald-100  { border-color: rgba(16,185,129,0.16) !important; }
+body.dark .border-emerald-200  { border-color: rgba(16,185,129,0.28) !important; }
+body.dark .border-rose-100     { border-color: rgba(244,63,94,0.16) !important; }
+body.dark .border-rose-200     { border-color: rgba(244,63,94,0.28) !important; }
+body.dark .border-amber-100    { border-color: rgba(245,158,11,0.16) !important; }
+body.dark .border-amber-200    { border-color: rgba(245,158,11,0.28) !important; }
+body.dark .border-sky-100      { border-color: rgba(14,165,233,0.16) !important; }
+body.dark .border-sky-200      { border-color: rgba(14,165,233,0.28) !important; }
+body.dark .border-indigo-100   { border-color: rgba(99,102,241,0.16) !important; }
+body.dark .border-indigo-200   { border-color: rgba(99,102,241,0.28) !important; }
+body.dark .border-slate-200    { border-color: #2c374b !important; }
+
+/* Border-left accent (barras laterales de tarjetas) */
+body.dark .border-l-emerald-400 { border-left-color: rgba(52,211,153,0.65) !important; }
+body.dark .border-l-amber-400   { border-left-color: rgba(251,191,36,0.65) !important; }
+body.dark .border-l-rose-400    { border-left-color: rgba(251,113,133,0.65) !important; }
+
+/* Ring (Tailwind ring utilities con color) */
+body.dark .ring-emerald-200 { --tw-ring-color: rgba(16,185,129,0.35) !important; }
+body.dark .ring-rose-200    { --tw-ring-color: rgba(244,63,94,0.35) !important; }
+body.dark .ring-amber-200   { --tw-ring-color: rgba(245,158,11,0.35) !important; }
+body.dark .ring-sky-200     { --tw-ring-color: rgba(14,165,233,0.35) !important; }
+body.dark .ring-slate-200   { --tw-ring-color: rgba(71,85,105,0.45) !important; }
+
+/* Divide (separadores entre elementos) */
+body.dark .divide-slate-50  > * + * { border-color: #19212e !important; }
+body.dark .divide-slate-100 > * + * { border-color: #212d40 !important; }
+body.dark .divide-slate-200 > * + * { border-color: #273246 !important; }
+
+/* Texto — rose adicionales */
+body.dark .text-rose-400 { color: rgba(253,164,175,0.55) !important; }
+body.dark .text-rose-300 { color: rgba(253,164,175,0.42) !important; }
+
+/* Texto — violet / purple */
+body.dark .text-violet-800 { color: rgba(196,181,253,0.95) !important; }
+body.dark .text-violet-700 { color: rgba(196,181,253,0.88) !important; }
+body.dark .text-violet-600 { color: rgba(196,181,253,0.80) !important; }
+body.dark .text-purple-700 { color: rgba(216,180,254,0.88) !important; }
+body.dark .text-purple-600 { color: rgba(216,180,254,0.80) !important; }
+
+/* Fondos — violet / purple */
+body.dark .bg-violet-50  { background-color: rgba(139,92,246,0.08) !important; }
+body.dark .bg-violet-100 { background-color: rgba(139,92,246,0.14) !important; }
+body.dark .bg-violet-200 { background-color: rgba(139,92,246,0.22) !important; }
+body.dark .bg-purple-100 { background-color: rgba(168,85,247,0.14) !important; }
+body.dark .bg-purple-500 { background-color: rgba(168,85,247,0.70) !important; }
+
+/* Bordes — violet */
+body.dark .border-violet-200 { border-color: rgba(139,92,246,0.28) !important; }
+body.dark .border-violet-300 { border-color: rgba(139,92,246,0.38) !important; }
+
+/* Ring — violet */
+body.dark .ring-violet-200  { --tw-ring-color: rgba(139,92,246,0.35) !important; }
+
+/* Hover — violet */
+body.dark .hover\:bg-violet-100:hover { background-color: rgba(139,92,246,0.20) !important; }
+body.dark .hover\:bg-violet-200:hover { background-color: rgba(139,92,246,0.28) !important; }
+
+/* Texto — cyan / teal / orange adicionales */
+body.dark .text-cyan-800   { color: rgba(103,232,249,0.92) !important; }
+body.dark .text-cyan-700   { color: rgba(103,232,249,0.85) !important; }
+body.dark .text-teal-800   { color: rgba(94,234,212,0.92) !important; }
+body.dark .text-teal-700   { color: rgba(94,234,212,0.85) !important; }
+body.dark .text-orange-800 { color: rgba(253,186,116,0.92) !important; }
+body.dark .text-orange-600 { color: rgba(253,186,116,0.80) !important; }
+body.dark .text-red-400    { color: rgba(252,165,165,0.55) !important; }
+
+/* Fondos — cyan / teal */
+body.dark .bg-cyan-50  { background-color: rgba(6,182,212,0.08) !important; }
+body.dark .bg-cyan-100 { background-color: rgba(6,182,212,0.14) !important; }
+body.dark .bg-teal-50  { background-color: rgba(20,184,166,0.08) !important; }
+body.dark .bg-teal-100 { background-color: rgba(20,184,166,0.14) !important; }
+body.dark .bg-orange-50  { background-color: rgba(249,115,22,0.08) !important; }
+body.dark .bg-orange-100 { background-color: rgba(249,115,22,0.14) !important; }
+
+/* Bordes — adicionales */
+body.dark .border-emerald-300 { border-color: rgba(16,185,129,0.40) !important; }
+body.dark .border-rose-300    { border-color: rgba(244,63,94,0.40) !important; }
+body.dark .border-amber-300   { border-color: rgba(245,158,11,0.40) !important; }
+body.dark .border-cyan-300    { border-color: rgba(6,182,212,0.40) !important; }
+body.dark .border-teal-300    { border-color: rgba(20,184,166,0.40) !important; }
+body.dark .border-orange-300  { border-color: rgba(249,115,22,0.40) !important; }
+body.dark .border-red-200     { border-color: rgba(239,68,68,0.28) !important; }
+body.dark .border-red-400     { border-color: rgba(239,68,68,0.50) !important; }
+
+/* Texto — red adicionales */
+body.dark .text-red-500 { color: rgba(252,165,165,0.80) !important; }
+body.dark .text-red-700 { color: rgba(252,165,165,0.90) !important; }
+body.dark .text-red-800 { color: rgba(252,165,165,0.95) !important; }
+body.dark .text-green-500 { color: rgba(110,231,183,0.78) !important; }
+body.dark .text-green-600 { color: rgba(110,231,183,0.82) !important; }
+
+/* Fondos con opacidad modificada */
+body.dark .bg-white\/80,
+body.dark .bg-white\/70,
+body.dark .bg-white\/60,
+body.dark .bg-white\/95 { background-color: rgba(25,33,46,0.90) !important; }
+body.dark .bg-slate-50\/60,
+body.dark .bg-slate-50\/70,
+body.dark .bg-slate-50\/80 { background-color: rgba(21,27,37,0.60) !important; }
+body.dark .hover\:bg-slate-50\/60:hover { background-color: rgba(255,255,255,0.04) !important; }
+
 /* ═══════════════════════════════════════════════════════════════
    Dashboard — Light + Dark  (class-based, no inline overrides)
    ═══════════════════════════════════════════════════════════════ */

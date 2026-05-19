@@ -15,10 +15,13 @@ export class RegisterDto {
   @ApiPropertyOptional() @IsOptional() @IsEmail() email?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() numeroControl?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() username?: string;
-  @ApiProperty() @MinLength(6) password: string;
+  // Optional when registering via Google (backend generates a random password)
+  @ApiPropertyOptional() @IsOptional() @MinLength(6) password?: string;
   @ApiProperty({ enum: Rol }) @IsEnum(Rol) rol: Rol;
   @ApiPropertyOptional() @IsOptional() @IsInt() academiaId?: number;
   @ApiPropertyOptional() @IsOptional() @IsString() telefono?: string;
   @ApiPropertyOptional() @IsOptional() carreraId?: number;
   @ApiPropertyOptional() @IsOptional() semestre?: number;
+  // Token firmado generado por el backend al autenticar con Google
+  @ApiPropertyOptional() @IsOptional() @IsString() pendingGoogleToken?: string;
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, Link, useSearchParams } from 'react-router-dom'
 import {
   BookOpen,
   ChevronDown,
@@ -18,14 +18,25 @@ import {
 import api from '../api/axios'
 import BrandMark from '../components/branding/BrandMark'
 import { getInitialDarkMode, setThemeMode } from '../lib/theme'
+import { saveToken } from '../lib/auth'
+import { useAuthStore } from '../store/authStore'
 
 export default function Registro() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const { setAuth } = useAuthStore()
+
+  // Datos que vienen de Google cuando el usuario es nuevo
+  const pendingToken = searchParams.get('pending_token') ?? ''
+  const googleNombre = searchParams.get('google_nombre') ?? ''
+  const googleEmail = searchParams.get('google_email') ?? ''
+  const isGoogleFlow = Boolean(pendingToken)
+
   const [carreras, setCarreras] = useState([])
   const [form, setForm] = useState({
-    nombre: '',
+    nombre: googleNombre,
     numeroControl: '',
-    email: '',
+    email: googleEmail,
     telefono: '',
     password: '',
     confirmar: '',
@@ -46,6 +57,17 @@ export default function Registro() {
     setThemeMode(dark)
   }, [dark])
 
+  // Sincroniza datos de Google si el componente se monta con params
+  useEffect(() => {
+    if (isGoogleFlow) {
+      setForm((f) => ({
+        ...f,
+        nombre: googleNombre || f.nombre,
+        email: googleEmail || f.email,
+      }))
+    }
+  }, [isGoogleFlow, googleNombre, googleEmail])
+
   const updateField = (field) => (e) => {
     setForm((current) => ({ ...current, [field]: e.target.value }))
   }
@@ -53,28 +75,41 @@ export default function Registro() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
-    if (form.password !== form.confirmar) {
-      setError('Las contraseñas no coinciden')
-      return
+
+    if (!isGoogleFlow) {
+      if (form.password !== form.confirmar) {
+        setError('Las contraseñas no coinciden')
+        return
+      }
+      if (form.password.length < 6) {
+        setError('La contraseña debe tener al menos 6 caracteres')
+        return
+      }
     }
-    if (form.password.length < 6) {
-      setError('La contraseña debe tener al menos 6 caracteres')
-      return
-    }
+
     setLoading(true)
     try {
       const data = {
         nombre: form.nombre,
         numeroControl: form.numeroControl,
-        password: form.password,
         carreraId: form.carreraId ? parseInt(form.carreraId) : undefined,
         semestre: form.semestre ? parseInt(form.semestre) : undefined,
       }
       if (form.email) data.email = form.email
       if (form.telefono) data.telefono = form.telefono
+      if (!isGoogleFlow) data.password = form.password
+      if (isGoogleFlow) data.pendingGoogleToken = pendingToken
 
-      await api.post('/auth/register', data)
-      navigate('/login', { state: { registered: true } })
+      const res = await api.post('/auth/register', data)
+
+      if (isGoogleFlow && res.data?.access_token) {
+        // Registro con Google: auto-login directo
+        saveToken(res.data.access_token)
+        setAuth(res.data.user, res.data.access_token)
+        navigate('/dashboard', { replace: true })
+      } else {
+        navigate('/login', { state: { registered: true } })
+      }
     } catch (err) {
       setError(err.response?.data?.message ?? 'Error al registrarse')
     } finally {
@@ -191,6 +226,21 @@ export default function Registro() {
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-6">
+                  {isGoogleFlow && (
+                    <div className="flex items-center gap-3 rounded-2xl border border-[rgba(79,124,255,0.25)] bg-[rgba(79,124,255,0.07)] px-4 py-3 dark:border-[rgba(96,165,250,0.25)] dark:bg-[rgba(96,165,250,0.07)]">
+                      <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05" />
+                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+                      </svg>
+                      <p className="text-sm text-[#223354] dark:text-[rgba(255,255,255,0.85)]">
+                        Completa tu perfil académico para vincular tu cuenta de Google.
+                        <span className="ml-1 text-[#64748b] dark:text-[rgba(255,255,255,0.45)]">No necesitas crear contraseña.</span>
+                      </p>
+                    </div>
+                  )}
+
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2 md:col-span-2">
                       <label htmlFor="nombre" className={labelClass}>Nombre completo *</label>
@@ -295,55 +345,59 @@ export default function Registro() {
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <label htmlFor="password" className={labelClass}>Contraseña *</label>
-                      <div className="group relative">
-                        <Lock className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#94a3b8] transition-colors group-focus-within:text-[#4f7cff] dark:text-[rgba(255,255,255,0.35)] dark:group-focus-within:text-[#60a5fa]" />
-                        <input
-                          id="password"
-                          required
-                          type={showPassword ? 'text' : 'password'}
-                          autoComplete="new-password"
-                          value={form.password}
-                          onChange={updateField('password')}
-                          placeholder="Mínimo 6 caracteres"
-                          className={`${inputClass} pr-12`}
-                        />
-                        <button
-                          type="button"
-                          aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-                          onClick={() => setShowPassword((value) => !value)}
-                          className="absolute right-4 top-1/2 -translate-y-1/2 text-[#94a3b8] transition-colors hover:text-[#4f7cff] focus:outline-none dark:text-[rgba(255,255,255,0.35)] dark:hover:text-[#60a5fa]"
-                        >
-                          {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                        </button>
+                    {!isGoogleFlow && (
+                      <div className="space-y-2">
+                        <label htmlFor="password" className={labelClass}>Contraseña *</label>
+                        <div className="group relative">
+                          <Lock className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#94a3b8] transition-colors group-focus-within:text-[#4f7cff] dark:text-[rgba(255,255,255,0.35)] dark:group-focus-within:text-[#60a5fa]" />
+                          <input
+                            id="password"
+                            required
+                            type={showPassword ? 'text' : 'password'}
+                            autoComplete="new-password"
+                            value={form.password}
+                            onChange={updateField('password')}
+                            placeholder="Mínimo 6 caracteres"
+                            className={`${inputClass} pr-12`}
+                          />
+                          <button
+                            type="button"
+                            aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                            onClick={() => setShowPassword((value) => !value)}
+                            className="absolute right-4 top-1/2 -translate-y-1/2 text-[#94a3b8] transition-colors hover:text-[#4f7cff] focus:outline-none dark:text-[rgba(255,255,255,0.35)] dark:hover:text-[#60a5fa]"
+                          >
+                            {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                          </button>
+                        </div>
                       </div>
-                    </div>
+                    )}
 
-                    <div className="space-y-2">
-                      <label htmlFor="confirmar" className={labelClass}>Confirmar contraseña *</label>
-                      <div className="group relative">
-                        <Lock className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#94a3b8] transition-colors group-focus-within:text-[#4f7cff] dark:text-[rgba(255,255,255,0.35)] dark:group-focus-within:text-[#60a5fa]" />
-                        <input
-                          id="confirmar"
-                          required
-                          type={showConfirm ? 'text' : 'password'}
-                          autoComplete="new-password"
-                          value={form.confirmar}
-                          onChange={updateField('confirmar')}
-                          placeholder="Repite tu contraseña"
-                          className={`${inputClass} pr-12`}
-                        />
-                        <button
-                          type="button"
-                          aria-label={showConfirm ? 'Ocultar confirmación' : 'Mostrar confirmación'}
-                          onClick={() => setShowConfirm((value) => !value)}
-                          className="absolute right-4 top-1/2 -translate-y-1/2 text-[#94a3b8] transition-colors hover:text-[#4f7cff] focus:outline-none dark:text-[rgba(255,255,255,0.35)] dark:hover:text-[#60a5fa]"
-                        >
-                          {showConfirm ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                        </button>
+                    {!isGoogleFlow && (
+                      <div className="space-y-2">
+                        <label htmlFor="confirmar" className={labelClass}>Confirmar contraseña *</label>
+                        <div className="group relative">
+                          <Lock className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#94a3b8] transition-colors group-focus-within:text-[#4f7cff] dark:text-[rgba(255,255,255,0.35)] dark:group-focus-within:text-[#60a5fa]" />
+                          <input
+                            id="confirmar"
+                            required
+                            type={showConfirm ? 'text' : 'password'}
+                            autoComplete="new-password"
+                            value={form.confirmar}
+                            onChange={updateField('confirmar')}
+                            placeholder="Repite tu contraseña"
+                            className={`${inputClass} pr-12`}
+                          />
+                          <button
+                            type="button"
+                            aria-label={showConfirm ? 'Ocultar confirmación' : 'Mostrar confirmación'}
+                            onClick={() => setShowConfirm((value) => !value)}
+                            className="absolute right-4 top-1/2 -translate-y-1/2 text-[#94a3b8] transition-colors hover:text-[#4f7cff] focus:outline-none dark:text-[rgba(255,255,255,0.35)] dark:hover:text-[#60a5fa]"
+                          >
+                            {showConfirm ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                          </button>
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
 
                   <div className="rounded-2xl border border-[rgba(79,124,255,0.20)] bg-[rgba(79,124,255,0.08)] p-4 dark:border-[rgba(96,165,250,0.20)] dark:bg-[rgba(96,165,250,0.08)]">
