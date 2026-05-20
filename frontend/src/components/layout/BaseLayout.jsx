@@ -19,10 +19,10 @@ import {
 import { X } from 'lucide-react'
 import { Dialog } from '@base-ui/react/dialog'
 import { useAuthStore } from '@/store/authStore'
+import { useThemeStore } from '@/store/useThemeStore'
 import api from '@/api/axios'
 import NotificacionesBell from '@/components/shared/NotificacionesBell'
 import BrandMark from '@/components/branding/BrandMark'
-import { getInitialDarkMode, setThemeMode } from '@/lib/theme'
 
 export function BaseLayout({ children }) {
   const { user, logout } = useAuthStore()
@@ -34,7 +34,8 @@ export function BaseLayout({ children }) {
 
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [dark, setDark] = useState(() => getInitialDarkMode())
+  const dark = useThemeStore((s) => s.isDark)
+  const toggleDark = useThemeStore((s) => s.toggle)
   const [pwModal, setPwModal] = useState(false)
   const [pwForm, setPwForm] = useState({ current: '', newPw: '', confirm: '' })
   const [pwError, setPwError] = useState('')
@@ -46,17 +47,9 @@ export function BaseLayout({ children }) {
     return () => { document.body.style.overflow = '' }
   }, [mobileOpen])
 
-  useEffect(() => {
-    setThemeMode(dark)
-  }, [dark])
-
   const handleLogout = () => {
     logout()
     navigate('/login')
-  }
-
-  const toggleDark = () => {
-    setDark(d => !d)
   }
 
   const navClass = ({ isActive }) =>

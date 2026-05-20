@@ -17,9 +17,9 @@ import {
 } from 'lucide-react'
 import api from '../api/axios'
 import BrandMark from '../components/branding/BrandMark'
-import { getInitialDarkMode, setThemeMode } from '../lib/theme'
 import { saveToken } from '../lib/auth'
 import { useAuthStore } from '../store/authStore'
+import { useThemeStore } from '../store/useThemeStore'
 
 export default function Registro() {
   const navigate = useNavigate()
@@ -47,15 +47,12 @@ export default function Registro() {
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
-  const [dark, setDark] = useState(() => getInitialDarkMode())
+  const dark = useThemeStore((s) => s.isDark)
+  const toggleDark = useThemeStore((s) => s.toggle)
 
   useEffect(() => {
     api.get('/carreras').then((r) => setCarreras(r.data))
   }, [])
-
-  useEffect(() => {
-    setThemeMode(dark)
-  }, [dark])
 
   // Sincroniza datos de Google si el componente se monta con params
   useEffect(() => {
@@ -130,7 +127,7 @@ export default function Registro() {
       <div className="absolute right-4 top-4 z-20 sm:right-6 sm:top-6">
         <button
           type="button"
-          onClick={() => setDark((value) => !value)}
+          onClick={toggleDark}
           className="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/70 px-4 py-2 text-sm font-medium text-[#223354] shadow-[0_8px_28px_rgba(15,23,42,0.08)] backdrop-blur-xl transition-all duration-200 hover:-translate-y-0.5 hover:border-[rgba(79,124,255,0.35)] hover:text-[#1e293b] focus:outline-none focus:ring-4 focus:ring-[rgba(79,124,255,0.15)] dark:border-[#273246] dark:bg-[#151b25]/80 dark:text-[rgba(255,255,255,0.92)] dark:hover:border-[rgba(96,165,250,0.35)] dark:hover:text-white dark:focus:ring-[rgba(96,165,250,0.14)]"
           aria-label={dark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
           aria-pressed={dark}
