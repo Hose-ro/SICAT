@@ -528,11 +528,6 @@ body.dark .border-indigo-100   { border-color: rgba(99,102,241,0.16) !important;
 body.dark .border-indigo-200   { border-color: rgba(99,102,241,0.28) !important; }
 body.dark .border-slate-200    { border-color: #2c374b !important; }
 
-/* Border-left accent (barras laterales de tarjetas) */
-body.dark .border-l-emerald-400 { border-left-color: rgba(52,211,153,0.65) !important; }
-body.dark .border-l-amber-400   { border-left-color: rgba(251,191,36,0.65) !important; }
-body.dark .border-l-rose-400    { border-left-color: rgba(251,113,133,0.65) !important; }
-
 /* Ring (Tailwind ring utilities con color) */
 body.dark .ring-emerald-200 { --tw-ring-color: rgba(16,185,129,0.35) !important; }
 body.dark .ring-rose-200    { --tw-ring-color: rgba(244,63,94,0.35) !important; }

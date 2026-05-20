@@ -4,6 +4,7 @@ import api from '../api/axios'
 import { useAuthStore } from '../store/authStore'
 import { useClaseStore } from '../store/claseStore'
 import { useAsistenciaStore } from '../store/asistenciaStore'
+import AttendanceBadge from '../components/AttendanceBadge'
 import AsistenciaSesionPanel from './docente/components/AsistenciaSesionPanel'
 
 function formatDate(value) {
@@ -375,23 +376,6 @@ function AttendanceBar({ percentage }) {
   )
 }
 
-function AttendanceBadge({ percentage }) {
-  const pct = percentage ?? 0
-  const config =
-    pct >= 85
-      ? { bg: 'bg-emerald-50', text: 'text-emerald-700', ring: 'ring-emerald-200', dot: 'bg-emerald-500' }
-      : pct >= 70
-        ? { bg: 'bg-amber-50', text: 'text-amber-700', ring: 'ring-amber-200', dot: 'bg-amber-400' }
-        : { bg: 'bg-rose-50', text: 'text-rose-700', ring: 'ring-rose-200', dot: 'bg-rose-500' }
-
-  return (
-    <div className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 ring-1 ${config.bg} ${config.ring}`}>
-      <span className={`h-1.5 w-1.5 rounded-full ${config.dot}`} />
-      <span className={`text-sm font-bold tabular-nums ${config.text}`}>{pct}%</span>
-    </div>
-  )
-}
-
 function MiniStat({ label, value, color = 'text-slate-700' }) {
   return (
     <div className="flex flex-col items-center gap-0.5 text-center">
@@ -404,10 +388,6 @@ function MiniStat({ label, value, color = 'text-slate-700' }) {
 function AlumnoMateriaCard({ item }) {
   const { materia, grupo, resumen, ultimaSesion } = item
   const pct = resumen.porcentaje ?? 0
-  const accentLeft =
-    pct >= 85 ? 'border-l-emerald-400' :
-    pct >= 70 ? 'border-l-amber-400' :
-    'border-l-rose-400'
 
   const detalleGrupo = grupo
     ? `${grupo.nombre} · ${grupo.periodo}`
@@ -423,7 +403,7 @@ function AlumnoMateriaCard({ item }) {
         : { text: 'Todos los registros al día', warn: false }
 
   return (
-    <article className={`rounded-2xl border border-slate-200 border-l-4 ${accentLeft} bg-white shadow-sm overflow-hidden`}>
+    <article className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
       <div className="p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">

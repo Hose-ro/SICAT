@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useAsistenciaStore } from '../../../store/asistenciaStore'
+import AttendanceBadge from '../../../components/AttendanceBadge'
 
 const ESTADO_CONFIG = {
   ASISTENCIA:  { label: 'Asistencia',  bg: 'bg-emerald-50', text: 'text-emerald-700', ring: 'ring-emerald-200', dot: 'bg-emerald-500' },
@@ -110,8 +111,8 @@ export default function TablaAsistenciasAlumno({ materiaId }) {
             <SummaryChip key={e} estado={e} count={totales[e] ?? 0} />
           ))}
           {pctAsistencia !== null && (
-            <div className="flex items-center gap-1.5 rounded-xl bg-slate-50 px-3 py-2 ring-1 ring-slate-200">
-              <span className="text-xs font-semibold text-slate-700">{pctAsistencia}%</span>
+            <div className="flex items-center gap-2">
+              <AttendanceBadge percentage={pctAsistencia} />
               <span className="text-[11px] text-slate-400">asistencia</span>
             </div>
           )}
