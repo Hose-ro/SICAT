@@ -82,6 +82,13 @@
   --color-primary-strong:       var(--primary-strong);
 }
 
+/* The one family: Geist (variable), the font that is actually imported.
+   "Inter" was declared throughout but never loaded — that mismatch is
+   the bug this replaces. See The One Family Rule in DESIGN.md. */
+@theme {
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
 html,
 body,
 #root {
@@ -100,7 +107,7 @@ body {
     radial-gradient(circle at 18% 18%, rgba(79,124,255,0.14), transparent 38%),
     radial-gradient(circle at 82% 72%, rgba(140,120,255,0.10), transparent 40%),
     linear-gradient(135deg, #eef2ff, #e0f2fe, #f1f5f9);
-  font-family: "Inter", sans-serif;
+  font-family: var(--font-sans);
   transition: background 300ms cubic-bezier(.4,0,.2,1);
 }
 
@@ -1962,7 +1969,7 @@ body.dark .modal-close:hover {
   font-weight: 600;
   font-size: 13px;
   white-space: nowrap;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-sans);
 }
 .btn-add__icon {
   position: absolute;
@@ -2013,7 +2020,7 @@ body.dark .btn-add:active .btn-add__icon {
   border-radius: 999px;
   font-size: 11.5px;
   font-weight: 600;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-sans);
   letter-spacing: 0.01em;
   border: 1px solid transparent;
   white-space: nowrap;
@@ -2202,7 +2209,7 @@ body.dark .badge--personal   { background: rgba(111,143,255,0.12); color: #a8c0f
   color: #fff;
   font-size: 0;
   font-weight: 600;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-sans);
   white-space: nowrap;
   transition: font-size 0.3s ease, padding 0.3s ease;
   display: block;
@@ -2252,7 +2259,7 @@ body.dark .btn-edit:hover {
   font-weight: 600;
   font-size: 13px;
   white-space: nowrap;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-sans);
 }
 .btn-pdf__icon {
   position: absolute;
@@ -2334,7 +2341,7 @@ body.dark .btn-pdf:active .btn-pdf__icon {
   white-space: nowrap;
   font-size: 12px;
   font-weight: 600;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-sans);
   color: #fff;
   opacity: 0;
   padding-right: 12px;
