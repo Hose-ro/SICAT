@@ -15,19 +15,21 @@ function readInitial() {
   return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false
 }
 
-function applyTheme(isDark) {
+function applyTheme(isDark, { persist = true } = {}) {
   if (typeof document === 'undefined') return
 
   document.documentElement.classList.toggle('dark', isDark)
   document.body?.classList.toggle('dark', isDark)
 
-  if (typeof window !== 'undefined') {
+  // Only persist on an explicit user choice. Persisting the initial
+  // auto-detected value would freeze follow-system after first paint.
+  if (persist && typeof window !== 'undefined') {
     window.localStorage.setItem(THEME_STORAGE_KEY, isDark ? 'dark' : 'light')
   }
 }
 
 const initialDark = readInitial()
-applyTheme(initialDark)
+applyTheme(initialDark, { persist: false })
 
 export const useThemeStore = create((set) => ({
   isDark: initialDark,

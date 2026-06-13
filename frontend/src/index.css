@@ -5,23 +5,81 @@
 @import "@fontsource-variable/geist";
 
 @custom-variant dark (&:is(.dark *));
-/* ─── Variables ──────────────────────────────────── */
+
+/* ─── SICAT semantic tokens — "The Registrar's Ledger" ──────────────
+   Canonical values are OKLCH. Neutrals are tinted toward the brand
+   hue (264) so nothing reads as flat gray. The blue primary is the
+   one accent and must stay <10% of any screen. Full spec: DESIGN.md.
+   This block is the single source of truth; it overrides shadcn's
+   generic slate defaults so shadcn components and migrated utilities
+   share one palette. */
 :root {
-  --primary:           #4f7cff;
-  --primary-strong:    #3f6fff;
-  --primary-glow:      rgba(79, 124, 255, 0.25);
-  --glass-bg:          rgba(255, 255, 255, 0.65);
-  --glass-border:      rgba(255, 255, 255, 0.72);
-  --glass-inset:       inset 0 1.5px 0 rgba(255,255,255,0.88);
-  --glass-shadow:      0 18px 50px rgba(38, 60, 105, 0.14);
-  --text:              #223354;
-  --text-muted:        rgba(34, 51, 84, 0.62);
-  --sidebar-w:         264px;
-  --sidebar-collapsed: 72px;
-  --ease:              cubic-bezier(.4,0,.2,1);
-  --t:                 300ms;
-  --radius-card:       22px;
-  --radius-item:       14px;
+  /* Surfaces & text */
+  --background:             oklch(0.985 0.004 264);
+  --foreground:             oklch(0.27 0.03 264);
+  --card:                   oklch(0.995 0.003 264);
+  --card-foreground:        oklch(0.27 0.03 264);
+  --popover:                oklch(0.995 0.003 264);
+  --popover-foreground:     oklch(0.27 0.03 264);
+
+  /* Brand accent */
+  --primary:                oklch(0.62 0.19 264);
+  --primary-foreground:     oklch(0.99 0.005 264);
+
+  /* Filled / supporting surfaces */
+  --secondary:              oklch(0.95 0.006 264);
+  --secondary-foreground:   oklch(0.30 0.03 264);
+  --muted:                  oklch(0.955 0.006 264);
+  --muted-foreground:       oklch(0.50 0.025 264);
+  --accent:                 oklch(0.94 0.02 264);
+  --accent-foreground:      oklch(0.30 0.04 264);
+
+  /* Status — attendance & task states */
+  --destructive:            oklch(0.58 0.20 27);
+  --destructive-foreground: oklch(0.99 0.01 27);
+  --success:                oklch(0.62 0.14 150);
+  --success-foreground:     oklch(0.99 0.01 150);
+  --warning:                oklch(0.76 0.14 75);
+  --warning-foreground:     oklch(0.27 0.04 75);
+
+  /* Lines & focus */
+  --border:                 oklch(0.90 0.008 264);
+  --input:                  oklch(0.90 0.01 264);
+  --ring:                   oklch(0.62 0.19 264);
+  --radius:                 0.875rem;
+
+  /* Brand accent derivatives (consumed by legacy decorative CSS) */
+  --primary-strong:         oklch(0.56 0.20 264);
+  --primary-glow:           oklch(0.62 0.19 264 / 0.25);
+
+  /* Legacy aliases → resolve to the canonical tokens above */
+  --text:                   var(--foreground);
+  --text-muted:             var(--muted-foreground);
+
+  /* App layout & motion */
+  --sidebar-w:              264px;
+  --sidebar-collapsed:      72px;
+  --ease:                   cubic-bezier(.4,0,.2,1);
+  --t:                      300ms;
+  --radius-card:            22px;
+  --radius-item:            14px;
+
+  /* Glass — demoted to a single intentional surface in Ola 1 */
+  --glass-bg:               rgba(255, 255, 255, 0.65);
+  --glass-border:           rgba(255, 255, 255, 0.72);
+  --glass-inset:            inset 0 1.5px 0 rgba(255,255,255,0.88);
+  --glass-shadow:           0 18px 50px rgba(38, 60, 105, 0.14);
+}
+
+/* Expose the custom status tokens as Tailwind utilities (bg-success,
+   text-warning, etc). The standard shadcn tokens are already mapped
+   by the shadcn/tailwind.css import. */
+@theme inline {
+  --color-success:              var(--success);
+  --color-success-foreground:   var(--success-foreground);
+  --color-warning:              var(--warning);
+  --color-warning-foreground:   var(--warning-foreground);
+  --color-primary-strong:       var(--primary-strong);
 }
 
 html,
@@ -46,24 +104,53 @@ body {
   transition: background 300ms cubic-bezier(.4,0,.2,1);
 }
 
-/* ─── Dark mode variables ─────────────────────────── */
+/* ─── Dark mode background gradient (glass territory — Ola 1) ──── */
 body.dark {
   background:
     radial-gradient(circle at 18% 18%, rgba(54,65,86,0.14), transparent 34%),
     radial-gradient(circle at 82% 70%, rgba(44,55,75,0.12), transparent 36%),
     linear-gradient(135deg, #19212e, #151b25, #11151c);
+}
 
-  --glass-bg: rgba(33, 45, 64, 0.58);
-  --glass-border: rgba(72, 82, 101, 0.18);
-  --glass-inset: inset 0 1.5px 0 rgba(255,255,255,0.05);
-  --glass-shadow: 0 24px 70px rgba(0,0,0,0.60);
+/* ─── Dark mode semantic tokens ───────────────────────────────────
+   The brand blue KEEPS its identity here (it is not desaturated to
+   slate). Neutrals stay tinted toward hue 264. */
+.dark {
+  --background:             oklch(0.20 0.018 264);
+  --foreground:             oklch(0.95 0.008 264);
+  --card:                   oklch(0.24 0.022 264);
+  --card-foreground:        oklch(0.95 0.008 264);
+  --popover:                oklch(0.24 0.022 264);
+  --popover-foreground:     oklch(0.95 0.008 264);
 
-  --text: rgba(255,255,255,0.92);
-  --text-muted: rgba(255,255,255,0.50);
+  --primary:                oklch(0.68 0.16 264);
+  --primary-foreground:     oklch(0.18 0.02 264);
 
-  --primary: #485265;
-  --primary-strong: #364156;
-  --primary-glow: rgba(72,82,101,0.25);
+  --secondary:              oklch(0.28 0.02 264);
+  --secondary-foreground:   oklch(0.92 0.01 264);
+  --muted:                  oklch(0.28 0.018 264);
+  --muted-foreground:       oklch(0.70 0.02 264);
+  --accent:                 oklch(0.32 0.03 264);
+  --accent-foreground:      oklch(0.95 0.01 264);
+
+  --destructive:            oklch(0.62 0.19 27);
+  --destructive-foreground: oklch(0.98 0.01 27);
+  --success:                oklch(0.68 0.14 150);
+  --success-foreground:     oklch(0.16 0.02 150);
+  --warning:                oklch(0.78 0.14 75);
+  --warning-foreground:     oklch(0.20 0.03 75);
+
+  --border:                 oklch(0.32 0.018 264);
+  --input:                  oklch(0.34 0.02 264);
+  --ring:                   oklch(0.68 0.16 264);
+
+  --primary-strong:         oklch(0.60 0.17 264);
+  --primary-glow:           oklch(0.68 0.16 264 / 0.30);
+
+  --glass-bg:               rgba(33, 45, 64, 0.58);
+  --glass-border:           rgba(72, 82, 101, 0.18);
+  --glass-inset:            inset 0 1.5px 0 rgba(255,255,255,0.05);
+  --glass-shadow:           0 24px 70px rgba(0,0,0,0.60);
 }
 
 .glass::before{
