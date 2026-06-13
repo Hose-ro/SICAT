@@ -107,20 +107,12 @@ body {
   margin: 0;
   min-height: 100vh;
   overflow-x: hidden;
-  background:
-    radial-gradient(circle at 18% 18%, rgba(79,124,255,0.14), transparent 38%),
-    radial-gradient(circle at 82% 72%, rgba(140,120,255,0.10), transparent 40%),
-    linear-gradient(135deg, #eef2ff, #e0f2fe, #f1f5f9);
+  /* Solid token surface. The competing multi-radial-gradient mesh was
+     removed in Ola 1 (glass demotion); dark mode follows --background. */
+  background: var(--background);
+  color: var(--foreground);
   font-family: var(--font-sans);
   transition: background 300ms cubic-bezier(.4,0,.2,1);
-}
-
-/* ─── Dark mode background gradient (glass territory — Ola 1) ──── */
-body.dark {
-  background:
-    radial-gradient(circle at 18% 18%, rgba(54,65,86,0.14), transparent 34%),
-    radial-gradient(circle at 82% 70%, rgba(44,55,75,0.12), transparent 36%),
-    linear-gradient(135deg, #19212e, #151b25, #11151c);
 }
 
 /* ─── Dark mode semantic tokens ───────────────────────────────────
@@ -179,62 +171,17 @@ body.dark {
   pointer-events: none;
 }
 
+/* Demoted from glass to a solid tinted surface (Ola 1). Was a frosted
+   panel with backdrop-blur, white gradient fills, and asymmetric white
+   accent borders. Now a flat token card; dark mode follows the tokens. */
 .task-hero {
   position: relative;
   overflow: hidden;
-  border-radius: 2rem;
-  border: 1px solid rgba(255,255,255,0.56);
-  border-top-color: rgba(255,255,255,0.84);
-  border-left-color: rgba(255,255,255,0.68);
-  background:
-    linear-gradient(
-      145deg,
-      rgba(255,255,255,0.68) 0%,
-      rgba(255,255,255,0.50) 46%,
-      rgba(219,234,254,0.36) 100%
-    );
-  box-shadow:
-    inset 0 1.5px 0 rgba(255,255,255,0.92),
-    inset 1px 0 0 rgba(255,255,255,0.40),
-    0 24px 70px rgba(38,60,105,0.12),
-    0 8px 24px rgba(38,60,105,0.06);
-  backdrop-filter: blur(34px) saturate(1.8) brightness(1.08);
-  -webkit-backdrop-filter: blur(34px) saturate(1.8) brightness(1.08);
-  color: #16324f;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--card-foreground);
   isolation: isolate;
-}
-
-.task-hero::before,
-.task-hero::after {
-  content: "";
-  position: absolute;
-  pointer-events: none;
-}
-
-.task-hero::before {
-  inset: 0;
-  background:
-    linear-gradient(
-      120deg,
-      rgba(255,255,255,0.38) 0%,
-      rgba(255,255,255,0.18) 18%,
-      rgba(255,255,255,0.08) 42%,
-      rgba(255,255,255,0.03) 72%
-    );
-}
-
-.task-hero::after {
-  right: -10%;
-  bottom: -42%;
-  width: 48%;
-  height: 90%;
-  background: radial-gradient(
-    circle,
-    rgba(79,124,255,0.18) 0%,
-    rgba(79,124,255,0.10) 32%,
-    transparent 70%
-  );
-  filter: blur(8px);
 }
 
 .task-hero > * {
@@ -242,45 +189,32 @@ body.dark {
   z-index: 1;
 }
 
-.task-hero-subtitle {
-  color: rgba(34,51,84,0.78);
-}
-
+.task-hero-subtitle,
 .task-hero-meta {
-  color: rgba(34,51,84,0.72);
+  color: var(--muted-foreground);
 }
 
 .task-hero-emphasis {
-  color: #132b47;
+  color: var(--foreground);
 }
 
 .task-hero-chip,
-.task-hero-button,
-.task-hero-button-primary,
-.task-hero-surface,
-.task-hero-badge {
-  border: 1px solid rgba(255,255,255,0.62);
-  border-top-color: rgba(255,255,255,0.84);
-  background: rgba(255,255,255,0.26);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.74),
-    0 10px 30px rgba(38,60,105,0.06);
-  backdrop-filter: blur(22px) saturate(1.65);
-  -webkit-backdrop-filter: blur(22px) saturate(1.65);
-}
-
-.task-hero-chip {
-  color: rgba(22,50,79,0.78);
+.task-hero-badge,
+.task-hero-surface {
+  border: 1px solid var(--border);
+  background: var(--muted);
+  color: var(--foreground);
 }
 
 .task-hero-button,
 .task-hero-button-primary {
-  color: #16324f;
+  border: 1px solid var(--border);
+  background: var(--background);
+  color: var(--foreground);
   transition:
-    background 180ms ease,
-    border-color 180ms ease,
-    box-shadow 180ms ease,
-    transform 180ms ease;
+    background 180ms var(--ease),
+    border-color 180ms var(--ease),
+    transform 180ms var(--ease);
 }
 
 .task-hero-button:hover,
@@ -289,53 +223,18 @@ body.dark {
 }
 
 .task-hero-button:hover {
-  background: rgba(255,255,255,0.34);
-  border-color: rgba(255,255,255,0.80);
+  background: var(--muted);
 }
 
 .task-hero-button-primary {
-  background: rgba(255,255,255,0.62);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.90),
-    0 14px 34px rgba(38,60,105,0.10);
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-foreground);
 }
 
 .task-hero-button-primary:hover {
-  background: rgba(255,255,255,0.78);
-}
-
-.task-hero-surface {
-  background:
-    linear-gradient(
-      160deg,
-      rgba(255,255,255,0.36) 0%,
-      rgba(255,255,255,0.22) 100%
-    );
-}
-
-.task-hero-badge {
-  color: #173052;
-}
-
-body.dark .task-hero {
-  color: rgba(255,255,255,0.92);
-  background:
-    linear-gradient(
-      145deg,
-      rgba(21,27,37,0.78) 0%,
-      rgba(25,33,46,0.64) 48%,
-      rgba(37,99,235,0.26) 100%
-    );
-  border-color: rgba(148,163,184,0.16);
-  border-top-color: rgba(191,219,254,0.24);
-  border-left-color: rgba(148,163,184,0.24);
-  box-shadow:
-    inset 0 1.5px 0 rgba(255,255,255,0.10),
-    inset 1px 0 0 rgba(148,163,184,0.08),
-    0 24px 70px rgba(0,0,0,0.34),
-    0 8px 24px rgba(0,0,0,0.18);
-  backdrop-filter: blur(34px) saturate(1.55) brightness(0.94);
-  -webkit-backdrop-filter: blur(34px) saturate(1.55) brightness(0.94);
+  background: var(--primary-strong);
+  border-color: var(--primary-strong);
 }
 
 body.dark .task-hero::before {
@@ -436,7 +335,6 @@ body.dark .user__name               { color: rgba(255,255,255,0.90); }
 body.dark .user__role               { color: rgba(255,255,255,0.40); }
 body.dark .user__logout             { color: rgba(255,255,255,0.35); }
 body.dark .sidebar__user:hover .user__logout { color: rgba(255,255,255,0.85); }
-body.dark .mobile-topbar            { background: rgba(21,27,37,0.88); border-color: rgba(72,82,101,0.15); }
 body.dark .mobile-topbar span       { color: rgba(255,255,255,0.90); }
 body.dark .mobile-topbar button     { color: rgba(255,255,255,0.75) !important; }
 
@@ -887,16 +785,10 @@ body.dark .scard__count { color: rgba(255,255,255,0.92); }
 
 /* ── Inner panel ── */
 .scard__inner {
-  background: rgba(255,255,255,0.55);
+  background: var(--card);
   border-radius: 12px;
-  border: 1px solid rgba(0,0,0,0.06);
+  border: 1px solid var(--border);
   padding: 12px;
-  backdrop-filter: blur(8px);
-}
-body.dark .scard__inner {
-  background: #212d40;
-  border-color: #313c51;
-  backdrop-filter: none;
 }
 
 .scard__inner-title { font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 4px; }
@@ -988,6 +880,8 @@ body.dark .scard__progress-fill {
 }
 
 /* ─── Sidebar ─────────────────────────────────────── */
+/* Demoted from frosted glass to a solid token surface (Ola 1). Was a
+   blur(52px) panel with white gradient + asymmetric accent borders. */
 .sidebar {
   position: fixed;
   top: 16px;
@@ -1002,79 +896,16 @@ body.dark .scard__progress-fill {
   z-index: 100;
   overflow: hidden;
 
-  background:
-    linear-gradient(
-      160deg,
-      rgba(255,255,255,0.38) 0%,
-      rgba(255,255,255,0.14) 40%,
-      rgba(255,255,255,0.06) 100%
-    );
+  background: var(--card);
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 30px rgba(38,60,105,0.08);
 
-  backdrop-filter: blur(52px) saturate(2.2) brightness(1.10);
-  -webkit-backdrop-filter: blur(52px) saturate(2.2) brightness(1.10);
-
-  border: 1px solid rgba(255,255,255,0.50);
-  border-top-color: rgba(255,255,255,0.80);
-  border-left-color: rgba(255,255,255,0.65);
-  box-shadow:
-    inset 0 1.5px 0 rgba(255,255,255,0.90),
-    inset 1px 0 0 rgba(255,255,255,0.40),
-    0 20px 60px rgba(38,60,105,0.12),
-    0 4px 16px rgba(38,60,105,0.06);
-
-  transition: width var(--t) var(--ease), box-shadow var(--t) var(--ease);
+  transition: width var(--t) var(--ease);
   transform: translateZ(0);
-  will-change: backdrop-filter, transform;
-}
-
-.sidebar:hover {
-  box-shadow:
-    inset 0 1.5px 0 rgba(255,255,255,0.90),
-    inset 1px 0 0 rgba(255,255,255,0.40),
-    0 28px 70px rgba(38,60,105,0.16),
-    0 6px 20px rgba(38,60,105,0.08);
 }
 
 .sidebar.collapsed {
   width: var(--sidebar-collapsed);
-  background:
-    linear-gradient(
-      160deg,
-      rgba(255,255,255,0.48) 0%,
-      rgba(255,255,255,0.22) 50%,
-      rgba(255,255,255,0.10) 100%
-    );
-}
-
-body.dark .sidebar {
-  background:
-    linear-gradient(
-      160deg,
-      #19212e 0%,
-      #151b25 45%,
-      #11151c 100%
-    );
-
-  border-color: #2c374b;
-  border-top-color: #364156;
-  border-left-color: #313c51;
-  box-shadow:
-    inset 0 1.5px 0 rgba(72,82,101,0.20),
-    inset 1px 0 0 rgba(54,65,86,0.12),
-    0 20px 60px rgba(0,0,0,0.45),
-    0 4px 16px rgba(0,0,0,0.25);
-
-  backdrop-filter: blur(52px) saturate(1.8) brightness(0.95);
-  -webkit-backdrop-filter: blur(52px) saturate(1.8) brightness(0.95);
-}
-
-body.dark .sidebar.collapsed {
-  background:
-    linear-gradient(
-      160deg,
-      #19212e 0%,
-      #151b25 100%
-    );
 }
 
 /* ─── Header ──────────────────────────────────────── */
@@ -1536,10 +1367,8 @@ body.dark .pw-modal label { color: rgba(255,255,255,0.65) !important; }
   justify-content: space-between;
   gap: 12px;
   padding: 12px 16px;
-  background: rgba(255,255,255,0.70);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-bottom: 1px solid rgba(255,255,255,0.80);
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
   z-index: 50;
@@ -1596,7 +1425,6 @@ body.dark .pw-modal label { color: rgba(255,255,255,0.65) !important; }
   inset: 0;
   background: rgba(0,0,0,0.35);
   z-index: 90;
-  backdrop-filter: blur(2px);
 }
 @media (max-width: 1023px) {
   .sidebar-overlay.visible { display: block; }
@@ -1641,11 +1469,10 @@ body.dark .pw-modal label { color: rgba(255,255,255,0.65) !important; }
   align-items: center;
   justify-content: center;
   padding: 16px;
-  background: rgba(10, 20, 40, 0.35);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  background: rgba(10, 20, 40, 0.45);
 }
 
+/* Demoted from frosted glass to a solid token surface (Ola 1). */
 .modal-panel {
   width: 100%;
   max-width: 512px;
@@ -1655,22 +1482,10 @@ body.dark .pw-modal label { color: rgba(255,255,255,0.65) !important; }
   border-radius: 20px;
   overflow: hidden;
 
-  background:
-    linear-gradient(
-      160deg,
-      rgba(255,255,255,0.82) 0%,
-      rgba(255,255,255,0.62) 50%,
-      rgba(255,255,255,0.50) 100%
-    );
-  backdrop-filter: blur(40px) saturate(2.0) brightness(1.08);
-  -webkit-backdrop-filter: blur(40px) saturate(2.0) brightness(1.08);
-
-  border: 1px solid rgba(255,255,255,0.70);
-  border-top-color: rgba(255,255,255,0.92);
-  box-shadow:
-    inset 0 1.5px 0 rgba(255,255,255,0.95),
-    0 24px 64px rgba(38,60,105,0.18),
-    0 4px 16px rgba(38,60,105,0.08);
+  background: var(--card);
+  color: var(--card-foreground);
+  border: 1px solid var(--border);
+  box-shadow: 0 24px 64px rgba(38,60,105,0.18);
 }
 
 .modal-header {
@@ -1678,13 +1493,13 @@ body.dark .pw-modal label { color: rgba(255,255,255,0.65) !important; }
   align-items: center;
   justify-content: space-between;
   padding: 20px 24px 16px;
-  border-bottom: 1px solid rgba(38,60,105,0.10);
+  border-bottom: 1px solid var(--border);
 }
 
 .modal-title {
   font-size: 17px;
   font-weight: 700;
-  color: #1a2d50;
+  color: var(--foreground);
   letter-spacing: -0.01em;
 }
 
@@ -1696,15 +1511,15 @@ body.dark .pw-modal label { color: rgba(255,255,255,0.65) !important; }
   justify-content: center;
   border-radius: 8px;
   border: none;
-  background: rgba(38,60,105,0.08);
-  color: rgba(38,60,105,0.55);
+  background: var(--muted);
+  color: var(--muted-foreground);
   cursor: pointer;
   font-size: 13px;
   transition: background 200ms, color 200ms;
 }
 .modal-close:hover {
-  background: rgba(38,60,105,0.14);
-  color: #1a2d50;
+  background: var(--accent);
+  color: var(--foreground);
 }
 
 .modal-body {
@@ -1731,37 +1546,11 @@ body.dark .pw-modal label { color: rgba(255,255,255,0.65) !important; }
   }
 }
 
-/* Dark mode modal */
-body.dark .modal-overlay {
-  background: rgba(0,10,20,0.55);
-}
+/* Modal surface, header, and title now follow the semantic tokens in
+   both themes (Ola 1 glass demotion removed the dark glass overrides). */
 
-body.dark .modal-panel {
-  color: rgba(255,255,255,0.88);
-  background:
-    linear-gradient(
-      160deg,
-      rgba(0,64,108,0.72) 0%,
-      rgba(0,46,78,0.55) 50%,
-      rgba(0,33,55,0.42) 100%
-    );
-  border-color: rgba(0,140,220,0.25);
-  border-top-color: rgba(0,180,255,0.35);
-  box-shadow:
-    inset 0 1.5px 0 rgba(0,180,255,0.18),
-    0 24px 64px rgba(0,0,0,0.45),
-    0 4px 16px rgba(0,0,0,0.25);
-}
-
-body.dark .modal-header {
-  border-bottom-color: rgba(0,140,220,0.15);
-}
-
-body.dark .modal-title {
-  color: rgba(255,255,255,0.92);
-}
-
-/* Texto dentro del modal en dark mode */
+/* Crutch: force-recolors hardcoded slate/gray utility text inside modal
+   bodies for dark mode. Remove per-modal as its JSX migrates to tokens. */
 body.dark .modal-body label,
 body.dark .modal-body p,
 body.dark .modal-body h3,
