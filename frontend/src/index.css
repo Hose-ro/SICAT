@@ -26,6 +26,10 @@
   --primary:                oklch(0.62 0.19 264);
   --primary-foreground:     oklch(0.99 0.005 264);
 
+  /* Theme-stable near-white for text/icons on saturated color surfaces
+     (stays light in both themes — unlike --primary-foreground). */
+  --on-accent:              oklch(0.985 0.005 264);
+
   /* Filled / supporting surfaces */
   --secondary:              oklch(0.95 0.006 264);
   --secondary-foreground:   oklch(0.30 0.03 264);
@@ -395,9 +399,9 @@ body.dark .task-hero-button-primary:hover {
 /* ─── Dark mode color overrides ───────────────────── */
 /* collapsed dark handled in .sidebar.collapsed block above */
 body.dark .nav__icon                { color: rgba(255,255,255,0.85); }
-body.dark .nav__item.active .nav__icon { color: #fff; }
+body.dark .nav__item.active .nav__icon { color: var(--on-accent); }
 body.dark .nav__label               { color: rgba(255,255,255,0.85); }
-body.dark .nav__item.active .nav__label { color: #fff; }
+body.dark .nav__item.active .nav__label { color: var(--on-accent); }
 body.dark .nav__section             { color: rgba(255,255,255,0.35); }
 body.dark .nav__item.active {
   background: linear-gradient(
@@ -725,7 +729,7 @@ body.dark .dash-link     { color: #60a5fa; }
 
 /* ── Materias list card ── */
 .dash-card {
-  background: #fff;
+  background: var(--card);
   border-radius: 16px;
   border: 1px solid #e2e8f0;
   overflow: hidden;
@@ -948,7 +952,7 @@ body.dark .scard__cal-day { color: rgba(255,255,255,0.55); }
 .scard__cal-day--today {
   font-weight: 700 !important;
   background: #1e293b !important;
-  color: #fff !important;
+  color: var(--on-accent) !important;
   box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
 body.dark .scard__cal-day--today {
@@ -1308,7 +1312,7 @@ body.dark .sidebar-bar { background-color: rgba(255,255,255,0.80); }
   height: 18px;
   border-radius: 999px;
   background: linear-gradient(135deg, var(--primary), #7c6cff);
-  color: #fff;
+  color: var(--on-accent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1331,7 +1335,7 @@ body.dark .sidebar-bar { background-color: rgba(255,255,255,0.80); }
   top: 50%;
   transform: translateY(-50%) scale(0.92);
   background: var(--primary);
-  color: #fff;
+  color: var(--on-accent);
   font-size: 12px;
   font-weight: 600;
   padding: 5px 10px;
@@ -1437,7 +1441,7 @@ body.dark .pw-modal label { color: rgba(255,255,255,0.65) !important; }
 }
 .mode-switch svg { height: 100%; }
 .mode-switch svg path {
-  color: #fff;
+  color: var(--on-accent);
   stroke-width: 16;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -1477,7 +1481,7 @@ body.dark .pw-modal label { color: rgba(255,255,255,0.65) !important; }
   justify-content: center;
   font-size: 13px;
   font-weight: 700;
-  color: #fff;
+  color: var(--on-accent);
   flex-shrink: 0;
   border: 1.5px solid rgba(255,255,255,0.4);
   box-shadow: 0 2px 8px rgba(38,60,105,0.20);
@@ -1789,18 +1793,18 @@ body.dark .modal-close:hover {
 
 /* ─── Continue / Add-punto button (Uiverse pencil-folder) ── */
 .btn-agenda {
-  --color: #fff;
+  --color: var(--on-accent);
   --background: #263C69;
   --background-hover: #1e3264;
   --background-left: #172855;
   --folder: #F3E9CB;
   --folder-inner: #BEB393;
-  --paper: #FFFFFF;
+  --paper: var(--on-accent);
   --paper-lines: #BBC1E1;
   --paper-behind: #c8d4f5;
-  --pencil-cap: #fff;
+  --pencil-cap: var(--on-accent);
   --pencil-top: #5C86FF;
-  --pencil-middle: #fff;
+  --pencil-middle: var(--on-accent);
   --pencil-bottom: #87a2ff;
   --shadow: rgba(13,15,25,.2);
   border: none;
@@ -1965,7 +1969,7 @@ body.dark .modal-close:hover {
 }
 .btn-add__text {
   transform: translateX(18px);
-  color: #fff;
+  color: var(--on-accent);
   font-weight: 600;
   font-size: 13px;
   white-space: nowrap;
@@ -1980,7 +1984,7 @@ body.dark .modal-close:hover {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: var(--on-accent);
 }
 .btn-add:hover {
   background-color: #1e3264;
@@ -2203,10 +2207,10 @@ body.dark .badge--personal   { background: rgba(111,143,255,0.12); color: #a8c0f
   flex-shrink: 0;
   transition: transform 0.3s ease, width 0.3s ease;
 }
-.btn-edit__icon path { fill: #fff; }
+.btn-edit__icon path { fill: var(--on-accent); }
 .btn-edit::before {
   content: "Editar";
-  color: #fff;
+  color: var(--on-accent);
   font-size: 0;
   font-weight: 600;
   font-family: var(--font-sans);
@@ -2255,7 +2259,7 @@ body.dark .btn-edit:hover {
 }
 .btn-pdf__text {
   transform: translateX(22px);
-  color: #fff;
+  color: var(--on-accent);
   font-weight: 600;
   font-size: 13px;
   white-space: nowrap;
@@ -2273,7 +2277,7 @@ body.dark .btn-edit:hover {
 }
 .btn-pdf__icon svg {
   width: 20px;
-  fill: #fff;
+  fill: var(--on-accent);
 }
 .btn-pdf:hover {
   background-color: #17795E;
@@ -2342,7 +2346,7 @@ body.dark .btn-pdf:active .btn-pdf__icon {
   font-size: 12px;
   font-weight: 600;
   font-family: var(--font-sans);
-  color: #fff;
+  color: var(--on-accent);
   opacity: 0;
   padding-right: 12px;
   transition: opacity 0.2s ease 0.05s;
@@ -2354,7 +2358,7 @@ body.dark .btn-pdf:active .btn-pdf__icon {
   border-color: #1e3264;
 }
 .btn-logout:hover .btn-logout__sign svg {
-  color: #fff;
+  color: var(--on-accent);
 }
 .btn-logout:hover .btn-logout__text {
   opacity: 1;
@@ -2378,5 +2382,5 @@ body.dark .btn-logout:hover {
   border-color: rgba(0,140,220,0.45);
 }
 body.dark .btn-logout:hover .btn-logout__sign svg {
-  color: #fff;
+  color: var(--on-accent);
 }
