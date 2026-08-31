@@ -13,6 +13,9 @@ import { UsuariosService } from '../usuarios/usuarios.service';
 
 @Injectable()
 export class AuthService {
+  private readonly emailLoginEnabled =
+    process.env.AUTH_EMAIL_ENABLED === 'true';
+
   constructor(
     private prisma: PrismaService,
     private jwt: JwtService,
@@ -35,13 +38,14 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
+    const identifiers = [
+      { numeroControl: dto.identifier },
+      { username: dto.identifier },
+      ...(this.emailLoginEnabled ? [{ email: dto.identifier }] : []),
+    ];
     const user = await this.prisma.usuario.findFirst({
       where: {
-        OR: [
-          { email: dto.identifier },
-          { numeroControl: dto.identifier },
-          { username: dto.identifier },
-        ],
+        OR: identifiers,
         activo: true,
       },
     });

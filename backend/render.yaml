@@ -13,3 +13,5 @@ services:
         value: production
       - key: FRONTEND_URL
         sync: false
+      - key: AUTH_EMAIL_ENABLED
+        value: 'false'
