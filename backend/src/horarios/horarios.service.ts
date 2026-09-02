@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
+import { ActualizarClaseDto } from './dto/actualizar-clase.dto';
 import { CreateHorarioDto } from './dto/create-horario.dto';
 import { UpdateHorarioDto } from './dto/update-horario.dto';
 import { ValidarConflictoHorarioDto } from './dto/validar-conflicto-horario.dto';
@@ -61,6 +62,19 @@ const HORARIO_INCLUDE = {
 } satisfies Prisma.HorarioMateriaInclude;
 
 type Tx = Prisma.TransactionClient;
+
+type HorarioConRelaciones = Prisma.HorarioMateriaGetPayload<{
+  include: typeof HORARIO_INCLUDE;
+}>;
+
+type BloqueClase = {
+  horarioId: number;
+  dia: string;
+  horaInicio: string;
+  horaFin: string;
+  aulaId: number | null;
+  aula: HorarioConRelaciones['aula'];
+};
 
 type HorarioInput = {
   materiaId: number;
@@ -233,6 +247,136 @@ export class HorariosService {
     return actualizados.length === 1 ? actualizados[0] : actualizados;
   }
 
+  async actualizarClase(dto: ActualizarClaseDto) {
+    const existentes = await this.prisma.horarioMateria.findMany({
+      where: { id: { in: dto.horarioIds }, activo: true },
+      include: HORARIO_INCLUDE,
+    });
+
+    if (existentes.length === 0) {
+      throw new NotFoundException('La clase no tiene bloques activos');
+    }
+
+    const identidades = new Set(
+      existentes.map(
+        (horario) =>
+          `${horario.materiaId}-${horario.docenteId}-${horario.grupoId ?? 'sin-grupo'}`,
+      ),
+    );
+    if (identidades.size > 1) {
+      throw new BadRequestException(
+        'Los bloques enviados pertenecen a clases distintas',
+      );
+    }
+
+    const payloads = await this.prepararHorarios({
+      materiaId: dto.materiaId,
+      docenteId: dto.docenteId,
+      aulaId: dto.aulaId ?? undefined,
+      grupoId: dto.grupoId ?? undefined,
+      bloques: dto.bloques,
+      semestre: dto.semestre ?? undefined,
+    });
+
+    const idsClase = existentes.map((horario) => horario.id);
+    const validacion = await this.validarConflictos(payloads, idsClase);
+    if (!validacion.ok) throw new ConflictException(validacion.message);
+
+    const materiaAnterior = existentes[0].materiaId;
+
+    await this.prisma.$transaction(async (tx) => {
+      const reutilizables = new Map<string, number>();
+      for (const fila of existentes) {
+        const dias = fila.dias
+          .split(',')
+          .map((dia) => dia.trim())
+          .filter(Boolean);
+        if (dias.length === 1 && !reutilizables.has(dias[0])) {
+          reutilizables.set(dias[0], fila.id);
+        }
+      }
+
+      const reutilizados = new Set<number>();
+
+      for (const payload of payloads) {
+        const data = {
+          materiaId: payload.materiaId,
+          docenteId: payload.docenteId,
+          aulaId: payload.aulaId ?? null,
+          grupoId: payload.grupoId ?? null,
+          dias: payload.dias,
+          horaInicio: payload.horaInicio,
+          horaFin: payload.horaFin,
+          semestre: payload.semestre ?? null,
+        };
+
+        const filaId = reutilizables.get(payload.dias);
+        if (filaId !== undefined) {
+          reutilizados.add(filaId);
+          await tx.horarioMateria.update({ where: { id: filaId }, data });
+        } else {
+          await tx.horarioMateria.create({ data });
+        }
+      }
+
+      const sobrantes = idsClase.filter((id) => !reutilizados.has(id));
+      if (sobrantes.length > 0) {
+        await tx.horarioMateria.updateMany({
+          where: { id: { in: sobrantes } },
+          data: { activo: false },
+        });
+      }
+
+      await this.sincronizarMateriaGrupos(tx, materiaAnterior);
+      await this.sincronizarMateriaLegacy(tx, materiaAnterior);
+      if (dto.materiaId !== materiaAnterior) {
+        await this.sincronizarMateriaGrupos(tx, dto.materiaId);
+        await this.sincronizarMateriaLegacy(tx, dto.materiaId);
+      }
+    });
+
+    const actualizados = await this.prisma.horarioMateria.findMany({
+      where: {
+        materiaId: dto.materiaId,
+        docenteId: dto.docenteId,
+        grupoId: dto.grupoId ?? null,
+        activo: true,
+      },
+      include: HORARIO_INCLUDE,
+    });
+
+    return this.agruparEnClases(actualizados)[0] ?? null;
+  }
+
+  async eliminarClase(horarioIds: number[]) {
+    const existentes = await this.prisma.horarioMateria.findMany({
+      where: { id: { in: horarioIds }, activo: true },
+      select: { id: true, materiaId: true },
+    });
+
+    if (existentes.length === 0) {
+      throw new NotFoundException('La clase no tiene bloques activos');
+    }
+
+    const materiaIds = Array.from(
+      new Set(existentes.map((horario) => horario.materiaId)),
+    );
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.horarioMateria.updateMany({
+        where: { id: { in: existentes.map((horario) => horario.id) } },
+        data: { activo: false },
+      });
+
+      for (const materiaId of materiaIds) {
+        await this.sincronizarMateriaGrupos(tx, materiaId);
+        await this.sincronizarMateriaLegacy(tx, materiaId);
+      }
+    });
+
+    return { eliminados: existentes.length };
+  }
+
   async remove(id: number) {
     const horario = await this.prisma.horarioMateria.findUnique({
       where: { id },
@@ -253,7 +397,7 @@ export class HorariosService {
 
   async validarConflicto(dto: ValidarConflictoHorarioDto) {
     const payloads = await this.prepararHorarios(dto);
-    return this.validarConflictos(payloads, dto.horarioId);
+    return this.validarConflictos(payloads, dto.horarioIds ?? dto.horarioId);
   }
 
   async obtenerHorarioDocente(docenteId: number) {
@@ -269,7 +413,7 @@ export class HorariosService {
     if (!docente) throw new NotFoundException('Docente no encontrado');
 
     const horarios = await this.findAll({ docenteId });
-    return { docente, horarios };
+    return { docente, horarios, clases: this.agruparEnClases(horarios) };
   }
 
   async obtenerHorarioAula(aulaId: number) {
@@ -277,7 +421,7 @@ export class HorariosService {
     if (!aula) throw new NotFoundException('Aula no encontrada');
 
     const horarios = await this.findAll({ aulaId });
-    return { aula, horarios };
+    return { aula, horarios, clases: this.agruparEnClases(horarios) };
   }
 
   async obtenerHorarioGrupo(grupoId: number) {
@@ -294,7 +438,24 @@ export class HorariosService {
     if (!grupo) throw new NotFoundException('Grupo no encontrado');
 
     const horarios = await this.findAll({ grupoId });
-    return { grupo, horarios };
+    return { grupo, horarios, clases: this.agruparEnClases(horarios) };
+  }
+
+  async obtenerHorarioAlumno(alumnoId: number) {
+    const alumno = await this.prisma.usuario.findUnique({
+      where: { id: alumnoId },
+      select: { id: true, nombre: true, email: true, grupoId: true },
+    });
+    if (!alumno) throw new NotFoundException('Alumno no encontrado');
+
+    if (!alumno.grupoId) {
+      return { alumno, grupo: null, horarios: [], clases: [] };
+    }
+
+    const { grupo, horarios, clases } = await this.obtenerHorarioGrupo(
+      alumno.grupoId,
+    );
+    return { alumno, grupo, horarios, clases };
   }
 
   obtenerMateriasSinDocente() {
@@ -459,6 +620,82 @@ export class HorariosService {
     return this.findAll({ materiaId });
   }
 
+  async asignarAulaGrupo(
+    grupoId: number,
+    aulaId: number | null,
+    horarioId?: number,
+  ) {
+    const grupo = await this.validarGrupo(grupoId);
+    const aula = await this.validarAula(aulaId);
+
+    const objetivos = await this.prisma.horarioMateria.findMany({
+      where: {
+        grupoId,
+        activo: true,
+        ...(horarioId ? { id: horarioId } : {}),
+      },
+      include: HORARIO_INCLUDE,
+    });
+
+    if (objetivos.length === 0) {
+      throw new NotFoundException(
+        horarioId
+          ? 'El bloque de horario no pertenece a este grupo o está inactivo'
+          : `El grupo ${grupo.nombre} no tiene bloques de horario activos. Programa su horario antes de asignar un aula.`,
+      );
+    }
+
+    if (aula) {
+      const idsObjetivo = objetivos.map((horario) => horario.id);
+      const ocupados = await this.prisma.horarioMateria.findMany({
+        where: {
+          aulaId: aula.id,
+          activo: true,
+          id: { notIn: idsObjetivo },
+        },
+        include: HORARIO_INCLUDE,
+      });
+
+      for (const objetivo of objetivos) {
+        const ocupado = ocupados.find((horario) =>
+          hayConflictoHorario(objetivo, horario),
+        );
+        if (ocupado) {
+          throw new ConflictException(
+            this.construirMensajeConflicto('aula', ocupado),
+          );
+        }
+
+        const traslape = objetivos.find(
+          (otro) =>
+            otro.id !== objetivo.id && hayConflictoHorario(objetivo, otro),
+        );
+        if (traslape) {
+          throw new ConflictException(
+            `Los bloques de ${objetivo.materia.nombre} y ${traslape.materia.nombre} del grupo ${grupo.nombre} se traslapan, no pueden compartir el aula ${aula.nombre}.`,
+          );
+        }
+      }
+    }
+
+    const materiaIds = Array.from(
+      new Set(objetivos.map((horario) => horario.materiaId)),
+    );
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.horarioMateria.updateMany({
+        where: { id: { in: objetivos.map((horario) => horario.id) } },
+        data: { aulaId: aula?.id ?? null },
+      });
+
+      for (const materiaId of materiaIds) {
+        await this.sincronizarMateriaLegacy(tx, materiaId);
+      }
+    });
+
+    return this.obtenerHorarioGrupo(grupoId);
+  }
+
   async quitarAula(materiaId: number) {
     const horariosActivos = await this.prisma.horarioMateria.count({
       where: { materiaId, activo: true },
@@ -478,6 +715,84 @@ export class HorariosService {
       where: { id: materiaId },
       data: { aulaId: null },
       include: { docente: { select: { id: true, nombre: true } }, aula: true },
+    });
+  }
+
+  private agruparEnClases(horarios: HorarioConRelaciones[]) {
+    const clases = new Map<
+      string,
+      {
+        clave: string;
+        materiaId: number;
+        docenteId: number;
+        grupoId: number | null;
+        semestre: number | null;
+        materia: HorarioConRelaciones['materia'];
+        docente: HorarioConRelaciones['docente'];
+        grupo: HorarioConRelaciones['grupo'];
+        aulaId: number | null;
+        aula: HorarioConRelaciones['aula'];
+        horarioIds: number[];
+        bloques: BloqueClase[];
+      }
+    >();
+
+    for (const horario of this.ordenarHorarios(horarios)) {
+      const clave = `${horario.materiaId}-${horario.docenteId}-${horario.grupoId ?? 'sin-grupo'}`;
+
+      let clase = clases.get(clave);
+      if (!clase) {
+        clase = {
+          clave,
+          materiaId: horario.materiaId,
+          docenteId: horario.docenteId,
+          grupoId: horario.grupoId,
+          semestre: horario.semestre,
+          materia: horario.materia,
+          docente: horario.docente,
+          grupo: horario.grupo,
+          aulaId: null,
+          aula: null,
+          horarioIds: [],
+          bloques: [],
+        };
+        clases.set(clave, clase);
+      }
+
+      clase.horarioIds.push(horario.id);
+
+      const dias = horario.dias
+        .split(',')
+        .map((dia) => dia.trim())
+        .filter(Boolean);
+
+      for (const dia of dias) {
+        clase.bloques.push({
+          horarioId: horario.id,
+          dia,
+          horaInicio: horario.horaInicio,
+          horaFin: horario.horaFin,
+          aulaId: horario.aulaId,
+          aula: horario.aula,
+        });
+      }
+    }
+
+    return [...clases.values()].map((clase) => {
+      const aulaIds = new Set(clase.bloques.map((bloque) => bloque.aulaId));
+      const aulaComun = aulaIds.size === 1 ? clase.bloques[0] : null;
+
+      clase.bloques.sort(
+        (a, b) =>
+          (ORDEN_DIAS[a.dia.toLowerCase()] ?? 99) -
+          (ORDEN_DIAS[b.dia.toLowerCase()] ?? 99),
+      );
+
+      return {
+        ...clase,
+        aulaId: aulaComun?.aulaId ?? null,
+        aula: aulaComun?.aula ?? null,
+      };
     });
   }
 
@@ -530,7 +845,7 @@ export class HorariosService {
       horaFin: string;
       semestre?: number | null;
     }>,
-    ignorarHorarioId?: number,
+    ignorarHorarioId?: number | number[],
   ) {
     const resultados = await Promise.all(
       payloads.map((payload) =>
@@ -557,7 +872,7 @@ export class HorariosService {
       horaFin: string;
       semestre?: number | null;
     },
-    ignorarHorarioId?: number,
+    ignorarHorarioId?: number | number[],
   ) {
     const conflictos: ConflictoHorario[] = [];
 
@@ -604,11 +919,18 @@ export class HorariosService {
     tipo: 'docente' | 'aula' | 'grupo',
     entidadId: number,
     payload: { dias: string; horaInicio: string; horaFin: string },
-    ignorarHorarioId?: number,
+    ignorarHorarioId?: number | number[],
   ) {
+    const ignorados =
+      ignorarHorarioId === undefined
+        ? []
+        : Array.isArray(ignorarHorarioId)
+          ? ignorarHorarioId
+          : [ignorarHorarioId];
+
     const where: Prisma.HorarioMateriaWhereInput = {
       activo: true,
-      ...(ignorarHorarioId ? { id: { not: ignorarHorarioId } } : {}),
+      ...(ignorados.length > 0 ? { id: { notIn: ignorados } } : {}),
       ...(tipo === 'docente'
         ? { docenteId: entidadId }
         : tipo === 'aula'

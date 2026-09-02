@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Controller,
   Get,
   Post,
@@ -6,20 +7,25 @@ import {
   Body,
   Param,
   ParseIntPipe,
+  UploadedFile,
+  UseInterceptors,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags, ApiOperation } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { CarrerasService } from './carreras.service';
-import { IsNotEmpty, IsString } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
-
-class CreateCarreraDto {
-  @ApiProperty() @IsNotEmpty() @IsString() nombre: string;
-  @ApiProperty() @IsNotEmpty() @IsString() codigo: string;
-}
+import { CreateCarreraDto } from './dto/create-carrera.dto';
+import { parseReticulaFile } from './reticula-import';
+import { reticulaUploadOptions } from './reticula-upload';
 
 @ApiTags('Carreras')
 @Controller('carreras')
@@ -36,9 +42,32 @@ export class CarrerasController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
-  @ApiOperation({ summary: 'Crear carrera (admin)' })
-  create(@Body() dto: CreateCarreraDto) {
-    return this.carreras.create(dto.nombre, dto.codigo);
+  @UseInterceptors(FileInterceptor('reticula', reticulaUploadOptions))
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['nombre', 'codigo', 'reticula'],
+      properties: {
+        nombre: { type: 'string' },
+        codigo: { type: 'string' },
+        planEstudios: { type: 'string' },
+        reticula: { type: 'string', format: 'binary' },
+      },
+    },
+  })
+  @ApiOperation({ summary: 'Crear carrera con su retícula (admin)' })
+  async create(
+    @Body() dto: CreateCarreraDto,
+    @UploadedFile() reticula?: Express.Multer.File,
+  ) {
+    if (!reticula) {
+      throw new BadRequestException(
+        'Debes adjuntar la retícula para crear la carrera',
+      );
+    }
+    const materias = await parseReticulaFile(reticula, dto.codigo);
+    return this.carreras.create(dto, materias);
   }
 
   @Delete(':id')

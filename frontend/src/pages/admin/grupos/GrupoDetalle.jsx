@@ -121,7 +121,7 @@ export default function GrupoDetalle() {
           <div className="mx-4 w-full max-w-sm space-y-4 rounded-2xl bg-white p-4 shadow-xl sm:p-6">
             <h3 className="text-lg font-semibold text-gray-800">¿Desactivar grupo?</h3>
             <p className="text-sm text-gray-500">
-              El grupo <strong>{grupoActivo.nombre}</strong> quedará inactivo. Podrás reactivarlo manualmente desde la base de datos.
+              El grupo <strong>{grupoActivo.nombre}</strong> quedará inactivo y dejará de estar disponible en el sistema.
             </p>
             <div className="flex flex-col gap-2 sm:flex-row">
               <button

@@ -83,6 +83,12 @@ export class AsistenciasController {
     );
   }
 
+  @Get('mis-resumen')
+  @Roles('ALUMNO')
+  miResumen(@Req() req) {
+    return this.asistenciasService.obtenerResumenAlumnoPorMateria(req.user.id);
+  }
+
   @Post(':id/justificar')
   @Roles('ALUMNO')
   @UseInterceptors(FileInterceptor('archivo'))

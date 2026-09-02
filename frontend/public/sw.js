@@ -1,14 +1,14 @@
-const SHELL_CACHE = "sicat-shell-v3"
-const RUNTIME_CACHE = "sicat-runtime-v3"
+const SHELL_CACHE = "sicat-shell-v5"
+const RUNTIME_CACHE = "sicat-runtime-v5"
 
 const APP_SHELL = [
   "/",
   "/index.html",
   "/manifest.webmanifest",
-  "/app-icon.svg?v=20260319b",
-  "/apple-touch-icon.png?v=20260319b",
-  "/pwa-192.png?v=20260319b",
-  "/pwa-512.png?v=20260319b",
+  "/app-icon.png?v=20260901",
+  "/apple-touch-icon.png?v=20260824",
+  "/pwa-192.png?v=20260824",
+  "/pwa-512.png?v=20260824",
 ]
 
 self.addEventListener("install", (event) => {

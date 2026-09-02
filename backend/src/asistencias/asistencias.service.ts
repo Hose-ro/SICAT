@@ -10,7 +10,6 @@ import { PasarListaDto } from './dto/pasar-lista.dto';
 import { ActualizarAsistenciaDto } from './dto/actualizar-asistencia.dto';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import {
-  formatearFechaClave,
   obtenerClaveSemana,
   obtenerFinDelDia,
   obtenerInicioDelDia,
@@ -19,6 +18,26 @@ import {
 type Actor = {
   id: number;
   rol: string;
+};
+
+type ResumenAlumno = {
+  alumnoId: number;
+  nombre: string;
+  numControl: string | null;
+  asistencias: number;
+  faltas: number;
+  retardos: number;
+  justificadas: number;
+  porcentaje: number;
+};
+
+type ResumenRegistros = {
+  asistencias: number;
+  faltas: number;
+  retardos: number;
+  justificados: number;
+  total: number;
+  porcentaje: number;
 };
 
 @Injectable()
@@ -301,6 +320,77 @@ export class AsistenciasService {
         grupo: sesion.grupo,
         estado: asistencia?.estado ?? null,
         observacion: asistencia?.observacion ?? null,
+      };
+    });
+  }
+
+  async obtenerResumenAlumnoPorMateria(alumnoId: number) {
+    const { alumno, materias } = await this.obtenerMateriasAlumno(alumnoId);
+
+    if (!materias.length) return [];
+
+    const sesiones = await this.prisma.claseSesion.findMany({
+      where: {
+        materiaId: { in: materias.map((materia) => materia.id) },
+        ...(alumno.grupoId ? { grupoId: alumno.grupoId } : {}),
+      },
+      select: {
+        id: true,
+        materiaId: true,
+        fecha: true,
+        horaInicio: true,
+      },
+      orderBy: [{ fecha: 'desc' }, { horaInicio: 'desc' }],
+    });
+
+    const asistencias =
+      sesiones.length > 0
+        ? await this.prisma.asistencia.findMany({
+            where: {
+              alumnoId,
+              claseSesionId: { in: sesiones.map((sesion) => sesion.id) },
+            },
+          })
+        : [];
+
+    const sesionesPorMateria = new Map<number, typeof sesiones>();
+    sesiones.forEach((sesion) => {
+      const actuales = sesionesPorMateria.get(sesion.materiaId) ?? [];
+      actuales.push(sesion);
+      sesionesPorMateria.set(sesion.materiaId, actuales);
+    });
+
+    const asistenciaPorSesionId = new Map(
+      asistencias.map((asistencia) => [asistencia.claseSesionId, asistencia]),
+    );
+
+    return materias.map((materia) => {
+      const sesionesMateria = sesionesPorMateria.get(materia.id) ?? [];
+      const registrosMateria = sesionesMateria
+        .map((sesion) => asistenciaPorSesionId.get(sesion.id))
+        .filter(Boolean) as typeof asistencias;
+      const resumen = this.resumirRegistros(registrosMateria);
+      const grupo =
+        (alumno.grupoId
+          ? materia.grupos.find((item) => item.id === alumno.grupoId)
+          : materia.grupos[0]) ?? null;
+
+      return {
+        materia: {
+          id: materia.id,
+          nombre: materia.nombre,
+          clave: materia.clave,
+          semestre: materia.semestre,
+          docente: materia.docente,
+          carrera: materia.carrera,
+        },
+        grupo,
+        ultimaSesion: sesionesMateria[0]?.fecha ?? null,
+        resumen: {
+          ...resumen,
+          totalSesiones: sesionesMateria.length,
+          sinRegistro: Math.max(sesionesMateria.length - resumen.total, 0),
+        },
       };
     });
   }
@@ -613,14 +703,87 @@ export class AsistenciasService {
     );
   }
 
+  private async obtenerMateriasAlumno(alumnoId: number) {
+    const alumno = await this.prisma.usuario.findUnique({
+      where: { id: alumnoId },
+      select: { carreraId: true, semestre: true, grupoId: true },
+    });
+
+    if (!alumno) {
+      throw new NotFoundException('Alumno no encontrado');
+    }
+
+    if (alumno.grupoId) {
+      const grupo = await this.prisma.grupo.findUnique({
+        where: { id: alumno.grupoId },
+        include: {
+          materias: {
+            include: {
+              docente: {
+                select: {
+                  id: true,
+                  nombre: true,
+                  email: true,
+                },
+              },
+              carrera: { select: { id: true, nombre: true } },
+              grupos: {
+                select: {
+                  id: true,
+                  nombre: true,
+                  semestre: true,
+                  seccion: true,
+                  periodo: true,
+                },
+              },
+            },
+            orderBy: { nombre: 'asc' },
+          },
+        },
+      });
+
+      return { alumno, materias: grupo?.materias ?? [] };
+    }
+
+    const where: Record<string, unknown> = {};
+    if (alumno.carreraId) Object.assign(where, { carreraId: alumno.carreraId });
+    if (alumno.semestre) Object.assign(where, { semestre: alumno.semestre });
+
+    const materias = await this.prisma.materia.findMany({
+      where: Object.keys(where).length ? where : undefined,
+      include: {
+        docente: {
+          select: {
+            id: true,
+            nombre: true,
+            email: true,
+          },
+        },
+        carrera: { select: { id: true, nombre: true } },
+        grupos: {
+          select: {
+            id: true,
+            nombre: true,
+            semestre: true,
+            seccion: true,
+            periodo: true,
+          },
+        },
+      },
+      orderBy: { nombre: 'asc' },
+    });
+
+    return { alumno, materias };
+  }
+
   private construirResumenAlumnos(
     registros: Array<{
       alumnoId: number;
       estado: EstadoAsistencia;
       alumno: { id: number; nombre: string; numeroControl: string | null };
     }>,
-  ) {
-    const mapa = new Map<number, any>();
+  ): ResumenAlumno[] {
+    const mapa = new Map<number, Omit<ResumenAlumno, 'porcentaje'>>();
 
     for (const registro of registros) {
       if (!mapa.has(registro.alumnoId)) {
@@ -636,6 +799,7 @@ export class AsistenciasService {
       }
 
       const actual = mapa.get(registro.alumnoId);
+      if (!actual) continue;
       if (registro.estado === 'ASISTENCIA') actual.asistencias++;
       else if (registro.estado === 'FALTA') actual.faltas++;
       else if (registro.estado === 'RETARDO') actual.retardos++;
@@ -653,8 +817,10 @@ export class AsistenciasService {
     });
   }
 
-  private resumirRegistros(registros: Array<{ estado: EstadoAsistencia }>) {
-    const resumen = {
+  private resumirRegistros(
+    registros: Array<{ estado: EstadoAsistencia }>,
+  ): ResumenRegistros {
+    const resumen: ResumenRegistros = {
       asistencias: 0,
       faltas: 0,
       retardos: 0,

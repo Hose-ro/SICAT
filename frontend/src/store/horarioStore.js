@@ -15,7 +15,9 @@ export const useHorarioStore = create((set, get) => ({
   grupos: [],
   materiasCatalogo: [],
   docentesCatalogo: [],
+  aulasCatalogo: [],
   horarios: [],
+  clases: [],
   loading: false,
   saving: false,
   validating: false,
@@ -25,16 +27,18 @@ export const useHorarioStore = create((set, get) => ({
   cargarCatalogos: async () => {
     set({ error: null })
     try {
-      const [materiasRes, docentesRes, gruposRes] = await Promise.all([
+      const [materiasRes, docentesRes, gruposRes, aulasRes] = await Promise.all([
         api.get('/materias'),
         api.get('/usuarios?rol=DOCENTE'),
         api.get('/grupos'),
+        api.get('/aulas'),
       ])
 
       set({
         materiasCatalogo: materiasRes.data,
         docentesCatalogo: docentesRes.data.filter((usuario) => usuario.rol === 'DOCENTE' && usuario.activo),
         grupos: gruposRes.data,
+        aulasCatalogo: aulasRes.data,
       })
     } catch (error) {
       set({ error: getErrorMessage(error, 'Error al cargar catálogos de horarios') })
@@ -52,7 +56,7 @@ export const useHorarioStore = create((set, get) => ({
 
   seleccionarDocente: async (docenteId) => {
     if (!docenteId) {
-      set({ docenteSeleccionado: null, horarios: [], grupoSeleccionado: null })
+      set({ docenteSeleccionado: null, horarios: [], clases: [], grupoSeleccionado: null })
       return
     }
 
@@ -63,6 +67,7 @@ export const useHorarioStore = create((set, get) => ({
         docenteSeleccionado: res.data.docente,
         grupoSeleccionado: null,
         horarios: res.data.horarios,
+        clases: res.data.clases ?? [],
         loading: false,
       })
     } catch (error) {
@@ -72,7 +77,7 @@ export const useHorarioStore = create((set, get) => ({
 
   seleccionarGrupo: async (grupoId) => {
     if (!grupoId) {
-      set({ grupoSeleccionado: null, horarios: [], docenteSeleccionado: null })
+      set({ grupoSeleccionado: null, horarios: [], clases: [], docenteSeleccionado: null })
       return
     }
 
@@ -83,6 +88,7 @@ export const useHorarioStore = create((set, get) => ({
         grupoSeleccionado: res.data.grupo,
         docenteSeleccionado: null,
         horarios: res.data.horarios,
+        clases: res.data.clases ?? [],
         loading: false,
       })
     } catch (error) {
@@ -100,7 +106,7 @@ export const useHorarioStore = create((set, get) => ({
       await get().seleccionarGrupo(grupoSeleccionado.id)
       return
     }
-    set({ horarios: [] })
+    set({ horarios: [], clases: [] })
   },
 
   crearHorario: async (payload) => {
@@ -131,6 +137,33 @@ export const useHorarioStore = create((set, get) => ({
     }
   },
 
+  actualizarClase: async (payload) => {
+    set({ saving: true, error: null })
+    try {
+      const res = await api.patch('/horarios/clase', payload)
+      await get().refrescarContexto()
+      set({ saving: false })
+      return res.data
+    } catch (error) {
+      const message = getErrorMessage(error, 'Error al actualizar la clase')
+      set({ error: message, saving: false })
+      throw new Error(message)
+    }
+  },
+
+  eliminarClase: async (horarioIds) => {
+    set({ saving: true, error: null })
+    try {
+      await api.delete('/horarios/clase', { data: { horarioIds } })
+      await get().refrescarContexto()
+      set({ saving: false })
+    } catch (error) {
+      const message = getErrorMessage(error, 'Error al eliminar la clase')
+      set({ error: message, saving: false })
+      throw new Error(message)
+    }
+  },
+
   eliminarHorario: async (horarioId) => {
     set({ saving: true, error: null })
     try {
@@ -144,12 +177,13 @@ export const useHorarioStore = create((set, get) => ({
     }
   },
 
-  validarHorario: async (payload, horarioId) => {
+  validarHorario: async (payload, horarioIds) => {
     set({ validating: true, error: null })
     try {
+      const ids = Array.isArray(horarioIds) ? horarioIds : horarioIds ? [horarioIds] : []
       const res = await api.post('/horarios/validar-conflicto', {
         ...payload,
-        ...(horarioId ? { horarioId } : {}),
+        ...(ids.length > 0 ? { horarioIds: ids } : {}),
       })
       set({ validation: res.data, validating: false })
       return res.data

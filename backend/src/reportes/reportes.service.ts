@@ -480,4 +480,173 @@ export class ReportesService {
       doc.end();
     });
   }
+
+  async generarExcelCalificacionesCaptura(reporte: any): Promise<Buffer> {
+    const workbook = new ExcelJS.Workbook();
+    const captura = workbook.addWorksheet('Captura');
+    const respaldo = workbook.addWorksheet('Respaldo SICAT');
+
+    captura.views = [{ state: 'frozen', ySplit: 1 }];
+    const capturaHeader = captura.addRow([
+      'No. control',
+      'Alumno',
+      'Calificacion',
+      'Unidad',
+      'Estado',
+    ]);
+    capturaHeader.font = { bold: true };
+    capturaHeader.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFDDEBF7' },
+    };
+
+    for (const row of reporte.rows ?? []) {
+      captura.addRow([
+        row.alumno?.numeroControl ?? '',
+        row.alumno?.nombre ?? '',
+        this.valorCalificacion(this.obtenerCalificacionFinal(row)),
+        row.unidad?.nombre ?? '',
+        this.estadoCalificacionLabel(row.estado),
+      ]);
+    }
+
+    captura.columns = [
+      { width: 18 },
+      { width: 34 },
+      { width: 18 },
+      { width: 16 },
+      { width: 20 },
+    ];
+    captura.autoFilter = 'A1:E1';
+
+    respaldo.mergeCells('A1:T1');
+    respaldo.getCell('A1').value = 'Calificaciones para captura';
+    respaldo.getCell('A1').font = { bold: true, size: 16 };
+    respaldo.addRow([
+      'Materia',
+      `${reporte.materia?.clave ?? ''} ${reporte.materia?.nombre ?? ''}`.trim(),
+    ]);
+    respaldo.addRow(['Docente', reporte.materia?.docente?.nombre ?? '']);
+    respaldo.addRow([
+      'Grupo',
+      reporte.grupoSeleccionado?.nombre ?? 'Todos los grupos',
+    ]);
+    respaldo.addRow([
+      'Unidad',
+      reporte.unidadSeleccionada?.nombre ?? 'Todas las unidades',
+    ]);
+    respaldo.addRow([
+      'Generado',
+      new Date(reporte.generatedAt).toLocaleString('es-MX'),
+    ]);
+    respaldo.addRow([]);
+
+    const respaldoHeader = respaldo.addRow([
+      'No. control',
+      'Alumno',
+      'Grupo',
+      'Unidad',
+      'Calificacion final',
+      'Manual',
+      'Calculada',
+      'Origen',
+      'Promedio tareas',
+      'Estado',
+      'Tareas calificadas',
+      'Tareas entregadas',
+      'Total tareas',
+      'Asistencia %',
+      'Asistencias',
+      'Faltas',
+      'Retardos',
+      'Justificadas',
+      'Sin registro',
+      'Observaciones',
+    ]);
+    respaldoHeader.font = { bold: true };
+    respaldoHeader.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFE7EEF8' },
+    };
+
+    for (const row of reporte.rows ?? []) {
+      respaldo.addRow([
+        row.alumno?.numeroControl ?? '',
+        row.alumno?.nombre ?? '',
+        row.grupo?.nombre ?? '',
+        row.unidad?.nombre ?? '',
+        this.valorCalificacion(this.obtenerCalificacionFinal(row)),
+        this.valorCalificacion(row.calificacionManual),
+        this.valorCalificacion(row.calificacionCalculada),
+        this.origenCalificacionLabel(row.fuenteCalificacion),
+        this.valorCalificacion(row.promedioTareas),
+        this.estadoCalificacionLabel(row.estado),
+        row.tareas?.calificadas ?? 0,
+        row.tareas?.entregadas ?? 0,
+        row.tareas?.total ?? 0,
+        `${row.asistencia?.porcentaje ?? 0}%`,
+        row.asistencia?.asistencias ?? 0,
+        row.asistencia?.faltas ?? 0,
+        row.asistencia?.retardos ?? 0,
+        row.asistencia?.justificadas ?? 0,
+        row.asistencia?.sinRegistro ?? 0,
+        (row.observaciones ?? []).join(' | '),
+      ]);
+    }
+
+    respaldo.columns.forEach((column) => {
+      column.width = 18;
+    });
+    respaldo.getColumn(2).width = 34;
+    respaldo.getColumn(20).width = 42;
+    respaldo.autoFilter = 'A8:T8';
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    return Buffer.from(buffer);
+  }
+
+  async generarCsvCalificacionesCaptura(reporte: any): Promise<Buffer> {
+    const rows = [
+      ['No. control', 'Alumno', 'Calificacion', 'Unidad', 'Estado'],
+      ...(reporte.rows ?? []).map((row) => [
+        row.alumno?.numeroControl ?? '',
+        row.alumno?.nombre ?? '',
+        this.valorCalificacion(this.obtenerCalificacionFinal(row)),
+        row.unidad?.nombre ?? '',
+        this.estadoCalificacionLabel(row.estado),
+      ]),
+    ];
+    const csv = rows
+      .map((row) => row.map((cell) => this.csvCell(cell)).join(','))
+      .join('\n');
+    return Buffer.from(`\uFEFF${csv}`, 'utf8');
+  }
+
+  private valorCalificacion(value: unknown) {
+    return typeof value === 'number' ? value : '';
+  }
+
+  private obtenerCalificacionFinal(row: any) {
+    return row.calificacionFinal ?? row.calificacionSugerida;
+  }
+
+  private origenCalificacionLabel(origen?: string) {
+    if (origen === 'MANUAL') return 'Manual';
+    if (origen === 'CALCULADA') return 'Calculada';
+    return 'Pendiente';
+  }
+
+  private estadoCalificacionLabel(estado?: string) {
+    if (estado === 'APROBADO') return 'Aprobado';
+    if (estado === 'REQUIERE_ATENCION') return 'Requiere atencion';
+    return 'Pendiente';
+  }
+
+  private csvCell(value: unknown) {
+    const text = String(value ?? '');
+    if (!/[",\n]/.test(text)) return text;
+    return `"${text.replace(/"/g, '""')}"`;
+  }
 }

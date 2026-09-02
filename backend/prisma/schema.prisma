@@ -11,8 +11,45 @@ datasource db {
 
 enum Rol {
   ADMIN
+  JEFE_CARRERA
   DOCENTE
   ALUMNO
+}
+
+enum TipoTokenAuth {
+  VERIFICACION_CORREO
+  RECUPERACION_PASSWORD
+}
+
+enum TipoEventoAuth {
+  REGISTRO
+  LOGIN_EXITOSO
+  LOGIN_FALLIDO
+  LOGOUT
+  CAMBIO_PASSWORD
+  SOLICITUD_RECUPERACION
+  PASSWORD_RESTABLECIDA
+  CORREO_VERIFICADO
+  CUENTA_APROBADA
+  CUENTA_DESACTIVADA
+  CUENTA_ACTIVADA
+  ROL_CAMBIADO
+}
+
+enum TipoAlertaCarrera {
+  CLASE_NO_INICIADA
+  ASISTENCIA_SIN_CAPTURA
+  MATERIA_SIN_DOCENTE
+  MATERIA_SIN_HORARIO
+  UNIDAD_ATRASADA
+  ALUMNO_RIESGO
+}
+
+enum EstadoAlertaCarrera {
+  NUEVA
+  REVISADA
+  EN_SEGUIMIENTO
+  CERRADA
 }
 
 enum EstadoUnidad {
@@ -25,6 +62,14 @@ enum EstadoInscripcion {
   PENDIENTE
   ACEPTADA
   RECHAZADA
+}
+
+enum EstadoImportacionHorario {
+  PENDIENTE_PROCESAMIENTO
+  PENDIENTE_REVISION
+  APROBADA
+  RECHAZADA
+  ERROR
 }
 
 enum EstadoAsistencia {
@@ -75,6 +120,7 @@ enum TipoNotificacion {
   SOLICITUD_MATERIA
   SOLICITUD_ACEPTADA
   SOLICITUD_RECHAZADA
+  CLASE_POR_INICIAR
   CLASE_INICIADA
   CLASE_FINALIZADA
   TAREA_NUEVA
@@ -96,6 +142,9 @@ enum TipoNotificacion {
   MATERIA_CREADA
   REPORTE_DISPONIBLE
   ALERTA_ADMIN
+  HORARIO_IMPORTADO
+  HORARIO_APROBADO
+  HORARIO_RECHAZADO
 }
 
 // ==================== MODELS ====================
@@ -112,56 +161,140 @@ model Academia {
 }
 
 model Carrera {
-  id               Int               @id @default(autoincrement())
-  nombre           String            @unique
-  codigo           String            @unique
-  planEstudios     String?
-  createdAt        DateTime          @default(now())
-  usuarios         Usuario[]
-  materias         Materia[]
-  grupos           Grupo[]
-  reticulaMaterias ReticulaMateria[]
+  id                   Int                     @id @default(autoincrement())
+  nombre               String                  @unique
+  codigo               String                  @unique
+  planEstudios         String?
+  createdAt            DateTime                @default(now())
+  usuarios             Usuario[]
+  materias             Materia[]
+  grupos               Grupo[]
+  reticulaMaterias     ReticulaMateria[]
+  jefes                JefeCarreraAsignacion[]
+  alertas              AlertaCarrera[]
+  importacionesHorario ImportacionHorario[]
 }
 
 model Usuario {
-  id            Int      @id @default(autoincrement())
-  nombre        String
-  email         String?  @unique
-  numeroControl String?  @unique
-  username      String?  @unique
-  password      String
-  rol           Rol
-  telefono      String?
-  semestre      Int?
-  carreraId     Int?
-  carrera       Carrera? @relation(fields: [carreraId], references: [id])
-  activo        Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                  Int       @id @default(autoincrement())
+  avatar              String?
+  nombre              String
+  email               String?   @unique
+  emailVerificadoAt   DateTime?
+  numeroControl       String?   @unique
+  username            String?   @unique
+  password            String
+  rol                 Rol
+  telefono            String?
+  semestre            Int?
+  carreraId           Int?
+  carrera             Carrera?  @relation(fields: [carreraId], references: [id])
+  activo              Boolean   @default(true)
+  registroAprobado    Boolean   @default(true)
+  tokenVersion        Int       @default(0)
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   grupoId Int?
   grupo   Grupo? @relation("AlumnoGrupo", fields: [grupoId], references: [id])
 
-  docenteMaterias     Materia[]      @relation("DocenteMateria")
-  horariosDocente     HorarioMateria[] @relation("HorarioDocente")
-  academias           Academia[]     @relation("DocenteAcademia")
-  inscripcionesAlumno Inscripcion[]  @relation("InscripcionAlumno")
-  claseSesiones       ClaseSesion[]  @relation("ClaseSesionDocente")
-  asistenciasAlumno   Asistencia[]   @relation("AsistenciaAlumno")
-  asistenciasEditadas Asistencia[]   @relation("AsistenciaEditor")
-  tareasDocente       Tarea[]        @relation("TareaDocente")
-  entregasAlumno      EntregaTarea[] @relation("EntregaAlumno")
-  notificaciones      Notificacion[]
+  docenteMaterias       Materia[]                  @relation("DocenteMateria")
+  horariosDocente       HorarioMateria[]           @relation("HorarioDocente")
+  academias             Academia[]                 @relation("DocenteAcademia")
+  inscripcionesAlumno   Inscripcion[]              @relation("InscripcionAlumno")
+  claseSesiones         ClaseSesion[]              @relation("ClaseSesionDocente")
+  asistenciasAlumno     Asistencia[]               @relation("AsistenciaAlumno")
+  asistenciasEditadas   Asistencia[]               @relation("AsistenciaEditor")
+  tareasDocente         Tarea[]                    @relation("TareaDocente")
+  entregasAlumno        EntregaTarea[]             @relation("EntregaAlumno")
+  calificacionesAlumno  CalificacionUnidad[]       @relation("CalificacionAlumno")
+  calificacionesDocente CalificacionUnidad[]       @relation("CalificacionDocente")
+  notificaciones        Notificacion[]
+  carrerasJefe          JefeCarreraAsignacion[]
+  alertasResponsable    AlertaCarrera[]            @relation("AlertaCarreraResponsable")
+  authTokens            AuthToken[]
+  authEventos           AuthAudit[]
+  importacionesHorario  ImportacionHorario[]       @relation("ImportacionHorarioAlumno")
+  revisionesHorario     ImportacionHorario[]       @relation("ImportacionHorarioRevisor")
+  bloquesImportados     BloqueImportacionHorario[] @relation("BloqueImportacionDocente")
+}
+
+model AuthToken {
+  id         Int           @id @default(autoincrement())
+  usuarioId  Int
+  tipo       TipoTokenAuth
+  tokenHash  String        @unique
+  targetHash String?
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime      @default(now())
+  usuario    Usuario       @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId, tipo, usedAt])
+  @@index([expiresAt])
+}
+
+model AuthAudit {
+  id         Int            @id @default(autoincrement())
+  usuarioId  Int?
+  tipo       TipoEventoAuth
+  identifier String?
+  ip         String?
+  userAgent  String?
+  metadata   Json?
+  createdAt  DateTime       @default(now())
+  usuario    Usuario?       @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+
+  @@index([usuarioId, createdAt])
+  @@index([tipo, createdAt])
+}
+
+model JefeCarreraAsignacion {
+  id        Int      @id @default(autoincrement())
+  usuarioId Int
+  carreraId Int
+  activa    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  carrera   Carrera  @relation(fields: [carreraId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, carreraId])
+  @@index([carreraId, activa])
+}
+
+model AlertaCarrera {
+  id               Int                 @id @default(autoincrement())
+  fingerprint      String              @unique
+  tipo             TipoAlertaCarrera
+  titulo           String
+  mensaje          String
+  referenciaId     Int?
+  referenciaTipo   String?
+  estado           EstadoAlertaCarrera @default(NUEVA)
+  observacion      String?
+  fechaSeguimiento DateTime?
+  carreraId        Int
+  responsableId    Int?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  carrera          Carrera             @relation(fields: [carreraId], references: [id], onDelete: Cascade)
+  responsable      Usuario?            @relation("AlertaCarreraResponsable", fields: [responsableId], references: [id])
+
+  @@index([carreraId, estado, createdAt])
+  @@index([responsableId])
 }
 
 model Aula {
-  id        Int       @id @default(autoincrement())
-  nombre    String    @unique
+  id        Int              @id @default(autoincrement())
+  nombre    String           @unique
   edificio  String?
   capacidad Int?
-  activo    Boolean   @default(true)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  activo    Boolean          @default(true)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
   materias  Materia[]
   horarios  HorarioMateria[] @relation("HorarioAula")
 }
@@ -184,32 +317,33 @@ model Materia {
   semestre    Int?
   createdAt   DateTime @default(now())
 
-  unidades      Unidad[]
-  academias     Academia[]    @relation("MateriaAcademia")
-  grupos        Grupo[]       @relation("GrupoMateria")
-  horarios      HorarioMateria[]
-  inscripciones Inscripcion[]
-  claseSesiones ClaseSesion[]
-  tareas        Tarea[]
+  unidades       Unidad[]
+  academias      Academia[]           @relation("MateriaAcademia")
+  grupos         Grupo[]              @relation("GrupoMateria")
+  horarios       HorarioMateria[]
+  inscripciones  Inscripcion[]
+  claseSesiones  ClaseSesion[]
+  tareas         Tarea[]
+  calificaciones CalificacionUnidad[]
 }
 
 model HorarioMateria {
-  id         Int      @id @default(autoincrement())
-  materiaId   Int
-  docenteId   Int
-  aulaId      Int?
-  grupoId     Int?
-  dias        String
-  horaInicio  String
-  horaFin     String
-  semestre    Int?
-  activo      Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  materia     Materia  @relation(fields: [materiaId], references: [id], onDelete: Cascade)
-  docente     Usuario  @relation("HorarioDocente", fields: [docenteId], references: [id])
-  aula        Aula?    @relation("HorarioAula", fields: [aulaId], references: [id])
-  grupo       Grupo?   @relation("HorarioGrupo", fields: [grupoId], references: [id])
+  id            Int           @id @default(autoincrement())
+  materiaId     Int
+  docenteId     Int
+  aulaId        Int?
+  grupoId       Int?
+  dias          String
+  horaInicio    String
+  horaFin       String
+  semestre      Int?
+  activo        Boolean       @default(true)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  materia       Materia       @relation(fields: [materiaId], references: [id], onDelete: Cascade)
+  docente       Usuario       @relation("HorarioDocente", fields: [docenteId], references: [id])
+  aula          Aula?         @relation("HorarioAula", fields: [aulaId], references: [id])
+  grupo         Grupo?        @relation("HorarioGrupo", fields: [grupoId], references: [id])
   claseSesiones ClaseSesion[]
 
   @@index([materiaId, activo])
@@ -219,32 +353,115 @@ model HorarioMateria {
 }
 
 model ReticulaMateria {
-  id            Int      @id @default(autoincrement())
-  nombre        String
-  clave         String
-  semestre      Int
-  carreraId     Int
-  carrera       Carrera  @relation(fields: [carreraId], references: [id])
-  horasTeoria   Int      @default(0)
-  horasPractica Int      @default(0)
-  creditos      Int      @default(0)
-  activo        Boolean  @default(true)
-  createdAt     DateTime @default(now())
+  id                Int                        @id @default(autoincrement())
+  nombre            String
+  clave             String
+  semestre          Int
+  carreraId         Int
+  carrera           Carrera                    @relation(fields: [carreraId], references: [id])
+  horasTeoria       Int                        @default(0)
+  horasPractica     Int                        @default(0)
+  creditos          Int                        @default(0)
+  activo            Boolean                    @default(true)
+  createdAt         DateTime                   @default(now())
+  bloquesImportados BloqueImportacionHorario[]
 
   @@unique([clave, carreraId])
 }
 
+model ImportacionHorario {
+  id                       Int                        @id @default(autoincrement())
+  alumnoId                 Int
+  carreraId                Int
+  grupoId                  Int?
+  revisorId                Int?
+  periodo                  String
+  semestre                 Int
+  seccion                  String
+  estado                   EstadoImportacionHorario   @default(PENDIENTE_PROCESAMIENTO)
+  imagenRuta               String?
+  imagenContenido          Bytes?
+  imagenNombre             String?
+  imagenMime               String?
+  confianzaGeneral         Float?
+  datosDetectados          Json?
+  codigoErrorProcesamiento String?
+  errorProcesamiento       String?
+  observaciones            String?
+  revisadoAt               DateTime?
+  createdAt                DateTime                   @default(now())
+  updatedAt                DateTime                   @updatedAt
+  alumno                   Usuario                    @relation("ImportacionHorarioAlumno", fields: [alumnoId], references: [id], onDelete: Cascade)
+  carrera                  Carrera                    @relation(fields: [carreraId], references: [id], onDelete: Restrict)
+  grupo                    Grupo?                     @relation(fields: [grupoId], references: [id], onDelete: SetNull)
+  revisor                  Usuario?                   @relation("ImportacionHorarioRevisor", fields: [revisorId], references: [id], onDelete: SetNull)
+  bloques                  BloqueImportacionHorario[]
+
+  @@index([estado, createdAt])
+  @@index([alumnoId, periodo])
+  @@index([carreraId, periodo, semestre, seccion])
+}
+
+model BloqueImportacionHorario {
+  id                Int                @id @default(autoincrement())
+  importacionId     Int
+  reticulaMateriaId Int?
+  docenteId         Int?
+  claveDetectada    String?
+  materiaDetectada  String
+  docenteDetectado  String?
+  aulaDetectada     String?
+  dia               String
+  horaInicio        String
+  horaFin           String
+  confianzaMateria  Float?
+  confianzaDocente  Float?
+  orden             Int                @default(0)
+  createdAt         DateTime           @default(now())
+  importacion       ImportacionHorario @relation(fields: [importacionId], references: [id], onDelete: Cascade)
+  reticulaMateria   ReticulaMateria?   @relation(fields: [reticulaMateriaId], references: [id], onDelete: SetNull)
+  docente           Usuario?           @relation("BloqueImportacionDocente", fields: [docenteId], references: [id], onDelete: SetNull)
+
+  @@index([importacionId, orden])
+  @@index([reticulaMateriaId])
+  @@index([docenteId])
+}
+
 model Unidad {
-  id          Int          @id @default(autoincrement())
-  nombre      String
-  orden       Int
-  status      EstadoUnidad @default(PENDIENTE)
-  fechaInicio DateTime?
-  fechaFin    DateTime?
-  materiaId   Int
-  materia     Materia      @relation(fields: [materiaId], references: [id])
-  claseSesiones ClaseSesion[]
-  tareas      Tarea[]      @relation("TareaUnidad")
+  id             Int                  @id @default(autoincrement())
+  nombre         String
+  orden          Int
+  status         EstadoUnidad         @default(PENDIENTE)
+  fechaInicio    DateTime?
+  fechaFin       DateTime?
+  materiaId      Int
+  materia        Materia              @relation(fields: [materiaId], references: [id])
+  claseSesiones  ClaseSesion[]
+  tareas         Tarea[]              @relation("TareaUnidad")
+  calificaciones CalificacionUnidad[]
+}
+
+model CalificacionUnidad {
+  id                 Int      @id @default(autoincrement())
+  alumnoId           Int
+  materiaId          Int
+  grupoId            Int?
+  unidadId           Int
+  periodo            String
+  calificacionManual Float?
+  observacion        String?
+  docenteId          Int?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  alumno             Usuario  @relation("CalificacionAlumno", fields: [alumnoId], references: [id], onDelete: Cascade)
+  materia            Materia  @relation(fields: [materiaId], references: [id], onDelete: Cascade)
+  grupo              Grupo?   @relation(fields: [grupoId], references: [id], onDelete: SetNull)
+  unidad             Unidad   @relation(fields: [unidadId], references: [id], onDelete: Cascade)
+  docente            Usuario? @relation("CalificacionDocente", fields: [docenteId], references: [id], onDelete: SetNull)
+
+  @@unique([alumnoId, materiaId, unidadId, periodo])
+  @@index([materiaId, grupoId, unidadId, periodo])
+  @@index([docenteId])
 }
 
 model Inscripcion {
@@ -262,27 +479,27 @@ model Inscripcion {
 }
 
 model ClaseSesion {
-  id                 Int             @id @default(autoincrement())
-  materiaId          Int
-  docenteId          Int
-  horarioMateriaId   Int?
-  grupoId            Int?
-  unidadId           Int?
-  fecha              DateTime        @default(now())
-  semanaClave        String
-  horaInicio         DateTime
-  horaFin            DateTime?
-  unidad             Int
-  activa             Boolean         @default(true)
-  fueFueraDeHorario  Boolean         @default(false)
-  notificacionEnviada Boolean        @default(false)
-  createdAt          DateTime        @default(now())
-  materia            Materia         @relation(fields: [materiaId], references: [id])
-  docente            Usuario         @relation("ClaseSesionDocente", fields: [docenteId], references: [id])
-  horarioMateria     HorarioMateria? @relation(fields: [horarioMateriaId], references: [id])
-  grupo              Grupo?          @relation("ClaseSesionGrupo", fields: [grupoId], references: [id])
-  unidadRef          Unidad?         @relation(fields: [unidadId], references: [id])
-  asistencias        Asistencia[]
+  id                  Int             @id @default(autoincrement())
+  materiaId           Int
+  docenteId           Int
+  horarioMateriaId    Int?
+  grupoId             Int?
+  unidadId            Int?
+  fecha               DateTime        @default(now())
+  semanaClave         String
+  horaInicio          DateTime
+  horaFin             DateTime?
+  unidad              Int
+  activa              Boolean         @default(true)
+  fueFueraDeHorario   Boolean         @default(false)
+  notificacionEnviada Boolean         @default(false)
+  createdAt           DateTime        @default(now())
+  materia             Materia         @relation(fields: [materiaId], references: [id])
+  docente             Usuario         @relation("ClaseSesionDocente", fields: [docenteId], references: [id])
+  horarioMateria      HorarioMateria? @relation(fields: [horarioMateriaId], references: [id])
+  grupo               Grupo?          @relation("ClaseSesionGrupo", fields: [grupoId], references: [id])
+  unidadRef           Unidad?         @relation(fields: [unidadId], references: [id])
+  asistencias         Asistencia[]
 
   @@index([docenteId, fecha])
   @@index([horarioMateriaId, fecha])
@@ -310,7 +527,7 @@ model Asistencia {
 }
 
 model Tarea {
-  id               Int           @id @default(autoincrement())
+  id               Int            @id @default(autoincrement())
   materiaId        Int
   grupoId          Int?
   docenteId        Int
@@ -320,21 +537,21 @@ model Tarea {
   unidadId         Int?
   tipoEntrega      TipoEntrega
   tipoEvaluacion   TipoEvaluacion @default(DIRECTA)
-  permiteReenvio   Boolean       @default(false)
-  tieneFechaLimite Boolean       @default(true)
+  permiteReenvio   Boolean        @default(false)
+  tieneFechaLimite Boolean        @default(true)
   fechaPublicacion DateTime?
   fechaLimite      DateTime?
   horaLimite       String?
-  estado           EstadoTarea   @default(BORRADOR)
+  estado           EstadoTarea    @default(BORRADOR)
   rubricJson       String?
   archivosAdjuntos String?
-  activa           Boolean       @default(true)
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
-  materia          Materia       @relation(fields: [materiaId], references: [id])
-  grupo            Grupo?        @relation(fields: [grupoId], references: [id])
-  docente          Usuario       @relation("TareaDocente", fields: [docenteId], references: [id])
-  unidadRef        Unidad?       @relation("TareaUnidad", fields: [unidadId], references: [id])
+  activa           Boolean        @default(true)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  materia          Materia        @relation(fields: [materiaId], references: [id])
+  grupo            Grupo?         @relation(fields: [grupoId], references: [id])
+  docente          Usuario        @relation("TareaDocente", fields: [docenteId], references: [id])
+  unidadRef        Unidad?        @relation("TareaUnidad", fields: [unidadId], references: [id])
   entregas         EntregaTarea[]
   archivos         TareaArchivo[]
 
@@ -343,26 +560,26 @@ model Tarea {
 }
 
 model EntregaTarea {
-  id               Int            @id @default(autoincrement())
-  tareaId          Int
-  alumnoId         Int
-  archivoUrl       String?
-  firmaUrl         String?
-  comentarioAlumno String?
-  estadoRevision   EstadoRevision @default(PENDIENTE)
-  calificacion     Float?
-  calificacionTipo TipoCalificacion?
-  observacion      String?
-  fechaEntrega     DateTime       @default(now())
-  fechaRevision    DateTime?
-  fueTardia        Boolean        @default(false)
-  permiteCorreccion Boolean       @default(false)
-  versionEntrega   Int            @default(1)
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
-  tarea            Tarea          @relation(fields: [tareaId], references: [id])
-  alumno           Usuario        @relation("EntregaAlumno", fields: [alumnoId], references: [id])
-  archivos         EntregaArchivo[]
+  id                Int               @id @default(autoincrement())
+  tareaId           Int
+  alumnoId          Int
+  archivoUrl        String?
+  firmaUrl          String?
+  comentarioAlumno  String?
+  estadoRevision    EstadoRevision    @default(PENDIENTE)
+  calificacion      Float?
+  calificacionTipo  TipoCalificacion?
+  observacion       String?
+  fechaEntrega      DateTime          @default(now())
+  fechaRevision     DateTime?
+  fueTardia         Boolean           @default(false)
+  permiteCorreccion Boolean           @default(false)
+  versionEntrega    Int               @default(1)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  tarea             Tarea             @relation(fields: [tareaId], references: [id])
+  alumno            Usuario           @relation("EntregaAlumno", fields: [alumnoId], references: [id])
+  archivos          EntregaArchivo[]
 
   @@unique([tareaId, alumnoId])
   @@index([tareaId, estadoRevision])
@@ -371,12 +588,12 @@ model EntregaTarea {
 
 model TareaArchivo {
   id          Int      @id @default(autoincrement())
-  tareaId      Int
-  nombre       String
-  url          String
-  tipoArchivo  String
-  createdAt    DateTime @default(now())
-  tarea        Tarea    @relation(fields: [tareaId], references: [id], onDelete: Cascade)
+  tareaId     Int
+  nombre      String
+  url         String
+  tipoArchivo String
+  createdAt   DateTime @default(now())
+  tarea       Tarea    @relation(fields: [tareaId], references: [id], onDelete: Cascade)
 
   @@index([tareaId])
 }
@@ -411,21 +628,23 @@ model Notificacion {
 }
 
 model Grupo {
-  id        Int       @id @default(autoincrement())
-  nombre    String
-  semestre  Int
-  seccion   String
-  carreraId Int
-  carrera   Carrera   @relation(fields: [carreraId], references: [id])
-  periodo   String
-  activo    Boolean   @default(true)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  alumnos   Usuario[] @relation("AlumnoGrupo")
-  materias  Materia[] @relation("GrupoMateria")
-  horarios  HorarioMateria[] @relation("HorarioGrupo")
-  claseSesiones ClaseSesion[] @relation("ClaseSesionGrupo")
-  tareas    Tarea[]
+  id                   Int                  @id @default(autoincrement())
+  nombre               String
+  semestre             Int
+  seccion              String
+  carreraId            Int
+  carrera              Carrera              @relation(fields: [carreraId], references: [id])
+  periodo              String
+  activo               Boolean              @default(true)
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  alumnos              Usuario[]            @relation("AlumnoGrupo")
+  materias             Materia[]            @relation("GrupoMateria")
+  horarios             HorarioMateria[]     @relation("HorarioGrupo")
+  claseSesiones        ClaseSesion[]        @relation("ClaseSesionGrupo")
+  tareas               Tarea[]
+  importacionesHorario ImportacionHorario[]
+  calificaciones       CalificacionUnidad[]
 
   @@unique([semestre, seccion, carreraId, periodo])
 }

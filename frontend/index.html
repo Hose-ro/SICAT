@@ -2,11 +2,14 @@
 <html lang="es" class="dark">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/app-icon.svg?v=20260319b" />
+    <link rel="icon" type="image/png" href="/app-icon.png?v=20260901" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=20260319b" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=20260824" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="SICAT: sistema de control de asistencias, tareas, grupos y horarios para alumnos, docentes y administradores." />
+    <meta
+      name="description"
+      content="SICAT: sistema de control de asistencias, tareas, grupos y horarios para alumnos, docentes y administradores."
+    />
     <meta name="theme-color" content="#1d4ed8" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
@@ -14,19 +17,27 @@
     <title>SICAT</title>
     <script>
       (() => {
-        const key = 'sicat-theme'
-        const storedTheme = window.localStorage.getItem(key)
-        const isDark = storedTheme === 'dark'
-          ? true
-          : storedTheme === 'light'
-            ? false
-            : document.documentElement.classList.contains('dark')
+        const key = "sicat-theme";
+        const storedTheme = window.localStorage.getItem(key);
+        const isDark =
+          storedTheme === "dark"
+            ? true
+            : storedTheme === "light"
+              ? false
+              : document.documentElement.classList.contains("dark");
 
-        document.documentElement.classList.toggle('dark', isDark)
-        window.addEventListener('DOMContentLoaded', () => {
-          document.body?.classList.toggle('dark', isDark)
-        }, { once: true })
-      })()
+        document.documentElement.classList.toggle("dark", isDark);
+        window.addEventListener(
+          "DOMContentLoaded",
+          () => {
+            document.body?.classList.toggle("dark", isDark);
+            window.requestAnimationFrame(() => {
+              document.documentElement.classList.add("theme-ready");
+            });
+          },
+          { once: true },
+        );
+      })();
     </script>
   </head>
   <body>

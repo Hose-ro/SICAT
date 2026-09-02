@@ -4,6 +4,7 @@ import api from '../api/axios'
 export const useGrupoStore = create((set, get) => ({
   grupos: [],
   grupoActivo: null,
+  aulas: [],
   filtros: { carreraId: undefined, semestre: undefined, periodo: undefined },
   loading: false,
   error: null,
@@ -113,6 +114,30 @@ export const useGrupoStore = create((set, get) => ({
     } catch (e) {
       const msg = e.response?.data?.message || 'Error al quitar materia'
       set({ error: msg, loading: false })
+      throw new Error(msg)
+    }
+  },
+
+  cargarAulas: async () => {
+    try {
+      const res = await api.get('/aulas')
+      set({ aulas: res.data })
+    } catch (e) {
+      set({ error: e.response?.data?.message || 'Error al cargar aulas' })
+    }
+  },
+
+  asignarAula: async (grupoId, aulaId, horarioId) => {
+    set({ error: null })
+    try {
+      const res = await api.patch(`/grupos/${grupoId}/aula`, {
+        aulaId: aulaId ?? null,
+        ...(horarioId ? { horarioId } : {}),
+      })
+      return res.data
+    } catch (e) {
+      const msg = e.response?.data?.message || 'Error al asignar aula'
+      set({ error: msg })
       throw new Error(msg)
     }
   },

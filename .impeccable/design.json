@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-06-12T00:00:00.000Z",
+  "title": "Design System: SICAT",
+  "extensions": {
+    "colorMeta": {
+      "primary":    { "role": "primary", "displayName": "Registrar Blue", "canonical": "oklch(0.62 0.19 264)", "tonalRamp": ["oklch(0.30 0.12 264)", "oklch(0.38 0.15 264)", "oklch(0.46 0.18 264)", "oklch(0.54 0.19 264)", "oklch(0.62 0.19 264)", "oklch(0.72 0.16 264)", "oklch(0.84 0.10 264)", "oklch(0.94 0.04 264)"] },
+      "foreground": { "role": "neutral", "displayName": "Ledger Ink", "canonical": "oklch(0.27 0.03 264)", "tonalRamp": ["oklch(0.20 0.03 264)", "oklch(0.27 0.03 264)", "oklch(0.36 0.03 264)", "oklch(0.50 0.025 264)", "oklch(0.62 0.02 264)", "oklch(0.74 0.015 264)", "oklch(0.86 0.01 264)", "oklch(0.95 0.005 264)"] },
+      "background": { "role": "neutral", "displayName": "Paper", "canonical": "oklch(0.985 0.004 264)", "tonalRamp": ["oklch(0.20 0.018 264)", "oklch(0.28 0.018 264)", "oklch(0.40 0.015 264)", "oklch(0.55 0.012 264)", "oklch(0.70 0.01 264)", "oklch(0.85 0.008 264)", "oklch(0.95 0.005 264)", "oklch(0.985 0.004 264)"] },
+      "success":    { "role": "tertiary", "displayName": "Present Green", "canonical": "oklch(0.62 0.14 150)", "tonalRamp": ["oklch(0.30 0.08 150)", "oklch(0.40 0.10 150)", "oklch(0.50 0.12 150)", "oklch(0.62 0.14 150)", "oklch(0.72 0.12 150)", "oklch(0.82 0.09 150)", "oklch(0.90 0.05 150)", "oklch(0.96 0.02 150)"] },
+      "warning":    { "role": "tertiary", "displayName": "Late Amber", "canonical": "oklch(0.76 0.14 75)", "tonalRamp": ["oklch(0.40 0.08 75)", "oklch(0.50 0.10 75)", "oklch(0.62 0.13 75)", "oklch(0.76 0.14 75)", "oklch(0.83 0.12 75)", "oklch(0.89 0.08 75)", "oklch(0.93 0.05 75)", "oklch(0.97 0.02 75)"] },
+      "destructive": { "role": "tertiary", "displayName": "Absent Red", "canonical": "oklch(0.58 0.20 27)", "tonalRamp": ["oklch(0.32 0.12 27)", "oklch(0.42 0.16 27)", "oklch(0.50 0.19 27)", "oklch(0.58 0.20 27)", "oklch(0.68 0.17 27)", "oklch(0.80 0.11 27)", "oklch(0.89 0.06 27)", "oklch(0.96 0.02 27)"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "One page title per screen." },
+      "title": { "displayName": "Title", "purpose": "Card and section headings." },
+      "body": { "displayName": "Body", "purpose": "Default reading text; cap measure 65-75ch." },
+      "label": { "displayName": "Label", "purpose": "Form labels, table headers, chips, metadata." }
+    },
+    "shadows": [
+      { "name": "hover-lift", "value": "0 6px 20px oklch(0.62 0.19 264 / 0.08)", "purpose": "Soft lift on interactive cards/rows on hover only." }
+    ],
+    "motion": [
+      { "name": "ease-standard", "value": "cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "Default easing for state transitions (--ease, --t = 300ms)." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one emphasized action per view. Registrar Blue fill.",
+      "html": "<button class=\"ds-btn-primary\">Guardar</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; height: 2rem; padding: 0 0.625rem; border: none; border-radius: 0.875rem; background: var(--primary, oklch(0.62 0.19 264)); color: var(--primary-foreground, oklch(0.99 0.005 264)); font: 500 0.875rem/1 'Geist Variable', ui-sans-serif, system-ui, sans-serif; cursor: pointer; transition: background 0.18s cubic-bezier(0.4,0,0.2,1), transform 0.18s cubic-bezier(0.4,0,0.2,1); } .ds-btn-primary:hover { background: oklch(0.56 0.20 264); } .ds-btn-primary:active { transform: translateY(1px); } .ds-btn-primary:focus-visible { outline: 3px solid oklch(0.62 0.19 264 / 0.5); outline-offset: 2px; }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Secondary actions; everything that is not the primary action.",
+      "html": "<button class=\"ds-btn-outline\">Cancelar</button>",
+      "css": ".ds-btn-outline { display: inline-flex; align-items: center; justify-content: center; height: 2rem; padding: 0 0.625rem; border: 1px solid var(--border, oklch(0.90 0.008 264)); border-radius: 0.875rem; background: var(--background, oklch(0.985 0.004 264)); color: var(--foreground, oklch(0.27 0.03 264)); font: 500 0.875rem/1 'Geist Variable', ui-sans-serif, system-ui, sans-serif; cursor: pointer; transition: background 0.18s cubic-bezier(0.4,0,0.2,1); } .ds-btn-outline:hover { background: var(--muted, oklch(0.955 0.006 264)); } .ds-btn-outline:focus-visible { outline: 3px solid oklch(0.62 0.19 264 / 0.5); outline-offset: 2px; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Raised surface, flat at rest. One tonal step above the page, full hairline border, no shadow. Never nested.",
+      "html": "<div class=\"ds-card\"><h3 class=\"ds-card-title\">Grupo 4-B</h3><p class=\"ds-card-body\">28 alumnos, asistencia 92%.</p></div>",
+      "css": ".ds-card { background: var(--card, oklch(0.995 0.003 264)); color: var(--foreground, oklch(0.27 0.03 264)); border: 1px solid var(--border, oklch(0.90 0.008 264)); border-radius: 22px; padding: 24px; transition: box-shadow 0.2s cubic-bezier(0.4,0,0.2,1); } .ds-card:hover { box-shadow: 0 6px 20px oklch(0.62 0.19 264 / 0.08); } .ds-card-title { margin: 0 0 0.25rem; font: 600 1.25rem/1.25 'Geist Variable', ui-sans-serif, sans-serif; letter-spacing: -0.01em; } .ds-card-body { margin: 0; font: 400 0.9375rem/1.55 'Geist Variable', ui-sans-serif, sans-serif; color: var(--muted-foreground, oklch(0.50 0.025 264)); }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Labeled field. Hairline border, ring on focus, no glow. Every input carries a programmatic label.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-field-label\">Matricula</span><input class=\"ds-input\" type=\"text\" placeholder=\"2021-0345\"></label>",
+      "css": ".ds-field { display: flex; flex-direction: column; gap: 0.375rem; } .ds-field-label { font: 500 0.75rem/1.2 'Geist Variable', ui-sans-serif, sans-serif; letter-spacing: 0.01em; color: var(--muted-foreground, oklch(0.50 0.025 264)); } .ds-input { height: 2.25rem; padding: 0 0.75rem; border: 1px solid var(--input, oklch(0.90 0.01 264)); border-radius: 0.875rem; background: var(--background, oklch(0.985 0.004 264)); color: var(--foreground, oklch(0.27 0.03 264)); font: 400 0.9375rem/1.55 'Geist Variable', ui-sans-serif, sans-serif; } .ds-input::placeholder { color: var(--muted-foreground, oklch(0.50 0.025 264)); } .ds-input:focus-visible { outline: 3px solid oklch(0.62 0.19 264 / 0.5); outline-offset: 1px; border-color: var(--ring, oklch(0.62 0.19 264)); }"
+    },
+    {
+      "name": "Attendance Badge",
+      "kind": "chip",
+      "refersTo": "attendance-badge",
+      "description": "Signature component. Encodes attendance state via status token + text label, never color alone.",
+      "html": "<span class=\"ds-badge ds-badge-present\">Presente</span> <span class=\"ds-badge ds-badge-late\">Tarde</span> <span class=\"ds-badge ds-badge-absent\">Ausente</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; padding: 0.125rem 0.625rem; border-radius: 999px; font: 500 0.75rem/1.2 'Geist Variable', ui-sans-serif, sans-serif; letter-spacing: 0.01em; } .ds-badge-present { background: oklch(0.62 0.14 150 / 0.14); color: oklch(0.42 0.12 150); } .ds-badge-late { background: oklch(0.76 0.14 75 / 0.18); color: oklch(0.48 0.12 75); } .ds-badge-absent { background: oklch(0.58 0.20 27 / 0.12); color: oklch(0.50 0.19 27); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Registrar's Ledger",
+    "overview": "SICAT is a system of record for attendance and coursework, used by coordinators at a desk, teachers taking attendance mid-class on a phone, and students glancing at their record. The interface exists to log a fact and get out of the way. Its character is that of a well-kept institutional ledger: precise, legible, quietly confident. Surfaces are solid and faintly blue-tinted, never frosted. The brand blue is a signal, not a wash: it marks the one primary action, the focus ring, the active nav item, and almost nothing else. This system explicitly rejects glassmorphism as an idiom, multi-radial-gradient backgrounds, hero-metric templates, identical card grids, side-stripe borders, and gradient text.",
+    "keyCharacteristics": [
+      "Solid tinted-neutral surfaces; glass is at most one intentional moment (the login card).",
+      "Blue accent on under 10% of any screen.",
+      "Flat at rest; elevation is a response to state (hover, focus), not decoration.",
+      "Status is semantic: present / absent / late / justified map to success / destructive / warning tokens.",
+      "One source of truth: every color is a token defined in frontend/src/index.css."
+    ],
+    "rules": [
+      { "name": "The One Signal Rule", "body": "Registrar Blue appears on at most 10% of any screen. Its rarity is what makes it read as 'the action.' If two blue buttons compete on one screen, one of them is wrong.", "section": "colors" },
+      { "name": "The Tinted Neutral Rule", "body": "No #000, no #fff, no pure gray. Every neutral is tinted toward hue 264 (chroma 0.003-0.03). Pure gray is forbidden because it makes the blue look like a mistake rather than a choice.", "section": "colors" },
+      { "name": "The One Family Rule", "body": "Geist only. 'Inter' must never be declared again: it was referenced in CSS but never loaded. If you need contrast, change weight or size, not family.", "section": "typography" },
+      { "name": "The Flat-At-Rest Rule", "body": "A surface at rest has no shadow. If you see a shadow without a hover or focus state behind it, delete it.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do source every color from a semantic token (bg-card, text-foreground, bg-primary, text-destructive).",
+      "Do keep Registrar Blue under 10% of any screen.",
+      "Do tint every neutral toward hue 264; use OKLCH for new values.",
+      "Do map attendance/task states to success / warning / destructive, paired with a text label.",
+      "Do use full borders and tonal fills for emphasis.",
+      "Do declare Geist as the only font family."
+    ],
+    "donts": [
+      "Don't use glassmorphism as a default. Glass is at most one intentional surface (the login card).",
+      "Don't paint multi-radial-gradient backgrounds that compete with content.",
+      "Don't use #000, #fff, or pure gray. Ever.",
+      "Don't use border-left/border-right greater than 1px as a colored accent stripe.",
+      "Don't use gradient text (background-clip: text).",
+      "Don't nest a card inside a card, or repeat identical icon-heading-text card grids.",
+      "Don't declare 'Inter' again. Geist is the only family.",
+      "Don't use alert() / confirm() or ship inputs without an accessible name."
+    ]
+  }
+}

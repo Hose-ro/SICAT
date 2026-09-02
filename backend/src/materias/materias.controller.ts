@@ -6,10 +6,10 @@ import {
   Body,
   Param,
   ParseIntPipe,
-    Query,
-    UseGuards,
-    Request,
-    ForbiddenException,
+  Query,
+  UseGuards,
+  Request,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags, ApiOperation } from '@nestjs/swagger';
 import { MateriasService } from './materias.service';
@@ -35,6 +35,7 @@ export class MateriasController {
   }
 
   @Get()
+  @Roles('ADMIN', 'DOCENTE')
   @ApiOperation({
     summary: 'Listar materias (filtros opcionales: carreraId, semestre)',
   })
@@ -69,6 +70,7 @@ export class MateriasController {
   }
 
   @Get('clave/:clave')
+  @Roles('ADMIN', 'DOCENTE')
   @ApiOperation({ summary: 'Buscar materia por clave (ej: RSB-2403)' })
   findByClave(@Param('clave') clave: string) {
     return this.materias.findByClave(clave);

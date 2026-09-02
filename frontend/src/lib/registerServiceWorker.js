@@ -1,5 +1,30 @@
 export function registerServiceWorker() {
-  if (import.meta.env.DEV || !('serviceWorker' in navigator)) {
+  if (!('serviceWorker' in navigator)) {
+    return
+  }
+
+  if (import.meta.env.DEV) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker
+        .getRegistrations()
+        .then((registrations) =>
+          Promise.all(
+            registrations.map((registration) => registration.unregister()),
+          ),
+        )
+        .catch((error) => {
+          console.error('No se pudo desregistrar el service worker', error)
+        })
+
+      if ('caches' in window) {
+        caches
+          .keys()
+          .then((keys) => Promise.all(keys.map((key) => caches.delete(key))))
+          .catch((error) => {
+            console.error('No se pudo limpiar la caché local', error)
+          })
+      }
+    })
     return
   }
 

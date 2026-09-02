@@ -4,6 +4,7 @@ import api from '../api/axios'
 import { useAuthStore } from '../store/authStore'
 import { useClaseStore } from '../store/claseStore'
 import { useAsistenciaStore } from '../store/asistenciaStore'
+import AttendanceBadge from '../components/AttendanceBadge'
 import AsistenciaSesionPanel from './docente/components/AsistenciaSesionPanel'
 
 function formatDate(value) {
@@ -50,6 +51,16 @@ function estadoClaseStyle(estado) {
     default:
       return 'bg-indigo-100 text-indigo-800'
   }
+}
+
+function getApiErrorMessage(error, fallback) {
+  const message = error.response?.data?.message
+
+  if (message === 'Forbidden resource') {
+    return 'Tu sesión no tiene permisos para realizar esta acción. Cierra sesión, vuelve a ingresar e inténtalo de nuevo.'
+  }
+
+  return message || fallback
 }
 
 function StatPill({ label, value, tone = 'slate' }) {
@@ -104,6 +115,16 @@ function ClaseCard({
   onFinalizarUnidad,
 }) {
   const unidadPendiente = clase?.materia?.unidades?.find((unidad) => unidad.status === 'PENDIENTE')
+  const requiereUnidadActiva = !clase.sesion?.id && !clase.unidadActiva
+  const inicioAyudaId = `clase-${clase.horarioId}-inicio-ayuda`
+
+  const iniciarLabel = clase.sesion?.id
+    ? 'Clase iniciada'
+    : requiereUnidadActiva
+      ? unidadPendiente
+        ? `Inicia ${unidadPendiente.nombre} primero`
+        : 'Sin unidad disponible'
+      : 'Iniciar clase'
 
   return (
     <article className={`rounded-3xl border border-slate-200 bg-white shadow-sm ${principal ? 'p-6' : 'p-5'}`}>
@@ -144,11 +165,17 @@ function ClaseCard({
           <button
             type="button"
             onClick={onIniciar}
-            disabled={Boolean(clase.sesion?.id)}
+            disabled={Boolean(clase.sesion?.id) || requiereUnidadActiva}
+            aria-describedby={requiereUnidadActiva ? inicioAyudaId : undefined}
             className="rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {clase.sesion?.id ? 'Clase iniciada' : 'Iniciar clase'}
+            {iniciarLabel}
           </button>
+          {requiereUnidadActiva && (
+            <p id={inicioAyudaId} className="px-1 text-xs leading-relaxed text-slate-500">
+              Activa una unidad para asociar correctamente la asistencia de esta clase.
+            </p>
+          )}
           <button
             type="button"
             onClick={onTomarAsistencia}
@@ -172,7 +199,7 @@ function ClaseCard({
         {!clase.unidadActiva && unidadPendiente && (
           <button
             type="button"
-            onClick={() => onIniciarUnidad(unidadPendiente.id)}
+            onClick={() => onIniciarUnidad(unidadPendiente)}
             className="rounded-full bg-emerald-100 px-3 py-2 text-xs font-semibold text-emerald-800 transition hover:bg-emerald-200"
           >
             Iniciar {unidadPendiente.nombre}
@@ -358,6 +385,273 @@ function FiltroToolbar({
   )
 }
 
+function AttendanceBar({ percentage }) {
+  const pct = Math.min(100, Math.max(0, percentage ?? 0))
+  const color =
+    pct >= 85 ? 'bg-emerald-500' :
+    pct >= 70 ? 'bg-amber-400' :
+    'bg-rose-500'
+
+  return (
+    <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+      <div
+        className={`h-full rounded-full transition-all duration-500 ${color}`}
+        style={{ width: `${pct}%` }}
+      />
+    </div>
+  )
+}
+
+function MiniStat({ label, value, color = 'text-slate-700' }) {
+  return (
+    <div className="flex flex-col items-center gap-0.5 text-center">
+      <span className={`text-base font-bold tabular-nums ${color}`}>{value}</span>
+      <span className="text-[10px] font-medium uppercase tracking-wide text-slate-400">{label}</span>
+    </div>
+  )
+}
+
+function AlumnoMateriaCard({ item }) {
+  const { materia, grupo, resumen, ultimaSesion } = item
+  const pct = resumen.porcentaje ?? 0
+
+  const detalleGrupo = grupo
+    ? `${grupo.nombre} · ${grupo.periodo}`
+    : materia.carrera
+      ? `${materia.carrera.nombre}${materia.semestre ? ` · Sem. ${materia.semestre}` : ''}`
+      : 'Sin grupo asignado'
+
+  const statusMsg =
+    (resumen.totalSesiones ?? 0) === 0
+      ? null
+      : (resumen.sinRegistro ?? 0) > 0
+        ? { text: `${resumen.sinRegistro} sesión(es) aún sin captura`, warn: true }
+        : { text: 'Todos los registros al día', warn: false }
+
+  return (
+    <article className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+      <div className="p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2 mb-2">
+              <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-bold tracking-wider text-slate-500 uppercase">
+                {materia.clave}
+              </span>
+            </div>
+            <h2 className="text-base font-semibold leading-snug text-slate-900 line-clamp-2">
+              {materia.nombre}
+            </h2>
+            <p className="mt-1 text-xs text-slate-500 truncate">{detalleGrupo}</p>
+            <p className="mt-0.5 text-xs text-slate-400 truncate">
+              {materia.docente?.nombre ?? 'Docente por asignar'}
+            </p>
+          </div>
+          <div className="shrink-0 flex flex-col items-end gap-2">
+            <AttendanceBadge percentage={pct} />
+            <span className="text-[11px] text-slate-400 tabular-nums">
+              {resumen.totalSesiones ?? 0} sesiones
+            </span>
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <AttendanceBar percentage={pct} />
+        </div>
+
+        <div className="mt-4 grid grid-cols-4 divide-x divide-slate-100 rounded-xl bg-slate-50 py-3">
+          <MiniStat label="Asist." value={resumen.asistencias ?? 0} color="text-emerald-600" />
+          <MiniStat label="Faltas" value={resumen.faltas ?? 0} color="text-rose-500" />
+          <MiniStat label="Retard." value={resumen.retardos ?? 0} color="text-amber-500" />
+          <MiniStat label="Justif." value={resumen.justificados ?? 0} color="text-sky-500" />
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between gap-3 border-t border-slate-100 bg-slate-50/60 px-5 py-3">
+        <div className="min-w-0">
+          {statusMsg ? (
+            <p className={`text-xs truncate ${statusMsg.warn ? 'text-amber-600' : 'text-emerald-600'}`}>
+              {statusMsg.warn ? '⚠ ' : '✓ '}{statusMsg.text}
+            </p>
+          ) : (
+            <p className="text-xs text-slate-400">Última clase: {formatDate(ultimaSesion)}</p>
+          )}
+          {statusMsg && (
+            <p className="text-[11px] text-slate-400 mt-0.5">Última clase: {formatDate(ultimaSesion)}</p>
+          )}
+        </div>
+        <Link
+          to={`/alumno/materias/${materia.id}`}
+          className="shrink-0 rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-700"
+        >
+          Ver detalle →
+        </Link>
+      </div>
+    </article>
+  )
+}
+
+function AlumnoAsistenciasView() {
+  const [resumen, setResumen] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let active = true
+
+    const cargarResumen = async (silent = false) => {
+      if (!silent) setLoading(true)
+
+      try {
+        const response = await api.get('/asistencias/mis-resumen')
+        if (!active) return
+        setResumen(Array.isArray(response.data) ? response.data : [])
+        setError('')
+      } catch (err) {
+        if (!active) return
+        setError(err.response?.data?.message || 'No se pudo cargar tu resumen de asistencias.')
+      } finally {
+        if (active && !silent) setLoading(false)
+      }
+    }
+
+    cargarResumen()
+    const interval = setInterval(() => {
+      cargarResumen(true).catch(() => {})
+    }, 30000)
+
+    return () => {
+      active = false
+      clearInterval(interval)
+    }
+  }, [])
+
+  const estadisticas = resumen.reduce((acc, item) => {
+    acc.materias++
+    acc.asistencias += item.resumen?.asistencias ?? 0
+    acc.faltas += item.resumen?.faltas ?? 0
+    acc.retardos += item.resumen?.retardos ?? 0
+    acc.justificados += item.resumen?.justificados ?? 0
+    acc.sinRegistro += item.resumen?.sinRegistro ?? 0
+    acc.totalSesiones += item.resumen?.totalSesiones ?? 0
+    return acc
+  }, {
+    materias: 0,
+    asistencias: 0,
+    faltas: 0,
+    retardos: 0,
+    justificados: 0,
+    sinRegistro: 0,
+    totalSesiones: 0,
+  })
+
+  const totalRegistrado = (
+    estadisticas.asistencias +
+    estadisticas.faltas +
+    estadisticas.retardos +
+    estadisticas.justificados
+  )
+  const porcentajeGlobal = totalRegistrado > 0
+    ? Math.round((estadisticas.asistencias / totalRegistrado) * 100)
+    : 0
+
+  const pctColor =
+    porcentajeGlobal >= 85 ? 'text-emerald-600' :
+    porcentajeGlobal >= 70 ? 'text-amber-500' :
+    'text-rose-600'
+
+  return (
+    <div className="space-y-8">
+      <header className="flex flex-col gap-1">
+        <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Panel del alumno</p>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Mis asistencias</h1>
+        <p className="text-sm text-slate-500">
+          Consulta tu avance por materia e identifica faltas antes de que afecten tu evaluación.
+        </p>
+      </header>
+
+      {error && (
+        <div className="flex items-start gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+          <span className="mt-0.5 shrink-0 text-rose-400">⚠</span>
+          {error}
+        </div>
+      )}
+
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Materias</p>
+          <p className="mt-3 text-4xl font-bold tabular-nums text-slate-800">{estadisticas.materias}</p>
+          <p className="mt-1 text-xs text-slate-400">inscritas este periodo</p>
+        </div>
+        <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-5 shadow-sm">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-500">Asistencias</p>
+          <p className="mt-3 text-4xl font-bold tabular-nums text-emerald-700">{estadisticas.asistencias}</p>
+          <p className="mt-1 text-xs text-emerald-400">presencias registradas</p>
+        </div>
+        <div className="rounded-2xl border border-rose-100 bg-rose-50 p-5 shadow-sm">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-rose-400">Faltas</p>
+          <p className="mt-3 text-4xl font-bold tabular-nums text-rose-600">{estadisticas.faltas}</p>
+          <p className="mt-1 text-xs text-rose-300">ausencias acumuladas</p>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">% Global</p>
+          <p className={`mt-3 text-4xl font-bold tabular-nums ${pctColor}`}>{porcentajeGlobal}%</p>
+          <div className="mt-2">
+            <AttendanceBar percentage={porcentajeGlobal} />
+          </div>
+        </div>
+      </section>
+
+      {!loading && resumen.length > 0 && (estadisticas.retardos > 0 || estadisticas.justificados > 0 || estadisticas.sinRegistro > 0) && (
+        <div className="flex flex-wrap gap-2 text-xs">
+          {estadisticas.retardos > 0 && (
+            <span className="rounded-full bg-amber-50 px-3 py-1.5 font-medium text-amber-600 ring-1 ring-amber-200">
+              {estadisticas.retardos} retardo{estadisticas.retardos !== 1 ? 's' : ''}
+            </span>
+          )}
+          {estadisticas.justificados > 0 && (
+            <span className="rounded-full bg-sky-50 px-3 py-1.5 font-medium text-sky-600 ring-1 ring-sky-200">
+              {estadisticas.justificados} justificado{estadisticas.justificados !== 1 ? 's' : ''}
+            </span>
+          )}
+          {estadisticas.sinRegistro > 0 && (
+            <span className="rounded-full bg-slate-100 px-3 py-1.5 font-medium text-slate-500 ring-1 ring-slate-200">
+              {estadisticas.sinRegistro} sin captura
+            </span>
+          )}
+          <span className="rounded-full bg-slate-100 px-3 py-1.5 font-medium text-slate-500 ring-1 ring-slate-200">
+            {estadisticas.totalSesiones} sesiones totales
+          </span>
+        </div>
+      )}
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold text-slate-700">Por materia</h2>
+        {loading ? (
+          <div className="grid gap-3 xl:grid-cols-2">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div
+                key={index}
+                className="h-52 animate-pulse rounded-2xl border border-slate-200 bg-white"
+              />
+            ))}
+          </div>
+        ) : resumen.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-10 text-center">
+            <p className="text-sm font-medium text-slate-500">Sin materias disponibles</p>
+            <p className="mt-1 text-xs text-slate-400">No hay sesiones registradas en este momento.</p>
+          </div>
+        ) : (
+          <div className="grid gap-3 xl:grid-cols-2">
+            {resumen.map((item) => (
+              <AlumnoMateriaCard key={item.materia.id} item={item} />
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+  )
+}
+
 function DocenteAsistenciasView() {
   const navigate = useNavigate()
   const { panelDocente, cargarPanelDocente, iniciar, finalizar } = useClaseStore()
@@ -383,22 +677,34 @@ function DocenteAsistenciasView() {
   }
 
   useEffect(() => {
-    cargarTodo()
+    Promise.all([
+      cargarPanelDocente(),
+      obtenerHistorial({}),
+    ]).catch(() => {})
+
     const interval = setInterval(() => {
       cargarPanelDocente().catch(() => {})
     }, 30000)
+
     return () => clearInterval(interval)
-  }, [])
+  }, [cargarPanelDocente, obtenerHistorial])
 
   useEffect(() => {
-    if (!filters.materiaId) {
-      setMateriaDetalle(null)
-      return
-    }
+    if (!filters.materiaId) return undefined
+
+    let active = true
 
     api.get(`/materias/${filters.materiaId}`)
-      .then((response) => setMateriaDetalle(response.data))
-      .catch(() => setMateriaDetalle(null))
+      .then((response) => {
+        if (active) setMateriaDetalle(response.data)
+      })
+      .catch(() => {
+        if (active) setMateriaDetalle(null)
+      })
+
+    return () => {
+      active = false
+    }
   }, [filters.materiaId])
 
   const clasesHoy = panelDocente?.clasesHoy ?? []
@@ -422,17 +728,28 @@ function DocenteAsistenciasView() {
   })
   const grupos = Array.from(gruposMap.values()).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
 
-  const unidades = materiaDetalle?.unidades ?? []
+  const unidades = filters.materiaId ? (materiaDetalle?.unidades ?? []) : []
 
   const handleStartClass = async (clase) => {
     setMensaje('')
+
+    if (!clase?.unidadActiva) {
+      const unidadPendiente = clase?.materia?.unidades?.find((unidad) => unidad.status === 'PENDIENTE')
+      setMensaje(
+        unidadPendiente
+          ? `Primero inicia ${unidadPendiente.nombre}; después podrás iniciar la clase.`
+          : 'No hay una unidad disponible para iniciar esta clase.',
+      )
+      return
+    }
+
     try {
       const response = await iniciar({ horarioId: clase.horarioId })
       setSelectedSessionId(response.id)
       if (response.advertencia) setMensaje(response.advertencia)
       await cargarTodo()
     } catch (error) {
-      setMensaje(error.response?.data?.message || 'No se pudo iniciar la clase.')
+      setMensaje(getApiErrorMessage(error, 'No se pudo iniciar la clase.'))
     }
   }
 
@@ -455,13 +772,14 @@ function DocenteAsistenciasView() {
     }
   }
 
-  const handleIniciarUnidad = async (unidadId) => {
+  const handleIniciarUnidad = async (unidad) => {
     setMensaje('')
     try {
-      await api.patch(`/unidades/${unidadId}/iniciar`)
+      await api.patch(`/unidades/${unidad.id}/iniciar`)
       await cargarTodo()
+      setMensaje(`${unidad.nombre} está activa. Ya puedes iniciar la clase.`)
     } catch (error) {
-      setMensaje(error.response?.data?.message || 'No se pudo iniciar la unidad.')
+      setMensaje(getApiErrorMessage(error, 'No se pudo iniciar la unidad.'))
     }
   }
 
@@ -692,17 +1010,24 @@ function AdminAsistenciasView() {
         setGrupos(gruposRes.data)
       })
       .catch(() => {})
-  }, [])
+  }, [obtenerHistorial])
 
   useEffect(() => {
-    if (!filters.materiaId) {
-      setMateriaDetalle(null)
-      return
-    }
+    if (!filters.materiaId) return undefined
+
+    let active = true
 
     api.get(`/materias/${filters.materiaId}`)
-      .then((response) => setMateriaDetalle(response.data))
-      .catch(() => setMateriaDetalle(null))
+      .then((response) => {
+        if (active) setMateriaDetalle(response.data)
+      })
+      .catch(() => {
+        if (active) setMateriaDetalle(null)
+      })
+
+    return () => {
+      active = false
+    }
   }, [filters.materiaId])
 
   const handleFilterChange = (key, value) => {
@@ -739,7 +1064,7 @@ function AdminAsistenciasView() {
         onApply={() => obtenerHistorial(filters)}
         materias={materias}
         grupos={grupos}
-        unidades={materiaDetalle?.unidades ?? []}
+        unidades={filters.materiaId ? (materiaDetalle?.unidades ?? []) : []}
         docentes={docentes}
         showDocente
       />
@@ -780,19 +1105,5 @@ export default function Asistencias() {
 
   if (user?.rol === 'DOCENTE') return <DocenteAsistenciasView />
   if (user?.rol === 'ADMIN') return <AdminAsistenciasView />
-
-  return (
-    <div className="space-y-4 rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-      <h1 className="text-2xl font-semibold text-slate-950">Asistencias</h1>
-      <p className="max-w-2xl text-sm text-slate-600">
-        La captura y administración de asistencias está disponible para docentes y administración. Como alumno puedes consultar tus registros por materia desde el detalle de cada curso.
-      </p>
-      <Link
-        to="/materias"
-        className="inline-flex rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-      >
-        Ir a mis materias
-      </Link>
-    </div>
-  )
+  return <AlumnoAsistenciasView />
 }

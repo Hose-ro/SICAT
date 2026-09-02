@@ -5,8 +5,41 @@ import api from '../api/axios'
 
 const ROL_COLORS = {
   ADMIN: 'bg-purple-100 text-purple-700',
+  JEFE_CARRERA: 'bg-amber-100 text-amber-700',
   DOCENTE: 'bg-blue-100 text-blue-700',
   ALUMNO: 'bg-green-100 text-green-700',
+}
+
+const AUTH_EVENT_LABELS = {
+  REGISTRO: 'Registro',
+  LOGIN_EXITOSO: 'Inicio de sesión',
+  LOGIN_FALLIDO: 'Acceso rechazado',
+  LOGOUT: 'Cierre de sesión',
+  CAMBIO_PASSWORD: 'Cambio de contraseña',
+  SOLICITUD_RECUPERACION: 'Solicitud de recuperación',
+  PASSWORD_RESTABLECIDA: 'Contraseña restablecida',
+  CORREO_VERIFICADO: 'Correo verificado',
+  CUENTA_APROBADA: 'Cuenta aprobada',
+  CUENTA_DESACTIVADA: 'Cuenta desactivada',
+  CUENTA_ACTIVADA: 'Cuenta activada',
+  ROL_CAMBIADO: 'Rol modificado',
+}
+
+const getApiError = (error, fallback) => {
+  const message = error.response?.data?.message
+  return Array.isArray(message) ? message.join('. ') : (message ?? fallback)
+}
+
+const getAccountStatus = (user) => {
+  if (!user.activo) {
+    return { label: 'Inactivo', className: 'bg-gray-100 text-gray-500' }
+  }
+  if (user.rol === 'ALUMNO' && !user.registroAprobado) {
+    return user.emailVerificadoAt
+      ? { label: 'Pendiente de aprobación', className: 'bg-blue-100 text-blue-700' }
+      : { label: 'Pendiente de correo', className: 'bg-amber-100 text-amber-700' }
+  }
+  return { label: 'Activo', className: 'bg-green-100 text-green-700' }
 }
 
 export default function Usuarios() {
@@ -17,20 +50,31 @@ export default function Usuarios() {
   const [academias, setAcademias] = useState([])
   const [modal, setModal] = useState(false)
   const [detailModal, setDetailModal] = useState({ open: false, user: null })
+  const [careerModal, setCareerModal] = useState({ open: false, user: null, carreraIds: [] })
   const [carreras, setCarreras] = useState([])
   const [form, setForm] = useState({
     nombre: '', email: '', username: '', numeroControl: '',
     password: '', rol: 'DOCENTE', academiaId: '', telefono: '',
-    semestre: '', carreraId: '',
+    semestre: '', carreraId: '', carreraIds: [],
   })
   const [pwModal, setPwModal] = useState({ open: false, user: null })
   const [newPassword, setNewPassword] = useState('')
   const [pwMsg, setPwMsg] = useState('')
   const [formError, setFormError] = useState('')
+  const [confirmation, setConfirmation] = useState({
+    open: false,
+    user: null,
+    action: null,
+    loading: false,
+    error: '',
+  })
+  const [authAudit, setAuthAudit] = useState({ loading: false, items: [], error: '' })
 
   const usuariosFiltrados = usuarios.filter((u) => {
     const matchNombre = u.nombre.toLowerCase().includes(filtroNombre.toLowerCase())
-    const matchCarrera = filtroCarrera === '' || u.carrera?.id === parseInt(filtroCarrera)
+    const matchCarrera = filtroCarrera === ''
+      || u.carrera?.id === parseInt(filtroCarrera)
+      || u.carrerasJefe?.some((item) => item.carrera.id === parseInt(filtroCarrera))
     return matchNombre && matchCarrera
   })
 
@@ -59,48 +103,82 @@ export default function Usuarios() {
     else data.semestre = parseInt(data.semestre)
     if (!data.carreraId) delete data.carreraId
     else data.carreraId = parseInt(data.carreraId)
+    if (data.rol !== 'JEFE_CARRERA') delete data.carreraIds
     try {
       await api.post('/usuarios', data)
       setModal(false)
-      setForm({ nombre: '', email: '', username: '', numeroControl: '', password: '', rol: 'DOCENTE', academiaId: '', telefono: '', semestre: '', carreraId: '' })
+      setForm({ nombre: '', email: '', username: '', numeroControl: '', password: '', rol: 'DOCENTE', academiaId: '', telefono: '', semestre: '', carreraId: '', carreraIds: [] })
       fetchUsuarios()
     } catch (err) {
-      setFormError(err.response?.data?.message ?? 'No se pudo crear el usuario')
+      setFormError(getApiError(err, 'No se pudo crear el usuario'))
     }
   }
 
-  const toggleActivo = async (u) => {
-    const accion = u.activo ? 'desactivar' : 'activar'
-    if (!confirm(`¿${u.activo ? 'Desactivar' : 'Activar'} a ${u.nombre}?`)) return
+  const solicitarConfirmacion = (user, action) => {
+    setConfirmation({ open: true, user, action, loading: false, error: '' })
+  }
+
+  const ejecutarAccion = async () => {
+    const { user, action } = confirmation
+    if (!user || !action) return
+    setConfirmation((current) => ({ ...current, loading: true, error: '' }))
     try {
-      await api.patch(`/usuarios/${u.id}`, { activo: !u.activo })
+      if (action === 'approve') {
+        await api.post(`/usuarios/${user.id}/aprobar-registro`)
+      } else {
+        await api.patch(`/usuarios/${user.id}`, { activo: !user.activo })
+      }
+      setConfirmation({ open: false, user: null, action: null, loading: false, error: '' })
       fetchUsuarios()
     } catch (err) {
-      alert(err.response?.data?.message ?? `Error al ${accion}`)
+      setConfirmation((current) => ({
+        ...current,
+        loading: false,
+        error: getApiError(err, 'No se pudo actualizar la cuenta'),
+      }))
     }
   }
 
-  const eliminar = async (u) => {
-    if (!confirm(`¿Eliminar permanentemente a "${u.nombre}"?\n\nEsta acción no se puede deshacer.`)) return
+  const abrirDetalle = async (user) => {
+    setDetailModal({ open: true, user })
+    setAuthAudit({ loading: true, items: [], error: '' })
     try {
-      await api.delete(`/usuarios/${u.id}`)
-      fetchUsuarios()
+      const response = await api.get(`/usuarios/${user.id}/auth-audit`)
+      setAuthAudit({ loading: false, items: response.data, error: '' })
     } catch (err) {
-      alert(err.response?.data?.message ?? 'Error al eliminar')
+      setAuthAudit({
+        loading: false,
+        items: [],
+        error: getApiError(err, 'No se pudo cargar la actividad de acceso'),
+      })
     }
   }
 
   const cambiarPassword = async (e) => {
     e.preventDefault()
     setPwMsg('')
-    if (newPassword.length < 6) { setPwMsg('Mínimo 6 caracteres'); return }
+    if (newPassword.length < 8) { setPwMsg('Mínimo 8 caracteres'); return }
     try {
       await api.patch(`/usuarios/${pwModal.user.id}`, { password: newPassword })
       setPwMsg('¡Contraseña actualizada!')
       setNewPassword('')
       setTimeout(() => setPwModal({ open: false, user: null }), 1200)
     } catch (err) {
-      setPwMsg(err.response?.data?.message ?? 'Error al cambiar')
+      setPwMsg(getApiError(err, 'Error al cambiar'))
+    }
+  }
+
+  const guardarCarrerasJefe = async (e) => {
+    e.preventDefault()
+    setFormError('')
+    try {
+      await api.put(`/usuarios/${careerModal.user.id}/carreras-jefe`, {
+        carreraIds: careerModal.carreraIds,
+      })
+      setCareerModal({ open: false, user: null, carreraIds: [] })
+      fetchUsuarios()
+    } catch (err) {
+      setFormError(getApiError(err, 'No se pudieron asignar las carreras'))
     }
   }
 
@@ -108,7 +186,7 @@ export default function Usuarios() {
     <>
       <PageHeader
         title="Usuarios"
-        subtitle="Gestión de docentes y alumnos"
+        subtitle="Gestión de administradores, jefaturas, docentes y alumnos"
         action={
           <button
             onClick={() => setModal(true)}
@@ -120,13 +198,13 @@ export default function Usuarios() {
       />
 
       <div className="flex flex-wrap gap-2 mb-3">
-        {['', 'ADMIN', 'DOCENTE', 'ALUMNO'].map((r) => (
+        {['', 'ADMIN', 'JEFE_CARRERA', 'DOCENTE', 'ALUMNO'].map((r) => (
           <button
             key={r}
             onClick={() => setFiltroRol(r)}
             className={`px-4 py-1.5 rounded-full text-sm font-medium transition ${filtroRol === r ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:border-blue-300'}`}
           >
-            {r || 'Todos'}
+            {r === 'JEFE_CARRERA' ? 'Jefes de carrera' : (r || 'Todos')}
           </button>
         ))}
       </div>
@@ -177,23 +255,50 @@ export default function Usuarios() {
                   <span className={`text-xs px-2 py-1 rounded-full font-medium ${ROL_COLORS[u.rol]}`}>{u.rol}</span>
                 </td>
                 <td className="px-4 py-3">
-                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${u.activo ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                    {u.activo ? 'Activo' : 'Inactivo'}
-                  </span>
+                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${getAccountStatus(u).className}`}>
+                      {getAccountStatus(u).label}
+                    </span>
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap items-center justify-end gap-2">
                     {/* Ver detalle */}
                     <button
-                      onClick={() => setDetailModal({ open: true, user: u })}
+                      onClick={() => abrirDetalle(u)}
                       className="text-xs px-3 py-1.5 rounded-lg font-medium text-gray-600 hover:bg-gray-100 border border-gray-200 transition"
                     >
                       Ver
                     </button>
 
+                      {u.rol === 'JEFE_CARRERA' && (
+                      <button
+                        onClick={() => {
+                          setFormError('')
+                          setCareerModal({
+                            open: true,
+                            user: u,
+                            carreraIds: u.carrerasJefe?.map((item) => item.carrera.id) ?? [],
+                          })
+                        }}
+                        className="text-xs px-3 py-1.5 rounded-lg font-medium text-amber-700 hover:bg-amber-50 border border-amber-200 transition"
+                      >
+                        Carreras
+                      </button>
+                      )}
+
+                      {u.rol === 'ALUMNO' && u.activo && !u.registroAprobado && (
+                        <button
+                          onClick={() => solicitarConfirmacion(u, 'approve')}
+                          disabled={!u.emailVerificadoAt}
+                          title={u.emailVerificadoAt ? 'Aprobar registro' : 'El correo aún no está verificado'}
+                          className="text-xs px-3 py-1.5 rounded-lg font-medium text-emerald-700 hover:bg-emerald-50 border border-emerald-200 transition disabled:cursor-not-allowed disabled:opacity-45"
+                        >
+                          Aprobar
+                        </button>
+                      )}
+
                     {/* Toggle activar/desactivar */}
                     <button
-                      onClick={() => toggleActivo(u)}
+                      onClick={() => solicitarConfirmacion(u, 'toggle')}
                       className={`text-xs px-3 py-1.5 rounded-lg font-medium transition ${
                         u.activo
                           ? 'text-orange-600 hover:bg-orange-50 border border-orange-200'
@@ -201,14 +306,6 @@ export default function Usuarios() {
                       }`}
                     >
                       {u.activo ? 'Desactivar' : 'Activar'}
-                    </button>
-
-                    {/* Eliminar */}
-                    <button
-                      onClick={() => eliminar(u)}
-                      className="text-xs px-3 py-1.5 rounded-lg font-medium text-red-500 hover:bg-red-50 border border-red-200 transition"
-                    >
-                      Eliminar
                     </button>
 
                     {/* Cambiar contraseña */}
@@ -240,6 +337,7 @@ export default function Usuarios() {
                 rol: e.target.value,
                 academiaId: e.target.value === 'DOCENTE' ? form.academiaId : '',
                 carreraId: e.target.value === 'ALUMNO' ? form.carreraId : '',
+                carreraIds: e.target.value === 'JEFE_CARRERA' ? form.carreraIds : [],
                 semestre: e.target.value === 'ALUMNO' ? form.semestre : '',
                 numeroControl: e.target.value === 'ALUMNO' ? form.numeroControl : '',
                 username: e.target.value === 'ALUMNO' ? '' : form.username,
@@ -247,6 +345,7 @@ export default function Usuarios() {
               className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="DOCENTE">Docente</option>
+              <option value="JEFE_CARRERA">Jefe de carrera</option>
               <option value="ALUMNO">Alumno</option>
               <option value="ADMIN">Admin</option>
             </select>
@@ -261,11 +360,12 @@ export default function Usuarios() {
               {form.rol === 'ALUMNO' ? 'Número de control' : 'Usuario (username)'}
             </label>
             {form.rol === 'ALUMNO' ? (
-              <input value={form.numeroControl} onChange={(e) => setForm({ ...form, numeroControl: e.target.value })}
+              <input required value={form.numeroControl} onChange={(e) => setForm({ ...form, numeroControl: e.target.value })}
                 placeholder="225Q0103"
+                pattern="\d{3}[A-Za-z]\d{4}"
                 className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             ) : (
-              <input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })}
+              <input required value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })}
                 placeholder="prof.garcia"
                 className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             )}
@@ -277,7 +377,7 @@ export default function Usuarios() {
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Contraseña *</label>
-            <input required type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })}
+            <input required type="password" minLength={8} maxLength={72} autoComplete="new-password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })}
               className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
           {form.rol === 'DOCENTE' && (
@@ -306,7 +406,7 @@ export default function Usuarios() {
             <>
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Carrera</label>
-                <select value={form.carreraId} onChange={(e) => setForm({ ...form, carreraId: e.target.value })}
+                <select required value={form.carreraId} onChange={(e) => setForm({ ...form, carreraId: e.target.value })}
                   className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                   <option value="">Selecciona carrera</option>
                   {carreras.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
@@ -314,14 +414,35 @@ export default function Usuarios() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Semestre</label>
-                <input type="number" min={1} max={12} value={form.semestre} onChange={(e) => setForm({ ...form, semestre: e.target.value })}
+                <input required type="number" min={1} max={12} value={form.semestre} onChange={(e) => setForm({ ...form, semestre: e.target.value })}
                   className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
             </>
           )}
+          {form.rol === 'JEFE_CARRERA' && (
+            <fieldset className="space-y-2 rounded-xl border border-gray-200 p-3">
+              <legend className="px-1 text-xs font-medium text-gray-700">Carreras asignadas *</legend>
+              {carreras.map((carrera) => (
+                <label key={carrera.id} className="flex items-center gap-3 rounded-lg px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-50">
+                  <input
+                    type="checkbox"
+                    checked={form.carreraIds.includes(carrera.id)}
+                    onChange={(event) => setForm({
+                      ...form,
+                      carreraIds: event.target.checked
+                        ? [...form.carreraIds, carrera.id]
+                        : form.carreraIds.filter((id) => id !== carrera.id),
+                    })}
+                  />
+                  <span>{carrera.codigo} · {carrera.nombre}</span>
+                </label>
+              ))}
+              {!carreras.length && <p className="text-xs text-amber-600">No hay carreras registradas.</p>}
+            </fieldset>
+          )}
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Teléfono</label>
-            <input value={form.telefono} onChange={(e) => setForm({ ...form, telefono: e.target.value })}
+            <input type="tel" pattern="\d{10}" value={form.telefono} onChange={(e) => setForm({ ...form, telefono: e.target.value })}
               className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
           {formError && <p className="text-sm text-red-500">{formError}</p>}
@@ -340,12 +461,22 @@ export default function Usuarios() {
             { label: 'Rol', value: <span className={`text-xs px-2 py-1 rounded-full font-medium ${ROL_COLORS[u.rol]}`}>{u.rol}</span> },
             { label: 'Estado', value: <span className={`text-xs px-2 py-1 rounded-full font-medium ${u.activo ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{u.activo ? 'Activo' : 'Inactivo'}</span> },
             { label: 'Correo', value: u.email || '—' },
+            { label: 'Correo verificado', value: u.email ? (u.emailVerificadoAt ? 'Sí' : 'No') : 'No aplica' },
+            u.rol === 'ALUMNO' && {
+              label: 'Aprobación',
+              value: u.registroAprobado
+                ? 'Aprobada'
+                : u.emailVerificadoAt
+                  ? 'Pendiente de aprobación'
+                  : 'Pendiente de correo',
+            },
             { label: 'Username', value: u.username || '—' },
             { label: 'Núm. Control', value: u.numeroControl || '—' },
             { label: 'Teléfono', value: u.telefono || '—' },
             u.rol === 'ALUMNO' && { label: 'Carrera', value: u.carrera?.nombre || '—' },
             u.rol === 'ALUMNO' && { label: 'Semestre', value: u.semestre ?? '—' },
             u.rol === 'DOCENTE' && { label: 'Academia', value: u.academias?.length ? u.academias.map((a) => a.nombre).join(', ') : '—' },
+            u.rol === 'JEFE_CARRERA' && { label: 'Carreras asignadas', value: u.carrerasJefe?.length ? u.carrerasJefe.map((item) => item.carrera.nombre).join(', ') : '—' },
             { label: 'Registro', value: new Date(u.createdAt).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' }) },
           ].filter(Boolean)
 
@@ -357,9 +488,55 @@ export default function Usuarios() {
                   <span className="text-gray-800 text-right">{value}</span>
                 </div>
               ))}
+              <div className="space-y-3 py-4">
+                <h4 className="text-sm font-semibold text-gray-800">Actividad de acceso</h4>
+                {authAudit.loading && <p className="text-sm text-gray-500">Cargando actividad...</p>}
+                {authAudit.error && <p role="alert" className="text-sm text-red-500">{authAudit.error}</p>}
+                {!authAudit.loading && !authAudit.error && authAudit.items.length === 0 && (
+                  <p className="text-sm text-gray-500">Sin eventos registrados.</p>
+                )}
+                {authAudit.items.slice(0, 10).map((event) => (
+                  <div key={event.id} className="flex flex-col gap-1 text-xs sm:flex-row sm:justify-between">
+                    <span className="font-medium text-gray-700">
+                      {AUTH_EVENT_LABELS[event.tipo] ?? event.tipo}
+                    </span>
+                    <span className="text-gray-500">
+                      {new Date(event.createdAt).toLocaleString('es-MX')}
+                      {event.ip ? ` · ${event.ip}` : ''}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           )
         })()}
+      </Modal>
+
+      <Modal open={careerModal.open} onClose={() => setCareerModal({ open: false, user: null, carreraIds: [] })} title={`Carreras de ${careerModal.user?.nombre ?? ''}`}>
+        <form onSubmit={guardarCarrerasJefe} className="space-y-4">
+          <fieldset className="space-y-2">
+            <legend className="mb-2 text-sm font-medium text-gray-700">Selecciona una o varias carreras</legend>
+            {carreras.map((carrera) => (
+              <label key={carrera.id} className="flex items-center gap-3 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                <input
+                  type="checkbox"
+                  checked={careerModal.carreraIds.includes(carrera.id)}
+                  onChange={(event) => setCareerModal((current) => ({
+                    ...current,
+                    carreraIds: event.target.checked
+                      ? [...current.carreraIds, carrera.id]
+                      : current.carreraIds.filter((id) => id !== carrera.id),
+                  }))}
+                />
+                <span>{carrera.codigo} · {carrera.nombre}</span>
+              </label>
+            ))}
+          </fieldset>
+          {formError && <p className="text-sm text-red-500">{formError}</p>}
+          <button type="submit" disabled={!careerModal.carreraIds.length} className="w-full rounded-xl bg-blue-600 py-2.5 font-medium text-white hover:bg-blue-700 disabled:opacity-50">
+            Guardar asignación
+          </button>
+        </form>
       </Modal>
 
       {/* Modal: Cambiar contraseña de usuario */}
@@ -368,10 +545,11 @@ export default function Usuarios() {
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Nueva contraseña</label>
             <input
-              type="password" required minLength={6}
+              type="password" required minLength={8} maxLength={72}
+              autoComplete="new-password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Mínimo 6 caracteres"
+              placeholder="Mínimo 8 caracteres"
               className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -382,6 +560,45 @@ export default function Usuarios() {
             Guardar nueva contraseña
           </button>
         </form>
+      </Modal>
+
+      <Modal
+        open={confirmation.open}
+        onClose={() => {
+          if (!confirmation.loading) {
+            setConfirmation({ open: false, user: null, action: null, loading: false, error: '' })
+          }
+        }}
+        title={confirmation.action === 'approve' ? 'Aprobar registro' : 'Cambiar estado de cuenta'}
+      >
+        <div className="space-y-5">
+          <p className="text-sm text-gray-700">
+            {confirmation.action === 'approve'
+              ? `Se permitirá que ${confirmation.user?.nombre ?? 'el alumno'} inicie sesión.`
+              : `${confirmation.user?.activo ? 'Se desactivará' : 'Se activará'} la cuenta de ${confirmation.user?.nombre ?? 'este usuario'}.`}
+          </p>
+          {confirmation.error && (
+            <p role="alert" className="text-sm text-red-500">{confirmation.error}</p>
+          )}
+          <div className="flex justify-end gap-3">
+            <button
+              type="button"
+              disabled={confirmation.loading}
+              onClick={() => setConfirmation({ open: false, user: null, action: null, loading: false, error: '' })}
+              className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              disabled={confirmation.loading}
+              onClick={ejecutarAccion}
+              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              {confirmation.loading ? 'Guardando...' : 'Confirmar'}
+            </button>
+          </div>
+        </div>
       </Modal>
     </>
   )

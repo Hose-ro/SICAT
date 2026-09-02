@@ -1,16 +1,43 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import express from 'express';
+import express, {
+  type NextFunction,
+  type Request,
+  type Response,
+} from 'express';
+import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
 import { join } from 'path';
 import { ensureTareasUploadDir } from './tareas/tareas.storage';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  app.set('trust proxy', 1);
 
+  app.use(
+    helmet({
+      contentSecurityPolicy: false,
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    }),
+  );
+  app.use(cookieParser());
+  app.use(
+    '/api/auth',
+    (_request: Request, response: Response, next: NextFunction) => {
+      response.setHeader('Cache-Control', 'no-store');
+      response.setHeader('Pragma', 'no-cache');
+      next();
+    },
+  );
+
+  const frontendUrl = (
+    process.env.FRONTEND_URL || 'http://localhost:5173'
+  ).replace(/\/+$/, '');
   app.enableCors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    origin: frontendUrl,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   });
@@ -37,4 +64,5 @@ async function bootstrap() {
     `Swagger docs: http://localhost:${process.env.PORT ?? 3000}/api/docs`,
   );
 }
-bootstrap();
+
+void bootstrap();

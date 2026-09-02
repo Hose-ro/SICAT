@@ -45,15 +45,15 @@ export default function PwaInstallPrompt() {
 
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-4 z-[300] flex justify-center px-4">
-      <div className="pointer-events-auto w-full max-w-md rounded-3xl border border-blue-200 bg-white/95 p-4 shadow-2xl backdrop-blur">
+      <div className="pointer-events-auto w-full max-w-md rounded-3xl border border-border bg-card p-4 shadow-2xl">
         <div className="flex items-start gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-lg text-white">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary text-lg text-primary-foreground">
             <CiMobile3 />
           </div>
 
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-slate-900">Instala SICAT en tu celular</p>
-            <p className="mt-1 text-sm leading-5 text-slate-600">
+            <p className="text-sm font-semibold text-foreground">Instala SICAT en tu celular</p>
+            <p className="mt-1 text-sm leading-5 text-muted-foreground">
               {canInstall
                 ? 'Ábrela como app desde la pantalla de inicio y entra más rápido.'
                 : 'En iPhone, toca Compartir y luego "Agregar a pantalla de inicio".'}
@@ -64,7 +64,7 @@ export default function PwaInstallPrompt() {
                 <button
                   type="button"
                   onClick={() => void promptInstall()}
-                  className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+                  className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary-strong"
                 >
                   Instalar app
                 </button>
@@ -73,7 +73,7 @@ export default function PwaInstallPrompt() {
               <button
                 type="button"
                 onClick={dismiss}
-                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+                className="rounded-xl border border-border px-4 py-2 text-sm font-medium text-muted-foreground transition hover:bg-muted"
               >
                 Luego
               </button>
@@ -83,7 +83,7 @@ export default function PwaInstallPrompt() {
           <button
             type="button"
             onClick={dismiss}
-            className="rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+            className="rounded-full p-1 text-muted-foreground transition hover:bg-muted hover:text-foreground"
             aria-label="Cerrar aviso de instalacion"
           >
             <CiCircleRemove className="text-lg" />

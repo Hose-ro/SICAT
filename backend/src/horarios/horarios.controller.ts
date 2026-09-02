@@ -8,6 +8,7 @@ import {
   Patch,
   Post,
   Query,
+  Request,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -19,9 +20,11 @@ import {
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
+import { ActualizarClaseDto } from './dto/actualizar-clase.dto';
 import { AsignarAulaDto } from './dto/asignar-aula.dto';
 import { AsignarDocenteDto } from './dto/asignar-docente.dto';
 import { CreateHorarioDto } from './dto/create-horario.dto';
+import { EliminarClaseDto } from './dto/eliminar-clase.dto';
 import { UpdateHorarioDto } from './dto/update-horario.dto';
 import { ValidarConflictoHorarioDto } from './dto/validar-conflicto-horario.dto';
 import { HorariosService } from './horarios.service';
@@ -107,6 +110,20 @@ export class HorariosController {
     return this.horarios.quitarAula(materiaId);
   }
 
+  @Get('mis-horarios')
+  @Roles('DOCENTE', 'ADMIN')
+  @ApiOperation({ summary: 'Horario del docente autenticado' })
+  misHorarios(@Request() req: any) {
+    return this.horarios.obtenerHorarioDocente(req.user.id);
+  }
+
+  @Get('mis-horarios-alumno')
+  @Roles('ALUMNO', 'ADMIN')
+  @ApiOperation({ summary: 'Horario del grupo del alumno autenticado' })
+  misHorariosAlumno(@Request() req: any) {
+    return this.horarios.obtenerHorarioAlumno(req.user.id);
+  }
+
   @Get('docente/:docenteId')
   @ApiOperation({ summary: 'Horario completo de un docente' })
   horarioDocente(@Param('docenteId', ParseIntPipe) docenteId: number) {
@@ -149,6 +166,21 @@ export class HorariosController {
       docenteId ? Number(docenteId) : undefined,
       aulaId ? Number(aulaId) : undefined,
     );
+  }
+
+  @Patch('clase')
+  @ApiOperation({
+    summary:
+      'Actualizar una clase completa: reconcilia los días (actualiza, agrega y retira bloques)',
+  })
+  actualizarClase(@Body() dto: ActualizarClaseDto) {
+    return this.horarios.actualizarClase(dto);
+  }
+
+  @Delete('clase')
+  @ApiOperation({ summary: 'Eliminar una clase completa con todos sus días' })
+  eliminarClase(@Body() dto: EliminarClaseDto) {
+    return this.horarios.eliminarClase(dto.horarioIds);
   }
 
   @Get(':id')
