@@ -315,8 +315,60 @@ export class MateriasService {
     return this.findOne(id);
   }
 
+  /**
+   * Borrado definitivo. Se lleva lo que cuelga de la materia: horarios,
+   * sesiones de clase con sus asistencias, tareas con sus entregas,
+   * inscripciones, calificaciones y unidades. Los grupos y las academias
+   * conservan sus registros, sólo dejan de tenerla asignada.
+   */
   async remove(id: number) {
     await this.findOne(id);
-    return this.prisma.materia.delete({ where: { id } });
+
+    return this.prisma.$transaction(
+      async (tx) => {
+        const asistencias = await tx.asistencia.deleteMany({
+          where: { claseSesion: { materiaId: id } },
+        });
+        const entregas = await tx.entregaTarea.deleteMany({
+          where: { tarea: { materiaId: id } },
+        });
+        const tareas = await tx.tarea.deleteMany({ where: { materiaId: id } });
+        const sesiones = await tx.claseSesion.deleteMany({
+          where: { materiaId: id },
+        });
+        const inscripciones = await tx.inscripcion.deleteMany({
+          where: { materiaId: id },
+        });
+        const calificaciones = await tx.calificacionUnidad.deleteMany({
+          where: { materiaId: id },
+        });
+        const horarios = await tx.horarioMateria.deleteMany({
+          where: { materiaId: id },
+        });
+        const unidades = await tx.unidad.deleteMany({
+          where: { materiaId: id },
+        });
+
+        const eliminada = await tx.materia.delete({
+          where: { id },
+          select: { id: true, nombre: true, clave: true },
+        });
+
+        return {
+          ...eliminada,
+          eliminados: {
+            asistencias: asistencias.count,
+            entregas: entregas.count,
+            tareas: tareas.count,
+            sesiones: sesiones.count,
+            inscripciones: inscripciones.count,
+            calificaciones: calificaciones.count,
+            horarios: horarios.count,
+            unidades: unidades.count,
+          },
+        };
+      },
+      { maxWait: 10_000, timeout: 30_000 },
+    );
   }
 }

@@ -8,6 +8,7 @@ describe('MateriasService', () => {
   const materiaFindFirst = jest.fn();
   const materiaUpdate = jest.fn();
   const carreraFindUnique = jest.fn();
+  const transaction = jest.fn();
   const prisma = {
     materia: {
       findUnique: materiaFindUnique,
@@ -15,6 +16,7 @@ describe('MateriasService', () => {
       update: materiaUpdate,
     },
     carrera: { findUnique: carreraFindUnique },
+    $transaction: transaction,
   } as unknown as PrismaService;
   const notificaciones = {
     crearParaAdmins: jest.fn(),
@@ -84,5 +86,54 @@ describe('MateriasService', () => {
       NotFoundException,
     );
     expect(materiaUpdate).not.toHaveBeenCalled();
+  });
+
+  it('elimina la materia con todo lo que cuelga de ella', async () => {
+    const contador = (count: number) => jest.fn().mockResolvedValue({ count });
+    const tx = {
+      asistencia: { deleteMany: contador(40) },
+      entregaTarea: { deleteMany: contador(12) },
+      tarea: { deleteMany: contador(3) },
+      claseSesion: { deleteMany: contador(15) },
+      inscripcion: { deleteMany: contador(28) },
+      calificacionUnidad: { deleteMany: contador(9) },
+      horarioMateria: { deleteMany: contador(2) },
+      unidad: { deleteMany: contador(3) },
+      materia: {
+        delete: jest
+          .fn()
+          .mockResolvedValue({ id: 7, nombre: 'Cálculo Diferencial', clave: 'ACF-0901' }),
+      },
+    };
+    transaction.mockImplementation(
+      (callback: (client: typeof tx) => unknown) =>
+        Promise.resolve(callback(tx)) as unknown,
+    );
+
+    const resultado = await service.remove(7);
+
+    // Las asistencias y entregas se borran antes que sus sesiones y tareas.
+    expect(tx.asistencia.deleteMany).toHaveBeenCalledWith({
+      where: { claseSesion: { materiaId: 7 } },
+    });
+    expect(tx.entregaTarea.deleteMany).toHaveBeenCalledWith({
+      where: { tarea: { materiaId: 7 } },
+    });
+    expect(tx.unidad.deleteMany).toHaveBeenCalledWith({
+      where: { materiaId: 7 },
+    });
+    expect(tx.materia.delete).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 7 } }),
+    );
+    expect(resultado).toEqual(
+      expect.objectContaining({
+        id: 7,
+        eliminados: expect.objectContaining({
+          asistencias: 40,
+          entregas: 12,
+          unidades: 3,
+        }) as Record<string, number>,
+      }),
+    );
   });
 });

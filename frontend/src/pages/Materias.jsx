@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { CiCalendarDate, CiClock2, CiEdit, CiRead, CiUser } from 'react-icons/ci'
+import { CiCalendarDate, CiClock2, CiEdit, CiRead, CiTrash, CiUser } from 'react-icons/ci'
 import PageHeader from '../components/PageHeader'
 import Modal from '../components/Modal'
 import api from '../api/axios'
@@ -29,6 +29,7 @@ export default function Materias() {
   const [carreras, setCarreras] = useState([])
   const [form, setForm] = useState(FORM_VACIO)
   const [error, setError] = useState('')
+  const [confirmacion, setConfirmacion] = useState({ open: false, materia: null, loading: false, error: '' })
 
   const esAlumno = user?.rol === 'ALUMNO'
   const esAdmin = user?.rol === 'ADMIN'
@@ -100,6 +101,32 @@ export default function Materias() {
     }
   }
 
+  const pedirEliminar = (materia) => {
+    setConfirmacion({ open: true, materia, loading: false, error: '' })
+  }
+
+  const cerrarConfirmacion = () => {
+    if (confirmacion.loading) return
+    setConfirmacion({ open: false, materia: null, loading: false, error: '' })
+  }
+
+  const eliminarMateria = async () => {
+    const materia = confirmacion.materia
+    if (!materia) return
+    setConfirmacion((actual) => ({ ...actual, loading: true, error: '' }))
+    try {
+      await api.delete(`/materias/${materia.id}`)
+      setConfirmacion({ open: false, materia: null, loading: false, error: '' })
+      await fetchMaterias()
+    } catch (err) {
+      setConfirmacion((actual) => ({
+        ...actual,
+        loading: false,
+        error: mensajeError(err, 'No se pudo eliminar la materia'),
+      }))
+    }
+  }
+
   const materiasFiltradas = materias.filter((m) => {
     const q = busqueda.toLowerCase()
     const matchBusqueda = !q || m.nombre.toLowerCase().includes(q) || m.clave.toLowerCase().includes(q)
@@ -134,6 +161,20 @@ export default function Materias() {
             >
               <CiEdit className="h-4 w-4" aria-hidden="true" />
               Editar
+            </button>
+          )}
+          {esAdmin && (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation()
+                pedirEliminar(m)
+              }}
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-red-200 bg-background px-3 text-xs font-medium text-red-600 transition-colors hover:bg-red-50 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-red-400/40"
+              aria-label={`Eliminar ${m.nombre}`}
+            >
+              <CiTrash className="h-4 w-4" aria-hidden="true" />
+              Eliminar
             </button>
           )}
         </div>
@@ -305,6 +346,35 @@ export default function Materias() {
         </form>
       </Modal>
 
+      <Modal open={confirmacion.open} onClose={cerrarConfirmacion} title="Eliminar materia">
+        <div className="space-y-4">
+          <p className="text-sm text-gray-700">
+            Se eliminará definitivamente <strong>{confirmacion.materia?.nombre}</strong> ({confirmacion.materia?.clave}). Esta acción no se puede deshacer.
+          </p>
+          <p className="text-sm text-gray-500">
+            Se borran también sus unidades, horarios, sesiones de clase con sus asistencias, tareas con sus entregas, inscripciones y calificaciones. Los grupos y las academias se conservan, sólo dejan de tenerla asignada.
+          </p>
+          {confirmacion.error && <p role="alert" className="text-sm text-red-500">{confirmacion.error}</p>}
+          <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={cerrarConfirmacion}
+              disabled={confirmacion.loading}
+              className="rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={eliminarMateria}
+              disabled={confirmacion.loading}
+              className="rounded-xl bg-red-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-red-700 disabled:opacity-50"
+            >
+              {confirmacion.loading ? 'Eliminando...' : 'Eliminar'}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </>
   )
 }
