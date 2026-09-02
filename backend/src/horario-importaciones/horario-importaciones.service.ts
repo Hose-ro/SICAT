@@ -419,8 +419,11 @@ export class HorarioImportacionesService implements OnModuleInit {
 
       const materiaPorReticula = new Map<number, number>();
       for (const materiaReticula of reticula) {
-        let materia = await tx.materia.findUnique({
-          where: { clave: materiaReticula.clave },
+        let materia = await tx.materia.findFirst({
+          where: {
+            clave: materiaReticula.clave,
+            carreraId: materiaReticula.carreraId,
+          },
           select: { id: true },
         });
         if (!materia) {

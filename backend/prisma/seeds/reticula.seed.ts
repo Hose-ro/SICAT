@@ -19,9 +19,9 @@ interface MateriaReticula {
 
 const RETICULA_ISC: MateriaReticula[] = [
   // Semestre 1
-  { nombre: 'Cálculo Diferencial', clave: 'ACF-2301', semestre: 1, ht: 3, hp: 2, cr: 5 },
+  { nombre: 'Cálculo Diferencial', clave: 'ACF-0901', semestre: 1, ht: 3, hp: 2, cr: 5 },
   { nombre: 'Fundamentos de Programación', clave: 'AED-1285', semestre: 1, ht: 2, hp: 3, cr: 5 },
-  { nombre: 'Taller de Ética', clave: 'ACH-2307', semestre: 1, ht: 0, hp: 4, cr: 4 },
+  { nombre: 'Taller de Ética', clave: 'ACA-0907', semestre: 1, ht: 0, hp: 4, cr: 4 },
   { nombre: 'Matemáticas Discretas', clave: 'AEF-1041', semestre: 1, ht: 3, hp: 2, cr: 5 },
   { nombre: 'Taller de Administración', clave: 'SCH-1024', semestre: 1, ht: 1, hp: 3, cr: 4 },
   { nombre: 'Fundamentos de Investigación', clave: 'ACC-0906', semestre: 1, ht: 2, hp: 2, cr: 4 },

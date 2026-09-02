@@ -137,7 +137,7 @@ async function main() {
 
     if (!skipMaterias) {
       await prisma.materia.upsert({
-        where: { clave: e.clave },
+        where: { clave_carreraId: { clave: e.clave, carreraId } },
         update: {
           nombre: e.nombre,
           semestre: e.semestre,

@@ -1,11 +1,14 @@
 import {
+  BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { TipoNotificacion } from '@prisma/client';
+import { Prisma, TipoNotificacion } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { CreateMateriaDto } from './dto/create-materia.dto';
+import { UpdateMateriaDto } from './dto/update-materia.dto';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 
 @Injectable()
@@ -127,7 +130,7 @@ export class MateriasService {
     }
 
     // Fallback: filter by carrera+semestre from profile
-    const where: any = {};
+    const where: Prisma.MateriaWhereInput = {};
     if (alumno?.carreraId) where.carreraId = alumno.carreraId;
     if (alumno?.semestre) where.semestre = alumno.semestre;
 
@@ -230,7 +233,7 @@ export class MateriasService {
   }
 
   async findByClave(clave: string) {
-    const materia = await this.prisma.materia.findUnique({
+    const materia = await this.prisma.materia.findFirst({
       where: { clave },
       include: {
         docente: {
@@ -256,6 +259,60 @@ export class MateriasService {
     if (!materia)
       throw new NotFoundException('Materia no encontrada con esa clave');
     return materia;
+  }
+
+  async update(id: number, dto: UpdateMateriaDto) {
+    const materia = await this.prisma.materia.findUnique({ where: { id } });
+    if (!materia) throw new NotFoundException('Materia no encontrada');
+
+    const nombre = dto.nombre?.trim();
+    const clave = dto.clave?.trim().toUpperCase();
+    if (dto.nombre !== undefined && !nombre) {
+      throw new BadRequestException('El nombre de la materia es obligatorio');
+    }
+    if (dto.clave !== undefined && !clave) {
+      throw new BadRequestException('La clave de la materia es obligatoria');
+    }
+
+    const carreraId =
+      dto.carreraId === undefined ? materia.carreraId : dto.carreraId;
+    const claveFinal = clave ?? materia.clave;
+
+    // La clave solo es unica dentro de la carrera, asi que tambien hay que
+    // revisar el duplicado cuando la materia cambia de carrera.
+    if (claveFinal !== materia.clave || carreraId !== materia.carreraId) {
+      const existente = await this.prisma.materia.findFirst({
+        where: { clave: claveFinal, carreraId },
+        select: { id: true },
+      });
+      if (existente && existente.id !== id) {
+        throw new ConflictException(
+          'Ya existe una materia con esa clave en la carrera',
+        );
+      }
+    }
+
+    if (dto.carreraId !== undefined && dto.carreraId !== null) {
+      const carrera = await this.prisma.carrera.findUnique({
+        where: { id: dto.carreraId },
+        select: { id: true },
+      });
+      if (!carrera) throw new NotFoundException('Carrera no encontrada');
+    }
+
+    const data: Prisma.MateriaUncheckedUpdateInput = {
+      nombre,
+      clave,
+      descripcion:
+        dto.descripcion === undefined
+          ? undefined
+          : dto.descripcion.trim() || null,
+      carreraId: dto.carreraId,
+      semestre: dto.semestre,
+    };
+
+    await this.prisma.materia.update({ where: { id }, data });
+    return this.findOne(id);
   }
 
   async remove(id: number) {

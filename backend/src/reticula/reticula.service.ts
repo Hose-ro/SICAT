@@ -51,8 +51,8 @@ export class ReticulaService {
     let creadas = 0;
 
     for (const materia of reticula) {
-      const existe = await this.prisma.materia.findUnique({
-        where: { clave: materia.clave },
+      const existe = await this.prisma.materia.findFirst({
+        where: { clave: materia.clave, carreraId: dto.carreraId },
       });
       if (!existe) {
         await this.prisma.materia.create({

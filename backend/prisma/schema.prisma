@@ -34,6 +34,7 @@ enum TipoEventoAuth {
   CUENTA_DESACTIVADA
   CUENTA_ACTIVADA
   ROL_CAMBIADO
+  CUENTA_ELIMINADA
 }
 
 enum TipoAlertaCarrera {
@@ -302,7 +303,7 @@ model Aula {
 model Materia {
   id          Int      @id @default(autoincrement())
   nombre      String
-  clave       String   @unique
+  clave       String
   descripcion String?
   horaInicio  String   @default("")
   horaFin     String   @default("")
@@ -325,6 +326,8 @@ model Materia {
   claseSesiones  ClaseSesion[]
   tareas         Tarea[]
   calificaciones CalificacionUnidad[]
+
+  @@unique([clave, carreraId])
 }
 
 model HorarioMateria {

@@ -1,10 +1,20 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { CiCalendarDate, CiClock2, CiRead, CiUser } from 'react-icons/ci'
+import { CiCalendarDate, CiClock2, CiEdit, CiRead, CiUser } from 'react-icons/ci'
 import PageHeader from '../components/PageHeader'
 import Modal from '../components/Modal'
 import api from '../api/axios'
 import { useAuthStore } from '../store/authStore'
+
+const FORM_VACIO = {
+  nombre: '', clave: '', descripcion: '',
+  numUnidades: 3, carreraId: '', semestre: '',
+}
+
+function mensajeError(error, fallback) {
+  const message = error?.response?.data?.message
+  return Array.isArray(message) ? message.join('. ') : (message || fallback)
+}
 
 export default function Materias() {
   const { user } = useAuthStore()
@@ -14,11 +24,10 @@ export default function Materias() {
   const [filtroCarrera, setFiltroCarrera] = useState('')
   const [filtroSemestre, setFiltroSemestre] = useState('')
   const [modal, setModal] = useState(false)
+  const [editandoId, setEditandoId] = useState(null)
+  const [guardando, setGuardando] = useState(false)
   const [carreras, setCarreras] = useState([])
-  const [form, setForm] = useState({
-    nombre: '', clave: '', descripcion: '',
-    numUnidades: 3, carreraId: '', semestre: '',
-  })
+  const [form, setForm] = useState(FORM_VACIO)
   const [error, setError] = useState('')
 
   const esAlumno = user?.rol === 'ALUMNO'
@@ -27,7 +36,7 @@ export default function Materias() {
 
   const fetchMaterias = useCallback(() => {
     const endpoint = esAlumno ? '/materias/para-alumno' : user?.rol === 'DOCENTE' ? '/materias/mis-materias' : '/materias'
-    api.get(endpoint).then((r) => setMaterias(r.data))
+    return api.get(endpoint).then((r) => setMaterias(r.data))
   }, [esAlumno, user?.rol])
 
   useEffect(() => {
@@ -35,22 +44,59 @@ export default function Materias() {
     api.get('/carreras').then((r) => setCarreras(r.data))
   }, [fetchMaterias])
 
-  const crear = async (e) => {
+  const abrirCreacion = () => {
+    setEditandoId(null)
+    setForm(FORM_VACIO)
+    setError('')
+    setModal(true)
+  }
+
+  const abrirEdicion = (materia) => {
+    setEditandoId(materia.id)
+    setForm({
+      nombre: materia.nombre,
+      clave: materia.clave,
+      descripcion: materia.descripcion ?? '',
+      numUnidades: materia.numUnidades ?? 3,
+      carreraId: materia.carrera?.id ? String(materia.carrera.id) : '',
+      semestre: materia.semestre ? String(materia.semestre) : '',
+    })
+    setError('')
+    setModal(true)
+  }
+
+  const cerrarModal = () => {
+    if (guardando) return
+    setModal(false)
+    setEditandoId(null)
+    setError('')
+  }
+
+  const guardar = async (e) => {
     e.preventDefault()
     setError('')
+    setGuardando(true)
     try {
       const payload = {
-        ...form,
-        numUnidades: parseInt(form.numUnidades),
-        carreraId: form.carreraId ? parseInt(form.carreraId) : undefined,
-        semestre: form.semestre ? parseInt(form.semestre) : undefined,
+        nombre: form.nombre.trim(),
+        clave: form.clave.trim().toUpperCase(),
+        descripcion: form.descripcion.trim(),
+        carreraId: form.carreraId ? parseInt(form.carreraId) : editandoId ? null : undefined,
+        semestre: form.semestre ? parseInt(form.semestre) : editandoId ? null : undefined,
       }
-      await api.post('/materias', payload)
+      if (editandoId) {
+        await api.patch(`/materias/${editandoId}`, payload)
+      } else {
+        await api.post('/materias', { ...payload, numUnidades: parseInt(form.numUnidades) })
+      }
       setModal(false)
-      setForm({ nombre: '', clave: '', descripcion: '', numUnidades: 3, carreraId: '', semestre: '' })
-      fetchMaterias()
+      setEditandoId(null)
+      setForm(FORM_VACIO)
+      await fetchMaterias()
     } catch (err) {
-      setError(err.response?.data?.message ?? 'Error al crear')
+      setError(mensajeError(err, editandoId ? 'No se pudo editar la materia' : 'No se pudo crear la materia'))
+    } finally {
+      setGuardando(false)
     }
   }
 
@@ -74,7 +120,23 @@ export default function Materias() {
           <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg">{m.clave}</span>
           <h3 className="font-semibold text-gray-800 mt-1">{m.nombre}</h3>
         </div>
-        <span className="text-xs text-gray-400 ml-2 shrink-0">{m._count?.inscripciones ?? 0} alumnos</span>
+        <div className="ml-2 flex shrink-0 flex-col items-end gap-2">
+          <span className="text-xs text-gray-400">{m._count?.inscripciones ?? 0} alumnos</span>
+          {esAdmin && (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation()
+                abrirEdicion(m)
+              }}
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-input bg-background px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
+              aria-label={`Editar ${m.nombre}`}
+            >
+              <CiEdit className="h-4 w-4" aria-hidden="true" />
+              Editar
+            </button>
+          )}
+        </div>
       </div>
       <div className="text-xs text-gray-500 space-y-1">
         <p className="flex items-center gap-2">
@@ -108,7 +170,7 @@ export default function Materias() {
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
             {canCreate && (
               <button
-                onClick={() => setModal(true)}
+                onClick={abrirCreacion}
                 className="w-full rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 sm:w-auto"
               >
                 + Nueva materia
@@ -174,35 +236,41 @@ export default function Materias() {
         )}
       </div>
 
-      {/* Modal: Nueva materia */}
-      <Modal open={modal} onClose={() => setModal(false)} title="Nueva materia">
-        <form onSubmit={crear} className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
+      <Modal open={modal} onClose={cerrarModal} title={editandoId ? 'Editar materia' : 'Nueva materia'}>
+        <form onSubmit={guardar} className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Nombre *</label>
-            <input required value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })}
+            <label htmlFor="materia-nombre" className="block text-xs font-medium text-gray-700 mb-1">Nombre *</label>
+            <input id="materia-nombre" required value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })}
               placeholder="Ej: Cálculo Diferencial"
               className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Clave *</label>
-            <input required value={form.clave} onChange={(e) => setForm({ ...form, clave: e.target.value.toUpperCase() })}
+            <label htmlFor="materia-clave" className="block text-xs font-medium text-gray-700 mb-1">Clave *</label>
+            <input id="materia-clave" required value={form.clave} onChange={(e) => setForm({ ...form, clave: e.target.value.toUpperCase() })}
               placeholder="RSB-2403"
               className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+
+          <div>
+            <label htmlFor="materia-descripcion" className="block text-xs font-medium text-gray-700 mb-1">Descripción</label>
+            <textarea id="materia-descripcion" rows={3} value={form.descripcion} onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
+              placeholder="Opcional"
+              className="w-full resize-y border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
 
           {/* Carrera y semestre */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Carrera</label>
-              <select value={form.carreraId} onChange={(e) => setForm({ ...form, carreraId: e.target.value })}
+              <label htmlFor="materia-carrera" className="block text-xs font-medium text-gray-700 mb-1">Carrera</label>
+              <select id="materia-carrera" value={form.carreraId} onChange={(e) => setForm({ ...form, carreraId: e.target.value })}
                 className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="">Todas</option>
                 {carreras.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Semestre</label>
-              <select value={form.semestre} onChange={(e) => setForm({ ...form, semestre: e.target.value })}
+              <label htmlFor="materia-semestre" className="block text-xs font-medium text-gray-700 mb-1">Semestre</label>
+              <select id="materia-semestre" value={form.semestre} onChange={(e) => setForm({ ...form, semestre: e.target.value })}
                 className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="">Todos</option>
                 {[1,2,3,4,5,6,7,8,9,10,11,12].map((s) => (
@@ -212,19 +280,28 @@ export default function Materias() {
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Número de unidades</label>
-            <input type="number" min={1} max={10} required value={form.numUnidades}
-              onChange={(e) => setForm({ ...form, numUnidades: e.target.value })}
-              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          </div>
+          {!editandoId && (
+            <div>
+              <label htmlFor="materia-unidades" className="block text-xs font-medium text-gray-700 mb-1">Número de unidades</label>
+              <input id="materia-unidades" type="number" min={1} max={10} required value={form.numUnidades}
+                onChange={(e) => setForm({ ...form, numUnidades: e.target.value })}
+                className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+          )}
           <div className="rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-700">
             El horario, docente, aula y grupo se asignan después desde el módulo <strong>Gestión de Horarios</strong>.
           </div>
-          {error && <p className="text-red-500 text-xs">{error}</p>}
-          <button type="submit" className="w-full bg-blue-600 text-white py-2.5 rounded-xl font-medium hover:bg-blue-700 transition">
-            Crear materia
-          </button>
+          {error && <p role="alert" className="text-red-500 text-xs">{error}</p>}
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <button type="submit" disabled={guardando} className="flex-1 bg-blue-600 text-white py-2.5 rounded-xl font-medium hover:bg-blue-700 transition disabled:cursor-not-allowed disabled:opacity-50">
+              {guardando ? 'Guardando...' : editandoId ? 'Guardar cambios' : 'Crear materia'}
+            </button>
+            {editandoId && (
+              <button type="button" onClick={cerrarModal} disabled={guardando} className="rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50">
+                Cancelar
+              </button>
+            )}
+          </div>
         </form>
       </Modal>
 

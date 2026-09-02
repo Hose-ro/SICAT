@@ -68,8 +68,8 @@ export class GruposService {
 
     // Auto-crear Materia records que aún no existan (sin horario ni docente asignados)
     for (const rm of reticulaMaterias) {
-      const existente = await this.prisma.materia.findUnique({
-        where: { clave: rm.clave },
+      const existente = await this.prisma.materia.findFirst({
+        where: { clave: rm.clave, carreraId: dto.carreraId },
       });
       if (!existente) {
         const nueva = await this.prisma.materia.create({
@@ -94,7 +94,7 @@ export class GruposService {
 
     const claves = reticulaMaterias.map((r) => r.clave);
     const secciones = await this.prisma.materia.findMany({
-      where: { clave: { in: claves } },
+      where: { clave: { in: claves }, carreraId: dto.carreraId },
     });
 
     return this.prisma.grupo.create({
@@ -409,8 +409,8 @@ export class GruposService {
 
     const result = await Promise.all(
       reticulaMaterias.map(async (rm) => {
-        const materia = await this.prisma.materia.findUnique({
-          where: { clave: rm.clave },
+        const materia = await this.prisma.materia.findFirst({
+          where: { clave: rm.clave, carreraId: grupo.carreraId },
           select: {
             id: true,
             nombre: true,
