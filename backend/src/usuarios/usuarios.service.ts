@@ -23,6 +23,22 @@ interface CreateUserOptions {
   publicRegistration?: boolean;
 }
 
+/** `undefined` deja el valor actual; `null` lo limpia. */
+function normalizeNullable(
+  value: string | null | undefined,
+  normalizer: (input: string) => string,
+): string | null | undefined {
+  if (value === undefined || value === null) return value;
+  return normalizer(value);
+}
+
+function resolveNextValue<T>(
+  patch: T | null | undefined,
+  current: T | null,
+): T | null {
+  return patch === undefined ? current : patch;
+}
+
 @Injectable()
 export class UsuariosService {
   constructor(
@@ -331,12 +347,13 @@ export class UsuariosService {
     const normalized: AdminUpdateUserDto = {
       ...dto,
       nombre: dto.nombre ? normalizeName(dto.nombre) : undefined,
-      email: dto.email ? normalizeEmail(dto.email) : undefined,
-      numeroControl: dto.numeroControl
-        ? normalizeControlNumber(dto.numeroControl)
-        : undefined,
-      username: dto.username ? normalizeUsername(dto.username) : undefined,
-      telefono: dto.telefono ? normalizePhone(dto.telefono) : undefined,
+      email: normalizeNullable(dto.email, normalizeEmail),
+      numeroControl: normalizeNullable(
+        dto.numeroControl,
+        normalizeControlNumber,
+      ),
+      username: normalizeNullable(dto.username, normalizeUsername),
+      telefono: normalizeNullable(dto.telefono, normalizePhone),
     };
     const password = dto.password
       ? await bcrypt.hash(dto.password, 12)
@@ -347,7 +364,16 @@ export class UsuariosService {
         async (tx) => {
           const current = await tx.usuario.findUnique({
             where: { id },
-            select: { id: true, email: true, rol: true, activo: true },
+            select: {
+              id: true,
+              email: true,
+              rol: true,
+              activo: true,
+              numeroControl: true,
+              username: true,
+              carreraId: true,
+              semestre: true,
+            },
           });
           if (!current) throw new NotFoundException('Usuario no encontrado');
 
@@ -357,8 +383,43 @@ export class UsuariosService {
           });
           await this.ensureIdentifiersAvailable(tx, normalized, id);
 
+          const nextRol = normalized.rol ?? current.rol;
           const roleChanged =
             normalized.rol !== undefined && normalized.rol !== current.rol;
+          const nextNumeroControl = resolveNextValue(
+            normalized.numeroControl,
+            current.numeroControl,
+          );
+          const nextEmail = resolveNextValue(normalized.email, current.email);
+          const nextUsername = resolveNextValue(
+            normalized.username,
+            current.username,
+          );
+          if (!nextEmail && !nextNumeroControl && !nextUsername) {
+            throw new BadRequestException(
+              'El usuario requiere correo, número de control o nombre de usuario',
+            );
+          }
+
+          const datosAlumno = await this.resolveDatosAlumno(tx, {
+            normalized,
+            current,
+            nextRol,
+            roleChanged,
+            nextNumeroControl,
+          });
+          const academias = await this.resolveAcademias(tx, {
+            normalized,
+            nextRol,
+            roleChanged,
+          });
+          await this.syncCarrerasJefe(tx, {
+            id,
+            normalized,
+            nextRol,
+            roleChanged,
+          });
+
           const activeChanged =
             normalized.activo !== undefined &&
             normalized.activo !== current.activo;
@@ -388,8 +449,9 @@ export class UsuariosService {
               telefono: normalized.telefono,
               password,
               rol: normalized.rol,
-              carreraId: normalized.carreraId,
-              semestre: normalized.semestre,
+              carreraId: datosAlumno.carreraId,
+              semestre: datosAlumno.semestre,
+              academias,
               activo: normalized.activo,
               tokenVersion: invalidateSession ? { increment: 1 } : undefined,
             },
@@ -403,9 +465,16 @@ export class UsuariosService {
               rol: true,
               telefono: true,
               semestre: true,
+              academias: { select: { id: true, nombre: true } },
               activo: true,
               registroAprobado: true,
               carrera: true,
+              carrerasJefe: {
+                where: { activa: true },
+                select: {
+                  carrera: { select: { id: true, nombre: true, codigo: true } },
+                },
+              },
             },
           });
           if (normalized.password !== undefined) {
@@ -448,6 +517,120 @@ export class UsuariosService {
     } catch (error) {
       this.rethrowAdminMutationConflict(error);
     }
+  }
+
+  /**
+   * La carrera y el semestre sólo aplican a un alumno: se validan cuando la
+   * edición los toca y se limpian cuando el usuario deja de ser alumno.
+   */
+  private async resolveDatosAlumno(
+    tx: Prisma.TransactionClient,
+    params: {
+      normalized: AdminUpdateUserDto;
+      current: { carreraId: number | null; semestre: number | null };
+      nextRol: Rol;
+      roleChanged: boolean;
+      nextNumeroControl: string | null;
+    },
+  ): Promise<{ carreraId?: number | null; semestre?: number | null }> {
+    const { normalized, current, nextRol, roleChanged, nextNumeroControl } =
+      params;
+
+    if (nextRol !== Rol.ALUMNO) {
+      return roleChanged ? { carreraId: null, semestre: null } : {};
+    }
+
+    const tocaDatosAlumno =
+      roleChanged ||
+      normalized.numeroControl !== undefined ||
+      normalized.carreraId !== undefined ||
+      normalized.semestre !== undefined;
+    if (tocaDatosAlumno) {
+      const nextCarreraId = resolveNextValue(
+        normalized.carreraId,
+        current.carreraId ?? null,
+      );
+      const nextSemestre = resolveNextValue(
+        normalized.semestre,
+        current.semestre ?? null,
+      );
+      if (!nextNumeroControl || !nextCarreraId || !nextSemestre) {
+        throw new BadRequestException(
+          'Un alumno requiere número de control, carrera y semestre',
+        );
+      }
+    }
+
+    if (normalized.carreraId) {
+      const carrera = await tx.carrera.findUnique({
+        where: { id: normalized.carreraId },
+        select: { id: true },
+      });
+      if (!carrera) throw new NotFoundException('Carrera no encontrada');
+    }
+
+    return { carreraId: normalized.carreraId, semestre: normalized.semestre };
+  }
+
+  private async resolveAcademias(
+    tx: Prisma.TransactionClient,
+    params: {
+      normalized: AdminUpdateUserDto;
+      nextRol: Rol;
+      roleChanged: boolean;
+    },
+  ): Promise<Prisma.AcademiaUpdateManyWithoutDocentesNestedInput | undefined> {
+    const { normalized, nextRol, roleChanged } = params;
+
+    if (nextRol !== Rol.DOCENTE) {
+      return roleChanged ? { set: [] } : undefined;
+    }
+    if (normalized.academiaId === undefined) return undefined;
+    if (normalized.academiaId === null) return { set: [] };
+
+    const academia = await tx.academia.findFirst({
+      where: { id: normalized.academiaId, activo: true },
+      select: { id: true },
+    });
+    if (!academia) throw new NotFoundException('Academia no encontrada');
+    return { set: [{ id: normalized.academiaId }] };
+  }
+
+  private async syncCarrerasJefe(
+    tx: Prisma.TransactionClient,
+    params: {
+      id: number;
+      normalized: AdminUpdateUserDto;
+      nextRol: Rol;
+      roleChanged: boolean;
+    },
+  ) {
+    const { id, normalized, nextRol, roleChanged } = params;
+
+    if (nextRol !== Rol.JEFE_CARRERA) {
+      if (roleChanged) {
+        await tx.jefeCarreraAsignacion.deleteMany({ where: { usuarioId: id } });
+      }
+      return;
+    }
+
+    if (normalized.carreraIds === undefined) {
+      if (!roleChanged) return;
+      const asignadas = await tx.jefeCarreraAsignacion.count({
+        where: { usuarioId: id },
+      });
+      if (asignadas) return;
+      throw new ConflictException('Selecciona al menos una carrera');
+    }
+
+    await this.validarCarrerasJefe(normalized.carreraIds, tx);
+    await tx.jefeCarreraAsignacion.deleteMany({ where: { usuarioId: id } });
+    await tx.jefeCarreraAsignacion.createMany({
+      data: normalized.carreraIds.map((carreraId) => ({
+        usuarioId: id,
+        carreraId,
+      })),
+    });
   }
 
   async approveRegistration(id: number, adminUserId: number) {
@@ -562,6 +745,108 @@ export class UsuariosService {
     }
   }
 
+  /**
+   * Borrado definitivo. Sólo procede cuando el usuario no tiene historial
+   * académico enlazado; de lo contrario se pide desactivar la cuenta para no
+   * perder asistencias, calificaciones ni entregas.
+   */
+  async removePermanently(id: number, adminUserId: number) {
+    if (id === adminUserId) {
+      throw new ConflictException('No puedes eliminar tu propia cuenta');
+    }
+    try {
+      return await this.prisma.$transaction(
+        async (tx) => {
+          const current = await tx.usuario.findUnique({
+            where: { id },
+            select: {
+              id: true,
+              nombre: true,
+              email: true,
+              numeroControl: true,
+              username: true,
+              rol: true,
+              activo: true,
+            },
+          });
+          if (!current) throw new NotFoundException('Usuario no encontrado');
+
+          await this.ensureActiveAdminRemains(tx, current, { activo: false });
+          await this.ensureSinHistorialAcademico(tx, id);
+
+          await tx.notificacion.deleteMany({ where: { usuarioId: id } });
+          await tx.materia.updateMany({
+            where: { docenteId: id },
+            data: { docenteId: null },
+          });
+          await tx.asistencia.updateMany({
+            where: { editadaPorId: id },
+            data: { editadaPorId: null },
+          });
+          await tx.alertaCarrera.updateMany({
+            where: { responsableId: id },
+            data: { responsableId: null },
+          });
+
+          const eliminado = await tx.usuario.delete({
+            where: { id },
+            select: { id: true, nombre: true, rol: true },
+          });
+          await tx.authAudit.create({
+            data: {
+              tipo: TipoEventoAuth.CUENTA_ELIMINADA,
+              identifier:
+                current.email ?? current.numeroControl ?? current.username,
+              metadata: {
+                adminUserId,
+                usuarioEliminadoId: id,
+                nombre: current.nombre,
+                rol: current.rol,
+              },
+            },
+          });
+          return eliminado;
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
+    } catch (error) {
+      this.rethrowAdminMutationConflict(error);
+    }
+  }
+
+  private async ensureSinHistorialAcademico(
+    tx: Prisma.TransactionClient,
+    id: number,
+  ) {
+    const bloqueos: string[] = [];
+    const inscripciones = await tx.inscripcion.count({
+      where: { alumnoId: id },
+    });
+    if (inscripciones) bloqueos.push(`${inscripciones} inscripción(es)`);
+    const asistencias = await tx.asistencia.count({ where: { alumnoId: id } });
+    if (asistencias) bloqueos.push(`${asistencias} asistencia(s)`);
+    const calificaciones = await tx.calificacionUnidad.count({
+      where: { alumnoId: id },
+    });
+    if (calificaciones) bloqueos.push(`${calificaciones} calificación(es)`);
+    const entregas = await tx.entregaTarea.count({ where: { alumnoId: id } });
+    if (entregas) bloqueos.push(`${entregas} entrega(s) de tarea`);
+    const tareas = await tx.tarea.count({ where: { docenteId: id } });
+    if (tareas) bloqueos.push(`${tareas} tarea(s) publicada(s)`);
+    const clases = await tx.claseSesion.count({ where: { docenteId: id } });
+    if (clases) bloqueos.push(`${clases} sesión(es) de clase`);
+    const horarios = await tx.horarioMateria.count({
+      where: { docenteId: id },
+    });
+    if (horarios) bloqueos.push(`${horarios} horario(s) asignado(s)`);
+
+    if (bloqueos.length) {
+      throw new ConflictException(
+        `No se puede eliminar al usuario porque tiene ${bloqueos.join(', ')} en el sistema. Desactiva la cuenta para conservar el historial.`,
+      );
+    }
+  }
+
   async asignarCarrerasJefe(id: number, carreraIds: number[]) {
     const usuario = await this.findOne(id);
     if (usuario.rol !== Rol.JEFE_CARRERA) {
@@ -579,11 +864,14 @@ export class UsuariosService {
     return this.findOne(id);
   }
 
-  private async validarCarrerasJefe(carreraIds: number[]) {
+  private async validarCarrerasJefe(
+    carreraIds: number[],
+    client: Prisma.TransactionClient = this.prisma,
+  ) {
     if (!carreraIds.length) {
       throw new ConflictException('Selecciona al menos una carrera');
     }
-    const total = await this.prisma.carrera.count({
+    const total = await client.carrera.count({
       where: { id: { in: carreraIds.map(Number) } },
     });
     if (total !== carreraIds.length) {
@@ -620,13 +908,19 @@ export class UsuariosService {
   }
 
   private rethrowAdminMutationConflict(error: unknown): never {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === 'P2034'
-    ) {
-      throw new ConflictException(
-        'El estado de los administradores cambió; actualiza la lista e intenta nuevamente',
-      );
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'P2034') {
+        throw new ConflictException(
+          'El estado de los administradores cambió; actualiza la lista e intenta nuevamente',
+        );
+      }
+      // Cualquier registro enlazado que no cubra la validación previa debe
+      // reportarse como conflicto, no como error interno.
+      if (error.code === 'P2003') {
+        throw new ConflictException(
+          'El usuario tiene información enlazada en el sistema y no puede eliminarse. Desactiva la cuenta para conservar el historial.',
+        );
+      }
     }
     throw error;
   }
@@ -634,9 +928,9 @@ export class UsuariosService {
   private async ensureIdentifiersAvailable(
     tx: Prisma.TransactionClient,
     input: {
-      email?: string;
-      numeroControl?: string;
-      username?: string;
+      email?: string | null;
+      numeroControl?: string | null;
+      username?: string | null;
     },
     excludeUserId?: number,
   ) {

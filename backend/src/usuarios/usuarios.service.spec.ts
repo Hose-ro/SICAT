@@ -1,3 +1,4 @@
+import { ConflictException } from '@nestjs/common';
 import { Prisma, Rol, TipoEventoAuth } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma.service';
@@ -473,6 +474,101 @@ describe('UsuariosService', () => {
           registroAprobado: false,
         },
       }),
+    );
+  });
+  const txEliminacion = (overrides: Record<string, number> = {}) => ({
+    usuario: {
+      findUnique: jest.fn().mockResolvedValue({
+        id: 20,
+        nombre: 'Ana López',
+        email: 'ana@example.com',
+        numeroControl: null,
+        username: null,
+        rol: Rol.ALUMNO,
+        activo: true,
+      }),
+      count: jest.fn().mockResolvedValue(2),
+      delete: jest
+        .fn()
+        .mockResolvedValue({ id: 20, nombre: 'Ana López', rol: Rol.ALUMNO }),
+    },
+    inscripcion: { count: jest.fn().mockResolvedValue(overrides.inscripciones ?? 0) },
+    asistencia: {
+      count: jest.fn().mockResolvedValue(overrides.asistencias ?? 0),
+      updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+    },
+    calificacionUnidad: {
+      count: jest.fn().mockResolvedValue(overrides.calificaciones ?? 0),
+    },
+    entregaTarea: { count: jest.fn().mockResolvedValue(overrides.entregas ?? 0) },
+    tarea: { count: jest.fn().mockResolvedValue(overrides.tareas ?? 0) },
+    claseSesion: { count: jest.fn().mockResolvedValue(overrides.clases ?? 0) },
+    horarioMateria: { count: jest.fn().mockResolvedValue(overrides.horarios ?? 0) },
+    notificacion: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+    materia: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+    alertaCarrera: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+    authAudit: { create: jest.fn().mockResolvedValue({ id: 1 }) },
+  });
+
+  it('elimina definitivamente una cuenta sin historial y la registra en la bitácora', async () => {
+    const tx = txEliminacion();
+    transaction.mockImplementation((callback: (client: typeof tx) => unknown) =>
+      Promise.resolve(callback(tx)),
+    );
+
+    await expect(service.removePermanently(20, 1)).resolves.toEqual(
+      expect.objectContaining({ id: 20 }),
+    );
+    expect(tx.materia.updateMany).toHaveBeenCalledWith({
+      where: { docenteId: 20 },
+      data: { docenteId: null },
+    });
+    expect(tx.usuario.delete).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 20 } }),
+    );
+    expect(tx.authAudit.create).toHaveBeenCalledWith({
+      data: {
+        tipo: TipoEventoAuth.CUENTA_ELIMINADA,
+        identifier: 'ana@example.com',
+        metadata: {
+          adminUserId: 1,
+          usuarioEliminadoId: 20,
+          nombre: 'Ana López',
+          rol: Rol.ALUMNO,
+        },
+      },
+    });
+  });
+
+  it('conserva la cuenta cuando el alumno ya tiene calificaciones', async () => {
+    const tx = txEliminacion({ calificaciones: 3 });
+    transaction.mockImplementation((callback: (client: typeof tx) => unknown) =>
+      Promise.resolve(callback(tx)),
+    );
+
+    await expect(service.removePermanently(20, 1)).rejects.toThrow(
+      /calificación\(es\)/,
+    );
+    expect(tx.usuario.delete).not.toHaveBeenCalled();
+  });
+
+  it('no permite que un administrador se elimine a sí mismo', async () => {
+    await expect(service.removePermanently(1, 1)).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+    expect(transaction).not.toHaveBeenCalled();
+  });
+
+  it('traduce una llave foránea pendiente en un conflicto explicado', async () => {
+    transaction.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError('FK', {
+        code: 'P2003',
+        clientVersion: '6.19.3',
+      }),
+    );
+
+    await expect(service.removePermanently(20, 1)).rejects.toBeInstanceOf(
+      ConflictException,
     );
   });
 });

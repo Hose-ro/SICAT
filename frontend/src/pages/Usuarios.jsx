@@ -42,6 +42,220 @@ const getAccountStatus = (user) => {
   return { label: 'Activo', className: 'bg-green-100 text-green-700' }
 }
 
+const EMPTY_FORM = {
+  nombre: '', email: '', username: '', numeroControl: '',
+  password: '', rol: 'DOCENTE', academiaId: '', telefono: '',
+  semestre: '', carreraId: '', carreraIds: [], activo: true,
+}
+
+const norm = {
+  nombre: (v) => (v ?? '').trim().replace(/\s+/g, ' '),
+  email: (v) => (v ?? '').trim().toLowerCase(),
+  username: (v) => (v ?? '').trim().toLowerCase(),
+  numeroControl: (v) => (v ?? '').trim().toUpperCase(),
+  telefono: (v) => (v ?? '').replace(/\D/g, ''),
+}
+
+const buildFormFromUser = (user) => ({
+  ...EMPTY_FORM,
+  nombre: user.nombre ?? '',
+  email: user.email ?? '',
+  username: user.username ?? '',
+  numeroControl: user.numeroControl ?? '',
+  rol: user.rol,
+  academiaId: user.academias?.[0]?.id ? String(user.academias[0].id) : '',
+  telefono: user.telefono ?? '',
+  semestre: user.semestre != null ? String(user.semestre) : '',
+  carreraId: user.carrera?.id ? String(user.carrera.id) : '',
+  carreraIds: user.carrerasJefe?.map((item) => item.carrera.id) ?? [],
+  activo: user.activo,
+})
+
+/** Sólo envía los campos que realmente cambiaron; '' equivale a limpiar el dato. */
+const buildEditPayload = (user, form) => {
+  const payload = {}
+  const esAlumno = form.rol === 'ALUMNO'
+
+  const nombre = norm.nombre(form.nombre)
+  if (nombre && nombre !== user.nombre) payload.nombre = nombre
+
+  const opcionales = {
+    email: norm.email(form.email),
+    username: esAlumno ? '' : norm.username(form.username),
+    numeroControl: esAlumno ? norm.numeroControl(form.numeroControl) : '',
+    telefono: norm.telefono(form.telefono),
+  }
+  Object.entries(opcionales).forEach(([campo, valor]) => {
+    const siguiente = valor === '' ? null : valor
+    if (siguiente !== (user[campo] ?? null)) payload[campo] = siguiente
+  })
+
+  const rolCambio = form.rol !== user.rol
+  if (rolCambio) payload.rol = form.rol
+
+  if (esAlumno) {
+    const carreraId = form.carreraId ? Number(form.carreraId) : null
+    const semestre = form.semestre ? Number(form.semestre) : null
+    if (carreraId !== (user.carrera?.id ?? null)) payload.carreraId = carreraId
+    if (semestre !== (user.semestre ?? null)) payload.semestre = semestre
+  }
+  if (form.rol === 'DOCENTE') {
+    const academiaId = form.academiaId ? Number(form.academiaId) : null
+    if (academiaId !== (user.academias?.[0]?.id ?? null)) payload.academiaId = academiaId
+  }
+  if (form.rol === 'JEFE_CARRERA') {
+    const actuales = user.carrerasJefe?.map((item) => item.carrera.id) ?? []
+    const cambio = actuales.length !== form.carreraIds.length
+      || actuales.some((id) => !form.carreraIds.includes(id))
+    if (rolCambio || cambio) payload.carreraIds = form.carreraIds
+  }
+  if (form.activo !== user.activo) payload.activo = form.activo
+
+  return payload
+}
+
+function UsuarioFormFields({ form, setForm, carreras, academias, mode }) {
+  const isEdit = mode === 'edit'
+  return (
+    <>
+      <div>
+        <label className="block text-xs font-medium text-gray-700 mb-1">Rol *</label>
+        <select
+          value={form.rol}
+          onChange={(e) => setForm({
+            ...form,
+            rol: e.target.value,
+            academiaId: e.target.value === 'DOCENTE' ? form.academiaId : '',
+            carreraId: e.target.value === 'ALUMNO' ? form.carreraId : '',
+            carreraIds: e.target.value === 'JEFE_CARRERA' ? form.carreraIds : [],
+            semestre: e.target.value === 'ALUMNO' ? form.semestre : '',
+            numeroControl: e.target.value === 'ALUMNO' ? form.numeroControl : '',
+            username: e.target.value === 'ALUMNO' ? '' : form.username,
+          })}
+          className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="DOCENTE">Docente</option>
+          <option value="JEFE_CARRERA">Jefe de carrera</option>
+          <option value="ALUMNO">Alumno</option>
+          <option value="ADMIN">Admin</option>
+        </select>
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-gray-700 mb-1">Nombre completo *</label>
+        <input required value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })}
+          className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-gray-700 mb-1">
+          {form.rol === 'ALUMNO' ? 'Número de control' : 'Usuario (username)'}
+        </label>
+        {form.rol === 'ALUMNO' ? (
+          <input required value={form.numeroControl} onChange={(e) => setForm({ ...form, numeroControl: e.target.value })}
+            placeholder="225Q0103"
+            pattern="\d{3}[A-Za-z]\d{4}"
+            className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        ) : (
+          <input required value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })}
+            placeholder="prof.garcia"
+            className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        )}
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-gray-700 mb-1">Correo electrónico</label>
+        <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
+          className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        {isEdit && (
+          <p className="mt-1 text-xs text-gray-400">
+            Cambiar el correo cierra las sesiones activas y exige verificarlo de nuevo.
+          </p>
+        )}
+      </div>
+      {!isEdit && (
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Contraseña *</label>
+          <input required type="password" minLength={8} maxLength={72} autoComplete="new-password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })}
+            className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+      )}
+      {form.rol === 'DOCENTE' && (
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Academia</label>
+          <select
+            value={form.academiaId}
+            onChange={(e) => setForm({ ...form, academiaId: e.target.value })}
+            className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Selecciona academia</option>
+            {academias.map((academia) => (
+              <option key={academia.id} value={academia.id}>
+                {academia.nombre}
+              </option>
+            ))}
+          </select>
+          {academias.length === 0 && (
+            <p className="mt-1 text-xs text-amber-600">
+              No hay academias activas registradas.
+            </p>
+          )}
+        </div>
+      )}
+      {form.rol === 'ALUMNO' && (
+        <>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Carrera</label>
+            <select required value={form.carreraId} onChange={(e) => setForm({ ...form, carreraId: e.target.value })}
+              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="">Selecciona carrera</option>
+              {carreras.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Semestre</label>
+            <input required type="number" min={1} max={12} value={form.semestre} onChange={(e) => setForm({ ...form, semestre: e.target.value })}
+              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+        </>
+      )}
+      {form.rol === 'JEFE_CARRERA' && (
+        <fieldset className="space-y-2 rounded-xl border border-gray-200 p-3">
+          <legend className="px-1 text-xs font-medium text-gray-700">Carreras asignadas *</legend>
+          {carreras.map((carrera) => (
+            <label key={carrera.id} className="flex items-center gap-3 rounded-lg px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-50">
+              <input
+                type="checkbox"
+                checked={form.carreraIds.includes(carrera.id)}
+                onChange={(event) => setForm({
+                  ...form,
+                  carreraIds: event.target.checked
+                    ? [...form.carreraIds, carrera.id]
+                    : form.carreraIds.filter((id) => id !== carrera.id),
+                })}
+              />
+              <span>{carrera.codigo} · {carrera.nombre}</span>
+            </label>
+          ))}
+          {!carreras.length && <p className="text-xs text-amber-600">No hay carreras registradas.</p>}
+        </fieldset>
+      )}
+      <div>
+        <label className="block text-xs font-medium text-gray-700 mb-1">Teléfono</label>
+        <input type="tel" pattern="\d{10}" value={form.telefono} onChange={(e) => setForm({ ...form, telefono: e.target.value })}
+          className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      </div>
+      {isEdit && (
+        <label className="flex items-center gap-3 rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-700">
+          <input
+            type="checkbox"
+            checked={form.activo}
+            onChange={(e) => setForm({ ...form, activo: e.target.checked })}
+          />
+          <span>Cuenta activa</span>
+        </label>
+      )}
+    </>
+  )
+}
+
 export default function Usuarios() {
   const [usuarios, setUsuarios] = useState([])
   const [filtroRol, setFiltroRol] = useState('')
@@ -52,10 +266,13 @@ export default function Usuarios() {
   const [detailModal, setDetailModal] = useState({ open: false, user: null })
   const [careerModal, setCareerModal] = useState({ open: false, user: null, carreraIds: [] })
   const [carreras, setCarreras] = useState([])
-  const [form, setForm] = useState({
-    nombre: '', email: '', username: '', numeroControl: '',
-    password: '', rol: 'DOCENTE', academiaId: '', telefono: '',
-    semestre: '', carreraId: '', carreraIds: [],
+  const [form, setForm] = useState(EMPTY_FORM)
+  const [editModal, setEditModal] = useState({
+    open: false,
+    user: null,
+    form: EMPTY_FORM,
+    error: '',
+    loading: false,
   })
   const [pwModal, setPwModal] = useState({ open: false, user: null })
   const [newPassword, setNewPassword] = useState('')
@@ -93,6 +310,7 @@ export default function Usuarios() {
     e.preventDefault()
     setFormError('')
     const data = { ...form }
+    delete data.activo
     if (!data.email) delete data.email
     if (!data.username) delete data.username
     if (!data.numeroControl) delete data.numeroControl
@@ -107,10 +325,50 @@ export default function Usuarios() {
     try {
       await api.post('/usuarios', data)
       setModal(false)
-      setForm({ nombre: '', email: '', username: '', numeroControl: '', password: '', rol: 'DOCENTE', academiaId: '', telefono: '', semestre: '', carreraId: '', carreraIds: [] })
+      setForm(EMPTY_FORM)
       fetchUsuarios()
     } catch (err) {
       setFormError(getApiError(err, 'No se pudo crear el usuario'))
+    }
+  }
+
+  const abrirEdicion = (user) => {
+    setEditModal({
+      open: true,
+      user,
+      form: buildFormFromUser(user),
+      error: '',
+      loading: false,
+    })
+  }
+
+  const cerrarEdicion = () => {
+    setEditModal({ open: false, user: null, form: EMPTY_FORM, error: '', loading: false })
+  }
+
+  const guardarEdicion = async (e) => {
+    e.preventDefault()
+    const { user, form: editForm } = editModal
+    if (editForm.rol === 'JEFE_CARRERA' && !editForm.carreraIds.length) {
+      setEditModal((current) => ({ ...current, error: 'Selecciona al menos una carrera' }))
+      return
+    }
+    const payload = buildEditPayload(user, editForm)
+    if (!Object.keys(payload).length) {
+      cerrarEdicion()
+      return
+    }
+    setEditModal((current) => ({ ...current, loading: true, error: '' }))
+    try {
+      await api.patch(`/usuarios/${user.id}`, payload)
+      cerrarEdicion()
+      fetchUsuarios()
+    } catch (err) {
+      setEditModal((current) => ({
+        ...current,
+        loading: false,
+        error: getApiError(err, 'No se pudo actualizar el usuario'),
+      }))
     }
   }
 
@@ -125,6 +383,8 @@ export default function Usuarios() {
     try {
       if (action === 'approve') {
         await api.post(`/usuarios/${user.id}/aprobar-registro`)
+      } else if (action === 'delete') {
+        await api.delete(`/usuarios/${user.id}/permanente`)
       } else {
         await api.patch(`/usuarios/${user.id}`, { activo: !user.activo })
       }
@@ -269,6 +529,13 @@ export default function Usuarios() {
                       Ver
                     </button>
 
+                    <button
+                      onClick={() => abrirEdicion(u)}
+                      className="text-xs px-3 py-1.5 rounded-lg font-medium text-indigo-600 hover:bg-indigo-50 border border-indigo-200 transition"
+                    >
+                      Editar
+                    </button>
+
                       {u.rol === 'JEFE_CARRERA' && (
                       <button
                         onClick={() => {
@@ -315,6 +582,13 @@ export default function Usuarios() {
                     >
                       Contraseña
                     </button>
+
+                    <button
+                      onClick={() => solicitarConfirmacion(u, 'delete')}
+                      className="text-xs px-3 py-1.5 rounded-lg font-medium text-red-600 hover:bg-red-50 border border-red-200 transition"
+                    >
+                      Eliminar
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -328,123 +602,13 @@ export default function Usuarios() {
 
       <Modal open={modal} onClose={() => setModal(false)} title="Nuevo usuario">
         <form onSubmit={crear} className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Rol *</label>
-            <select
-              value={form.rol}
-              onChange={(e) => setForm({
-                ...form,
-                rol: e.target.value,
-                academiaId: e.target.value === 'DOCENTE' ? form.academiaId : '',
-                carreraId: e.target.value === 'ALUMNO' ? form.carreraId : '',
-                carreraIds: e.target.value === 'JEFE_CARRERA' ? form.carreraIds : [],
-                semestre: e.target.value === 'ALUMNO' ? form.semestre : '',
-                numeroControl: e.target.value === 'ALUMNO' ? form.numeroControl : '',
-                username: e.target.value === 'ALUMNO' ? '' : form.username,
-              })}
-              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="DOCENTE">Docente</option>
-              <option value="JEFE_CARRERA">Jefe de carrera</option>
-              <option value="ALUMNO">Alumno</option>
-              <option value="ADMIN">Admin</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Nombre completo *</label>
-            <input required value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })}
-              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              {form.rol === 'ALUMNO' ? 'Número de control' : 'Usuario (username)'}
-            </label>
-            {form.rol === 'ALUMNO' ? (
-              <input required value={form.numeroControl} onChange={(e) => setForm({ ...form, numeroControl: e.target.value })}
-                placeholder="225Q0103"
-                pattern="\d{3}[A-Za-z]\d{4}"
-                className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            ) : (
-              <input required value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })}
-                placeholder="prof.garcia"
-                className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            )}
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Correo electrónico</label>
-            <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
-              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Contraseña *</label>
-            <input required type="password" minLength={8} maxLength={72} autoComplete="new-password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })}
-              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          </div>
-          {form.rol === 'DOCENTE' && (
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Academia</label>
-              <select
-                value={form.academiaId}
-                onChange={(e) => setForm({ ...form, academiaId: e.target.value })}
-                className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Selecciona academia</option>
-                {academias.map((academia) => (
-                  <option key={academia.id} value={academia.id}>
-                    {academia.nombre}
-                  </option>
-                ))}
-              </select>
-              {academias.length === 0 && (
-                <p className="mt-1 text-xs text-amber-600">
-                  No hay academias activas registradas.
-                </p>
-              )}
-            </div>
-          )}
-          {form.rol === 'ALUMNO' && (
-            <>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Carrera</label>
-                <select required value={form.carreraId} onChange={(e) => setForm({ ...form, carreraId: e.target.value })}
-                  className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option value="">Selecciona carrera</option>
-                  {carreras.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Semestre</label>
-                <input required type="number" min={1} max={12} value={form.semestre} onChange={(e) => setForm({ ...form, semestre: e.target.value })}
-                  className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              </div>
-            </>
-          )}
-          {form.rol === 'JEFE_CARRERA' && (
-            <fieldset className="space-y-2 rounded-xl border border-gray-200 p-3">
-              <legend className="px-1 text-xs font-medium text-gray-700">Carreras asignadas *</legend>
-              {carreras.map((carrera) => (
-                <label key={carrera.id} className="flex items-center gap-3 rounded-lg px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-50">
-                  <input
-                    type="checkbox"
-                    checked={form.carreraIds.includes(carrera.id)}
-                    onChange={(event) => setForm({
-                      ...form,
-                      carreraIds: event.target.checked
-                        ? [...form.carreraIds, carrera.id]
-                        : form.carreraIds.filter((id) => id !== carrera.id),
-                    })}
-                  />
-                  <span>{carrera.codigo} · {carrera.nombre}</span>
-                </label>
-              ))}
-              {!carreras.length && <p className="text-xs text-amber-600">No hay carreras registradas.</p>}
-            </fieldset>
-          )}
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Teléfono</label>
-            <input type="tel" pattern="\d{10}" value={form.telefono} onChange={(e) => setForm({ ...form, telefono: e.target.value })}
-              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          </div>
+          <UsuarioFormFields
+            form={form}
+            setForm={setForm}
+            carreras={carreras}
+            academias={academias}
+            mode="create"
+          />
           {formError && <p className="text-sm text-red-500">{formError}</p>}
           <button type="submit" className="w-full bg-blue-600 text-white py-2.5 rounded-xl font-medium hover:bg-blue-700 transition mt-2">
             Crear usuario
@@ -453,6 +617,40 @@ export default function Usuarios() {
       </Modal>
 
       {/* Modal: Detalle de usuario */}
+      <Modal
+        open={editModal.open}
+        onClose={() => { if (!editModal.loading) cerrarEdicion() }}
+        title={`Editar — ${editModal.user?.nombre ?? ''}`}
+      >
+        <form onSubmit={guardarEdicion} className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
+          <UsuarioFormFields
+            form={editModal.form}
+            setForm={(next) => setEditModal((current) => ({ ...current, form: next }))}
+            carreras={carreras}
+            academias={academias}
+            mode="edit"
+          />
+          {editModal.error && <p role="alert" className="text-sm text-red-500">{editModal.error}</p>}
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              type="button"
+              disabled={editModal.loading}
+              onClick={cerrarEdicion}
+              className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={editModal.loading}
+              className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-50"
+            >
+              {editModal.loading ? 'Guardando...' : 'Guardar cambios'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
       <Modal open={detailModal.open} onClose={() => setDetailModal({ open: false, user: null })} title="Información del usuario">
         {detailModal.user && (() => {
           const u = detailModal.user
@@ -569,14 +767,31 @@ export default function Usuarios() {
             setConfirmation({ open: false, user: null, action: null, loading: false, error: '' })
           }
         }}
-        title={confirmation.action === 'approve' ? 'Aprobar registro' : 'Cambiar estado de cuenta'}
+        title={
+          confirmation.action === 'approve'
+            ? 'Aprobar registro'
+            : confirmation.action === 'delete'
+              ? 'Eliminar usuario'
+              : 'Cambiar estado de cuenta'
+        }
       >
         <div className="space-y-5">
-          <p className="text-sm text-gray-700">
-            {confirmation.action === 'approve'
-              ? `Se permitirá que ${confirmation.user?.nombre ?? 'el alumno'} inicie sesión.`
-              : `${confirmation.user?.activo ? 'Se desactivará' : 'Se activará'} la cuenta de ${confirmation.user?.nombre ?? 'este usuario'}.`}
-          </p>
+          {confirmation.action === 'delete' ? (
+            <div className="space-y-2">
+              <p className="text-sm text-gray-700">
+                Se eliminará definitivamente la cuenta de {confirmation.user?.nombre ?? 'este usuario'}. Esta acción no se puede deshacer.
+              </p>
+              <p className="text-sm text-gray-500">
+                Si el usuario ya tiene historial académico (asistencias, calificaciones, entregas), no podrá eliminarse: desactiva la cuenta en su lugar.
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-gray-700">
+              {confirmation.action === 'approve'
+                ? `Se permitirá que ${confirmation.user?.nombre ?? 'el alumno'} inicie sesión.`
+                : `${confirmation.user?.activo ? 'Se desactivará' : 'Se activará'} la cuenta de ${confirmation.user?.nombre ?? 'este usuario'}.`}
+            </p>
+          )}
           {confirmation.error && (
             <p role="alert" className="text-sm text-red-500">{confirmation.error}</p>
           )}
@@ -593,9 +808,17 @@ export default function Usuarios() {
               type="button"
               disabled={confirmation.loading}
               onClick={ejecutarAccion}
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+              className={`rounded-lg px-4 py-2 text-sm font-medium text-white disabled:opacity-50 ${
+                confirmation.action === 'delete'
+                  ? 'bg-red-600 hover:bg-red-700'
+                  : 'bg-blue-600 hover:bg-blue-700'
+              }`}
             >
-              {confirmation.loading ? 'Guardando...' : 'Confirmar'}
+              {confirmation.loading
+                ? 'Guardando...'
+                : confirmation.action === 'delete'
+                  ? 'Eliminar'
+                  : 'Confirmar'}
             </button>
           </div>
         </div>

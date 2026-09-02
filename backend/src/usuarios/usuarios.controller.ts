@@ -120,4 +120,14 @@ export class UsuariosController {
   ) {
     return this.usuarios.remove(id, req.user.id);
   }
+
+  @Delete(':id/permanente')
+  @Roles('ADMIN')
+  @ApiOperation({ summary: 'Eliminar usuario definitivamente (admin)' })
+  removePermanently(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.usuarios.removePermanently(id, req.user.id);
+  }
 }
