@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import PageHeader from '../components/PageHeader'
 import Modal from '../components/Modal'
 import api from '../api/axios'
+import { EMAIL_AUTH_ENABLED } from '../lib/authFeatures'
 
 const ROL_COLORS = {
   ADMIN: 'bg-purple-100 text-purple-700',
@@ -30,12 +31,18 @@ const getApiError = (error, fallback) => {
   return Array.isArray(message) ? message.join('. ') : (message ?? fallback)
 }
 
+/**
+ * El correo sólo condiciona la aprobación cuando el acceso por correo está
+ * activo; con él apagado el alumno se identifica por número de control.
+ */
+const puedeAprobar = (user) => !EMAIL_AUTH_ENABLED || Boolean(user.emailVerificadoAt)
+
 const getAccountStatus = (user) => {
   if (!user.activo) {
     return { label: 'Inactivo', className: 'bg-gray-100 text-gray-500' }
   }
   if (user.rol === 'ALUMNO' && !user.registroAprobado) {
-    return user.emailVerificadoAt
+    return puedeAprobar(user)
       ? { label: 'Pendiente de aprobación', className: 'bg-blue-100 text-blue-700' }
       : { label: 'Pendiente de correo', className: 'bg-amber-100 text-amber-700' }
   }
@@ -555,8 +562,8 @@ export default function Usuarios() {
                       {u.rol === 'ALUMNO' && u.activo && !u.registroAprobado && (
                         <button
                           onClick={() => solicitarConfirmacion(u, 'approve')}
-                          disabled={!u.emailVerificadoAt}
-                          title={u.emailVerificadoAt ? 'Aprobar registro' : 'El correo aún no está verificado'}
+                          disabled={!puedeAprobar(u)}
+                          title={puedeAprobar(u) ? 'Aprobar registro' : 'El correo aún no está verificado'}
                           className="text-xs px-3 py-1.5 rounded-lg font-medium text-emerald-700 hover:bg-emerald-50 border border-emerald-200 transition disabled:cursor-not-allowed disabled:opacity-45"
                         >
                           Aprobar
@@ -659,12 +666,19 @@ export default function Usuarios() {
             { label: 'Rol', value: <span className={`text-xs px-2 py-1 rounded-full font-medium ${ROL_COLORS[u.rol]}`}>{u.rol}</span> },
             { label: 'Estado', value: <span className={`text-xs px-2 py-1 rounded-full font-medium ${u.activo ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{u.activo ? 'Activo' : 'Inactivo'}</span> },
             { label: 'Correo', value: u.email || '—' },
-            { label: 'Correo verificado', value: u.email ? (u.emailVerificadoAt ? 'Sí' : 'No') : 'No aplica' },
+            {
+              label: 'Correo verificado',
+              value: !EMAIL_AUTH_ENABLED
+                ? 'No aplica'
+                : u.email
+                  ? (u.emailVerificadoAt ? 'Sí' : 'No')
+                  : 'No aplica',
+            },
             u.rol === 'ALUMNO' && {
               label: 'Aprobación',
               value: u.registroAprobado
                 ? 'Aprobada'
-                : u.emailVerificadoAt
+                : puedeAprobar(u)
                   ? 'Pendiente de aprobación'
                   : 'Pendiente de correo',
             },
