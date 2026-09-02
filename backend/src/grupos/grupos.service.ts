@@ -10,6 +10,8 @@ import { UpdateGrupoDto } from './dto/update-grupo.dto';
 import { hayConflictoHorario } from '../horarios/utils/conflicto-horario.util';
 import { HorariosService } from '../horarios/horarios.service';
 
+const SECCIONES = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+
 /** El nombre del grupo lo escribe el administrador: se guarda normalizado. */
 function normalizarNombreGrupo(nombre: string) {
   return nombre.trim().replace(/\s+/g, ' ').toUpperCase();
@@ -66,15 +68,7 @@ export class GruposService {
         `Ya existe el grupo "${nombre}" en el periodo ${dto.periodo}`,
       );
 
-    await this.ensureSeccionLibre(
-      {
-        semestre: dto.semestre,
-        seccion: dto.seccion,
-        carreraId: dto.carreraId,
-        periodo: dto.periodo,
-      },
-      carrera.nombre,
-    );
+    const seccion = await this.resolverSeccion(nombre, dto, carrera.nombre);
 
     // Obtener materias del catálogo de retícula para este semestre/carrera
     const reticulaMaterias = await this.prisma.reticulaMateria.findMany({
@@ -116,7 +110,7 @@ export class GruposService {
       data: {
         nombre,
         semestre: dto.semestre,
-        seccion: dto.seccion,
+        seccion,
         carreraId: dto.carreraId,
         periodo: dto.periodo,
         materias: {
@@ -125,6 +119,51 @@ export class GruposService {
       },
       include: INCLUDE_DETAIL,
     });
+  }
+
+  /**
+   * La sección ya no se captura: se toma de la última letra del nombre
+   * (103A → A) y, si esa letra está ocupada o el nombre no termina en letra,
+   * se asigna la primera libre de ese semestre, carrera y periodo. Sigue
+   * sirviendo para emparejar al alumno que sube su horario.
+   */
+  private async resolverSeccion(
+    nombre: string,
+    dto: CreateGrupoDto,
+    carreraNombre: string,
+  ) {
+    const clave = {
+      semestre: dto.semestre,
+      carreraId: dto.carreraId,
+      periodo: dto.periodo,
+    };
+
+    if (dto.seccion) {
+      await this.ensureSeccionLibre(
+        { ...clave, seccion: dto.seccion },
+        carreraNombre,
+      );
+      return dto.seccion;
+    }
+
+    const ocupadas = await this.prisma.grupo.findMany({
+      where: clave,
+      select: { seccion: true },
+    });
+    const tomadas = new Set(ocupadas.map((grupo) => grupo.seccion));
+
+    // Sólo se interpreta como sección la letra final que sigue a un número,
+    // como en 103A; en un nombre como "GRUPO NUEVO" la última letra no lo es.
+    const sufijo = /[0-9]([A-Z])$/.exec(nombre)?.[1];
+    if (sufijo && !tomadas.has(sufijo)) return sufijo;
+
+    const libre = SECCIONES.find((letra) => !tomadas.has(letra));
+    if (!libre) {
+      throw new ConflictException(
+        `El semestre ${dto.semestre} de ${carreraNombre} ya tiene 26 grupos en el periodo ${dto.periodo}`,
+      );
+    }
+    return libre;
   }
 
   /**

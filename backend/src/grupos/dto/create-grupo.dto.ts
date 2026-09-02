@@ -2,12 +2,13 @@ import {
   IsInt,
   IsString,
   IsNotEmpty,
+  IsOptional,
   Min,
   Max,
   Matches,
   MaxLength,
 } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateGrupoDto {
   @ApiProperty({ example: '103A', description: 'Nombre con el que se conoce al grupo' })
@@ -25,12 +26,17 @@ export class CreateGrupoDto {
   @Max(9)
   semestre: number;
 
-  @ApiProperty({ example: 'A' })
+  /**
+   * Opcional: si no se envía, se toma de la última letra del nombre o se
+   * asigna la primera libre del semestre, carrera y periodo.
+   */
+  @ApiPropertyOptional({ example: 'A' })
+  @IsOptional()
   @IsString()
   @Matches(/^[A-Z]$/, {
     message: 'La sección debe ser una sola letra mayúscula (A-Z)',
   })
-  seccion: string;
+  seccion?: string;
 
   @ApiProperty({ example: 1 })
   @IsInt()

@@ -6,14 +6,12 @@ import Modal from '../../../../components/Modal'
 import { getCurrentAcademicPeriod } from '../../../../lib/periodo'
 
 const SEMESTRES = [1, 2, 3, 4, 5, 6, 7, 8, 9]
-const SECCIONES = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 
 export default function FormCrearGrupo({ open, onClose }) {
   const navigate = useNavigate()
   const { crearGrupo } = useGrupoStore()
   const [carreras, setCarreras] = useState([])
-  const [grupos, setGrupos] = useState([])
-  const [form, setForm] = useState({ nombre: '', carreraId: '', semestre: '', seccion: '', periodo: getCurrentAcademicPeriod() })
+  const [form, setForm] = useState({ nombre: '', carreraId: '', semestre: '', periodo: getCurrentAcademicPeriod() })
   const [preview, setPreview] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -21,30 +19,13 @@ export default function FormCrearGrupo({ open, onClose }) {
 
   useEffect(() => {
     if (open) {
-      setForm({ nombre: '', carreraId: '', semestre: '', seccion: '', periodo: getCurrentAcademicPeriod() })
+      setForm({ nombre: '', carreraId: '', semestre: '', periodo: getCurrentAcademicPeriod() })
       setPreview(null)
       setError('')
       setStep('form')
       api.get('/carreras').then((res) => setCarreras(res.data)).catch(() => {})
-      api.get('/grupos').then((res) => setGrupos(res.data)).catch(() => {})
     }
   }, [open])
-
-  // Sugerir siguiente sección disponible
-  const seccionSugerida = () => {
-    if (!form.carreraId || !form.semestre || !form.periodo) return 'A'
-    const ocupadas = new Set(
-      grupos
-        .filter(
-          (g) =>
-            (g.carrera?.id ?? g.carreraId) === Number(form.carreraId) &&
-            g.semestre === Number(form.semestre) &&
-            g.periodo === form.periodo,
-        )
-        .map((g) => g.seccion),
-    )
-    return SECCIONES.find((letra) => !ocupadas.has(letra)) ?? 'A'
-  }
 
   const handlePreview = async (e) => {
     e.preventDefault()
@@ -74,7 +55,6 @@ export default function FormCrearGrupo({ open, onClose }) {
       const grupo = await crearGrupo({
         nombre: preview.nombre,
         semestre: Number(form.semestre),
-        seccion: form.seccion,
         carreraId: Number(form.carreraId),
         periodo: form.periodo,
       })
@@ -85,10 +65,6 @@ export default function FormCrearGrupo({ open, onClose }) {
     } finally {
       setLoading(false)
     }
-  }
-
-  const handleSugerirSeccion = () => {
-    setForm((f) => ({ ...f, seccion: seccionSugerida() }))
   }
 
   return (
@@ -139,31 +115,6 @@ export default function FormCrearGrupo({ open, onClose }) {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Sección *</label>
-            <div className="flex gap-2">
-              <input
-                required
-                maxLength={1}
-                pattern="[A-Z]"
-                placeholder="A"
-                value={form.seccion}
-                onChange={(e) => setForm({ ...form, seccion: e.target.value.toUpperCase() })}
-                className="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <button
-                type="button"
-                onClick={handleSugerirSeccion}
-                className="text-xs text-blue-600 hover:text-blue-800 border border-blue-200 rounded-xl px-3 py-2"
-              >
-                Sugerir
-              </button>
-            </div>
-            <p className="text-xs text-gray-400 mt-1">
-              Una letra mayúscula (A-Z). Identifica al grupo cuando un alumno sube su horario; no forma parte del nombre.
-            </p>
-          </div>
-
-          <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Periodo *</label>
             <input
               required
@@ -193,9 +144,6 @@ export default function FormCrearGrupo({ open, onClose }) {
             </p>
             <p className="text-sm text-gray-600">
               <span className="font-medium">Semestre:</span> {preview?.semestre}
-            </p>
-            <p className="text-sm text-gray-600">
-              <span className="font-medium">Sección:</span> {preview?.seccion}
             </p>
             <p className="text-sm text-gray-600">
               <span className="font-medium">Periodo:</span> {preview?.periodo}
