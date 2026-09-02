@@ -326,9 +326,13 @@ function FiltroToolbar({
           onChange={(event) => onChange('materiaId', event.target.value)}
           className="rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700"
         >
-          <option value="">Todas las materias</option>
+          <option value="">
+            {materias.length === 0 ? 'Sin materias asignadas' : 'Todas las materias'}
+          </option>
           {materias.map((materia) => (
-            <option key={materia.id} value={materia.id}>{materia.nombre}</option>
+            <option key={materia.id} value={materia.id}>
+              {materia.clave ? `${materia.clave} · ${materia.nombre}` : materia.nombre}
+            </option>
           ))}
         </select>
 
@@ -1000,17 +1004,34 @@ function AdminAsistenciasView() {
   useEffect(() => {
     Promise.all([
       api.get('/usuarios?rol=DOCENTE'),
-      api.get('/materias'),
       api.get('/grupos'),
       obtenerHistorial({}),
     ])
-      .then(([docentesRes, materiasRes, gruposRes]) => {
+      .then(([docentesRes, gruposRes]) => {
         setDocentes(docentesRes.data)
-        setMaterias(materiasRes.data)
         setGrupos(gruposRes.data)
       })
       .catch(() => {})
   }, [obtenerHistorial])
+
+  // Al elegir un docente sólo se ofrecen las materias que él imparte.
+  useEffect(() => {
+    let active = true
+
+    api.get('/materias', {
+      params: filters.docenteId ? { docenteId: filters.docenteId } : undefined,
+    })
+      .then((response) => {
+        if (active) setMaterias(response.data)
+      })
+      .catch(() => {
+        if (active) setMaterias([])
+      })
+
+    return () => {
+      active = false
+    }
+  }, [filters.docenteId])
 
   useEffect(() => {
     if (!filters.materiaId) return undefined
@@ -1035,6 +1056,11 @@ function AdminAsistenciasView() {
       const next = { ...prev, [key]: value }
       if (key === 'fecha' && value) next.semana = ''
       if (key === 'semana' && value) next.fecha = ''
+      // La materia elegida puede no ser de este docente.
+      if (key === 'docenteId') {
+        next.materiaId = ''
+        next.unidadId = ''
+      }
       return next
     })
   }

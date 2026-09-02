@@ -62,7 +62,15 @@ export class MateriasService {
       where: {
         ...(carreraId && { carreraId }),
         ...(semestre && { semestre }),
-        ...(docenteId && { docenteId }),
+        // Un docente imparte la materia por asignación directa o porque tiene
+        // un horario activo en ella (una misma materia puede repartirse entre
+        // varios docentes por grupo).
+        ...(docenteId && {
+          OR: [
+            { docenteId },
+            { horarios: { some: { docenteId, activo: true } } },
+          ],
+        }),
       },
       include: {
         docente: {
