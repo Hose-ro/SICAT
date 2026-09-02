@@ -435,7 +435,7 @@ describe('UsuariosService', () => {
       data: {
         usuarioId: 20,
         tipo: TipoEventoAuth.CUENTA_APROBADA,
-        metadata: { adminUserId: 1 },
+        metadata: { adminUserId: 1, grupoAsignadoId: null },
       },
     });
     expect(result.registroAprobado).toBe(true);
@@ -481,6 +481,77 @@ describe('UsuariosService', () => {
       }),
     );
   });
+
+  const txAprobacion = (grupos: { id: number; nombre: string }[]) => ({
+    usuario: {
+      findUnique: jest.fn().mockResolvedValue({
+        id: 20,
+        rol: Rol.ALUMNO,
+        activo: true,
+        email: null,
+        emailVerificadoAt: null,
+        registroAprobado: false,
+        carreraId: 3,
+        semestre: 1,
+        grupoId: null,
+      }),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      update: jest.fn().mockResolvedValue({ id: 20 }),
+      findUniqueOrThrow: jest.fn().mockResolvedValue({
+        id: 20,
+        nombre: 'Ana López',
+        email: null,
+        registroAprobado: true,
+      }),
+    },
+    grupo: { findMany: jest.fn().mockResolvedValue(grupos) },
+    authAudit: { create: jest.fn().mockResolvedValue({ id: 1 }) },
+  });
+
+  it('asigna el grupo de su carrera y semestre al aprobar', async () => {
+    emailAuthEnabled.mockReturnValue('false');
+    const tx = txAprobacion([{ id: 8, nombre: '103A' }]);
+    transaction.mockImplementation((callback: (client: typeof tx) => unknown) =>
+      Promise.resolve(callback(tx)),
+    );
+
+    await expect(service.approveRegistration(20, 1)).resolves.toEqual(
+      expect.objectContaining({ grupo: { id: 8, nombre: '103A' } }),
+    );
+    expect(tx.grupo.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { carreraId: 3, semestre: 1, activo: true },
+      }),
+    );
+    expect(tx.usuario.update).toHaveBeenCalledWith({
+      where: { id: 20 },
+      data: { grupoId: 8 },
+    });
+    expect(tx.authAudit.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          metadata: { adminUserId: 1, grupoAsignadoId: 8 },
+        }) as Record<string, unknown>,
+      }),
+    );
+  });
+
+  it('deja la asignación al administrador cuando hay varias secciones', async () => {
+    emailAuthEnabled.mockReturnValue('false');
+    const tx = txAprobacion([
+      { id: 8, nombre: '103A' },
+      { id: 9, nombre: '103B' },
+    ]);
+    transaction.mockImplementation((callback: (client: typeof tx) => unknown) =>
+      Promise.resolve(callback(tx)),
+    );
+
+    await expect(service.approveRegistration(20, 1)).resolves.toEqual(
+      expect.objectContaining({ grupo: null }),
+    );
+    expect(tx.usuario.update).not.toHaveBeenCalled();
+  });
+
   const contador = (count: number) => jest.fn().mockResolvedValue({ count });
 
   const txEliminacion = () => ({

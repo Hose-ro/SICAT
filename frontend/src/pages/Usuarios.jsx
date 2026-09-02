@@ -285,6 +285,7 @@ export default function Usuarios() {
   const [newPassword, setNewPassword] = useState('')
   const [pwMsg, setPwMsg] = useState('')
   const [formError, setFormError] = useState('')
+  const [aviso, setAviso] = useState('')
   const [confirmation, setConfirmation] = useState({
     open: false,
     user: null,
@@ -387,9 +388,15 @@ export default function Usuarios() {
     const { user, action } = confirmation
     if (!user || !action) return
     setConfirmation((current) => ({ ...current, loading: true, error: '' }))
+    setAviso('')
     try {
       if (action === 'approve') {
-        await api.post(`/usuarios/${user.id}/aprobar-registro`)
+        const { data } = await api.post(`/usuarios/${user.id}/aprobar-registro`)
+        setAviso(
+          data?.grupo?.nombre
+            ? `${user.nombre} quedó aprobado y asignado al grupo ${data.grupo.nombre}.`
+            : `${user.nombre} quedó aprobado. Asígnale un grupo desde Grupos cuando haya uno de su semestre.`,
+        )
       } else if (action === 'delete') {
         await api.delete(`/usuarios/${user.id}/permanente`)
       } else {
@@ -463,6 +470,13 @@ export default function Usuarios() {
           </button>
         }
       />
+
+      {aviso && (
+        <div className="mb-3 flex items-start justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          <span>{aviso}</span>
+          <button onClick={() => setAviso('')} className="text-emerald-500 hover:text-emerald-700" aria-label="Cerrar aviso">✕</button>
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-2 mb-3">
         {['', 'ADMIN', 'JEFE_CARRERA', 'DOCENTE', 'ALUMNO'].map((r) => (

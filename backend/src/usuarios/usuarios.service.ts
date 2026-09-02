@@ -654,6 +654,9 @@ export class UsuariosService {
           email: true,
           emailVerificadoAt: true,
           registroAprobado: true,
+          carreraId: true,
+          semestre: true,
+          grupoId: true,
         },
       });
       if (!user) throw new NotFoundException('Usuario no encontrado');
@@ -695,6 +698,8 @@ export class UsuariosService {
           'El estado de la cuenta cambió; actualiza la lista e intenta nuevamente',
         );
       }
+      const grupo = await this.asignarGrupoDeSuSemestre(tx, user);
+
       const updated = await tx.usuario.findUniqueOrThrow({
         where: { id },
         select: {
@@ -708,11 +713,45 @@ export class UsuariosService {
         data: {
           usuarioId: id,
           tipo: TipoEventoAuth.CUENTA_APROBADA,
-          metadata: { adminUserId },
+          metadata: { adminUserId, grupoAsignadoId: grupo?.id ?? null },
         },
       });
-      return updated;
+      return { ...updated, grupo };
     });
+  }
+
+  /**
+   * Al aprobar, el alumno entra al grupo de su carrera y semestre. Sólo se hace
+   * cuando hay uno solo: con varias secciones la elección es del administrador.
+   */
+  private async asignarGrupoDeSuSemestre(
+    tx: Prisma.TransactionClient,
+    user: {
+      id: number;
+      carreraId: number | null;
+      semestre: number | null;
+      grupoId: number | null;
+    },
+  ) {
+    if (user.grupoId || !user.carreraId || !user.semestre) return null;
+
+    const candidatos = await tx.grupo.findMany({
+      where: {
+        carreraId: user.carreraId,
+        semestre: user.semestre,
+        activo: true,
+      },
+      select: { id: true, nombre: true, periodo: true },
+      orderBy: { createdAt: 'desc' },
+      take: 2,
+    });
+    if (candidatos.length !== 1) return null;
+
+    await tx.usuario.update({
+      where: { id: user.id },
+      data: { grupoId: candidatos[0].id },
+    });
+    return candidatos[0];
   }
 
   async remove(id: number, adminUserId: number) {
