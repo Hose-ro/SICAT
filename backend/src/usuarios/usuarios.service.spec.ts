@@ -221,6 +221,11 @@ describe('UsuariosService', () => {
     expect(findManyCall[0].select).not.toHaveProperty('tokenVersion');
     expect(findManyCall[0].select).not.toHaveProperty('failedLoginAttempts');
     expect(findManyCall[0].select).not.toHaveProperty('lockedUntil');
+    // El panel filtra por carrera y grupo con estos identificadores planos.
+    expect(findManyCall[0].select).toMatchObject({
+      carreraId: true,
+      grupoId: true,
+    });
   });
 
   it('ignora campos internos incluso en una actualización administrativa', async () => {

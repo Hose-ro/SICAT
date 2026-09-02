@@ -19,7 +19,12 @@ export default function ModalAsignarAlumnos({ open, onClose, grupo }) {
         .get('/usuarios', { params: { rol: 'ALUMNO' } })
         .then((res) =>
           setTodosAlumnos(
-            res.data.filter((u) => u.rol === 'ALUMNO' && u.activo && u.carreraId === grupo.carreraId)
+            res.data.filter(
+              (u) =>
+                u.rol === 'ALUMNO' &&
+                u.activo &&
+                (u.carreraId ?? u.carrera?.id) === grupo.carreraId
+            )
           )
         )
         .catch(() => {})
@@ -36,7 +41,7 @@ export default function ModalAsignarAlumnos({ open, onClose, grupo }) {
         (a.numeroControl ?? '').toLowerCase().includes(busqueda.toLowerCase()))
   )
 
-  const yaEnOtroGrupo = (a) => a.grupoId !== null && a.grupoId !== grupo?.id
+  const yaEnOtroGrupo = (a) => a.grupoId != null && a.grupoId !== grupo?.id
 
   const toggleSeleccion = (id) => {
     setSeleccionados((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))

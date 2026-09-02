@@ -230,7 +230,12 @@ export class UsuariosService {
         activo: true,
         registroAprobado: true,
         emailVerificadoAt: true,
+        // Los identificadores planos los usa el panel para filtrar por carrera
+        // y saber si el alumno ya pertenece a un grupo.
+        carreraId: true,
+        grupoId: true,
         carrera: true,
+        grupo: { select: { id: true, nombre: true, semestre: true, periodo: true } },
         carrerasJefe: {
           where: { activa: true },
           select: {
@@ -259,7 +264,10 @@ export class UsuariosService {
         activo: true,
         registroAprobado: true,
         emailVerificadoAt: true,
+        carreraId: true,
+        grupoId: true,
         carrera: true,
+        grupo: { select: { id: true, nombre: true, semestre: true, periodo: true } },
         carrerasJefe: {
           where: { activa: true },
           select: {

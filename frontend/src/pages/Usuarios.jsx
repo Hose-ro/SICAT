@@ -686,6 +686,12 @@ export default function Usuarios() {
             { label: 'Núm. Control', value: u.numeroControl || '—' },
             { label: 'Teléfono', value: u.telefono || '—' },
             u.rol === 'ALUMNO' && { label: 'Carrera', value: u.carrera?.nombre || '—' },
+            u.rol === 'ALUMNO' && {
+              label: 'Grupo',
+              value: u.grupo?.nombre
+                ? `${u.grupo.nombre}${u.grupo.periodo ? ` · ${u.grupo.periodo}` : ''}`
+                : 'Sin grupo asignado',
+            },
             u.rol === 'ALUMNO' && { label: 'Semestre', value: u.semestre ?? '—' },
             u.rol === 'DOCENTE' && { label: 'Academia', value: u.academias?.length ? u.academias.map((a) => a.nombre).join(', ') : '—' },
             u.rol === 'JEFE_CARRERA' && { label: 'Carreras asignadas', value: u.carrerasJefe?.length ? u.carrerasJefe.map((item) => item.carrera.nombre).join(', ') : '—' },
