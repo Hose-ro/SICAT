@@ -1,13 +1,19 @@
-import { NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { HorariosService } from '../horarios/horarios.service';
 import { GruposService } from './grupos.service';
 
 describe('GruposService', () => {
   const grupoFindUnique = jest.fn();
+  const grupoFindFirst = jest.fn();
+  const grupoUpdate = jest.fn();
   const transaction = jest.fn();
   const prisma = {
-    grupo: { findUnique: grupoFindUnique },
+    grupo: {
+      findUnique: grupoFindUnique,
+      findFirst: grupoFindFirst,
+      update: grupoUpdate,
+    },
     $transaction: transaction,
   } as unknown as PrismaService;
   const horarios = {} as unknown as HorariosService;
@@ -16,6 +22,41 @@ describe('GruposService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     grupoFindUnique.mockResolvedValue({ id: 4, nombre: 'ISC-1A' });
+    grupoFindFirst.mockResolvedValue(null);
+  });
+
+  const grupoExistente = {
+    id: 4,
+    nombre: '103A',
+    semestre: 1,
+    seccion: 'A',
+    carreraId: 1,
+    periodo: '2026-A',
+    carrera: { id: 1, nombre: 'ISC', codigo: '06' },
+  };
+
+  it('renombra el grupo con el nombre que escribe el administrador', async () => {
+    grupoFindUnique.mockResolvedValue(grupoExistente);
+    grupoUpdate.mockResolvedValue({ id: 4, nombre: 'ISC-1A' });
+
+    await service.editarGrupo(4, { nombre: '  isc-1a  ' });
+
+    expect(grupoUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 4 },
+        data: { nombre: 'ISC-1A' },
+      }),
+    );
+  });
+
+  it('rechaza un nombre que ya usa otro grupo del mismo periodo', async () => {
+    grupoFindUnique.mockResolvedValue(grupoExistente);
+    grupoFindFirst.mockResolvedValue({ id: 9, nombre: 'ISC-1A' });
+
+    await expect(service.editarGrupo(4, { nombre: 'ISC-1A' })).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+    expect(grupoUpdate).not.toHaveBeenCalled();
   });
 
   it('borra el grupo con su horario y libera todo lo demás', async () => {

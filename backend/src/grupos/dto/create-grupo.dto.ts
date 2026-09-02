@@ -5,10 +5,20 @@ import {
   Min,
   Max,
   Matches,
+  MaxLength,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateGrupoDto {
+  @ApiProperty({ example: '103A', description: 'Nombre con el que se conoce al grupo' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(20)
+  @Matches(/^[A-Z0-9][A-Z0-9 -]*$/i, {
+    message: 'El nombre del grupo sólo admite letras, números, espacios y guiones',
+  })
+  nombre: string;
+
   @ApiProperty({ example: 1 })
   @IsInt()
   @Min(1)

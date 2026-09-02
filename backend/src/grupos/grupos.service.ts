@@ -10,6 +10,11 @@ import { UpdateGrupoDto } from './dto/update-grupo.dto';
 import { hayConflictoHorario } from '../horarios/utils/conflicto-horario.util';
 import { HorariosService } from '../horarios/horarios.service';
 
+/** El nombre del grupo lo escribe el administrador: se guarda normalizado. */
+function normalizarNombreGrupo(nombre: string) {
+  return nombre.trim().replace(/\s+/g, ' ').toUpperCase();
+}
+
 const INCLUDE_LIST = {
   carrera: { select: { id: true, nombre: true, codigo: true } },
   _count: { select: { alumnos: true, materias: true } },
@@ -51,7 +56,7 @@ export class GruposService {
     });
     if (!carrera) throw new NotFoundException('Carrera no encontrada');
 
-    const nombre = `${dto.semestre}${carrera.codigo}${dto.seccion}`;
+    const nombre = normalizarNombreGrupo(dto.nombre);
 
     const existe = await this.prisma.grupo.findFirst({
       where: { nombre, periodo: dto.periodo },
@@ -60,6 +65,16 @@ export class GruposService {
       throw new ConflictException(
         `Ya existe el grupo "${nombre}" en el periodo ${dto.periodo}`,
       );
+
+    await this.ensureSeccionLibre(
+      {
+        semestre: dto.semestre,
+        seccion: dto.seccion,
+        carreraId: dto.carreraId,
+        periodo: dto.periodo,
+      },
+      carrera.nombre,
+    );
 
     // Obtener materias del catálogo de retícula para este semestre/carrera
     const reticulaMaterias = await this.prisma.reticulaMateria.findMany({
@@ -112,6 +127,34 @@ export class GruposService {
     });
   }
 
+  /**
+   * La base sólo admite una sección por semestre, carrera y periodo, aunque el
+   * nombre del grupo ahora sea libre.
+   */
+  private async ensureSeccionLibre(
+    clave: {
+      semestre: number;
+      seccion: string;
+      carreraId: number;
+      periodo: string;
+    },
+    carreraNombre: string,
+    excluirGrupoId?: number,
+  ) {
+    const ocupada = await this.prisma.grupo.findFirst({
+      where: {
+        ...clave,
+        ...(excluirGrupoId ? { id: { not: excluirGrupoId } } : {}),
+      },
+      select: { nombre: true },
+    });
+    if (ocupada) {
+      throw new ConflictException(
+        `La sección ${clave.seccion} del semestre ${clave.semestre} de ${carreraNombre} ya la ocupa el grupo "${ocupada.nombre}" en el periodo ${clave.periodo}`,
+      );
+    }
+  }
+
   // ─── Listar grupos ──────────────────────────────────────────────────────────
 
   listarGrupos(filtros: {
@@ -151,10 +194,10 @@ export class GruposService {
     });
     if (!grupo) throw new NotFoundException('Grupo no encontrado');
 
-    const nuevoNombre = dto.seccion
-      ? `${grupo.semestre}${grupo.carrera.codigo}${dto.seccion}`
+    const nuevoNombre = dto.nombre
+      ? normalizarNombreGrupo(dto.nombre)
       : grupo.nombre;
-
+    const nuevaSeccion = dto.seccion ?? grupo.seccion;
     const nuevoPeriodo = dto.periodo ?? grupo.periodo;
 
     if (nuevoNombre !== grupo.nombre || nuevoPeriodo !== grupo.periodo) {
@@ -168,10 +211,24 @@ export class GruposService {
       }
     }
 
+    if (nuevaSeccion !== grupo.seccion || nuevoPeriodo !== grupo.periodo) {
+      await this.ensureSeccionLibre(
+        {
+          semestre: grupo.semestre,
+          seccion: nuevaSeccion,
+          carreraId: grupo.carreraId,
+          periodo: nuevoPeriodo,
+        },
+        grupo.carrera.nombre,
+        id,
+      );
+    }
+
     return this.prisma.grupo.update({
       where: { id },
       data: {
-        ...(dto.seccion && { seccion: dto.seccion, nombre: nuevoNombre }),
+        ...(dto.nombre && { nombre: nuevoNombre }),
+        ...(dto.seccion && { seccion: dto.seccion }),
         ...(dto.periodo && { periodo: dto.periodo }),
       },
       include: INCLUDE_DETAIL,
