@@ -21,6 +21,7 @@ import { CreateGrupoDto } from './dto/create-grupo.dto';
 import { UpdateGrupoDto } from './dto/update-grupo.dto';
 import { AsignarAlumnosDto } from './dto/asignar-alumnos.dto';
 import { ModificarMateriasDto } from './dto/modificar-materias.dto';
+import { AsignarAulaGrupoDto } from './dto/asignar-aula-grupo.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -134,6 +135,18 @@ export class GruposController {
   @ApiOperation({ summary: 'Horario completo del grupo' })
   obtenerHorario(@Param('id', ParseIntPipe) id: number) {
     return this.grupos.obtenerHorario(id);
+  }
+
+  @Patch(':id/aula')
+  @ApiOperation({
+    summary:
+      'Asignar aula al grupo: a todas sus clases o solo al bloque indicado (aulaId: null para quitarla)',
+  })
+  asignarAula(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AsignarAulaGrupoDto,
+  ) {
+    return this.grupos.asignarAula(id, dto.aulaId, dto.horarioId);
   }
 
   @Get(':id/reticula-status')

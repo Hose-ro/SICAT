@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useGrupoStore } from '../../../../store/grupoStore'
 
 const DIAS = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado']
@@ -31,11 +31,25 @@ const COLORES = [
   'bg-teal-100 border-teal-300 text-teal-800',
 ]
 
+function etiquetaAula(aula) {
+  if (!aula) return 'Sin aula'
+  return aula.edificio ? `${aula.nombre} · ${aula.edificio}` : aula.nombre
+}
+
 export default function TabHorario({ grupo }) {
-  const { cargarHorario } = useGrupoStore()
+  const { cargarHorario, cargarAulas, asignarAula, seleccionarGrupo, aulas } = useGrupoStore()
   const [horarios, setHorarios] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  const [aulaMasiva, setAulaMasiva] = useState('')
+  const [guardando, setGuardando] = useState(null)
+  const [aviso, setAviso] = useState('')
+  const [errorAula, setErrorAula] = useState('')
+
+  useEffect(() => {
+    cargarAulas()
+  }, [cargarAulas])
 
   useEffect(() => {
     let activo = true
@@ -73,6 +87,33 @@ export default function TabHorario({ grupo }) {
       activo = false
     }
   }, [grupo?.id, cargarHorario])
+
+  const aplicarAula = useCallback(
+    async (aulaId, horarioId, mensajeExito) => {
+      setErrorAula('')
+      setAviso('')
+      setGuardando(horarioId ?? 'todas')
+      try {
+        const respuesta = await asignarAula(grupo.id, aulaId, horarioId)
+        if (Array.isArray(respuesta?.horarios)) setHorarios(respuesta.horarios)
+        await seleccionarGrupo(grupo.id)
+        setAviso(mensajeExito)
+      } catch (e) {
+        setErrorAula(e.message)
+      } finally {
+        setGuardando(null)
+      }
+    },
+    [asignarAula, seleccionarGrupo, grupo?.id],
+  )
+
+  const resumenAulas = useMemo(() => {
+    const nombres = new Set(
+      horarios.filter((h) => h.aula).map((h) => h.aula.nombre),
+    )
+    const sinAula = horarios.filter((h) => !h.aula).length
+    return { nombres: [...nombres], sinAula }
+  }, [horarios])
 
   const celdas = useMemo(() => {
     const resultado = {}
@@ -128,64 +169,177 @@ export default function TabHorario({ grupo }) {
   }
 
   if (horarios.length === 0) {
-    return <p className="text-sm text-gray-400 py-8 text-center">No hay bloques de horario asignados</p>
+    return (
+      <div className="py-8 text-center">
+        <p className="text-sm text-gray-400">No hay bloques de horario asignados</p>
+        <p className="mt-1 text-xs text-gray-400">
+          Programa el horario del grupo en Horarios para poder asignarle un aula.
+        </p>
+      </div>
+    )
   }
 
   return (
-    <div className="overflow-x-auto">
-      <div
-        className="grid min-w-[720px]"
-        style={{ gridTemplateColumns: `60px repeat(${DIAS.length}, 1fr)` }}
-      >
-        {/* Header */}
-        <div />
-        {DIAS.map((d) => (
-          <div key={d} className="text-center text-xs font-semibold text-gray-500 uppercase tracking-wide py-2">
-            {d}
-          </div>
-        ))}
+    <div className="space-y-6">
+      <section className="rounded-2xl border border-gray-200 p-4">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-sm font-semibold text-gray-800">Aula del grupo</h2>
+          <p className="text-xs text-gray-500">
+            Asigna una misma aula a todas las clases del horario, o define un aula distinta
+            por clase en la lista de abajo.
+          </p>
+        </div>
 
-        {/* Body */}
-        {HORAS.map((hora, rowIdx) => (
-          <div key={`fila-${hora}`} className="contents">
-            <div
-              className="text-right pr-2 text-xs text-gray-400"
-              style={{ gridRow: rowIdx + 1, gridColumn: 1 }}
-            >
-              {hora}
-            </div>
-
-            {DIAS.map((dia) => (
-              <div
-                key={`${dia}-${hora}`}
-                className="border-t border-l border-gray-100"
-                style={{ gridRow: rowIdx + 1, gridColumn: DIAS.indexOf(dia) + 2, minHeight: 48 }}
-              />
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+          <select
+            value={aulaMasiva}
+            onChange={(e) => setAulaMasiva(e.target.value)}
+            className="flex-1 rounded-xl border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Selecciona un aula</option>
+            {aulas.map((aula) => (
+              <option key={aula.id} value={aula.id}>
+                {etiquetaAula(aula)}
+                {aula.capacidad ? ` · ${aula.capacidad} lugares` : ''}
+              </option>
             ))}
-          </div>
-        ))}
+          </select>
+          <button
+            onClick={() =>
+              aplicarAula(
+                Number(aulaMasiva),
+                undefined,
+                'Aula aplicada a todas las clases del grupo.',
+              )
+            }
+            disabled={!aulaMasiva || guardando !== null}
+            className="rounded-xl bg-blue-600 px-4 py-2 text-sm text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {guardando === 'todas' ? 'Aplicando...' : 'Aplicar a todas las clases'}
+          </button>
+          <button
+            onClick={() =>
+              aplicarAula(null, undefined, 'Se quitó el aula de todas las clases del grupo.')
+            }
+            disabled={guardando !== null || resumenAulas.nombres.length === 0}
+            className="rounded-xl border border-gray-300 px-4 py-2 text-sm text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Quitar aula
+          </button>
+        </div>
 
-        {/* Horarios */}
-        {DIAS_LOWER.map((dia, diaIdx) =>
-          celdas[dia].map(({ horario, colorIndex, rowStart, rowSpan }) => (
-            <div
-              key={`${dia}-${horario.id}`}
-              className={`m-0.5 rounded-lg border p-1.5 text-xs overflow-hidden ${COLORES[colorIndex]}`}
-              style={{
-                gridColumn: diaIdx + 2,
-                gridRow: `${rowStart} / span ${rowSpan}`,
-              }}
-            >
-              <p className="font-semibold truncate">{horario.materia?.nombre}</p>
-              {horario.docente && (
-                <p className="truncate opacity-80">{horario.docente.nombre}</p>
-              )}
-              {horario.aula && (
-                <p className="truncate opacity-70">{horario.aula.nombre}</p>
-              )}
-            </div>
-          ))
+        <p className="mt-3 text-xs text-gray-500">
+          {resumenAulas.nombres.length === 0
+            ? 'Ninguna clase tiene aula asignada.'
+            : resumenAulas.nombres.length === 1 && resumenAulas.sinAula === 0
+              ? `Todas las clases se imparten en ${resumenAulas.nombres[0]}.`
+              : `El horario usa ${resumenAulas.nombres.length} aula${resumenAulas.nombres.length === 1 ? '' : 's'}` +
+                (resumenAulas.sinAula > 0
+                  ? ` y ${resumenAulas.sinAula} clase${resumenAulas.sinAula === 1 ? '' : 's'} sin aula.`
+                  : '.')}
+        </p>
+
+        {aviso && (
+          <p className="mt-3 rounded-xl bg-green-50 px-3 py-2 text-xs text-green-700">{aviso}</p>
         )}
+        {errorAula && (
+          <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-xs text-red-700">{errorAula}</p>
+        )}
+      </section>
+
+      <section className="space-y-2">
+        <h2 className="text-sm font-semibold text-gray-800">Aula por clase</h2>
+        <ul className="divide-y divide-gray-100 rounded-2xl border border-gray-200">
+          {horarios.map((horario) => (
+            <li
+              key={horario.id}
+              className="flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-gray-800">
+                  {horario.materia?.nombre}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {horario.dias} · {horario.horaInicio}–{horario.horaFin}
+                  {horario.docente ? ` · ${horario.docente.nombre}` : ''}
+                </p>
+              </div>
+              <select
+                value={horario.aulaId ?? ''}
+                onChange={(e) =>
+                  aplicarAula(
+                    e.target.value ? Number(e.target.value) : null,
+                    horario.id,
+                    `Aula actualizada para ${horario.materia?.nombre}.`,
+                  )
+                }
+                disabled={guardando !== null}
+                className="rounded-xl border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 sm:w-64"
+              >
+                <option value="">Sin aula</option>
+                {aulas.map((aula) => (
+                  <option key={aula.id} value={aula.id}>
+                    {etiquetaAula(aula)}
+                  </option>
+                ))}
+              </select>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <div className="overflow-x-auto">
+        <div
+          className="grid min-w-[720px]"
+          style={{ gridTemplateColumns: `60px repeat(${DIAS.length}, 1fr)` }}
+        >
+          <div />
+          {DIAS.map((d) => (
+            <div key={d} className="text-center text-xs font-semibold text-gray-500 uppercase tracking-wide py-2">
+              {d}
+            </div>
+          ))}
+
+          {HORAS.map((hora, rowIdx) => (
+            <div key={`fila-${hora}`} className="contents">
+              <div
+                className="text-right pr-2 text-xs text-gray-400"
+                style={{ gridRow: rowIdx + 1, gridColumn: 1 }}
+              >
+                {hora}
+              </div>
+
+              {DIAS.map((dia) => (
+                <div
+                  key={`${dia}-${hora}`}
+                  className="border-t border-l border-gray-100"
+                  style={{ gridRow: rowIdx + 1, gridColumn: DIAS.indexOf(dia) + 2, minHeight: 48 }}
+                />
+              ))}
+            </div>
+          ))}
+
+          {DIAS_LOWER.map((dia, diaIdx) =>
+            celdas[dia].map(({ horario, colorIndex, rowStart, rowSpan }) => (
+              <div
+                key={`${dia}-${horario.id}`}
+                className={`m-0.5 rounded-lg border p-1.5 text-xs overflow-hidden ${COLORES[colorIndex]}`}
+                style={{
+                  gridColumn: diaIdx + 2,
+                  gridRow: `${rowStart} / span ${rowSpan}`,
+                }}
+              >
+                <p className="font-semibold truncate">{horario.materia?.nombre}</p>
+                {horario.docente && (
+                  <p className="truncate opacity-80">{horario.docente.nombre}</p>
+                )}
+                <p className="truncate opacity-70">
+                  {horario.aula ? horario.aula.nombre : 'Sin aula'}
+                </p>
+              </div>
+            ))
+          )}
+        </div>
       </div>
     </div>
   )

@@ -1,4 +1,5 @@
 import {
+  CiAlarmOn,
   CiBellOn,
   CiCalendar,
   CiCalendarDate,
@@ -19,6 +20,7 @@ export const NOTIFICATION_META = {
   SOLICITUD_MATERIA: { icon: CiStickyNote, label: 'Solicitud' },
   SOLICITUD_ACEPTADA: { icon: CiCircleCheck, label: 'Solicitud aceptada' },
   SOLICITUD_RECHAZADA: { icon: CiCircleRemove, label: 'Solicitud rechazada' },
+  CLASE_POR_INICIAR: { icon: CiAlarmOn, label: 'Clase por iniciar' },
   CLASE_INICIADA: { icon: CiSun, label: 'Clase' },
   CLASE_FINALIZADA: { icon: CiCalendar, label: 'Clase' },
   TAREA_NUEVA: { icon: CiRead, label: 'Tarea' },
@@ -62,6 +64,18 @@ export function formatNotificationTime(fecha) {
 export function resolveNotificationRoute(notificacion, rol) {
   const { referenciaId, referenciaTipo } = notificacion || {}
 
+  if (rol === 'JEFE_CARRERA') {
+    if (['Asistencias', 'ClaseSesion', 'HorarioMateria'].includes(referenciaTipo)) {
+      return '/jefe-carrera/clases'
+    }
+    if (['Materia', 'Unidad'].includes(referenciaTipo)) {
+      return '/jefe-carrera/seguimiento'
+    }
+    if (referenciaTipo === 'Usuario') return '/jefe-carrera/docentes'
+    if (referenciaTipo?.startsWith('Reporte')) return '/jefe-carrera/reportes'
+    return '/jefe-carrera/alertas'
+  }
+
   switch (referenciaTipo) {
     case 'Tarea':
       if (!referenciaId) return '/tareas'
@@ -78,6 +92,7 @@ export function resolveNotificationRoute(notificacion, rol) {
         : `/materias/${referenciaId}`
     case 'Asistencias':
     case 'ClaseSesion':
+    case 'HorarioMateria':
       return '/asistencias'
     case 'TareasPendientes':
     case 'ReporteTareas':

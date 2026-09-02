@@ -16,7 +16,17 @@ import {
   CiUser,
   CiViewList,
 } from 'react-icons/ci'
-import { X } from 'lucide-react'
+import {
+  BarChart3,
+  BellRing,
+  BookOpenCheck,
+  CalendarClock,
+  DoorOpen,
+  GraduationCap,
+  UsersRound,
+  ScanLine,
+  X,
+} from 'lucide-react'
 import { Dialog } from '@base-ui/react/dialog'
 import { useAuthStore } from '@/store/authStore'
 import { useThemeStore } from '@/store/useThemeStore'
@@ -29,7 +39,7 @@ export function BaseLayout({ children }) {
   const navigate = useNavigate()
   const role = user?.rol
   const displayName = user?.nombre || user?.username || user?.email || 'Usuario'
-  const displayRole = role || 'Miembro'
+  const displayRole = role === 'JEFE_CARRERA' ? 'Jefe de carrera' : (role || 'Miembro')
   const avatarText = displayName?.[0]?.toUpperCase() || '?'
 
   const [collapsed, setCollapsed] = useState(false)
@@ -47,9 +57,13 @@ export function BaseLayout({ children }) {
     return () => { document.body.style.overflow = '' }
   }, [mobileOpen])
 
-  const handleLogout = () => {
-    logout()
-    navigate('/login')
+  const handleLogout = async () => {
+    try {
+      await api.post('/auth/logout')
+    } finally {
+      logout()
+      navigate('/login')
+    }
   }
 
   const navClass = ({ isActive }) =>
@@ -101,20 +115,69 @@ export function BaseLayout({ children }) {
             <span className="nav__label">Inicio</span>
           </NavLink>
 
-          <NavLink to="/materias" className={navClass} data-tip="Materias" onClick={() => setMobileOpen(false)}>
-            <CiRead className="nav__icon" />
-            <span className="nav__label">Materias</span>
-          </NavLink>
+          {role !== 'JEFE_CARRERA' && (
+            <>
+              <NavLink to="/materias" className={navClass} data-tip="Materias" onClick={() => setMobileOpen(false)}>
+                <CiRead className="nav__icon" />
+                <span className="nav__label">Materias</span>
+              </NavLink>
 
-          <NavLink to="/asistencias" className={navClass} data-tip="Asistencias" onClick={() => setMobileOpen(false)}>
-            <CiCalendar className="nav__icon" />
-            <span className="nav__label">Asistencias</span>
-          </NavLink>
+              <NavLink to="/asistencias" className={navClass} data-tip="Asistencias" onClick={() => setMobileOpen(false)}>
+                <CiCalendar className="nav__icon" />
+                <span className="nav__label">Asistencias</span>
+              </NavLink>
 
-          <NavLink to="/tareas" className={navClass} data-tip="Tareas" onClick={() => setMobileOpen(false)}>
-            <CiViewList className="nav__icon" />
-            <span className="nav__label">Tareas</span>
-          </NavLink>
+              <NavLink to="/tareas" className={navClass} data-tip="Tareas" onClick={() => setMobileOpen(false)}>
+                <CiViewList className="nav__icon" />
+                <span className="nav__label">Tareas</span>
+              </NavLink>
+
+              <NavLink to="/calificaciones" className={navClass} data-tip="Calificaciones" onClick={() => setMobileOpen(false)}>
+                <GraduationCap className="nav__icon" />
+                <span className="nav__label">Calificaciones</span>
+              </NavLink>
+
+              {role === 'DOCENTE' && (
+                <NavLink to="/docente/horario" className={navClass} data-tip="Horario" onClick={() => setMobileOpen(false)}>
+                  <CalendarClock className="nav__icon" />
+                  <span className="nav__label">Horario</span>
+                </NavLink>
+              )}
+
+              {role === 'ALUMNO' && (
+                <NavLink to="/alumno/horario" className={navClass} data-tip="Horario" onClick={() => setMobileOpen(false)}>
+                  <CalendarClock className="nav__icon" />
+                  <span className="nav__label">Horario</span>
+                </NavLink>
+              )}
+            </>
+          )}
+
+          {role === 'JEFE_CARRERA' && (
+            <>
+              <span className="nav__section">Jefatura</span>
+              <NavLink to="/jefe-carrera/docentes" className={navClass} data-tip="Docentes" onClick={() => setMobileOpen(false)}>
+                <UsersRound className="nav__icon" />
+                <span className="nav__label">Docentes</span>
+              </NavLink>
+              <NavLink to="/jefe-carrera/clases" className={navClass} data-tip="Clases y horarios" onClick={() => setMobileOpen(false)}>
+                <CalendarClock className="nav__icon" />
+                <span className="nav__label">Clases y horarios</span>
+              </NavLink>
+              <NavLink to="/jefe-carrera/seguimiento" className={navClass} data-tip="Seguimiento" onClick={() => setMobileOpen(false)}>
+                <BookOpenCheck className="nav__icon" />
+                <span className="nav__label">Seguimiento</span>
+              </NavLink>
+              <NavLink to="/jefe-carrera/alertas" className={navClass} data-tip="Alertas" onClick={() => setMobileOpen(false)}>
+                <BellRing className="nav__icon" />
+                <span className="nav__label">Alertas</span>
+              </NavLink>
+              <NavLink to="/jefe-carrera/reportes" className={navClass} data-tip="Reportes" onClick={() => setMobileOpen(false)}>
+                <BarChart3 className="nav__icon" />
+                <span className="nav__label">Reportes</span>
+              </NavLink>
+            </>
+          )}
 
           {role === 'ADMIN' && (
             <>
@@ -135,9 +198,19 @@ export function BaseLayout({ children }) {
                 <span className="nav__label">Horarios</span>
               </NavLink>
 
+              <NavLink to="/admin/horarios-importados" className={navClass} data-tip="Horarios por revisar" onClick={() => setMobileOpen(false)}>
+                <ScanLine className="nav__icon" />
+                <span className="nav__label">Horarios por revisar</span>
+              </NavLink>
+
               <NavLink to="/admin/academias" className={navClass} data-tip="Academias" onClick={() => setMobileOpen(false)}>
                 <CiShop className="nav__icon" />
                 <span className="nav__label">Academias</span>
+              </NavLink>
+
+              <NavLink to="/admin/aulas" className={navClass} data-tip="Aulas" onClick={() => setMobileOpen(false)}>
+                <DoorOpen className="nav__icon" />
+                <span className="nav__label">Aulas</span>
               </NavLink>
 
               <NavLink to="/admin/grupos" className={navClass} data-tip="Grupos" onClick={() => setMobileOpen(false)}>
@@ -206,6 +279,7 @@ export function BaseLayout({ children }) {
         <button
           onClick={() => setMobileOpen(true)}
           type="button"
+          aria-label="Abrir menú"
           className="rounded-lg border border-transparent p-2 text-[20px] text-[#263C69] transition hover:bg-white/60"
         >
           <CiMenuBurger />
@@ -219,7 +293,7 @@ export function BaseLayout({ children }) {
 
       {/* ── Main content ── */}
       <div className={`layout-main${collapsed ? ' collapsed' : ''}`}>
-        <div className="hidden items-center justify-end px-4 pt-4 sm:px-6 lg:flex lg:px-7">
+        <div className="print-hidden hidden items-center justify-end px-4 pt-4 sm:px-6 lg:flex lg:px-7">
           <NotificacionesBell />
         </div>
         <main className="min-h-screen px-4 py-4 sm:px-6 sm:py-6 lg:px-7">
@@ -261,7 +335,7 @@ export function BaseLayout({ children }) {
               onSubmit={async (e) => {
                 e.preventDefault()
                 setPwError(''); setPwSuccess('')
-                if (pwForm.newPw.length < 6) { setPwError('La nueva contraseña debe tener al menos 6 caracteres'); return }
+                if (pwForm.newPw.length < 8) { setPwError('La nueva contraseña debe tener al menos 8 caracteres'); return }
                 if (pwForm.newPw !== pwForm.confirm) { setPwError('Las contraseñas no coinciden'); return }
                 setPwLoading(true)
                 try {
@@ -283,7 +357,7 @@ export function BaseLayout({ children }) {
                 <label htmlFor="pw-current" className="block text-xs font-medium text-gray-700 mb-1">Contraseña actual</label>
                 <input
                   id="pw-current"
-                  type="password" required autoFocus
+                  type="password" required maxLength={72} autoFocus
                   autoComplete="current-password"
                   value={pwForm.current}
                   onChange={(e) => setPwForm({ ...pwForm, current: e.target.value })}
@@ -294,7 +368,7 @@ export function BaseLayout({ children }) {
                 <label htmlFor="pw-new" className="block text-xs font-medium text-gray-700 mb-1">Nueva contraseña</label>
                 <input
                   id="pw-new"
-                  type="password" required minLength={6}
+                  type="password" required minLength={8} maxLength={72}
                   autoComplete="new-password"
                   value={pwForm.newPw}
                   onChange={(e) => setPwForm({ ...pwForm, newPw: e.target.value })}
@@ -305,7 +379,7 @@ export function BaseLayout({ children }) {
                 <label htmlFor="pw-confirm" className="block text-xs font-medium text-gray-700 mb-1">Confirmar nueva contraseña</label>
                 <input
                   id="pw-confirm"
-                  type="password" required
+                  type="password" required minLength={8} maxLength={72}
                   autoComplete="new-password"
                   value={pwForm.confirm}
                   onChange={(e) => setPwForm({ ...pwForm, confirm: e.target.value })}

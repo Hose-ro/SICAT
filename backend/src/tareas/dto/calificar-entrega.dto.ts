@@ -13,7 +13,7 @@ export class CalificarEntregaDto {
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
-  @Min(0)
+  @Min(1)
   @Max(100)
   calificacion?: number;
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import {
   CiCalendarDate,
   CiRead,
@@ -10,26 +10,22 @@ import {
 } from 'react-icons/ci'
 import { useAuthStore } from '../store/authStore'
 import api from '../api/axios'
-import { getStoredToken } from '../lib/auth'
 
 export default function Dashboard() {
   const { user } = useAuthStore()
-  const navigate = useNavigate()
   const [stats, setStats] = useState({ materias: 0, asistencias: 0, tareas: 0 })
   const [materiasData, setMateriasData] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const token = getStoredToken()
-    if (!token) { navigate('/login'); return }
-    api.get('/materias')
+      api.get('/materias')
       .then((r) => {
         setStats((s) => ({ ...s, materias: r.data.length }))
         setMateriasData(r.data.slice(0, 5))
       })
       .catch(() => {})
       .finally(() => setLoading(false))
-  }, [navigate])
+  }, [])
 
   return (
     <div className="space-y-6">

@@ -1,21 +1,9 @@
-import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
-import { clearToken, saveToken } from '../lib/auth'
+import { create } from "zustand";
 
-export const useAuthStore = create(
-  persist(
-    (set) => ({
-      user: null,
-      token: null,
-      setAuth: (user, token) => {
-        if (token) saveToken(token)
-        set({ user, token })
-      },
-      logout: () => {
-        clearToken()
-        set({ user: null, token: null })
-      },
-    }),
-    { name: 'sicat-auth' }
-  )
-)
+export const useAuthStore = create((set) => ({
+  user: null,
+  initialized: false,
+  setUser: (user) => set({ user }),
+  setInitialized: (initialized) => set({ initialized }),
+  logout: () => set({ user: null }),
+}));

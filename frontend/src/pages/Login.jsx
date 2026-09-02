@@ -1,49 +1,50 @@
-import { useEffect, useState } from 'react'
-import { useNavigate, Link, useLocation, useSearchParams } from 'react-router-dom'
-import { Eye, EyeOff, Lock, Mail, MoonStar, SunMedium, UserCircle } from 'lucide-react'
-import { useAuthStore } from '../store/authStore'
-import { useThemeStore } from '../store/useThemeStore'
-import api from '../api/axios'
-import BrandMark from '../components/branding/BrandMark'
-import { saveToken } from '../lib/auth'
+import { useState } from "react";
+import { useNavigate, Link, useLocation } from "react-router-dom";
+import {
+  Eye,
+  EyeOff,
+  Lock,
+  MoonStar,
+  SunMedium,
+  UserCircle,
+} from "lucide-react";
+import { useAuthStore } from "../store/authStore";
+import { useThemeStore } from "../store/useThemeStore";
+import api from "../api/axios";
+import BrandMark from "../components/branding/BrandMark";
+import { EMAIL_AUTH_ENABLED } from "../lib/authFeatures";
 
 export default function Login() {
-  const [identifier, setIdentifier] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
-  const dark = useThemeStore((s) => s.isDark)
-  const toggleDark = useThemeStore((s) => s.toggle)
-  const { setAuth } = useAuthStore()
-  const navigate = useNavigate()
-  const location = useLocation()
-  const [searchParams] = useSearchParams()
-  const registered = location.state?.registered
-  const redirectTo = location.state?.from || '/dashboard'
-
-  useEffect(() => {
-    if (searchParams.get('error') === 'google_auth_failed') {
-      setError('No se pudo iniciar sesión con Google. Inténtalo nuevamente.')
-    }
-  }, [searchParams])
+  const [identifier, setIdentifier] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const dark = useThemeStore((s) => s.isDark);
+  const toggleDark = useThemeStore((s) => s.toggle);
+  const setUser = useAuthStore((state) => state.setUser);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const registered = location.state?.registered;
+  const pendingApproval = location.state?.pendingApproval;
+  const emailSent = location.state?.emailSent;
+  const horarioRegistro = location.state?.horarioRegistro;
+  const redirectTo = location.state?.from || "/dashboard";
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
+    e.preventDefault();
+    setError("");
+    setLoading(true);
     try {
-      const res = await api.post('/auth/login', { identifier, password })
-      const token = res.data.access_token
-      saveToken(token)
-      setAuth(res.data.user, token)
-      navigate(redirectTo, { replace: true })
-    } catch {
-      setError('Credenciales incorrectas')
+      const res = await api.post("/auth/login", { identifier, password });
+      setUser(res.data.user);
+      navigate(redirectTo, { replace: true });
+    } catch (err) {
+      setError(err.response?.data?.message ?? "No se pudo iniciar sesión");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="relative isolate min-h-screen overflow-hidden bg-background transition-colors duration-300">
@@ -57,11 +58,15 @@ export default function Login() {
           type="button"
           onClick={toggleDark}
           className="inline-flex items-center gap-2 rounded-full border border-border bg-card/70 px-4 py-2 text-sm font-medium text-foreground shadow-sm backdrop-blur-xl transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/35 focus:outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
-          aria-label={dark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+          aria-label={dark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
           aria-pressed={dark}
         >
-          {dark ? <SunMedium className="h-4 w-4" /> : <MoonStar className="h-4 w-4" />}
-          <span>{dark ? 'Modo claro' : 'Modo oscuro'}</span>
+          {dark ? (
+            <SunMedium className="h-4 w-4" />
+          ) : (
+            <MoonStar className="h-4 w-4" />
+          )}
+          <span>{dark ? "Modo claro" : "Modo oscuro"}</span>
         </button>
       </div>
 
@@ -84,33 +89,6 @@ export default function Login() {
               <h2 className="text-4xl font-semibold leading-tight text-foreground">
                 Bienvenido de vuelta al panel institucional.
               </h2>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-3xl border border-border bg-card/60 p-4 shadow-sm backdrop-blur-xl">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                  Módulo
-                </p>
-                <p className="mt-3 text-lg font-semibold text-foreground">
-                  Asistencias
-                </p>
-              </div>
-              <div className="rounded-3xl border border-border bg-card/60 p-4 shadow-sm backdrop-blur-xl">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                  Módulo
-                </p>
-                <p className="mt-3 text-lg font-semibold text-foreground">
-                  Tareas
-                </p>
-              </div>
-              <div className="rounded-3xl border border-border bg-card/60 p-4 shadow-sm backdrop-blur-xl">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                  Módulo
-                </p>
-                <p className="mt-3 text-lg font-semibold text-foreground">
-                  Gestión escolar
-                </p>
-              </div>
             </div>
           </div>
         </section>
@@ -151,7 +129,7 @@ export default function Login() {
                       Usuario
                     </label>
                     <div className="group relative">
-                      <Mail className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary" />
+                      <UserCircle className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary" />
                       <input
                         id="identifier"
                         type="text"
@@ -159,7 +137,7 @@ export default function Login() {
                         value={identifier}
                         onChange={(e) => setIdentifier(e.target.value)}
                         required
-                        placeholder="Correo, usuario o N° de control"
+                        placeholder="Número de control o usuario"
                         className="h-14 w-full rounded-2xl border border-input bg-background px-12 text-sm text-foreground outline-none transition-all duration-200 placeholder:text-muted-foreground hover:border-primary/45 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40"
                       />
                     </div>
@@ -176,7 +154,7 @@ export default function Login() {
                       <Lock className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary" />
                       <input
                         id="password"
-                        type={showPassword ? 'text' : 'password'}
+                        type={showPassword ? "text" : "password"}
                         autoComplete="current-password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
@@ -186,18 +164,74 @@ export default function Login() {
                       />
                       <button
                         type="button"
-                        aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                        aria-label={
+                          showPassword
+                            ? "Ocultar contraseña"
+                            : "Mostrar contraseña"
+                        }
                         onClick={() => setShowPassword((value) => !value)}
                         className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-primary focus:outline-none"
                       >
-                        {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                        {showPassword ? (
+                          <EyeOff className="h-5 w-5" />
+                        ) : (
+                          <Eye className="h-5 w-5" />
+                        )}
                       </button>
                     </div>
+                    {EMAIL_AUTH_ENABLED && (
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                        <Link
+                          to="/reenviar-verificacion"
+                          className="text-muted-foreground hover:text-foreground hover:underline"
+                        >
+                          Reenviar verificación
+                        </Link>
+                        <Link
+                          to="/recuperar-password"
+                          className="font-medium text-primary hover:underline"
+                        >
+                          ¿Olvidaste tu contraseña?
+                        </Link>
+                      </div>
+                    )}
                   </div>
 
                   {registered && (
-                    <div className="rounded-2xl border border-success/25 bg-success/10 px-4 py-3 text-sm text-success">
-                      ¡Cuenta creada! Ya puedes iniciar sesión.
+                    <div className="space-y-2 rounded-2xl border border-success/25 bg-success/10 px-4 py-3 text-sm text-success">
+                      <p>
+                        {!EMAIL_AUTH_ENABLED
+                          ? "Cuenta creada. Espera la aprobación administrativa."
+                          : emailSent === false
+                            ? "Cuenta creada, pero no pudimos enviar el correo de verificación. Solicita un nuevo enlace."
+                            : pendingApproval
+                              ? "Cuenta creada. Verifica tu correo y espera la aprobación administrativa."
+                              : "¡Cuenta creada! Ya puedes iniciar sesión."}
+                      </p>
+                      {horarioRegistro?.estado === "REUTILIZADO" && (
+                        <p>
+                          Tu cuenta quedó vinculada con el horario existente de
+                          tu grupo.
+                        </p>
+                      )}
+                      {[
+                        "PENDIENTE_PROCESAMIENTO",
+                        "PENDIENTE_REVISION",
+                        "ERROR",
+                      ].includes(horarioRegistro?.estado) && (
+                        <p>
+                          Recibimos la fotografía de tu horario. La revisaremos
+                          antes de publicarla.
+                        </p>
+                      )}
+                      {EMAIL_AUTH_ENABLED && emailSent === false && (
+                        <Link
+                          to="/reenviar-verificacion"
+                          className="inline-block font-medium underline"
+                        >
+                          Solicitar nuevo enlace
+                        </Link>
+                      )}
                     </div>
                   )}
 
@@ -216,32 +250,13 @@ export default function Login() {
                     className="group relative flex h-14 w-full items-center justify-center overflow-hidden rounded-2xl bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-[0_8px_24px_var(--primary-glow)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary-strong focus:outline-none focus-visible:ring-3 focus-visible:ring-ring/40 disabled:cursor-not-allowed disabled:opacity-70"
                   >
                     <span className="relative z-10">
-                      {loading ? 'Iniciando sesión...' : 'Iniciar sesión'}
+                      {loading ? "Iniciando sesión..." : "Iniciar sesión"}
                     </span>
                   </button>
 
-                  <div className="relative flex items-center gap-3">
-                    <div className="h-px flex-1 bg-border" />
-                    <span className="text-xs text-muted-foreground">o</span>
-                    <div className="h-px flex-1 bg-border" />
-                  </div>
-
-                  <a
-                    href={`${import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api'}/auth/google`}
-                    className="flex h-14 w-full items-center justify-center gap-3 rounded-2xl border border-border bg-card/70 px-4 text-sm font-medium text-foreground shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/35 focus:outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
-                  >
-                    <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-                      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-                      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05" />
-                      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-                    </svg>
-                    Continuar con Google
-                  </a>
-
                   <div className="space-y-3 pt-1 text-center">
                     <p className="text-sm text-muted-foreground">
-                      ¿Eres alumno nuevo?{' '}
+                      ¿Eres alumno nuevo?{" "}
                       <Link
                         to="/registro"
                         className="font-medium text-primary transition-colors hover:text-primary-strong hover:underline"
@@ -257,5 +272,5 @@ export default function Login() {
         </section>
       </div>
     </div>
-  )
+  );
 }

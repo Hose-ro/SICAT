@@ -8,6 +8,7 @@ import { PrismaService } from '../prisma.service';
 import { CreateGrupoDto } from './dto/create-grupo.dto';
 import { UpdateGrupoDto } from './dto/update-grupo.dto';
 import { hayConflictoHorario } from '../horarios/utils/conflicto-horario.util';
+import { HorariosService } from '../horarios/horarios.service';
 
 const INCLUDE_LIST = {
   carrera: { select: { id: true, nombre: true, codigo: true } },
@@ -37,7 +38,10 @@ const INCLUDE_DETAIL = {
 
 @Injectable()
 export class GruposService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private horarios: HorariosService,
+  ) {}
 
   // ─── Crear grupo ────────────────────────────────────────────────────────────
 
@@ -370,6 +374,19 @@ export class GruposService {
   // ─── Estado de la retícula para un grupo ───────────────────────────────────
   // Devuelve las materias de la retícula del semestre/carrera del grupo,
   // cada una con estado: ASIGNADA | DISPONIBLE | FALTANTE
+
+  async asignarAula(
+    grupoId: number,
+    aulaId: number | null,
+    horarioId?: number,
+  ) {
+    const grupo = await this.prisma.grupo.findUnique({
+      where: { id: grupoId },
+    });
+    if (!grupo) throw new NotFoundException('Grupo no encontrado');
+
+    return this.horarios.asignarAulaGrupo(grupoId, aulaId, horarioId);
+  }
 
   async getReticulaStatus(grupoId: number) {
     const grupo = await this.prisma.grupo.findUnique({

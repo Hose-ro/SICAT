@@ -53,6 +53,16 @@ function estadoClaseStyle(estado) {
   }
 }
 
+function getApiErrorMessage(error, fallback) {
+  const message = error.response?.data?.message
+
+  if (message === 'Forbidden resource') {
+    return 'Tu sesión no tiene permisos para realizar esta acción. Cierra sesión, vuelve a ingresar e inténtalo de nuevo.'
+  }
+
+  return message || fallback
+}
+
 function StatPill({ label, value, tone = 'slate' }) {
   const tones = {
     slate: 'bg-slate-100 text-slate-700',
@@ -105,6 +115,16 @@ function ClaseCard({
   onFinalizarUnidad,
 }) {
   const unidadPendiente = clase?.materia?.unidades?.find((unidad) => unidad.status === 'PENDIENTE')
+  const requiereUnidadActiva = !clase.sesion?.id && !clase.unidadActiva
+  const inicioAyudaId = `clase-${clase.horarioId}-inicio-ayuda`
+
+  const iniciarLabel = clase.sesion?.id
+    ? 'Clase iniciada'
+    : requiereUnidadActiva
+      ? unidadPendiente
+        ? `Inicia ${unidadPendiente.nombre} primero`
+        : 'Sin unidad disponible'
+      : 'Iniciar clase'
 
   return (
     <article className={`rounded-3xl border border-slate-200 bg-white shadow-sm ${principal ? 'p-6' : 'p-5'}`}>
@@ -145,11 +165,17 @@ function ClaseCard({
           <button
             type="button"
             onClick={onIniciar}
-            disabled={Boolean(clase.sesion?.id)}
+            disabled={Boolean(clase.sesion?.id) || requiereUnidadActiva}
+            aria-describedby={requiereUnidadActiva ? inicioAyudaId : undefined}
             className="rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {clase.sesion?.id ? 'Clase iniciada' : 'Iniciar clase'}
+            {iniciarLabel}
           </button>
+          {requiereUnidadActiva && (
+            <p id={inicioAyudaId} className="px-1 text-xs leading-relaxed text-slate-500">
+              Activa una unidad para asociar correctamente la asistencia de esta clase.
+            </p>
+          )}
           <button
             type="button"
             onClick={onTomarAsistencia}
@@ -173,7 +199,7 @@ function ClaseCard({
         {!clase.unidadActiva && unidadPendiente && (
           <button
             type="button"
-            onClick={() => onIniciarUnidad(unidadPendiente.id)}
+            onClick={() => onIniciarUnidad(unidadPendiente)}
             className="rounded-full bg-emerald-100 px-3 py-2 text-xs font-semibold text-emerald-800 transition hover:bg-emerald-200"
           >
             Iniciar {unidadPendiente.nombre}
@@ -706,13 +732,24 @@ function DocenteAsistenciasView() {
 
   const handleStartClass = async (clase) => {
     setMensaje('')
+
+    if (!clase?.unidadActiva) {
+      const unidadPendiente = clase?.materia?.unidades?.find((unidad) => unidad.status === 'PENDIENTE')
+      setMensaje(
+        unidadPendiente
+          ? `Primero inicia ${unidadPendiente.nombre}; después podrás iniciar la clase.`
+          : 'No hay una unidad disponible para iniciar esta clase.',
+      )
+      return
+    }
+
     try {
       const response = await iniciar({ horarioId: clase.horarioId })
       setSelectedSessionId(response.id)
       if (response.advertencia) setMensaje(response.advertencia)
       await cargarTodo()
     } catch (error) {
-      setMensaje(error.response?.data?.message || 'No se pudo iniciar la clase.')
+      setMensaje(getApiErrorMessage(error, 'No se pudo iniciar la clase.'))
     }
   }
 
@@ -735,13 +772,14 @@ function DocenteAsistenciasView() {
     }
   }
 
-  const handleIniciarUnidad = async (unidadId) => {
+  const handleIniciarUnidad = async (unidad) => {
     setMensaje('')
     try {
-      await api.patch(`/unidades/${unidadId}/iniciar`)
+      await api.patch(`/unidades/${unidad.id}/iniciar`)
       await cargarTodo()
+      setMensaje(`${unidad.nombre} está activa. Ya puedes iniciar la clase.`)
     } catch (error) {
-      setMensaje(error.response?.data?.message || 'No se pudo iniciar la unidad.')
+      setMensaje(getApiErrorMessage(error, 'No se pudo iniciar la unidad.'))
     }
   }
 

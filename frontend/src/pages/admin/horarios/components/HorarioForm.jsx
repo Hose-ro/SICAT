@@ -15,22 +15,21 @@ function ordenarBloques(bloques) {
   return [...bloques].sort((a, b) => (ORDEN_DIAS[a.dia] ?? 99) - (ORDEN_DIAS[b.dia] ?? 99))
 }
 
-function crearEstadoInicial({ editingHorario, modo, docenteSeleccionado, grupoSeleccionado }) {
-  if (editingHorario) {
-    const dias = editingHorario.dias.split(',').map((dia) => dia.trim()).filter(Boolean)
-
+function crearEstadoInicial({ clase, preset, modo, docenteSeleccionado, grupoSeleccionado }) {
+  if (clase) {
     return {
-      materiaId: String(editingHorario.materiaId),
-      docenteId: String(editingHorario.docenteId),
-      grupoId: editingHorario.grupoId ? String(editingHorario.grupoId) : '',
+      materiaId: String(clase.materiaId),
+      docenteId: String(clase.docenteId),
+      grupoId: clase.grupoId ? String(clase.grupoId) : '',
+      aulaId: clase.aulaId ? String(clase.aulaId) : '',
       bloques: ordenarBloques(
-        dias.map((dia) => ({
-          dia,
-          horaInicio: editingHorario.horaInicio,
-          horaFin: editingHorario.horaFin,
+        clase.bloques.map((bloque) => ({
+          dia: bloque.dia,
+          horaInicio: bloque.horaInicio,
+          horaFin: bloque.horaFin,
         })),
       ),
-      semestre: editingHorario.semestre ? String(editingHorario.semestre) : '',
+      semestre: clase.semestre ? String(clase.semestre) : '',
     }
   }
 
@@ -38,20 +37,24 @@ function crearEstadoInicial({ editingHorario, modo, docenteSeleccionado, grupoSe
     materiaId: '',
     docenteId: modo === 'docente' && docenteSeleccionado?.id ? String(docenteSeleccionado.id) : '',
     grupoId: modo === 'grupo' && grupoSeleccionado?.id ? String(grupoSeleccionado.id) : '',
-    bloques: [],
+    aulaId: '',
+    bloques: preset?.dia
+      ? [{ dia: preset.dia, horaInicio: preset.horaInicio ?? '', horaFin: preset.horaFin ?? '' }]
+      : [],
     semestre: grupoSeleccionado?.semestre ? String(grupoSeleccionado.semestre) : '',
   }
 }
 
-export default function HorarioForm({ modo, editingHorario, onSaved, onCancelEdit }) {
+export default function HorarioForm({ modo, clase, preset, onSaved, onCancelEdit, onEliminar }) {
   const {
     materiasCatalogo,
     docentesCatalogo,
+    aulasCatalogo,
     grupos,
     docenteSeleccionado,
     grupoSeleccionado,
     crearHorario,
-    actualizarHorario,
+    actualizarClase,
     validarHorario,
     validation,
     validating,
@@ -60,15 +63,17 @@ export default function HorarioForm({ modo, editingHorario, onSaved, onCancelEdi
   } = useHorarioStore()
 
   const [form, setForm] = useState(() =>
-    crearEstadoInicial({ editingHorario, modo, docenteSeleccionado, grupoSeleccionado }),
+    crearEstadoInicial({ clase, preset, modo, docenteSeleccionado, grupoSeleccionado }),
   )
   const [submitError, setSubmitError] = useState('')
+  const [confirmEliminar, setConfirmEliminar] = useState(false)
 
   useEffect(() => {
-    setForm(crearEstadoInicial({ editingHorario, modo, docenteSeleccionado, grupoSeleccionado }))
+    setForm(crearEstadoInicial({ clase, preset, modo, docenteSeleccionado, grupoSeleccionado }))
     setSubmitError('')
+    setConfirmEliminar(false)
     clearValidation()
-  }, [editingHorario, modo, docenteSeleccionado?.id, grupoSeleccionado?.id, clearValidation])
+  }, [clase, preset, modo, docenteSeleccionado?.id, grupoSeleccionado?.id, clearValidation])
 
   const bloquesOrdenados = useMemo(() => ordenarBloques(form.bloques), [form.bloques])
 
@@ -76,6 +81,7 @@ export default function HorarioForm({ modo, editingHorario, onSaved, onCancelEdi
     materiaId: Number(form.materiaId),
     docenteId: Number(form.docenteId),
     grupoId: form.grupoId ? Number(form.grupoId) : undefined,
+    aulaId: form.aulaId ? Number(form.aulaId) : null,
     bloques: bloquesOrdenados.map((bloque) => ({
       dia: bloque.dia,
       horaInicio: bloque.horaInicio,
@@ -103,11 +109,11 @@ export default function HorarioForm({ modo, editingHorario, onSaved, onCancelEdi
     }
 
     const timeout = setTimeout(() => {
-      validarHorario(payload, editingHorario?.id)
+      validarHorario(payload, clase?.horarioIds)
     }, 250)
 
     return () => clearTimeout(timeout)
-  }, [estaCompleto, bloquesInvalidos.length, payload, editingHorario?.id, validarHorario, clearValidation])
+  }, [estaCompleto, bloquesInvalidos.length, payload, clase, validarHorario, clearValidation])
 
   function updateField(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }))
@@ -163,20 +169,20 @@ export default function HorarioForm({ modo, editingHorario, onSaved, onCancelEdi
       return
     }
 
-    const currentValidation = await validarHorario(payload, editingHorario?.id)
+    const currentValidation = await validarHorario(payload, clase?.horarioIds)
     if (!currentValidation.ok) {
       setSubmitError(currentValidation.message || 'Existe un conflicto de horario.')
       return
     }
 
     try {
-      if (editingHorario?.id) {
-        await actualizarHorario(editingHorario.id, payload)
+      if (clase) {
+        await actualizarClase({ ...payload, horarioIds: clase.horarioIds })
       } else {
         await crearHorario(payload)
       }
 
-      setForm(crearEstadoInicial({ editingHorario: null, modo, docenteSeleccionado, grupoSeleccionado }))
+      setForm(crearEstadoInicial({ clase: null, modo, docenteSeleccionado, grupoSeleccionado }))
       clearValidation()
       onSaved?.()
     } catch (error) {
@@ -205,29 +211,29 @@ export default function HorarioForm({ modo, editingHorario, onSaved, onCancelEdi
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 rounded-xl border border-slate-200 bg-white p-4">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold text-slate-800">
-            {editingHorario ? 'Editar horario' : 'Crear horario'}
+            {clase ? 'Editar clase' : 'Nueva clase'}
           </h2>
           <p className="text-xs text-slate-500">
-            Programa materia, docente, grupo y un bloque independiente por cada día.
+            {clase
+              ? 'Los cambios se aplican a todos los días de la clase. Quita un día para retirarlo del horario.'
+              : 'Programa materia, docente, grupo y un bloque independiente por cada día.'}
           </p>
         </div>
-        {editingHorario && (
-          <button
-            type="button"
-            onClick={() => {
-              setForm(crearEstadoInicial({ editingHorario: null, modo, docenteSeleccionado, grupoSeleccionado }))
-              setSubmitError('')
-              clearValidation()
-              onCancelEdit?.()
-            }}
-            className="text-xs font-medium text-slate-500 hover:text-slate-700"
-          >
-            Cancelar edición
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={() => {
+            setForm(crearEstadoInicial({ clase: null, modo, docenteSeleccionado, grupoSeleccionado }))
+            setSubmitError('')
+            clearValidation()
+            onCancelEdit?.()
+          }}
+          className="shrink-0 text-xs font-medium text-slate-500 hover:text-slate-700"
+        >
+          Cerrar
+        </button>
       </div>
 
       <div className="space-y-3">
@@ -279,6 +285,27 @@ export default function HorarioForm({ modo, editingHorario, onSaved, onCancelEdi
               </option>
             ))}
           </select>
+        </div>
+
+        <div>
+          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Aula</label>
+          <select
+            value={form.aulaId}
+            onChange={(e) => updateField('aulaId', e.target.value)}
+            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Sin aula asignada</option>
+            {aulasCatalogo.map((aula) => (
+              <option key={aula.id} value={aula.id}>
+                {aula.nombre}
+                {aula.edificio ? ` · ${aula.edificio}` : ''}
+                {aula.capacidad ? ` · ${aula.capacidad} lugares` : ''}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-xs text-slate-500">
+            Se valida que el aula esté libre en los días y horas seleccionados.
+          </p>
         </div>
 
         <div>
@@ -379,10 +406,53 @@ export default function HorarioForm({ modo, editingHorario, onSaved, onCancelEdi
       >
         {saving
           ? 'Guardando...'
-          : editingHorario
+          : clase
             ? 'Guardar cambios'
-            : 'Crear horario'}
+            : 'Crear clase'}
       </button>
+
+      {clase && (
+        confirmEliminar ? (
+          <div className="space-y-2 rounded-lg border border-red-200 bg-red-50 p-3">
+            <p className="text-xs text-red-700">
+              Se retirarán del horario los {clase.bloques.length} día
+              {clase.bloques.length === 1 ? '' : 's'} de esta clase.
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmEliminar(false)}
+                className="flex-1 rounded-lg border border-slate-300 px-3 py-1.5 text-xs text-slate-700 hover:bg-white"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await onEliminar?.(clase)
+                  } catch (error) {
+                    setSubmitError(error.message)
+                    setConfirmEliminar(false)
+                  }
+                }}
+                disabled={saving}
+                className="flex-1 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                Eliminar clase
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setConfirmEliminar(true)}
+            className="w-full rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50"
+          >
+            Eliminar clase del horario
+          </button>
+        )
+      )}
     </form>
   )
 }

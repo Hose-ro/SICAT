@@ -1,7 +1,6 @@
 
 @import "tailwindcss";
 @import "tw-animate-css";
-@import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
 
 @custom-variant dark (&:is(.dark *));
@@ -75,14 +74,36 @@
   --glass-shadow:           0 18px 50px rgba(38, 60, 105, 0.14);
 }
 
-/* Expose the custom status tokens as Tailwind utilities (bg-success,
-   text-warning, etc). The standard shadcn tokens are already mapped
-   by the shadcn/tailwind.css import. */
+/* Wire every semantic token above into Tailwind's utility generator
+   (bg-card, text-foreground, border-border, etc). These previously
+   relied on an `@import "shadcn/tailwind.css"` that doesn't exist —
+   `shadcn` is the CLI package, not a CSS export — so every semantic-
+   token utility silently generated no rule at all. */
 @theme inline {
+  --color-background:           var(--background);
+  --color-foreground:           var(--foreground);
+  --color-card:                 var(--card);
+  --color-card-foreground:      var(--card-foreground);
+  --color-popover:              var(--popover);
+  --color-popover-foreground:   var(--popover-foreground);
+  --color-primary:              var(--primary);
+  --color-primary-foreground:   var(--primary-foreground);
+  --color-on-accent:            var(--on-accent);
+  --color-secondary:            var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted:                var(--muted);
+  --color-muted-foreground:     var(--muted-foreground);
+  --color-accent:               var(--accent);
+  --color-accent-foreground:    var(--accent-foreground);
+  --color-destructive:          var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-success:              var(--success);
   --color-success-foreground:   var(--success-foreground);
   --color-warning:              var(--warning);
   --color-warning-foreground:   var(--warning-foreground);
+  --color-border:               var(--border);
+  --color-input:                var(--input);
+  --color-ring:                 var(--ring);
   --color-primary-strong:       var(--primary-strong);
 }
 
@@ -112,6 +133,9 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+}
+
+.theme-ready body {
   transition: background 300ms cubic-bezier(.4,0,.2,1);
 }
 
@@ -325,7 +349,6 @@ body.dark .dark-toggle__track {
     0 6px 16px rgba(72,82,101,0.22);
 }
 body.dark .logo__text               { color: rgba(255,255,255,0.90); }
-body.dark .logo__icon               { background: rgba(255,255,255,0.10); border-color: rgba(255,255,255,0.14); }
 body.dark .sidebar__toggle          { color: rgba(255,255,255,0.75); border-color: rgba(255,255,255,0.12); background: rgba(255,255,255,0.07); }
 body.dark .sidebar__search input    { color: rgba(255,255,255,0.85); border-color: rgba(255,255,255,0.10); background: rgba(255,255,255,0.06); }
 body.dark .sidebar__search input::placeholder { color: rgba(255,255,255,0.30); }
@@ -931,6 +954,12 @@ body.dark .scard__progress-fill {
   justify-content: center;
   flex-shrink: 0;
 }
+.brand-mark {
+  background: none;
+}
+body.dark .brand-mark {
+  filter: brightness(1.45);
+}
 .logo__icon-image {
   width: 100%;
   height: 100%;
@@ -1415,6 +1444,26 @@ body.dark .pw-modal label { color: rgba(255,255,255,0.65) !important; }
   }
   .layout-main, .layout-main.collapsed {
     margin-left: 0;
+  }
+}
+
+/* ─── Print: hide app chrome, let page content own the sheet ────── */
+@page {
+  size: landscape;
+  margin: 12mm;
+}
+@media print {
+  .sidebar,
+  .sidebar-overlay,
+  .mobile-topbar,
+  .print-hidden {
+    display: none !important;
+  }
+  .layout-main, .layout-main.collapsed {
+    margin-left: 0;
+  }
+  body {
+    background: #fff;
   }
 }
 
@@ -2172,4 +2221,371 @@ body.dark .btn-logout:hover {
 }
 body.dark .btn-logout:hover .btn-logout__sign svg {
   color: var(--on-accent);
+}
+
+/* SICAT dark palette trial: Codex/GitHub dark reference.
+   This block intentionally sits last so the test can be reverted by
+   removing only this section without disturbing earlier theme work. */
+body.dark,
+.dark {
+  --sicat-dark-bg-base: #0d1117;
+  --sicat-dark-sidebar: #171b20;
+  --sicat-dark-menu: #0b0f13;
+  --sicat-dark-panel: #171b20;
+  --sicat-dark-editor: #1d1f25;
+  --sicat-dark-control: #1f2227;
+  --sicat-dark-elevated: #252a2f;
+  --sicat-dark-accent: #1f6feb;
+  --sicat-dark-accent-strong: #388bfd;
+  --sicat-dark-accent-soft: rgba(31,111,235,0.16);
+  --sicat-dark-text-primary: #e6edf3;
+  --sicat-dark-text-on-accent: #ffffff;
+  --sicat-dark-text-secondary: rgba(230,237,243,0.72);
+  --sicat-dark-text-tertiary: rgba(230,237,243,0.48);
+  --sicat-dark-border: rgba(230,237,243,0.10);
+  --sicat-dark-border-heavy: rgba(230,237,243,0.18);
+  --sicat-dark-border-light: rgba(230,237,243,0.06);
+
+  --background: var(--sicat-dark-bg-base);
+  --foreground: var(--sicat-dark-text-primary);
+  --card: var(--sicat-dark-panel);
+  --card-foreground: var(--sicat-dark-text-primary);
+  --popover: var(--sicat-dark-menu);
+  --popover-foreground: var(--sicat-dark-text-primary);
+  --primary: var(--sicat-dark-accent);
+  --primary-foreground: var(--sicat-dark-text-on-accent);
+  --on-accent: var(--sicat-dark-text-on-accent);
+  --secondary: var(--sicat-dark-editor);
+  --secondary-foreground: var(--sicat-dark-text-secondary);
+  --muted: var(--sicat-dark-editor);
+  --muted-foreground: var(--sicat-dark-text-secondary);
+  --accent: var(--sicat-dark-elevated);
+  --accent-foreground: var(--sicat-dark-text-primary);
+  --border: var(--sicat-dark-border);
+  --input: var(--sicat-dark-control);
+  --ring: var(--sicat-dark-accent);
+  --primary-strong: var(--sicat-dark-accent-strong);
+  --primary-glow: rgba(31,111,235,0.26);
+  --text: var(--sicat-dark-text-primary);
+  --text-muted: var(--sicat-dark-text-secondary);
+  --glass-bg: rgba(23,27,32,0.96);
+  --glass-border: var(--sicat-dark-border);
+  --glass-inset: inset 0 1.5px 0 var(--sicat-dark-border-light);
+  --glass-shadow: none;
+}
+
+body.dark {
+  background: var(--sicat-dark-bg-base);
+  color: var(--sicat-dark-text-primary);
+}
+
+body.dark .sidebar {
+  background: var(--sicat-dark-sidebar);
+  border-color: var(--sicat-dark-border);
+  box-shadow: none;
+}
+
+body.dark .mobile-topbar,
+body.dark .modal-panel,
+body.dark .dash-card,
+body.dark .scard--blue,
+body.dark .scard--amber,
+body.dark .scard--violet,
+body.dark .pw-modal {
+  background: var(--sicat-dark-panel) !important;
+  border-color: var(--sicat-dark-border) !important;
+  box-shadow: none !important;
+}
+
+body.dark .task-hero,
+body.dark .task-hero-chip,
+body.dark .task-hero-badge,
+body.dark .task-hero-surface,
+body.dark .scard__inner {
+  background: var(--sicat-dark-editor);
+  border-color: var(--sicat-dark-border);
+}
+
+body.dark .task-hero::before,
+body.dark .task-hero::after {
+  background: none;
+}
+
+body.dark .task-hero-button,
+body.dark .sidebar__toggle,
+body.dark .sidebar__search input,
+body.dark .modal-close,
+body.dark .btn-logout {
+  background: var(--sicat-dark-control);
+  border-color: var(--sicat-dark-border);
+  color: var(--sicat-dark-text-secondary);
+  box-shadow: none;
+}
+
+body.dark .task-hero-button-primary {
+  background: var(--sicat-dark-accent);
+  border-color: var(--sicat-dark-accent);
+  color: var(--sicat-dark-text-on-accent);
+  box-shadow: none;
+}
+
+body.dark .task-hero-button:hover,
+body.dark .sidebar__toggle:hover,
+body.dark .sidebar__pw-btn:hover,
+body.dark .nav__item:hover,
+body.dark .dash-list__item:hover,
+body.dark .modal-close:hover,
+body.dark .btn-logout:hover {
+  background: var(--sicat-dark-elevated);
+  border-color: var(--sicat-dark-border-heavy);
+  color: var(--sicat-dark-text-primary);
+  box-shadow: none;
+}
+
+body.dark .task-hero-button-primary:hover {
+  background: var(--sicat-dark-accent-strong);
+  border-color: var(--sicat-dark-accent-strong);
+  color: var(--sicat-dark-text-on-accent);
+}
+
+body.dark .nav__item.active {
+  background: var(--sicat-dark-elevated);
+  box-shadow: none;
+}
+
+body.dark .nav__item.active::before {
+  opacity: 0;
+}
+
+body.dark .logo__text,
+body.dark .user__name,
+body.dark .dash-title,
+body.dark .dash-card__title,
+body.dark .dash-list__name,
+body.dark .scard__count,
+body.dark .modal-title,
+body.dark .task-hero-emphasis,
+body.dark .nav__item.active .nav__icon,
+body.dark .nav__item.active .nav__label {
+  color: var(--sicat-dark-text-primary);
+}
+
+body.dark .nav__icon,
+body.dark .nav__label,
+body.dark .dark-toggle__icon,
+body.dark .dark-toggle__label,
+body.dark .task-hero-subtitle,
+body.dark .task-hero-meta,
+body.dark .dash-subtitle,
+body.dark .dash-list__sub,
+body.dark .scard__label,
+body.dark .scard__inner-title,
+body.dark .scard__progress-value,
+body.dark .sidebar__pw-btn,
+body.dark .modal-body label,
+body.dark .modal-body p,
+body.dark .modal-body h3,
+body.dark .modal-body h4,
+body.dark .modal-body span:not(.btn-add__text):not(.btn-add__icon) {
+  color: var(--sicat-dark-text-secondary) !important;
+}
+
+body.dark .nav__section,
+body.dark .sidebar__search-icon,
+body.dark .sidebar__search input::placeholder,
+body.dark input::placeholder,
+body.dark textarea::placeholder,
+body.dark .user__role,
+body.dark .user__logout,
+body.dark .dash-muted,
+body.dark .scard__inner-sub,
+body.dark .scard__inner-meta,
+body.dark .scard__cal-weekdays span,
+body.dark .scard__cal-day,
+body.dark .scard__progress-label {
+  color: var(--sicat-dark-text-tertiary) !important;
+}
+
+body.dark .sidebar__divider {
+  background: var(--sicat-dark-border);
+}
+
+body.dark .mode-switch {
+  background-color: var(--sicat-dark-control);
+  box-shadow: 0 0 0 0.38em var(--sicat-dark-editor);
+}
+
+body.dark .mode-switch-input:checked ~ .mode-switch {
+  background-color: var(--sicat-dark-accent);
+  box-shadow: 0 0 0 0.38em var(--sicat-dark-accent-soft);
+}
+
+body.dark .user__avatar {
+  background: var(--sicat-dark-accent);
+  border-color: var(--sicat-dark-border-heavy);
+  box-shadow: none;
+  color: var(--sicat-dark-text-on-accent);
+}
+
+body.dark .nav__item[data-tip]::after {
+  background: var(--sicat-dark-elevated);
+  border: 1px solid var(--sicat-dark-border);
+  color: var(--sicat-dark-text-primary);
+  box-shadow: none;
+}
+
+body.dark .sidebar__divider,
+body.dark .dash-card__header,
+body.dark .dash-list > li + li,
+body.dark .border-t,
+body.dark .border-b,
+body.dark .modal-header {
+  border-color: var(--sicat-dark-border-light) !important;
+}
+
+body.dark .bg-white,
+body.dark .bg-white\/80,
+body.dark .bg-white\/70,
+body.dark .bg-white\/60,
+body.dark .bg-white\/95 {
+  background-color: var(--sicat-dark-panel) !important;
+}
+
+body.dark .bg-slate-50,
+body.dark .bg-gray-50,
+body.dark .bg-slate-50\/60,
+body.dark .bg-slate-50\/70,
+body.dark .bg-slate-50\/80 {
+  background-color: var(--sicat-dark-bg-base) !important;
+}
+
+body.dark .bg-slate-100,
+body.dark .bg-slate-200,
+body.dark .bg-gray-100,
+body.dark .bg-blue-50,
+body.dark .bg-slate-800 {
+  background-color: var(--sicat-dark-editor) !important;
+}
+
+body.dark .bg-gray-200,
+body.dark .bg-blue-100 {
+  background-color: var(--sicat-dark-control) !important;
+}
+
+body.dark .bg-slate-900 {
+  background-color: var(--sicat-dark-menu) !important;
+}
+
+body.dark .hover\:bg-slate-50:hover,
+body.dark .hover\:bg-slate-50\/60:hover,
+body.dark .hover\:bg-slate-100:hover,
+body.dark .hover\:bg-slate-200:hover,
+body.dark .hover\:bg-gray-50:hover,
+body.dark .hover\:bg-gray-100:hover,
+body.dark .hover\:bg-gray-200:hover,
+body.dark .hover\:bg-blue-100:hover,
+body.dark .hover\:bg-slate-700:hover,
+body.dark .hover\:bg-slate-800:hover,
+body.dark .hover\:bg-slate-900:hover {
+  background-color: var(--sicat-dark-elevated) !important;
+}
+
+body.dark .border-slate-100,
+body.dark .border-slate-200,
+body.dark .border-gray-50,
+body.dark .border-gray-100,
+body.dark .border-gray-200,
+body.dark .border-blue-200 {
+  border-color: var(--sicat-dark-border) !important;
+}
+
+body.dark .border-slate-300,
+body.dark .border-gray-300 {
+  border-color: var(--sicat-dark-border-heavy) !important;
+}
+
+body.dark .divide-slate-50 > * + *,
+body.dark .divide-slate-100 > * + *,
+body.dark .divide-slate-200 > * + * {
+  border-color: var(--sicat-dark-border-light) !important;
+}
+
+body.dark input:not([type]),
+body.dark input[type="text"],
+body.dark input[type="email"],
+body.dark input[type="password"],
+body.dark input[type="date"],
+body.dark input[type="time"],
+body.dark select,
+body.dark textarea {
+  background-color: var(--sicat-dark-control) !important;
+  border-color: var(--sicat-dark-border) !important;
+  color: var(--sicat-dark-text-primary) !important;
+}
+
+body.dark select option {
+  background: var(--sicat-dark-menu);
+  color: var(--sicat-dark-text-primary);
+}
+
+body.dark .btn-agenda {
+  --background: var(--sicat-dark-accent);
+  --background-hover: var(--sicat-dark-accent-strong);
+  --background-left: #1158c7;
+  --folder: #dbe7f3;
+  --folder-inner: #9aa7b2;
+  --paper: var(--sicat-dark-text-on-accent);
+  --paper-lines: #8b949e;
+  --paper-behind: #c9d1d9;
+  --pencil-cap: var(--sicat-dark-text-on-accent);
+  --pencil-top: var(--sicat-dark-accent-strong);
+  --pencil-middle: var(--sicat-dark-text-on-accent);
+  --pencil-bottom: #79c0ff;
+}
+
+body.dark .btn-add,
+body.dark .btn-edit {
+  background-color: var(--sicat-dark-accent);
+  border-color: var(--sicat-dark-accent);
+  box-shadow: none;
+}
+
+body.dark .btn-add:hover,
+body.dark .btn-edit:hover {
+  background-color: var(--sicat-dark-accent-strong);
+}
+
+body.dark .btn-add__icon,
+body.dark .btn-add:active .btn-add__icon {
+  background-color: #1158c7;
+}
+
+body.dark .btn-back::after {
+  border-color: var(--sicat-dark-accent);
+}
+
+body.dark .badge--programada,
+body.dark .badge--docente {
+  background: var(--sicat-dark-accent-soft);
+  color: #79c0ff;
+  border-color: rgba(31,111,235,0.30);
+}
+
+body.dark .badge--programada::before,
+body.dark .badge--docente::before {
+  background: var(--sicat-dark-accent);
+  box-shadow: 0 0 4px rgba(31,111,235,0.55);
+}
+
+body.dark .badge--presencial,
+body.dark .badge--personal {
+  background: rgba(139,148,158,0.12);
+  color: var(--sicat-dark-text-secondary);
+  border-color: var(--sicat-dark-border);
+}
+
+body.dark .badge--presencial::before,
+body.dark .badge--personal::before {
+  background: var(--sicat-dark-text-tertiary);
+  box-shadow: none;
 }

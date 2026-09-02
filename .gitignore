@@ -4,3 +4,8 @@ dist/
 .env.production
 *.local
 .claude/
+.DS_Store
+/tmp/
+/output/
+/app-*.css
+/terminal-panel-*.css

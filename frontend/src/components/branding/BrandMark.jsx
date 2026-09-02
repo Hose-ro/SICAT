@@ -1,4 +1,4 @@
-const BRAND_MARK_SRC = '/app-icon.svg?v=20260319b'
+const BRAND_MARK_SRC = '/app-icon.png?v=20260901'
 
 export default function BrandMark({
   className = '',
@@ -10,7 +10,7 @@ export default function BrandMark({
       src={BRAND_MARK_SRC}
       alt={decorative ? '' : alt}
       aria-hidden={decorative || undefined}
-      className={className}
+      className={['brand-mark', className].filter(Boolean).join(' ')}
       decoding="async"
     />
   )

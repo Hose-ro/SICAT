@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import TarjetaMateria from './TarjetaMateria'
 import { useHorarioStore } from '../../../../store/horarioStore'
 
@@ -18,132 +18,185 @@ function aMinutos(hora) {
   return h * 60 + m
 }
 
+function siguienteHora(hora) {
+  const [h] = hora.split(':').map(Number)
+  return `${String(Math.min(h + 1, 23)).padStart(2, '0')}:00`
+}
+
 const HORAS = generarHoras(7, 22)
 const HORA_INICIO_GRID = 7 * 60
 
-export default function GridHorario({ onMateriaClick, onEdit, modo = 'docente' }) {
-  const { docenteSeleccionado, grupoSeleccionado, horarios, eliminarHorario, saving } = useHorarioStore()
+export default function GridHorario({
+  modo = 'docente',
+  modoEdicion = false,
+  claseEnEdicion = null,
+  onEditarClase,
+  onNuevaClase,
+}) {
+  const { docenteSeleccionado, grupoSeleccionado, clases } = useHorarioStore()
   const [detalle, setDetalle] = useState(null)
 
-  function handleClick(horario) {
-    setDetalle(horario)
-    onMateriaClick?.(horario)
-  }
-
-  // Build a map: dia -> list of {horario, colorIndex, rowStart, rowSpan}
-  const celdas = {}
-  DIAS_LOWER.forEach((d) => (celdas[d] = []))
-
-  horarios.forEach((horario, idx) => {
-    const diasMateria = horario.dias.split(',').map((d) => d.trim().toLowerCase())
-    const inicioMin = aMinutos(horario.horaInicio) - HORA_INICIO_GRID
-    const finMin = aMinutos(horario.horaFin) - HORA_INICIO_GRID
-    const rowStart = Math.floor(inicioMin / 60) + 1
-    const rowSpan = Math.ceil((finMin - inicioMin) / 60)
-
-    diasMateria.forEach((dia) => {
-      const diaIdx = DIAS_LOWER.indexOf(dia)
-      if (diaIdx !== -1) {
-        celdas[DIAS_LOWER[diaIdx]].push({ horario, colorIndex: idx, rowStart, rowSpan })
-      }
+  const celdas = useMemo(() => {
+    const resultado = {}
+    DIAS_LOWER.forEach((dia) => {
+      resultado[dia] = []
     })
-  })
 
-  const horasSemanales = horarios.reduce((acc, horario) => {
-    const h = (aMinutos(horario.horaFin) - aMinutos(horario.horaInicio)) / 60
-    const dias = horario.dias.split(',').length
-    return acc + h * dias
-  }, 0)
+    clases.forEach((clase, claseIdx) => {
+      clase.bloques.forEach((bloque) => {
+        const diaIdx = DIAS_LOWER.indexOf(bloque.dia.trim().toLowerCase())
+        if (diaIdx === -1) return
+
+        const inicioMin = aMinutos(bloque.horaInicio) - HORA_INICIO_GRID
+        const finMin = aMinutos(bloque.horaFin) - HORA_INICIO_GRID
+
+        resultado[DIAS_LOWER[diaIdx]].push({
+          clase,
+          bloque,
+          colorIndex: claseIdx,
+          rowStart: Math.floor(inicioMin / 60) + 1,
+          rowSpan: Math.max(1, Math.ceil((finMin - inicioMin) / 60)),
+        })
+      })
+    })
+
+    return resultado
+  }, [clases])
+
+  const horasSemanales = useMemo(
+    () =>
+      clases.reduce(
+        (acc, clase) =>
+          acc +
+          clase.bloques.reduce(
+            (suma, bloque) =>
+              suma + (aMinutos(bloque.horaFin) - aMinutos(bloque.horaInicio)) / 60,
+            0,
+          ),
+        0,
+      ),
+    [clases],
+  )
 
   const contextoSeleccionado = modo === 'grupo' ? grupoSeleccionado : docenteSeleccionado
 
+  function handleClickBloque(clase) {
+    if (modoEdicion) {
+      onEditarClase?.(clase)
+      return
+    }
+    setDetalle(clase)
+  }
+
+  if (!contextoSeleccionado) {
+    return (
+      <div className="flex h-48 items-center justify-center text-sm text-slate-400">
+        {modo === 'grupo'
+          ? 'Selecciona un grupo para ver o editar su horario'
+          : 'Selecciona un docente para ver o editar su horario'}
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col gap-4">
-      {contextoSeleccionado && (
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-lg font-semibold">
-              {modo === 'grupo' ? contextoSeleccionado.nombre : contextoSeleccionado.nombre}
-            </h2>
-            <p className="text-sm text-slate-500">
-              {modo === 'grupo'
-                ? `${contextoSeleccionado.carrera?.nombre ?? 'Carrera'} · Sem ${contextoSeleccionado.semestre} · ${contextoSeleccionado.periodo}`
-                : `${horarios.length} horario${horarios.length !== 1 ? 's' : ''} · ${horasSemanales}h semanales`}
-            </p>
-          </div>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-lg font-semibold">{contextoSeleccionado.nombre}</h2>
+          <p className="text-sm text-slate-500">
+            {modo === 'grupo'
+              ? `${contextoSeleccionado.carrera?.nombre ?? 'Carrera'} · Sem ${contextoSeleccionado.semestre} · ${contextoSeleccionado.periodo}`
+              : `${clases.length} clase${clases.length !== 1 ? 's' : ''} · ${horasSemanales}h semanales`}
+          </p>
+        </div>
+        {modoEdicion && (
+          <p className="text-xs text-blue-600">
+            Haz clic en una clase para editarla, o en un espacio libre para crear una nueva.
+          </p>
+        )}
+      </div>
+
+      {clases.length === 0 && !modoEdicion && (
+        <div className="flex h-32 items-center justify-center text-sm text-slate-400">
+          Este horario todavía no tiene clases programadas.
         </div>
       )}
 
-      {!contextoSeleccionado && (
-        <div className="flex items-center justify-center h-48 text-slate-400 text-sm">
-          {modo === 'grupo' ? 'Selecciona un grupo para ver su horario' : 'Selecciona un docente para ver su horario'}
-        </div>
-      )}
+      <div className="overflow-x-auto">
+        <div className="grid min-w-[720px]" style={{ gridTemplateColumns: '64px repeat(6, 1fr)' }}>
+          <div className="py-1 text-center text-xs text-slate-400" />
+          {DIAS.map((dia) => (
+            <div key={dia} className="py-1 text-center text-xs font-semibold text-slate-600">
+              {dia}
+            </div>
+          ))}
 
-      {contextoSeleccionado && (
-        <div className="overflow-x-auto">
-          <div
-            className="grid min-w-[720px]"
-            style={{ gridTemplateColumns: '64px repeat(6, 1fr)' }}
-          >
-            {/* Header */}
-            <div className="text-xs text-slate-400 text-center py-1" />
-            {DIAS.map((dia) => (
-              <div key={dia} className="text-xs font-semibold text-center py-1 text-slate-600">
-                {dia}
+          {HORAS.map((hora, rowIdx) => (
+            <div key={`fila-${hora}`} className="contents">
+              <div
+                className="border-t border-slate-100 pr-2 pt-1 text-right text-xs text-slate-400"
+                style={{ gridRow: rowIdx + 1 }}
+              >
+                {hora}
               </div>
-            ))}
 
-            {/* Rows */}
-            {HORAS.map((hora, rowIdx) => (
-              <div key={`fila-${hora}`} className="contents">
-                {/* Hora label */}
-                <div
-                  key={`hora-${hora}`}
-                  className="text-xs text-slate-400 text-right pr-2 pt-1 border-t border-slate-100"
-                  style={{ gridRow: rowIdx + 1 }}
-                >
-                  {hora}
-                </div>
-
-                {/* Empty cells */}
-                {DIAS_LOWER.map((dia) => (
+              {DIAS.map((dia, diaIdx) =>
+                modoEdicion ? (
+                  <button
+                    key={`${dia}-${hora}`}
+                    type="button"
+                    onClick={() =>
+                      onNuevaClase?.({
+                        dia,
+                        horaInicio: hora,
+                        horaFin: siguienteHora(hora),
+                      })
+                    }
+                    title={`Nueva clase · ${dia} ${hora}`}
+                    className="group min-h-[48px] border-l border-t border-slate-100 transition hover:bg-blue-50"
+                    style={{ gridRow: rowIdx + 1, gridColumn: diaIdx + 2 }}
+                  >
+                    <span className="text-sm font-medium text-blue-500 opacity-0 transition group-hover:opacity-100">
+                      +
+                    </span>
+                  </button>
+                ) : (
                   <div
                     key={`${dia}-${hora}`}
-                    className="border-t border-slate-100 min-h-[48px]"
-                    style={{ gridRow: rowIdx + 1, gridColumn: DIAS_LOWER.indexOf(dia) + 2 }}
+                    className="min-h-[48px] border-l border-t border-slate-100"
+                    style={{ gridRow: rowIdx + 1, gridColumn: diaIdx + 2 }}
                   />
-                ))}
+                ),
+              )}
+            </div>
+          ))}
+
+          {DIAS_LOWER.map((dia, diaIdx) =>
+            celdas[dia].map(({ clase, bloque, colorIndex, rowStart, rowSpan }) => (
+              <div
+                key={`${dia}-${bloque.horarioId}-${bloque.dia}`}
+                style={{
+                  gridColumn: diaIdx + 2,
+                  gridRow: `${rowStart} / span ${rowSpan}`,
+                  padding: '2px',
+                }}
+              >
+                <TarjetaMateria
+                  horario={{ ...clase, ...bloque }}
+                  colorIndex={colorIndex}
+                  onClick={() => handleClickBloque(clase)}
+                  modoEdicion={modoEdicion}
+                  activa={claseEnEdicion?.clave === clase.clave}
+                />
               </div>
-            ))}
-
-            {/* Materia blocks */}
-            {DIAS_LOWER.map((dia, diaIdx) =>
-              celdas[dia].map(({ horario, colorIndex, rowStart, rowSpan }) => (
-                <div
-                  key={`${dia}-${horario.id}`}
-                  style={{
-                    gridColumn: diaIdx + 2,
-                    gridRow: `${rowStart} / span ${rowSpan}`,
-                    padding: '2px',
-                  }}
-                >
-                  <TarjetaMateria
-                    horario={horario}
-                    colorIndex={colorIndex}
-                    onClick={handleClick}
-                  />
-                </div>
-              ))
-            )}
-          </div>
+            )),
+          )}
         </div>
-      )}
+      </div>
 
-      {/* Detalle modal */}
       {detalle && (
         <div
-          className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
           onClick={() => setDetalle(null)}
         >
           <div
@@ -152,54 +205,51 @@ export default function GridHorario({ onMateriaClick, onEdit, modo = 'docente' }
           >
             <div className="flex items-start justify-between">
               <div>
-                <h3 className="font-semibold text-base">{detalle.materia.nombre}</h3>
+                <h3 className="text-base font-semibold">{detalle.materia.nombre}</h3>
                 <p className="text-xs text-slate-400">{detalle.materia.clave}</p>
               </div>
               <button
                 onClick={() => setDetalle(null)}
-                className="text-slate-400 hover:text-slate-600 text-lg leading-none"
+                className="text-lg leading-none text-slate-400 hover:text-slate-600"
               >
                 ✕
               </button>
             </div>
 
-            <div className="text-sm space-y-1 text-slate-600">
-              <p><span className="font-medium">Materia:</span> {detalle.materia.nombre}</p>
-              <p><span className="font-medium">Clave:</span> {detalle.materia.clave}</p>
+            <div className="space-y-1 text-sm text-slate-600">
               <p><span className="font-medium">Docente:</span> {detalle.docente.nombre}</p>
-              <p><span className="font-medium">Aula:</span> {detalle.aula?.nombre || 'Sin aula asignada'}</p>
+              <p><span className="font-medium">Aula:</span> {detalle.aula?.nombre || (detalle.bloques.some((b) => b.aula) ? 'Distinta por día' : 'Sin aula asignada')}</p>
               {detalle.grupo && <p><span className="font-medium">Grupo:</span> {detalle.grupo.nombre}</p>}
-              <p><span className="font-medium">Días:</span> {detalle.dias}</p>
-              <p><span className="font-medium">Horario:</span> {detalle.horaInicio} – {detalle.horaFin}</p>
-              {detalle.materia.carrera && <p><span className="font-medium">Carrera:</span> {detalle.materia.carrera.nombre}</p>}
+              {detalle.materia.carrera && (
+                <p><span className="font-medium">Carrera:</span> {detalle.materia.carrera.nombre}</p>
+              )}
               {detalle.semestre && <p><span className="font-medium">Semestre:</span> {detalle.semestre}</p>}
             </div>
 
-            <div className="flex flex-col gap-2 pt-1">
-              <button
-                onClick={() => {
-                  onEdit?.(detalle)
-                  setDetalle(null)
-                }}
-                className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-              >
-                Editar horario
-              </button>
-              <button
-                onClick={async () => {
-                  const ok = window.confirm(`¿Eliminar el horario de "${detalle.materia.nombre}"?`)
-                  if (!ok) return
-                  try {
-                    await eliminarHorario(detalle.id)
-                    setDetalle(null)
-                  } catch {}
-                }}
-                disabled={saving}
-                className="w-full rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
-              >
-                {saving ? 'Eliminando...' : 'Eliminar horario'}
-              </button>
+            <div className="rounded-lg border border-slate-200">
+              {detalle.bloques.map((bloque) => (
+                <div
+                  key={`${bloque.horarioId}-${bloque.dia}`}
+                  className="flex items-center justify-between border-b border-slate-100 px-3 py-2 text-sm last:border-b-0"
+                >
+                  <span className="font-medium text-slate-700">{bloque.dia}</span>
+                  <span className="text-slate-500">
+                    {bloque.horaInicio}–{bloque.horaFin}
+                    {bloque.aula ? ` · ${bloque.aula.nombre}` : ''}
+                  </span>
+                </div>
+              ))}
             </div>
+
+            <button
+              onClick={() => {
+                onEditarClase?.(detalle)
+                setDetalle(null)
+              }}
+              className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            >
+              Editar clase
+            </button>
           </div>
         </div>
       )}

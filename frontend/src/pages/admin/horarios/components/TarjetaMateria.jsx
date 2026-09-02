@@ -13,21 +13,30 @@ export function colorParaMateria(index) {
   return COLORES[index % COLORES.length]
 }
 
-export default function TarjetaMateria({ horario, colorIndex, onClick }) {
+export default function TarjetaMateria({
+  horario,
+  colorIndex,
+  onClick,
+  modoEdicion = false,
+  activa = false,
+}) {
   const color = colorParaMateria(colorIndex)
 
   return (
     <div
       onClick={() => onClick?.(horario)}
-      className={`${color} text-white rounded-md p-1.5 cursor-pointer h-full overflow-hidden hover:brightness-110 transition-all`}
-      title={`${horario.materia.nombre} | ${horario.horaInicio}–${horario.horaFin}${horario.aula ? ` | ${horario.aula.nombre}` : ''}`}
+      className={`${color} group relative h-full cursor-pointer overflow-hidden rounded-md p-1.5 text-white transition-all hover:brightness-110 ${
+        activa ? 'ring-2 ring-slate-900 ring-offset-1' : ''
+      }`}
+      title={`${horario.materia.nombre} | ${horario.horaInicio}–${horario.horaFin}${horario.aula ? ` | ${horario.aula.nombre}` : ''}${modoEdicion ? ' | Clic para editar' : ''}`}
     >
-      <p className="text-xs font-semibold leading-tight truncate">{horario.materia.nombre}</p>
-      {horario.grupo && (
-        <p className="text-xs opacity-85 truncate">{horario.grupo.nombre}</p>
-      )}
-      {horario.aula && (
-        <p className="text-xs opacity-80 truncate">{horario.aula.nombre}</p>
+      <p className="truncate text-xs font-semibold leading-tight">{horario.materia.nombre}</p>
+      {horario.grupo && <p className="truncate text-xs opacity-85">{horario.grupo.nombre}</p>}
+      {horario.aula && <p className="truncate text-xs opacity-80">{horario.aula.nombre}</p>}
+      {modoEdicion && (
+        <span className="absolute right-1 top-1 text-xs opacity-0 transition-opacity group-hover:opacity-100">
+          ✏️
+        </span>
       )}
     </div>
   )
