@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import {
   BookOpen,
-  Camera,
   CheckCircle2,
   ChevronDown,
   Eye,
@@ -40,8 +39,6 @@ export default function Registro() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [fotoHorario, setFotoHorario] = useState(null);
-  const [fotoPreview, setFotoPreview] = useState("");
   const [horarioDisponible, setHorarioDisponible] = useState({
     loading: false,
     checked: false,
@@ -104,16 +101,6 @@ export default function Registro() {
     };
   }, [form.carreraId, form.semestre]);
 
-  useEffect(() => {
-    if (!fotoHorario) {
-      setFotoPreview("");
-      return;
-    }
-    const url = URL.createObjectURL(fotoHorario);
-    setFotoPreview(url);
-    return () => URL.revokeObjectURL(url);
-  }, [fotoHorario]);
-
   const updateField = (field) => (e) => {
     setForm((current) => ({ ...current, [field]: e.target.value }));
   };
@@ -132,10 +119,6 @@ export default function Registro() {
     }
     const reutilizaraHorario =
       horarioDisponible.disponible && usarHorarioExistente;
-    if (!reutilizaraHorario && !fotoHorario) {
-      setError("Agrega una fotografía de tu horario para continuar");
-      return;
-    }
 
     setLoading(true);
     try {
@@ -148,9 +131,6 @@ export default function Registro() {
       if (EMAIL_AUTH_ENABLED && form.email) data.append("email", form.email);
       if (form.telefono) data.append("telefono", form.telefono);
       data.append("usarHorarioExistente", String(reutilizaraHorario));
-      if (!reutilizaraHorario && fotoHorario) {
-        data.append("fotoHorario", fotoHorario);
-      }
 
       const response = await api.post("/auth/register", data);
       navigate("/login", {
@@ -500,68 +480,27 @@ export default function Registro() {
                         </div>
                       )}
 
-                    {(!horarioDisponible.disponible ||
-                      !usarHorarioExistente) && (
-                      <div className="space-y-3">
-                        <div>
-                          <p className="text-sm font-medium text-foreground">
-                            Fotografía del horario *
+                    {!horarioDisponible.loading &&
+                      (!horarioDisponible.disponible ||
+                        !usarHorarioExistente) && (
+                        <div className="space-y-3 rounded-2xl border border-border bg-muted/40 p-4">
+                          <p className="text-sm text-muted-foreground">
+                            {horarioDisponible.disponible
+                              ? "Tu cuenta se creará sin horario. Un administrador te asignará el grupo que te corresponde."
+                              : "Todavía no hay un horario publicado para tu carrera y semestre. Un administrador te asignará tu grupo después de aprobar tu registro."}
                           </p>
-                          <p className="mt-1 text-sm text-muted-foreground">
-                            Procura que se vean las claves, docentes, días y
-                            horas. Podrás corregirlo durante la revisión.
-                          </p>
+                          {horarioDisponible.disponible &&
+                            !usarHorarioExistente && (
+                              <button
+                                type="button"
+                                onClick={() => setUsarHorarioExistente(true)}
+                                className="text-sm font-medium text-primary hover:underline focus:outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
+                              >
+                                Usar el horario encontrado
+                              </button>
+                            )}
                         </div>
-                        <label
-                          htmlFor="fotoHorario"
-                          className="flex min-h-36 cursor-pointer flex-col items-center justify-center gap-3 overflow-hidden rounded-2xl border border-dashed border-input bg-background p-4 text-center transition-colors hover:border-primary/45 focus-within:ring-3 focus-within:ring-ring/40"
-                        >
-                          {fotoPreview ? (
-                            <img
-                              src={fotoPreview}
-                              alt="Vista previa del horario seleccionado"
-                              className="max-h-48 w-full rounded-xl object-contain"
-                            />
-                          ) : (
-                            <Camera
-                              className="h-7 w-7 text-primary"
-                              aria-hidden="true"
-                            />
-                          )}
-                          <span className="text-sm font-medium text-foreground">
-                            {fotoHorario
-                              ? fotoHorario.name
-                              : "Tomar o seleccionar fotografía"}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            JPG, PNG o WebP, máximo 8 MB
-                          </span>
-                          <input
-                            id="fotoHorario"
-                            type="file"
-                            accept="image/jpeg,image/png,image/webp"
-                            capture="environment"
-                            className="sr-only"
-                            onChange={(event) =>
-                              setFotoHorario(event.target.files?.[0] ?? null)
-                            }
-                          />
-                        </label>
-                        {horarioDisponible.disponible &&
-                          !usarHorarioExistente && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setUsarHorarioExistente(true);
-                                setFotoHorario(null);
-                              }}
-                              className="text-sm font-medium text-primary hover:underline focus:outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
-                            >
-                              Usar el horario encontrado
-                            </button>
-                          )}
-                      </div>
-                    )}
+                      )}
                   </fieldset>
 
                   <div className="rounded-2xl border border-primary/20 bg-primary/10 p-4">
