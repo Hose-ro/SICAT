@@ -56,4 +56,11 @@ export class AulasController {
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.aulas.remove(id);
   }
+
+  @Delete(':id/permanente')
+  @Roles('ADMIN')
+  @ApiOperation({ summary: 'Eliminar aula definitivamente (admin)' })
+  removePermanently(@Param('id', ParseIntPipe) id: number) {
+    return this.aulas.removePermanently(id);
+  }
 }

@@ -476,7 +476,9 @@ describe('UsuariosService', () => {
       }),
     );
   });
-  const txEliminacion = (overrides: Record<string, number> = {}) => ({
+  const contador = (count: number) => jest.fn().mockResolvedValue({ count });
+
+  const txEliminacion = () => ({
     usuario: {
       findUnique: jest.fn().mockResolvedValue({
         id: 20,
@@ -492,33 +494,44 @@ describe('UsuariosService', () => {
         .fn()
         .mockResolvedValue({ id: 20, nombre: 'Ana López', rol: Rol.ALUMNO }),
     },
-    inscripcion: { count: jest.fn().mockResolvedValue(overrides.inscripciones ?? 0) },
-    asistencia: {
-      count: jest.fn().mockResolvedValue(overrides.asistencias ?? 0),
-      updateMany: jest.fn().mockResolvedValue({ count: 0 }),
-    },
-    calificacionUnidad: {
-      count: jest.fn().mockResolvedValue(overrides.calificaciones ?? 0),
-    },
-    entregaTarea: { count: jest.fn().mockResolvedValue(overrides.entregas ?? 0) },
-    tarea: { count: jest.fn().mockResolvedValue(overrides.tareas ?? 0) },
-    claseSesion: { count: jest.fn().mockResolvedValue(overrides.clases ?? 0) },
-    horarioMateria: { count: jest.fn().mockResolvedValue(overrides.horarios ?? 0) },
-    notificacion: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
-    materia: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
-    alertaCarrera: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+    asistencia: { deleteMany: contador(4), updateMany: contador(1) },
+    entregaTarea: { deleteMany: contador(2) },
+    tarea: { deleteMany: contador(1) },
+    claseSesion: { deleteMany: contador(3) },
+    horarioMateria: { deleteMany: contador(1) },
+    inscripcion: { deleteMany: contador(5) },
+    calificacionUnidad: { deleteMany: contador(6) },
+    importacionHorario: { deleteMany: contador(1) },
+    notificacion: { deleteMany: contador(7) },
+    materia: { updateMany: contador(2) },
+    alertaCarrera: { updateMany: contador(0) },
     authAudit: { create: jest.fn().mockResolvedValue({ id: 1 }) },
   });
 
-  it('elimina definitivamente una cuenta sin historial y la registra en la bitácora', async () => {
+  it('elimina la cuenta junto con todo su historial académico', async () => {
     const tx = txEliminacion();
     transaction.mockImplementation((callback: (client: typeof tx) => unknown) =>
       Promise.resolve(callback(tx)),
     );
 
-    await expect(service.removePermanently(20, 1)).resolves.toEqual(
-      expect.objectContaining({ id: 20 }),
-    );
+    const resultado = await service.removePermanently(20, 1);
+
+    expect(tx.asistencia.deleteMany).toHaveBeenCalledWith({
+      where: { alumnoId: 20 },
+    });
+    expect(tx.asistencia.deleteMany).toHaveBeenCalledWith({
+      where: { claseSesion: { docenteId: 20 } },
+    });
+    expect(tx.entregaTarea.deleteMany).toHaveBeenCalledWith({
+      where: { tarea: { docenteId: 20 } },
+    });
+    expect(tx.tarea.deleteMany).toHaveBeenCalledWith({
+      where: { docenteId: 20 },
+    });
+    expect(tx.horarioMateria.deleteMany).toHaveBeenCalledWith({
+      where: { docenteId: 20 },
+    });
+    // Las materias no se borran: sólo se quedan sin docente.
     expect(tx.materia.updateMany).toHaveBeenCalledWith({
       where: { docenteId: 20 },
       data: { docenteId: null },
@@ -526,30 +539,39 @@ describe('UsuariosService', () => {
     expect(tx.usuario.delete).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: 20 } }),
     );
-    expect(tx.authAudit.create).toHaveBeenCalledWith({
-      data: {
-        tipo: TipoEventoAuth.CUENTA_ELIMINADA,
-        identifier: 'ana@example.com',
-        metadata: {
-          adminUserId: 1,
-          usuarioEliminadoId: 20,
-          nombre: 'Ana López',
-          rol: Rol.ALUMNO,
-        },
-      },
-    });
+    expect(resultado).toEqual(
+      expect.objectContaining({
+        id: 20,
+        historial: expect.objectContaining({
+          asistencias: 8,
+          entregas: 4,
+          inscripciones: 5,
+          calificaciones: 6,
+        }) as Record<string, number>,
+      }),
+    );
   });
 
-  it('conserva la cuenta cuando el alumno ya tiene calificaciones', async () => {
-    const tx = txEliminacion({ calificaciones: 3 });
+  it('deja constancia de lo eliminado en la bitácora', async () => {
+    const tx = txEliminacion();
     transaction.mockImplementation((callback: (client: typeof tx) => unknown) =>
       Promise.resolve(callback(tx)),
     );
 
-    await expect(service.removePermanently(20, 1)).rejects.toThrow(
-      /calificación\(es\)/,
-    );
-    expect(tx.usuario.delete).not.toHaveBeenCalled();
+    await service.removePermanently(20, 1);
+
+    expect(tx.authAudit.create).toHaveBeenCalledWith({
+      data: {
+        tipo: TipoEventoAuth.CUENTA_ELIMINADA,
+        identifier: 'ana@example.com',
+        metadata: expect.objectContaining({
+          adminUserId: 1,
+          usuarioEliminadoId: 20,
+          nombre: 'Ana López',
+          rol: Rol.ALUMNO,
+        }) as Record<string, unknown>,
+      },
+    });
   });
 
   it('no permite que un administrador se elimine a sí mismo', async () => {

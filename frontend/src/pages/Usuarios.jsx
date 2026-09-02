@@ -782,7 +782,10 @@ export default function Usuarios() {
                 Se eliminará definitivamente la cuenta de {confirmation.user?.nombre ?? 'este usuario'}. Esta acción no se puede deshacer.
               </p>
               <p className="text-sm text-gray-500">
-                Si el usuario ya tiene historial académico (asistencias, calificaciones, entregas), no podrá eliminarse: desactiva la cuenta en su lugar.
+                Se borrará también todo su historial académico: inscripciones, asistencias, calificaciones y entregas; si es docente, además sus tareas, sesiones de clase y horarios. Las materias, los grupos y las aulas se conservan.
+              </p>
+              <p className="text-sm text-gray-500">
+                Si sólo quieres impedirle el acceso, usa <strong>Desactivar</strong> en su lugar.
               </p>
             </div>
           ) : (

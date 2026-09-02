@@ -746,9 +746,10 @@ export class UsuariosService {
   }
 
   /**
-   * Borrado definitivo. Sólo procede cuando el usuario no tiene historial
-   * académico enlazado; de lo contrario se pide desactivar la cuenta para no
-   * perder asistencias, calificaciones ni entregas.
+   * Borrado definitivo de la cuenta y de todo su historial académico
+   * (inscripciones, asistencias, calificaciones, entregas y, para un docente,
+   * sus tareas, sesiones de clase y horarios). Sólo se conservan la propia
+   * cuenta de quien elimina y el último administrador activo.
    */
   async removePermanently(id: number, adminUserId: number) {
     if (id === adminUserId) {
@@ -772,9 +773,11 @@ export class UsuariosService {
           if (!current) throw new NotFoundException('Usuario no encontrado');
 
           await this.ensureActiveAdminRemains(tx, current, { activo: false });
-          await this.ensureSinHistorialAcademico(tx, id);
 
-          await tx.notificacion.deleteMany({ where: { usuarioId: id } });
+          const historial = await this.purgarHistorialAcademico(tx, id);
+
+          // Las materias, asistencias de terceros y alertas se conservan: sólo
+          // pierden la referencia a la cuenta eliminada.
           await tx.materia.updateMany({
             where: { docenteId: id },
             data: { docenteId: null },
@@ -802,49 +805,76 @@ export class UsuariosService {
                 usuarioEliminadoId: id,
                 nombre: current.nombre,
                 rol: current.rol,
+                historial,
               },
             },
           });
-          return eliminado;
+          return { ...eliminado, historial };
         },
-        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+        {
+          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+          // Una cuenta con años de historial encadena varios borrados.
+          maxWait: 10_000,
+          timeout: 30_000,
+        },
       );
     } catch (error) {
       this.rethrowAdminMutationConflict(error);
     }
   }
 
-  private async ensureSinHistorialAcademico(
+  /**
+   * Borra todo lo que cuelga de la cuenta para que pueda eliminarse: primero
+   * las filas hijas (asistencias y entregas) y luego las que apuntan directo
+   * al usuario. Devuelve el resumen para dejarlo en la bitácora.
+   */
+  private async purgarHistorialAcademico(
     tx: Prisma.TransactionClient,
     id: number,
   ) {
-    const bloqueos: string[] = [];
-    const inscripciones = await tx.inscripcion.count({
+    const asistenciasAlumno = await tx.asistencia.deleteMany({
       where: { alumnoId: id },
     });
-    if (inscripciones) bloqueos.push(`${inscripciones} inscripción(es)`);
-    const asistencias = await tx.asistencia.count({ where: { alumnoId: id } });
-    if (asistencias) bloqueos.push(`${asistencias} asistencia(s)`);
-    const calificaciones = await tx.calificacionUnidad.count({
+    const asistenciasDeSusClases = await tx.asistencia.deleteMany({
+      where: { claseSesion: { docenteId: id } },
+    });
+    const entregasAlumno = await tx.entregaTarea.deleteMany({
       where: { alumnoId: id },
     });
-    if (calificaciones) bloqueos.push(`${calificaciones} calificación(es)`);
-    const entregas = await tx.entregaTarea.count({ where: { alumnoId: id } });
-    if (entregas) bloqueos.push(`${entregas} entrega(s) de tarea`);
-    const tareas = await tx.tarea.count({ where: { docenteId: id } });
-    if (tareas) bloqueos.push(`${tareas} tarea(s) publicada(s)`);
-    const clases = await tx.claseSesion.count({ where: { docenteId: id } });
-    if (clases) bloqueos.push(`${clases} sesión(es) de clase`);
-    const horarios = await tx.horarioMateria.count({
+    const entregasDeSusTareas = await tx.entregaTarea.deleteMany({
+      where: { tarea: { docenteId: id } },
+    });
+    const tareas = await tx.tarea.deleteMany({ where: { docenteId: id } });
+    const sesiones = await tx.claseSesion.deleteMany({
       where: { docenteId: id },
     });
-    if (horarios) bloqueos.push(`${horarios} horario(s) asignado(s)`);
+    const horarios = await tx.horarioMateria.deleteMany({
+      where: { docenteId: id },
+    });
+    const inscripciones = await tx.inscripcion.deleteMany({
+      where: { alumnoId: id },
+    });
+    const calificaciones = await tx.calificacionUnidad.deleteMany({
+      where: { alumnoId: id },
+    });
+    const importaciones = await tx.importacionHorario.deleteMany({
+      where: { alumnoId: id },
+    });
+    const notificaciones = await tx.notificacion.deleteMany({
+      where: { usuarioId: id },
+    });
 
-    if (bloqueos.length) {
-      throw new ConflictException(
-        `No se puede eliminar al usuario porque tiene ${bloqueos.join(', ')} en el sistema. Desactiva la cuenta para conservar el historial.`,
-      );
-    }
+    return {
+      asistencias: asistenciasAlumno.count + asistenciasDeSusClases.count,
+      entregas: entregasAlumno.count + entregasDeSusTareas.count,
+      tareas: tareas.count,
+      sesiones: sesiones.count,
+      horarios: horarios.count,
+      inscripciones: inscripciones.count,
+      calificaciones: calificaciones.count,
+      importaciones: importaciones.count,
+      notificaciones: notificaciones.count,
+    };
   }
 
   async asignarCarrerasJefe(id: number, carreraIds: number[]) {

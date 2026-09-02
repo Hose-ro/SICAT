@@ -73,15 +73,15 @@ export default function AulasPage() {
     }
   }
 
-  async function handleDesactivar(id) {
+  async function handleEliminar(id) {
     setGuardando(true)
     setError('')
     try {
-      await api.delete(`/aulas/${id}`)
+      await api.delete(`/aulas/${id}/permanente`)
       if (editandoId === id) cancelarEdicion()
       await cargar()
     } catch (e) {
-      setError(mensajeError(e, 'Error al desactivar el aula'))
+      setError(mensajeError(e, 'Error al eliminar el aula'))
     } finally {
       setGuardando(false)
       setConfirmId(null)
@@ -208,7 +208,7 @@ export default function AulasPage() {
                   onClick={() => setConfirmId(aula.id)}
                   className="rounded-xl border border-red-200 px-3 py-1.5 text-xs text-red-600 transition hover:border-red-400 hover:bg-red-50"
                 >
-                  Desactivar
+                  Eliminar
                 </button>
               </div>
             </li>
@@ -219,10 +219,10 @@ export default function AulasPage() {
       {confirmId && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40">
           <div className="mx-4 w-full max-w-sm space-y-4 rounded-2xl bg-white p-4 shadow-xl sm:p-6">
-            <h3 className="text-lg font-semibold text-gray-800">¿Desactivar aula?</h3>
+            <h3 className="text-lg font-semibold text-gray-800">¿Eliminar aula?</h3>
             <p className="text-sm text-gray-500">
-              El aula dejará de aparecer al asignar horarios. Los bloques que ya la usan la
-              conservan.
+              El aula se borrará definitivamente. Las materias y los bloques de horario que la
+              tenían asignada se conservan, pero quedan sin aula.
             </p>
             <div className="flex flex-col gap-2 sm:flex-row">
               <button
@@ -232,11 +232,11 @@ export default function AulasPage() {
                 Cancelar
               </button>
               <button
-                onClick={() => handleDesactivar(confirmId)}
+                onClick={() => handleEliminar(confirmId)}
                 disabled={guardando}
                 className="flex-1 rounded-xl bg-red-600 py-2 text-sm text-white transition hover:bg-red-700 disabled:opacity-50"
               >
-                Desactivar
+                {guardando ? 'Eliminando...' : 'Eliminar'}
               </button>
             </div>
           </div>

@@ -33,4 +33,27 @@ export class AulasService {
     await this.findOne(id);
     return this.prisma.aula.update({ where: { id }, data: { activo: false } });
   }
+
+  /**
+   * Borrado definitivo. Las materias y los bloques de horario que la tenían
+   * asignada se conservan: sólo quedan sin aula.
+   */
+  async removePermanently(id: number) {
+    await this.findOne(id);
+    return this.prisma.$transaction(async (tx) => {
+      const materias = await tx.materia.updateMany({
+        where: { aulaId: id },
+        data: { aulaId: null },
+      });
+      const horarios = await tx.horarioMateria.updateMany({
+        where: { aulaId: id },
+        data: { aulaId: null },
+      });
+      const eliminada = await tx.aula.delete({ where: { id } });
+      return {
+        ...eliminada,
+        liberados: { materias: materias.count, horarios: horarios.count },
+      };
+    });
+  }
 }
