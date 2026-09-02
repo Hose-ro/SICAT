@@ -19,9 +19,19 @@ export default function GrupoDetalle() {
 
   useEffect(() => { seleccionarGrupo(Number(id)) }, [id])
 
+  const [eliminando, setEliminando] = useState(false)
+
   const handleEliminar = async () => {
-    await eliminarGrupo(Number(id))
-    navigate('/admin/grupos')
+    setEliminando(true)
+    try {
+      await eliminarGrupo(Number(id))
+      navigate('/admin/grupos')
+    } catch {
+      // El store deja el mensaje: el grupo sigue abierto para reintentar.
+      setConfirmEliminar(false)
+    } finally {
+      setEliminando(false)
+    }
   }
 
   if (loading && !grupoActivo) {
@@ -62,7 +72,7 @@ export default function GrupoDetalle() {
           onClick={() => setConfirmEliminar(true)}
           className="text-xs text-red-500 hover:text-red-700 border border-red-200 hover:border-red-400 px-3 py-1.5 rounded-xl transition"
         >
-          Desactivar
+          Eliminar
         </button>
       </div>
 
@@ -119,9 +129,12 @@ export default function GrupoDetalle() {
       {confirmEliminar && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40">
           <div className="mx-4 w-full max-w-sm space-y-4 rounded-2xl bg-white p-4 shadow-xl sm:p-6">
-            <h3 className="text-lg font-semibold text-gray-800">¿Desactivar grupo?</h3>
+            <h3 className="text-lg font-semibold text-gray-800">¿Eliminar grupo?</h3>
             <p className="text-sm text-gray-500">
-              El grupo <strong>{grupoActivo.nombre}</strong> quedará inactivo y dejará de estar disponible en el sistema.
+              El grupo <strong>{grupoActivo.nombre}</strong> se borrará definitivamente junto con su horario. Esta acción no se puede deshacer.
+            </p>
+            <p className="text-sm text-gray-500">
+              Sus alumnos quedan sin grupo y el historial académico se conserva: las clases, tareas y calificaciones siguen registradas en cada materia.
             </p>
             <div className="flex flex-col gap-2 sm:flex-row">
               <button
@@ -132,9 +145,10 @@ export default function GrupoDetalle() {
               </button>
               <button
                 onClick={handleEliminar}
-                className="flex-1 bg-red-600 text-white py-2 rounded-xl text-sm hover:bg-red-700 transition"
+                disabled={eliminando}
+                className="flex-1 bg-red-600 text-white py-2 rounded-xl text-sm hover:bg-red-700 transition disabled:opacity-50"
               >
-                Desactivar
+                {eliminando ? 'Eliminando...' : 'Eliminar'}
               </button>
             </div>
           </div>

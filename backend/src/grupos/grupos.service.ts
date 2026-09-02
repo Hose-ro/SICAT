@@ -186,6 +186,58 @@ export class GruposService {
     return this.prisma.grupo.update({ where: { id }, data: { activo: false } });
   }
 
+  // ─── Eliminar grupo (definitivo) ───────────────────────────────────────────
+
+  /**
+   * Borra el grupo y sus bloques de horario, que sólo existen para él. Los
+   * alumnos quedan sin grupo y el historial académico se conserva a nivel de
+   * materia: sesiones de clase, tareas, calificaciones e importaciones sólo
+   * pierden la referencia al grupo.
+   */
+  async eliminarGrupoDefinitivo(id: number) {
+    const grupo = await this.prisma.grupo.findUnique({ where: { id } });
+    if (!grupo) throw new NotFoundException('Grupo no encontrado');
+
+    return this.prisma.$transaction(async (tx) => {
+      const alumnos = await tx.usuario.updateMany({
+        where: { grupoId: id },
+        data: { grupoId: null },
+      });
+      const horarios = await tx.horarioMateria.deleteMany({
+        where: { grupoId: id },
+      });
+      const sesiones = await tx.claseSesion.updateMany({
+        where: { grupoId: id },
+        data: { grupoId: null },
+      });
+      const tareas = await tx.tarea.updateMany({
+        where: { grupoId: id },
+        data: { grupoId: null },
+      });
+      const calificaciones = await tx.calificacionUnidad.updateMany({
+        where: { grupoId: id },
+        data: { grupoId: null },
+      });
+      const importaciones = await tx.importacionHorario.updateMany({
+        where: { grupoId: id },
+        data: { grupoId: null },
+      });
+      const eliminado = await tx.grupo.delete({ where: { id } });
+
+      return {
+        ...eliminado,
+        horariosEliminados: horarios.count,
+        liberados: {
+          alumnos: alumnos.count,
+          sesiones: sesiones.count,
+          tareas: tareas.count,
+          calificaciones: calificaciones.count,
+          importaciones: importaciones.count,
+        },
+      };
+    });
+  }
+
   // ─── Asignar alumnos ────────────────────────────────────────────────────────
 
   async asignarAlumnos(grupoId: number, alumnoIds: number[]) {

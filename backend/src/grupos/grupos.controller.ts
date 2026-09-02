@@ -79,6 +79,12 @@ export class GruposController {
     return this.grupos.eliminarGrupo(id);
   }
 
+  @Delete(':id/permanente')
+  @ApiOperation({ summary: 'Eliminar grupo definitivamente' })
+  eliminarDefinitivo(@Param('id', ParseIntPipe) id: number) {
+    return this.grupos.eliminarGrupoDefinitivo(id);
+  }
+
   // ─── Alumnos ──────────────────────────────────────────────────────────────────
 
   @Post(':id/alumnos')

@@ -53,10 +53,12 @@ export const useGrupoStore = create((set, get) => ({
   eliminarGrupo: async (id) => {
     set({ loading: true, error: null })
     try {
-      await api.delete(`/grupos/${id}`)
+      await api.delete(`/grupos/${id}/permanente`)
       await get().cargarGrupos()
     } catch (e) {
-      set({ error: e.response?.data?.message || 'Error al eliminar grupo', loading: false })
+      const msg = e.response?.data?.message || 'Error al eliminar grupo'
+      set({ error: msg, loading: false })
+      throw new Error(msg)
     }
   },
 
