@@ -38,9 +38,10 @@ export class HorariosController {
   constructor(private readonly horarios: HorariosService) {}
 
   @Post()
+  @Roles('ADMIN', 'DOCENTE')
   @ApiOperation({ summary: 'Crear un horario' })
-  create(@Body() dto: CreateHorarioDto) {
-    return this.horarios.create(dto);
+  create(@Body() dto: CreateHorarioDto, @Request() req: any) {
+    return this.horarios.create(dto, req.user);
   }
 
   @Get()
@@ -67,11 +68,15 @@ export class HorariosController {
   }
 
   @Post('validar-conflicto')
+  @Roles('ADMIN', 'DOCENTE')
   @ApiOperation({
     summary: 'Validar si un horario tiene conflicto antes de guardar',
   })
-  validarConflicto(@Body() dto: ValidarConflictoHorarioDto) {
-    return this.horarios.validarConflicto(dto);
+  validarConflicto(
+    @Body() dto: ValidarConflictoHorarioDto,
+    @Request() req: any,
+  ) {
+    return this.horarios.validarConflicto(dto, req.user);
   }
 
   @Post('asignar-docente')
@@ -137,6 +142,7 @@ export class HorariosController {
   }
 
   @Get('grupo/:grupoId')
+  @Roles('ADMIN', 'DOCENTE')
   @ApiOperation({ summary: 'Horario completo de un grupo' })
   horarioGrupo(@Param('grupoId', ParseIntPipe) grupoId: number) {
     return this.horarios.obtenerHorarioGrupo(grupoId);
@@ -173,14 +179,16 @@ export class HorariosController {
     summary:
       'Actualizar una clase completa: reconcilia los días (actualiza, agrega y retira bloques)',
   })
-  actualizarClase(@Body() dto: ActualizarClaseDto) {
-    return this.horarios.actualizarClase(dto);
+  @Roles('ADMIN', 'DOCENTE')
+  actualizarClase(@Body() dto: ActualizarClaseDto, @Request() req: any) {
+    return this.horarios.actualizarClase(dto, req.user);
   }
 
   @Delete('clase')
+  @Roles('ADMIN', 'DOCENTE')
   @ApiOperation({ summary: 'Eliminar una clase completa con todos sus días' })
-  eliminarClase(@Body() dto: EliminarClaseDto) {
-    return this.horarios.eliminarClase(dto.horarioIds);
+  eliminarClase(@Body() dto: EliminarClaseDto, @Request() req: any) {
+    return this.horarios.eliminarClase(dto.horarioIds, req.user);
   }
 
   @Get(':id')
@@ -190,14 +198,20 @@ export class HorariosController {
   }
 
   @Patch(':id')
+  @Roles('ADMIN', 'DOCENTE')
   @ApiOperation({ summary: 'Editar un horario' })
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateHorarioDto) {
-    return this.horarios.update(id, dto);
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateHorarioDto,
+    @Request() req: any,
+  ) {
+    return this.horarios.update(id, dto, req.user);
   }
 
   @Delete(':id')
+  @Roles('ADMIN', 'DOCENTE')
   @ApiOperation({ summary: 'Eliminar un horario (soft delete)' })
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.horarios.remove(id);
+  remove(@Param('id', ParseIntPipe) id: number, @Request() req: any) {
+    return this.horarios.remove(id, req.user);
   }
 }

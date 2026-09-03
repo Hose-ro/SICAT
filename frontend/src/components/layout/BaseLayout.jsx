@@ -21,6 +21,7 @@ import {
   BellRing,
   BookOpenCheck,
   CalendarClock,
+  CalendarDays,
   DoorOpen,
   GraduationCap,
   UsersRound,
@@ -138,10 +139,16 @@ export function BaseLayout({ children }) {
               </NavLink>
 
               {role === 'DOCENTE' && (
-                <NavLink to="/docente/horario" className={navClass} data-tip="Horario" onClick={() => setMobileOpen(false)}>
-                  <CalendarClock className="nav__icon" />
-                  <span className="nav__label">Horario</span>
-                </NavLink>
+                <>
+                  <NavLink to="/docente/horario" className={navClass} data-tip="Horario" onClick={() => setMobileOpen(false)}>
+                    <CalendarClock className="nav__icon" />
+                    <span className="nav__label">Horario</span>
+                  </NavLink>
+                  <NavLink to="/docente/horario/editar" className={navClass} data-tip="Programar clases" onClick={() => setMobileOpen(false)} end>
+                    <CalendarDays className="nav__icon" />
+                    <span className="nav__label">Programar clases</span>
+                  </NavLink>
+                </>
               )}
 
               {role === 'ALUMNO' && (

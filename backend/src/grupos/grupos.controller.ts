@@ -61,6 +61,26 @@ export class GruposController {
     });
   }
 
+  @Get('catalogo')
+  @Roles('ADMIN', 'DOCENTE')
+  @ApiOperation({
+    summary: 'Listado breve de grupos para elegir al programar una clase',
+  })
+  @ApiQuery({ name: 'carreraId', required: false, type: Number })
+  @ApiQuery({ name: 'semestre', required: false, type: Number })
+  @ApiQuery({ name: 'periodo', required: false, type: String })
+  catalogo(
+    @Query('carreraId') carreraId?: string,
+    @Query('semestre') semestre?: string,
+    @Query('periodo') periodo?: string,
+  ) {
+    return this.grupos.listarCatalogo({
+      carreraId: carreraId ? Number(carreraId) : undefined,
+      semestre: semestre ? Number(semestre) : undefined,
+      periodo,
+    });
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Detalle del grupo con alumnos y materias' })
   obtener(@Param('id', ParseIntPipe) id: number) {

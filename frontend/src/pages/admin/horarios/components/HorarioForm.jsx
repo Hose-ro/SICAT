@@ -45,7 +45,15 @@ function crearEstadoInicial({ clase, preset, modo, docenteSeleccionado, grupoSel
   }
 }
 
-export default function HorarioForm({ modo, clase, preset, onSaved, onCancelEdit, onEliminar }) {
+export default function HorarioForm({
+  modo,
+  clase,
+  preset,
+  onSaved,
+  onCancelEdit,
+  onEliminar,
+  soloPropias = false,
+}) {
   const {
     materiasCatalogo,
     docentesCatalogo,
@@ -253,22 +261,32 @@ export default function HorarioForm({ modo, clase, preset, onSaved, onCancelEdit
           </select>
         </div>
 
-        <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Docente</label>
-          <select
-            value={form.docenteId}
-            onChange={(e) => updateField('docenteId', e.target.value)}
-            disabled={modo === 'docente' && Boolean(docenteSeleccionado?.id)}
-            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-50"
-          >
-            <option value="">Selecciona un docente</option>
-            {docentesCatalogo.map((docente) => (
-              <option key={docente.id} value={docente.id}>
-                {docente.nombre}
-              </option>
-            ))}
-          </select>
-        </div>
+        {soloPropias ? (
+          // El docente sólo programa para sí: el servidor ignora cualquier otro.
+          <div>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Docente</label>
+            <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+              {docenteSeleccionado?.nombre ?? 'Tú'}
+            </p>
+          </div>
+        ) : (
+          <div>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Docente</label>
+            <select
+              value={form.docenteId}
+              onChange={(e) => updateField('docenteId', e.target.value)}
+              disabled={modo === 'docente' && Boolean(docenteSeleccionado?.id)}
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-50"
+            >
+              <option value="">Selecciona un docente</option>
+              {docentesCatalogo.map((docente) => (
+                <option key={docente.id} value={docente.id}>
+                  {docente.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div>
           <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Grupo</label>

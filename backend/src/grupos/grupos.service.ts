@@ -9,6 +9,7 @@ import { CreateGrupoDto } from './dto/create-grupo.dto';
 import { UpdateGrupoDto } from './dto/update-grupo.dto';
 import { hayConflictoHorario } from '../horarios/utils/conflicto-horario.util';
 import { HorariosService } from '../horarios/horarios.service';
+import { unidadesIniciales } from '../common/unidades.util';
 
 const SECCIONES = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
@@ -81,7 +82,7 @@ export class GruposService {
         where: { clave: rm.clave, carreraId: dto.carreraId },
       });
       if (!existente) {
-        const nueva = await this.prisma.materia.create({
+        await this.prisma.materia.create({
           data: {
             nombre: rm.nombre,
             clave: rm.clave,
@@ -91,13 +92,9 @@ export class GruposService {
             horaFin: '00:00',
             dias: '',
             numUnidades: 3,
+            unidades: { create: unidadesIniciales(3) },
           },
         });
-        for (let i = 1; i <= 3; i++) {
-          await this.prisma.unidad.create({
-            data: { nombre: `Unidad ${i}`, orden: i, materiaId: nueva.id },
-          });
-        }
       }
     }
 
@@ -209,6 +206,35 @@ export class GruposService {
         ...(filtros.periodo && { periodo: filtros.periodo }),
       },
       include: INCLUDE_LIST,
+      orderBy: [{ semestre: 'asc' }, { nombre: 'asc' }],
+    });
+  }
+
+  /**
+   * Sólo lo necesario para elegir grupo al programar una clase: sin alumnos ni
+   * materias, de modo que el docente no vea más de lo que necesita.
+   */
+  listarCatalogo(filtros: {
+    carreraId?: number;
+    semestre?: number;
+    periodo?: string;
+  }) {
+    return this.prisma.grupo.findMany({
+      where: {
+        activo: true,
+        ...(filtros.carreraId && { carreraId: filtros.carreraId }),
+        ...(filtros.semestre && { semestre: filtros.semestre }),
+        ...(filtros.periodo && { periodo: filtros.periodo }),
+      },
+      select: {
+        id: true,
+        nombre: true,
+        semestre: true,
+        seccion: true,
+        periodo: true,
+        carreraId: true,
+        carrera: { select: { id: true, nombre: true, codigo: true } },
+      },
       orderBy: [{ semestre: 'asc' }, { nombre: 'asc' }],
     });
   }
@@ -431,6 +457,20 @@ export class GruposService {
     });
     if (materias.length !== materiaIds.length) {
       throw new BadRequestException('Una o más materias no fueron encontradas');
+    }
+
+    // El grupo cursa un semestre concreto. Sólo se revisan las materias que
+    // llegan en esta petición: las ya asignadas se conservan como estén.
+    const deOtroSemestre = materias.filter(
+      (materia) =>
+        materia.semestre != null && materia.semestre !== grupo.semestre,
+    );
+    if (deOtroSemestre.length) {
+      throw new BadRequestException(
+        `El grupo ${grupo.nombre} es de ${grupo.semestre}° semestre y estas materias no lo son: ${deOtroSemestre
+          .map((materia) => `${materia.nombre} (${materia.semestre}°)`)
+          .join(', ')}.`,
+      );
     }
 
     // Validar conflictos de horario con las materias ya asignadas al grupo

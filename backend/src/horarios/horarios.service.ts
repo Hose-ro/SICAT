@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -92,8 +93,11 @@ type HorarioInput = {
   semestre?: number | null;
 };
 
+/** Quien ejecuta la acción: el admin programa para cualquiera, el docente para sí. */
+type ActorHorario = { id: number; rol: string };
+
 type ConflictoHorario = {
-  tipo: 'docente' | 'aula' | 'grupo';
+  tipo: 'docente' | 'aula' | 'grupo' | 'materia-grupo';
   mensaje: string;
   horario: any;
 };
@@ -102,12 +106,16 @@ type ConflictoHorario = {
 export class HorariosService {
   constructor(private prisma: PrismaService) {}
 
-  async create(dto: CreateHorarioDto) {
-    const payloads = await this.prepararHorarios(dto);
+  async create(dto: CreateHorarioDto, actor?: ActorHorario) {
+    const payloads = await this.prepararHorarios(
+      this.aplicarActorDocente(actor, dto),
+    );
     const validacion = await this.validarConflictos(payloads);
     if (!validacion.ok) throw new ConflictException(validacion.message);
 
     const creados = await this.prisma.$transaction(async (tx) => {
+      await this.asegurarTitularidadEnTransaccion(tx, payloads[0]);
+
       const horarios: any[] = [];
       for (const payload of payloads) {
         horarios.push(
@@ -167,15 +175,19 @@ export class HorariosService {
     return horario;
   }
 
-  async update(id: number, dto: UpdateHorarioDto) {
+  async update(id: number, dto: UpdateHorarioDto, actor?: ActorHorario) {
     const actual = await this.prisma.horarioMateria.findUnique({
       where: { id },
     });
     if (!actual) throw new NotFoundException('Horario no encontrado');
+    await this.asegurarPropiedadHorarios(actor, [id]);
 
     const payloads = await this.prepararHorarios({
       materiaId: dto.materiaId ?? actual.materiaId,
-      docenteId: dto.docenteId ?? actual.docenteId,
+      docenteId: this.resolverDocenteActor(
+        actor,
+        dto.docenteId ?? actual.docenteId,
+      ),
       aulaId:
         dto.aulaId === undefined
           ? (actual.aulaId ?? undefined)
@@ -247,7 +259,7 @@ export class HorariosService {
     return actualizados.length === 1 ? actualizados[0] : actualizados;
   }
 
-  async actualizarClase(dto: ActualizarClaseDto) {
+  async actualizarClase(dto: ActualizarClaseDto, actor?: ActorHorario) {
     const existentes = await this.prisma.horarioMateria.findMany({
       where: { id: { in: dto.horarioIds }, activo: true },
       include: HORARIO_INCLUDE,
@@ -256,6 +268,7 @@ export class HorariosService {
     if (existentes.length === 0) {
       throw new NotFoundException('La clase no tiene bloques activos');
     }
+    await this.asegurarPropiedadHorarios(actor, dto.horarioIds);
 
     const identidades = new Set(
       existentes.map(
@@ -271,7 +284,7 @@ export class HorariosService {
 
     const payloads = await this.prepararHorarios({
       materiaId: dto.materiaId,
-      docenteId: dto.docenteId,
+      docenteId: this.resolverDocenteActor(actor, dto.docenteId),
       aulaId: dto.aulaId ?? undefined,
       grupoId: dto.grupoId ?? undefined,
       bloques: dto.bloques,
@@ -285,6 +298,8 @@ export class HorariosService {
     const materiaAnterior = existentes[0].materiaId;
 
     await this.prisma.$transaction(async (tx) => {
+      await this.asegurarTitularidadEnTransaccion(tx, payloads[0], idsClase);
+
       const reutilizables = new Map<string, number>();
       for (const fila of existentes) {
         const dias = fila.dias
@@ -348,7 +363,7 @@ export class HorariosService {
     return this.agruparEnClases(actualizados)[0] ?? null;
   }
 
-  async eliminarClase(horarioIds: number[]) {
+  async eliminarClase(horarioIds: number[], actor?: ActorHorario) {
     const existentes = await this.prisma.horarioMateria.findMany({
       where: { id: { in: horarioIds }, activo: true },
       select: { id: true, materiaId: true },
@@ -357,6 +372,7 @@ export class HorariosService {
     if (existentes.length === 0) {
       throw new NotFoundException('La clase no tiene bloques activos');
     }
+    await this.asegurarPropiedadHorarios(actor, horarioIds);
 
     const materiaIds = Array.from(
       new Set(existentes.map((horario) => horario.materiaId)),
@@ -377,11 +393,12 @@ export class HorariosService {
     return { eliminados: existentes.length };
   }
 
-  async remove(id: number) {
+  async remove(id: number, actor?: ActorHorario) {
     const horario = await this.prisma.horarioMateria.findUnique({
       where: { id },
     });
     if (!horario) throw new NotFoundException('Horario no encontrado');
+    await this.asegurarPropiedadHorarios(actor, [id]);
 
     return this.prisma.$transaction(async (tx) => {
       const eliminado = await tx.horarioMateria.update({
@@ -395,9 +412,47 @@ export class HorariosService {
     });
   }
 
-  async validarConflicto(dto: ValidarConflictoHorarioDto) {
-    const payloads = await this.prepararHorarios(dto);
+  async validarConflicto(dto: ValidarConflictoHorarioDto, actor?: ActorHorario) {
+    const payloads = await this.prepararHorarios(
+      this.aplicarActorDocente(actor, dto),
+    );
     return this.validarConflictos(payloads, dto.horarioIds ?? dto.horarioId);
+  }
+
+  /**
+   * Un docente sólo programa clases suyas: cualquier docenteId que llegue en la
+   * petición se sustituye por el de la sesión. El administrador programa para
+   * quien indique.
+   */
+  private aplicarActorDocente<T extends { docenteId: number }>(
+    actor: ActorHorario | undefined,
+    input: T,
+  ): T {
+    if (!actor || actor.rol === 'ADMIN') return input;
+    return { ...input, docenteId: actor.id };
+  }
+
+  private resolverDocenteActor(
+    actor: ActorHorario | undefined,
+    docenteId: number,
+  ) {
+    if (!actor || actor.rol === 'ADMIN') return docenteId;
+    return actor.id;
+  }
+
+  private async asegurarPropiedadHorarios(
+    actor: ActorHorario | undefined,
+    horarioIds: number[],
+  ) {
+    if (!actor || actor.rol === 'ADMIN' || horarioIds.length === 0) return;
+    const ajenos = await this.prisma.horarioMateria.count({
+      where: { id: { in: horarioIds }, docenteId: { not: actor.id } },
+    });
+    if (ajenos > 0) {
+      throw new ForbiddenException(
+        'Sólo puedes modificar las clases que impartes.',
+      );
+    }
   }
 
   async obtenerHorarioDocente(docenteId: number) {
@@ -820,6 +875,7 @@ export class HorariosService {
     await this.validarDocenteMateria(materia.id, docente.id, materia, docente);
     const aula = await this.validarAula(input.aulaId);
     const grupo = input.grupoId ? await this.validarGrupo(input.grupoId) : null;
+    await this.validarSemestreMateriaGrupo(materia, grupo);
     const bloques = this.normalizarBloques(input);
 
     return bloques.map((bloque) => ({
@@ -852,7 +908,19 @@ export class HorariosService {
         this.validarConflictoInterno(payload, ignorarHorarioId),
       ),
     );
-    const conflictos = resultados.flatMap((resultado) => resultado.conflicts);
+    const conflictos: ConflictoHorario[] = resultados.flatMap(
+      (resultado) => resultado.conflicts,
+    );
+
+    // La titularidad es de la clase completa, no de cada bloque: se revisa una
+    // sola vez por petición y se reporta antes que los traslapes de horario.
+    const titularidad = payloads[0]
+      ? await this.buscarConflictoTitularidad(
+          payloads[0],
+          this.normalizarIgnorados(ignorarHorarioId),
+        )
+      : null;
+    if (titularidad) conflictos.unshift(titularidad);
 
     return {
       ok: conflictos.length === 0,
@@ -913,6 +981,95 @@ export class HorariosService {
       message: conflictos[0]?.mensaje ?? 'Sin conflictos',
       conflicts: conflictos,
     };
+  }
+
+  /**
+   * Una clase se programa para el grupo que cursa ese semestre. Cuando la
+   * materia no trae semestre propio se consulta la retícula, que es el dato
+   * autoritativo; si tampoco está, no hay con qué comparar y se deja pasar.
+   */
+  private async validarSemestreMateriaGrupo(
+    materia: { id: number; nombre: string; clave: string; semestre: number | null; carreraId: number | null },
+    grupo: { nombre: string; semestre: number } | null,
+  ) {
+    if (!grupo) return;
+
+    let semestreMateria = materia.semestre;
+    if (semestreMateria == null && materia.carreraId) {
+      const reticula = await this.prisma.reticulaMateria.findFirst({
+        where: {
+          clave: materia.clave,
+          carreraId: materia.carreraId,
+          activo: true,
+        },
+        select: { semestre: true },
+      });
+      semestreMateria = reticula?.semestre ?? null;
+    }
+    if (semestreMateria == null) return;
+
+    if (semestreMateria !== grupo.semestre) {
+      throw new BadRequestException(
+        `La materia ${materia.nombre} es de ${semestreMateria}° semestre y el grupo ${grupo.nombre} es de ${grupo.semestre}°. Sólo puedes programar materias del semestre que cursa el grupo.`,
+      );
+    }
+  }
+
+  private normalizarIgnorados(ignorarHorarioId?: number | number[]) {
+    if (ignorarHorarioId === undefined) return [];
+    return Array.isArray(ignorarHorarioId)
+      ? ignorarHorarioId
+      : [ignorarHorarioId];
+  }
+
+  /**
+   * Una materia sólo puede tener un docente por grupo. Sin grupo no hay
+   * titularidad que defender, así que los bloques sueltos quedan libres.
+   */
+  private async buscarConflictoTitularidad(
+    payload: { materiaId: number; docenteId: number; grupoId?: number | null },
+    ignorados: number[] = [],
+    client: PrismaService | Prisma.TransactionClient = this.prisma,
+  ): Promise<ConflictoHorario | null> {
+    if (!payload.grupoId) return null;
+
+    const ocupante = await client.horarioMateria.findFirst({
+      where: {
+        materiaId: payload.materiaId,
+        grupoId: payload.grupoId,
+        activo: true,
+        docenteId: { not: payload.docenteId },
+        ...(ignorados.length > 0 ? { id: { notIn: ignorados } } : {}),
+      },
+      include: HORARIO_INCLUDE,
+    });
+    if (!ocupante) return null;
+
+    return {
+      tipo: 'materia-grupo',
+      horario: ocupante,
+      mensaje: `La materia ${ocupante.materia.nombre} del grupo ${ocupante.grupo?.nombre ?? 'sin grupo'} ya la imparte ${ocupante.docente.nombre}. Una materia sólo puede tener un docente por grupo.`,
+    };
+  }
+
+  /**
+   * Repetición dentro de la transacción: la validación previa corre fuera y dos
+   * altas simultáneas podrían pasarla las dos. El bloqueo por (materia, grupo)
+   * serializa únicamente a quienes se disputan la misma clase.
+   */
+  private async asegurarTitularidadEnTransaccion(
+    tx: Prisma.TransactionClient,
+    payload: { materiaId: number; docenteId: number; grupoId?: number | null },
+    ignorados: number[] = [],
+  ) {
+    if (!payload.grupoId) return;
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`materia-grupo:${payload.materiaId}:${payload.grupoId}`}))`;
+    const conflicto = await this.buscarConflictoTitularidad(
+      payload,
+      ignorados,
+      tx,
+    );
+    if (conflicto) throw new ConflictException(conflicto.mensaje);
   }
 
   private async buscarConflictosPorEntidad(

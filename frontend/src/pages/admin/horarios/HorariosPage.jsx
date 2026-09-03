@@ -5,9 +5,14 @@ import GridHorario from './components/GridHorario'
 import SelectorGrupo from './components/SelectorGrupo'
 import HorarioForm from './components/HorarioForm'
 
-export default function HorariosPage() {
+/**
+ * Misma pantalla para el admin y para el docente. Con `soloPropias` el docente
+ * queda fijado como contexto: programa, edita y borra únicamente sus clases.
+ */
+export default function HorariosPage({ soloPropias = false }) {
   const {
     cargarCatalogos,
+    cargarMiHorario,
     error,
     clearError,
     docenteSeleccionado,
@@ -16,12 +21,13 @@ export default function HorariosPage() {
   } = useHorarioStore()
 
   const [modo, setModo] = useState('docente') // 'docente' | 'grupo'
-  const [modoEdicion, setModoEdicion] = useState(false)
+  const [modoEdicion, setModoEdicion] = useState(soloPropias)
   const [editor, setEditor] = useState(null) // { clase } | { preset } | null
 
   useEffect(() => {
-    cargarCatalogos()
-  }, [cargarCatalogos])
+    cargarCatalogos({ soloPropias })
+    if (soloPropias) cargarMiHorario()
+  }, [cargarCatalogos, cargarMiHorario, soloPropias])
 
   useEffect(() => {
     setModoEdicion(false)
@@ -63,9 +69,13 @@ export default function HorariosPage() {
   return (
     <div className="flex h-full flex-col gap-4 px-4 py-4 sm:px-6 sm:py-6">
       <div>
-        <h1 className="text-xl font-bold text-slate-800 sm:text-2xl">Gestión de Horarios</h1>
+        <h1 className="text-xl font-bold text-slate-800 sm:text-2xl">
+          {soloPropias ? 'Mi horario' : 'Gestión de Horarios'}
+        </h1>
         <p className="text-sm text-slate-500">
-          Programa materias por docente y grupo con bloques por día y validación de conflictos
+          {soloPropias
+            ? 'Elige la materia y el grupo que vas a impartir. Si otro docente ya tiene esa materia en ese grupo, el sistema te avisa.'
+            : 'Programa materias por docente y grupo con bloques por día y validación de conflictos'}
         </p>
       </div>
 
@@ -79,18 +89,22 @@ export default function HorariosPage() {
       )}
 
       <div className="flex flex-col gap-3 text-sm sm:flex-row sm:items-center">
-        <button
-          className={`rounded-lg border px-3 py-1.5 ${modo === 'docente' ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 text-slate-600'}`}
-          onClick={() => setModo('docente')}
-        >
-          Vista por docente
-        </button>
-        <button
-          className={`rounded-lg border px-3 py-1.5 ${modo === 'grupo' ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 text-slate-600'}`}
-          onClick={() => setModo('grupo')}
-        >
-          Vista por grupo
-        </button>
+        {!soloPropias && (
+          <>
+            <button
+              className={`rounded-lg border px-3 py-1.5 ${modo === 'docente' ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 text-slate-600'}`}
+              onClick={() => setModo('docente')}
+            >
+              Vista por docente
+            </button>
+            <button
+              className={`rounded-lg border px-3 py-1.5 ${modo === 'grupo' ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 text-slate-600'}`}
+              onClick={() => setModo('grupo')}
+            >
+              Vista por grupo
+            </button>
+          </>
+        )}
 
         {contexto && (
           <button
@@ -108,7 +122,16 @@ export default function HorariosPage() {
 
       <div className="flex min-h-0 flex-1 flex-col gap-6 xl:flex-row">
         <aside className="flex w-full shrink-0 flex-col gap-4 overflow-y-auto xl:w-72">
-          {modo === 'docente' ? <SelectorDocente /> : <SelectorGrupo />}
+          {soloPropias ? (
+            <div className="rounded-xl border border-slate-200 bg-white p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Docente</p>
+              <p className="mt-1 font-medium text-slate-800">{docenteSeleccionado?.nombre ?? 'Tu horario'}</p>
+            </div>
+          ) : modo === 'docente' ? (
+            <SelectorDocente />
+          ) : (
+            <SelectorGrupo />
+          )}
 
           {modoEdicion && contexto && !editor && (
             <button
@@ -134,6 +157,7 @@ export default function HorariosPage() {
           <aside className="w-full shrink-0 overflow-y-auto xl:w-80">
             <HorarioForm
               modo={modo}
+              soloPropias={soloPropias}
               clase={editor.clase ?? null}
               preset={editor.preset ?? null}
               onSaved={cerrarEditor}

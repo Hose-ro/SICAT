@@ -12,6 +12,8 @@ function getErrorMessage(error, fallback) {
 export const useHorarioStore = create((set, get) => ({
   docenteSeleccionado: null,
   grupoSeleccionado: null,
+  /** El docente sólo ve y edita su propio horario. */
+  modoPropio: false,
   grupos: [],
   materiasCatalogo: [],
   docentesCatalogo: [],
@@ -24,14 +26,18 @@ export const useHorarioStore = create((set, get) => ({
   validation: { ok: true, message: '', conflicts: [] },
   error: null,
 
-  cargarCatalogos: async () => {
+  /**
+   * El listado de docentes es sólo para administración; un docente programa
+   * para sí mismo, así que no lo pide (le daría 403 y tumbaría el resto).
+   */
+  cargarCatalogos: async ({ soloPropias = false } = {}) => {
     set({ error: null })
     try {
-      const [materiasRes, docentesRes, gruposRes, aulasRes] = await Promise.all([
+      const [materiasRes, gruposRes, aulasRes, docentesRes] = await Promise.all([
         api.get('/materias'),
-        api.get('/usuarios?rol=DOCENTE'),
-        api.get('/grupos'),
+        api.get('/grupos/catalogo'),
         api.get('/aulas'),
+        soloPropias ? Promise.resolve({ data: [] }) : api.get('/usuarios?rol=DOCENTE'),
       ])
 
       set({
@@ -42,6 +48,24 @@ export const useHorarioStore = create((set, get) => ({
       })
     } catch (error) {
       set({ error: getErrorMessage(error, 'Error al cargar catálogos de horarios') })
+    }
+  },
+
+  /** Horario del docente en sesión, sin pasar por los endpoints de admin. */
+  cargarMiHorario: async () => {
+    set({ loading: true, error: null })
+    try {
+      const res = await api.get('/horarios/mis-horarios')
+      set({
+        modoPropio: true,
+        docenteSeleccionado: res.data.docente,
+        grupoSeleccionado: null,
+        horarios: res.data.horarios,
+        clases: res.data.clases ?? [],
+        loading: false,
+      })
+    } catch (error) {
+      set({ error: getErrorMessage(error, 'Error al cargar tu horario'), loading: false })
     }
   },
 
@@ -97,7 +121,11 @@ export const useHorarioStore = create((set, get) => ({
   },
 
   refrescarContexto: async () => {
-    const { docenteSeleccionado, grupoSeleccionado } = get()
+    const { docenteSeleccionado, grupoSeleccionado, modoPropio } = get()
+    if (modoPropio) {
+      await get().cargarMiHorario()
+      return
+    }
     if (docenteSeleccionado?.id) {
       await get().seleccionarDocente(docenteSeleccionado.id)
       return

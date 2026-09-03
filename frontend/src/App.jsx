@@ -188,6 +188,10 @@ function App() {
                 element={<PasarLista />}
               />
               <Route path="/docente/horario" element={<MiHorario />} />
+              <Route
+                path="/docente/horario/editar"
+                element={<HorariosPage soloPropias />}
+              />
             </Route>
 
             <Route element={<RoleGate allowedRoles={["ALUMNO"]} />}>
