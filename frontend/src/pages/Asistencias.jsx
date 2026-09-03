@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react'
 import api from '../api/axios'
 import { useAuthStore } from '../store/authStore'
 import { useClaseStore } from '../store/claseStore'
@@ -295,6 +296,214 @@ function HistorialTable({ items, onEditar, onExportarPdf, onExportarExcel }) {
   )
 }
 
+const MESES = [
+  'Enero',
+  'Febrero',
+  'Marzo',
+  'Abril',
+  'Mayo',
+  'Junio',
+  'Julio',
+  'Agosto',
+  'Septiembre',
+  'Octubre',
+  'Noviembre',
+  'Diciembre',
+]
+
+function parseDateKey(value) {
+  const [year, month, day] = (value || '').split('-').map(Number)
+  if (!year || !month || !day) return null
+  return new Date(year, month - 1, day)
+}
+
+function dateKey(year, month, day) {
+  return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+}
+
+function formatSelectedDate(value, week = false) {
+  const date = parseDateKey(value)
+  if (!date) return ''
+  const formatted = date.toLocaleDateString('es-MX', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  })
+  return week ? `Semana de ${formatted}` : formatted
+}
+
+function HistorialDatePicker({
+  label,
+  value,
+  availableDates,
+  onChange,
+  disabled,
+  disabledLabel = 'Sin clases registradas',
+  week = false,
+  loading = false,
+}) {
+  const containerRef = useRef(null)
+  const [open, setOpen] = useState(false)
+  const latestDate = availableDates[availableDates.length - 1]
+  const initialDate = parseDateKey(value || latestDate) || new Date()
+  const [visibleMonth, setVisibleMonth] = useState({
+    year: initialDate.getFullYear(),
+    month: initialDate.getMonth(),
+  })
+
+  useEffect(() => {
+    if (!open) return undefined
+
+    const closeOutside = (event) => {
+      if (!containerRef.current?.contains(event.target)) setOpen(false)
+    }
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') setOpen(false)
+    }
+
+    document.addEventListener('pointerdown', closeOutside)
+    document.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.removeEventListener('pointerdown', closeOutside)
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [open])
+
+  const firstWeekday = (new Date(visibleMonth.year, visibleMonth.month, 1).getDay() + 6) % 7
+  const daysInMonth = new Date(visibleMonth.year, visibleMonth.month + 1, 0).getDate()
+  const cells = [
+    ...Array.from({ length: firstWeekday }, () => null),
+    ...Array.from({ length: daysInMonth }, (_, index) => index + 1),
+  ]
+  const availableSet = new Set(availableDates)
+
+  const changeMonth = (offset) => {
+    setVisibleMonth((current) => {
+      const next = new Date(current.year, current.month + offset, 1)
+      return { year: next.getFullYear(), month: next.getMonth() }
+    })
+  }
+
+  const toggleCalendar = () => {
+    if (!open) {
+      const reference = parseDateKey(value || latestDate)
+      if (reference) {
+        setVisibleMonth({ year: reference.getFullYear(), month: reference.getMonth() })
+      }
+    }
+    setOpen((current) => !current)
+  }
+
+  const placeholder = loading
+    ? 'Consultando clases…'
+    : disabled
+      ? disabledLabel
+      : week
+        ? 'Elegir semana'
+        : 'Elegir día de clase'
+
+  return (
+    <div ref={containerRef} className="relative min-w-0">
+      <span className="mb-1.5 block text-xs font-medium text-muted-foreground">{label}</span>
+      <button
+        type="button"
+        onClick={toggleCalendar}
+        disabled={disabled || loading}
+        aria-label={label}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        className="flex min-h-12 w-full items-center gap-2 rounded-2xl border border-input bg-background px-4 py-3 text-left text-sm text-foreground transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:text-muted-foreground disabled:opacity-70"
+      >
+        <CalendarDays className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+        <span className="truncate">{value ? formatSelectedDate(value, week) : placeholder}</span>
+      </button>
+
+      {open && (
+        <div
+          role="dialog"
+          aria-label={label}
+          className="absolute right-0 z-30 mt-2 w-[calc(100vw-3rem)] max-w-[19rem] rounded-2xl border border-border bg-card p-4 text-foreground shadow-xl shadow-slate-900/10"
+        >
+          <div className="mb-3 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => changeMonth(-1)}
+              aria-label="Mes anterior"
+              className="grid h-9 w-9 place-items-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
+              <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+            </button>
+            <p className="text-sm font-semibold">{MESES[visibleMonth.month]} {visibleMonth.year}</p>
+            <button
+              type="button"
+              onClick={() => changeMonth(1)}
+              aria-label="Mes siguiente"
+              className="grid h-9 w-9 place-items-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
+              <ChevronRight className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-7 text-center text-[11px] font-semibold text-muted-foreground">
+            {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((weekday, index) => (
+              <span key={`${weekday}-${index}`} className="py-1">{weekday}</span>
+            ))}
+          </div>
+          <div className="mt-1 grid grid-cols-7 gap-1">
+            {cells.map((day, index) => {
+              if (!day) return <span key={`empty-${index}`} className="h-9" aria-hidden="true" />
+              const currentKey = dateKey(visibleMonth.year, visibleMonth.month, day)
+              const available = availableSet.has(currentKey)
+              const selected = currentKey === value
+
+              return (
+                <button
+                  key={currentKey}
+                  type="button"
+                  disabled={!available}
+                  onClick={() => {
+                    onChange(currentKey)
+                    setOpen(false)
+                  }}
+                  aria-label={new Date(visibleMonth.year, visibleMonth.month, day).toLocaleDateString('es-MX', { dateStyle: 'long' })}
+                  className={`relative grid h-9 place-items-center rounded-xl text-xs transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 ${
+                    selected
+                      ? 'bg-primary font-semibold text-primary-foreground'
+                      : available
+                        ? 'bg-primary/10 font-semibold text-primary hover:bg-primary hover:text-primary-foreground'
+                        : 'cursor-default text-muted-foreground/45'
+                  }`}
+                >
+                  {day}
+                  {available && !selected && (
+                    <span className="absolute bottom-1 h-1 w-1 rounded-full bg-primary" aria-hidden="true" />
+                  )}
+                </button>
+              )
+            })}
+          </div>
+
+          <div className="mt-3 flex items-center justify-between gap-3 border-t border-border pt-3">
+            <p className="text-[11px] leading-4 text-muted-foreground">Sólo se marcan días con clase impartida.</p>
+            {value && (
+              <button
+                type="button"
+                onClick={() => {
+                  onChange('')
+                  setOpen(false)
+                }}
+                className="shrink-0 text-xs font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+              >
+                Limpiar
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function FiltroToolbar({
   filters,
   onChange,
@@ -304,73 +513,138 @@ function FiltroToolbar({
   unidades = [],
   docentes = [],
   showDocente = false,
+  fechasClase = null,
+  gruposLoading = false,
+  fechasLoading = false,
+  gruposRestringidos = false,
 }) {
+  const grupoDisabled = gruposRestringidos && (
+    !filters.materiaId || gruposLoading || grupos.length === 0
+  )
+
   return (
     <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
         {showDocente && (
-          <select
-            value={filters.docenteId}
-            onChange={(event) => onChange('docenteId', event.target.value)}
-            className="rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700"
-          >
-            <option value="">Todos los docentes</option>
-            {docentes.map((docente) => (
-              <option key={docente.id} value={docente.id}>{docente.nombre}</option>
-            ))}
-          </select>
+          <label className="min-w-0">
+            <span className="mb-1.5 block text-xs font-medium text-slate-500">Docente</span>
+            <select
+              value={filters.docenteId}
+              onChange={(event) => onChange('docenteId', event.target.value)}
+              className="min-h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700"
+            >
+              <option value="">Todos los docentes</option>
+              {docentes.map((docente) => (
+                <option key={docente.id} value={docente.id}>{docente.nombre}</option>
+              ))}
+            </select>
+          </label>
         )}
 
-        <select
-          value={filters.materiaId}
-          onChange={(event) => onChange('materiaId', event.target.value)}
-          className="rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700"
-        >
-          <option value="">
-            {materias.length === 0 ? 'Sin materias asignadas' : 'Todas las materias'}
-          </option>
-          {materias.map((materia) => (
-            <option key={materia.id} value={materia.id}>
-              {materia.clave ? `${materia.clave} · ${materia.nombre}` : materia.nombre}
+        <label className="min-w-0">
+          <span className="mb-1.5 block text-xs font-medium text-slate-500">Materia</span>
+          <select
+            value={filters.materiaId}
+            onChange={(event) => onChange('materiaId', event.target.value)}
+            className="min-h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700"
+          >
+            <option value="">
+              {materias.length === 0 ? 'Sin materias asignadas' : 'Todas las materias'}
             </option>
-          ))}
-        </select>
+            {materias.map((materia) => (
+              <option key={materia.id} value={materia.id}>
+                {materia.clave ? `${materia.clave} · ${materia.nombre}` : materia.nombre}
+              </option>
+            ))}
+          </select>
+        </label>
 
-        <select
-          value={filters.grupoId}
-          onChange={(event) => onChange('grupoId', event.target.value)}
-          className="rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700"
-        >
-          <option value="">Todos los grupos</option>
-          {grupos.map((grupo) => (
-            <option key={grupo.id} value={grupo.id}>{grupo.nombre}</option>
-          ))}
-        </select>
+        <label className="min-w-0">
+          <span className="mb-1.5 block text-xs font-medium text-slate-500">Grupo</span>
+          <select
+            value={filters.grupoId}
+            onChange={(event) => onChange('grupoId', event.target.value)}
+            disabled={grupoDisabled}
+            className="min-h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+          >
+            <option value="">
+              {gruposRestringidos && !filters.materiaId
+                ? 'Selecciona una materia'
+                : gruposLoading
+                  ? 'Consultando grupos…'
+                  : gruposRestringidos && grupos.length === 0
+                    ? 'Sin grupos compatibles'
+                    : gruposRestringidos
+                      ? 'Todos los grupos compatibles'
+                      : 'Todos los grupos'}
+            </option>
+            {grupos.map((grupo) => (
+              <option key={grupo.id} value={grupo.id}>
+                {grupo.nombre}{grupo.semestre ? ` · ${grupo.semestre}° semestre` : ''}
+              </option>
+            ))}
+          </select>
+        </label>
 
-        <select
-          value={filters.unidadId}
-          onChange={(event) => onChange('unidadId', event.target.value)}
-          className="rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700"
-        >
-          <option value="">Todas las unidades</option>
-          {unidades.map((unidad) => (
-            <option key={unidad.id} value={unidad.id}>{unidad.nombre}</option>
-          ))}
-        </select>
+        <label className="min-w-0">
+          <span className="mb-1.5 block text-xs font-medium text-slate-500">Unidad</span>
+          <select
+            value={filters.unidadId}
+            onChange={(event) => onChange('unidadId', event.target.value)}
+            disabled={!filters.materiaId}
+            className="min-h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+          >
+            <option value="">{filters.materiaId ? 'Todas las unidades' : 'Selecciona una materia'}</option>
+            {unidades.map((unidad) => (
+              <option key={unidad.id} value={unidad.id}>{unidad.nombre}</option>
+            ))}
+          </select>
+        </label>
 
-        <input
-          type="date"
-          value={filters.fecha}
-          onChange={(event) => onChange('fecha', event.target.value)}
-          className="rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700"
-        />
-
-        <input
-          type="date"
-          value={filters.semana}
-          onChange={(event) => onChange('semana', event.target.value)}
-          className="rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700"
-        />
+        {Array.isArray(fechasClase) ? (
+          <>
+            <HistorialDatePicker
+              label="Fecha de clase"
+              value={filters.fecha}
+              availableDates={fechasClase}
+              onChange={(value) => onChange('fecha', value)}
+              disabled={!filters.materiaId || fechasClase.length === 0}
+              disabledLabel={filters.materiaId ? 'Sin clases registradas' : 'Selecciona una materia'}
+              loading={fechasLoading}
+            />
+            <HistorialDatePicker
+              label="Semana de clase"
+              value={filters.semana}
+              availableDates={fechasClase}
+              onChange={(value) => onChange('semana', value)}
+              disabled={!filters.materiaId || fechasClase.length === 0}
+              disabledLabel={filters.materiaId ? 'Sin clases registradas' : 'Selecciona una materia'}
+              loading={fechasLoading}
+              week
+            />
+          </>
+        ) : (
+          <>
+            <label className="min-w-0">
+              <span className="mb-1.5 block text-xs font-medium text-slate-500">Fecha</span>
+              <input
+                type="date"
+                value={filters.fecha}
+                onChange={(event) => onChange('fecha', event.target.value)}
+                className="min-h-12 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700"
+              />
+            </label>
+            <label className="min-w-0">
+              <span className="mb-1.5 block text-xs font-medium text-slate-500">Semana</span>
+              <input
+                type="date"
+                value={filters.semana}
+                onChange={(event) => onChange('semana', event.target.value)}
+                className="min-h-12 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700"
+              />
+            </label>
+          </>
+        )}
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2">
@@ -671,13 +945,59 @@ function DocenteAsistenciasView() {
     fecha: '',
     semana: '',
   })
-  const [materiaDetalle, setMateriaDetalle] = useState(null)
+  const [opcionesFiltros, setOpcionesFiltros] = useState({
+    materias: [],
+    grupos: [],
+    unidades: [],
+    fechasClase: [],
+  })
+  const [opcionesLoading, setOpcionesLoading] = useState(false)
+  const [opcionesError, setOpcionesError] = useState('')
+  const opcionesRequestId = useRef(0)
+
+  const cargarOpcionesFiltros = async (materiaId, grupoId = '') => {
+    if (!materiaId) return null
+
+    const requestId = opcionesRequestId.current + 1
+    opcionesRequestId.current = requestId
+    setOpcionesLoading(true)
+    setOpcionesError('')
+
+    try {
+      const response = await api.get('/asistencias/filtros-disponibles', {
+        params: {
+          materiaId,
+          ...(grupoId ? { grupoId } : {}),
+        },
+      })
+      if (requestId === opcionesRequestId.current) {
+        setOpcionesFiltros(response.data)
+      }
+      return response.data
+    } catch (error) {
+      if (requestId === opcionesRequestId.current) {
+        setOpcionesFiltros((current) => ({
+          ...current,
+          grupos: [],
+          fechasClase: [],
+        }))
+        setOpcionesError(getApiErrorMessage(error, 'No se pudieron comprobar los grupos y fechas de esta materia.'))
+      }
+      return null
+    } finally {
+      if (requestId === opcionesRequestId.current) setOpcionesLoading(false)
+    }
+  }
 
   const cargarTodo = async (nextFilters = filters) => {
-    await Promise.all([
+    const requests = [
       cargarPanelDocente(),
       obtenerHistorial(nextFilters),
-    ])
+    ]
+    if (nextFilters.materiaId) {
+      requests.push(cargarOpcionesFiltros(nextFilters.materiaId, nextFilters.grupoId))
+    }
+    await Promise.all(requests)
   }
 
   useEffect(() => {
@@ -686,6 +1006,19 @@ function DocenteAsistenciasView() {
       obtenerHistorial({}),
     ]).catch(() => {})
 
+    const requestId = opcionesRequestId.current + 1
+    opcionesRequestId.current = requestId
+    api.get('/asistencias/filtros-disponibles')
+      .then((response) => {
+        if (requestId !== opcionesRequestId.current) return
+        setOpcionesFiltros(response.data)
+        setOpcionesError('')
+      })
+      .catch((error) => {
+        if (requestId !== opcionesRequestId.current) return
+        setOpcionesError(getApiErrorMessage(error, 'No se pudieron cargar las opciones del historial.'))
+      })
+
     const interval = setInterval(() => {
       cargarPanelDocente().catch(() => {})
     }, 30000)
@@ -693,46 +1026,13 @@ function DocenteAsistenciasView() {
     return () => clearInterval(interval)
   }, [cargarPanelDocente, obtenerHistorial])
 
-  useEffect(() => {
-    if (!filters.materiaId) return undefined
-
-    let active = true
-
-    api.get(`/materias/${filters.materiaId}`)
-      .then((response) => {
-        if (active) setMateriaDetalle(response.data)
-      })
-      .catch(() => {
-        if (active) setMateriaDetalle(null)
-      })
-
-    return () => {
-      active = false
-    }
-  }, [filters.materiaId])
-
   const clasesHoy = panelDocente?.clasesHoy ?? []
   const clasePrincipal = panelDocente?.claseActual ?? panelDocente?.proximaClase ?? null
 
-  const materiasMap = new Map()
-  clasesHoy.forEach((clase) => {
-    if (clase.materia) materiasMap.set(clase.materia.id, { id: clase.materia.id, nombre: clase.materia.nombre })
-  })
-  historial.forEach((item) => {
-    if (item.materia) materiasMap.set(item.materia.id, { id: item.materia.id, nombre: item.materia.nombre })
-  })
-  const materias = Array.from(materiasMap.values()).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
-
-  const gruposMap = new Map()
-  clasesHoy.forEach((clase) => {
-    if (clase.grupo) gruposMap.set(clase.grupo.id, { id: clase.grupo.id, nombre: clase.grupo.nombre })
-  })
-  historial.forEach((item) => {
-    if (item.grupo) gruposMap.set(item.grupo.id, { id: item.grupo.id, nombre: item.grupo.nombre })
-  })
-  const grupos = Array.from(gruposMap.values()).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
-
-  const unidades = filters.materiaId ? (materiaDetalle?.unidades ?? []) : []
+  const materias = opcionesFiltros.materias ?? []
+  const grupos = opcionesFiltros.grupos ?? []
+  const fechasClase = opcionesFiltros.fechasClase ?? []
+  const unidades = opcionesFiltros.unidades ?? []
 
   const handleStartClass = async (clase) => {
     setMensaje('')
@@ -817,10 +1117,39 @@ function DocenteAsistenciasView() {
   }
 
   const handleFilterChange = (key, value) => {
+    if (key === 'materiaId') {
+      opcionesRequestId.current += 1
+      setOpcionesLoading(Boolean(value))
+      setOpcionesError('')
+      setOpcionesFiltros((current) => ({
+        ...current,
+        grupos: [],
+        unidades: [],
+        fechasClase: [],
+      }))
+      if (value) {
+        cargarOpcionesFiltros(value)
+      }
+    } else if (key === 'grupoId') {
+      opcionesRequestId.current += 1
+      setOpcionesFiltros((current) => ({ ...current, fechasClase: [] }))
+      cargarOpcionesFiltros(filters.materiaId, value)
+    }
+
     setFilters((prev) => {
       const next = { ...prev, [key]: value }
       if (key === 'fecha' && value) next.semana = ''
       if (key === 'semana' && value) next.fecha = ''
+      if (key === 'materiaId') {
+        next.grupoId = ''
+        next.unidadId = ''
+        next.fecha = ''
+        next.semana = ''
+      }
+      if (key === 'grupoId') {
+        next.fecha = ''
+        next.semana = ''
+      }
       return next
     })
   }
@@ -959,7 +1288,17 @@ function DocenteAsistenciasView() {
           materias={materias}
           grupos={grupos}
           unidades={unidades}
+          fechasClase={fechasClase}
+          gruposLoading={opcionesLoading}
+          fechasLoading={opcionesLoading}
+          gruposRestringidos
         />
+
+        {opcionesError && (
+          <p role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+            {opcionesError}
+          </p>
+        )}
 
         {estadisticas?.rankingFaltas?.length > 0 && (
           <div className="rounded-3xl border border-rose-200 bg-rose-50 p-5">

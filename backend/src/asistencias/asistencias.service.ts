@@ -10,6 +10,7 @@ import { PasarListaDto } from './dto/pasar-lista.dto';
 import { ActualizarAsistenciaDto } from './dto/actualizar-asistencia.dto';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import {
+  formatearFechaClave,
   obtenerClaveSemana,
   obtenerFinDelDia,
   obtenerInicioDelDia,
@@ -509,6 +510,134 @@ export class AsistenciasService {
     };
   }
 
+  /**
+   * Opciones dependientes para el historial. Los grupos no se infieren de
+   * sesiones antiguas: deben llevar la materia, pertenecer al semestre de la
+   * retícula y tener un horario activo con el docente consultado.
+   */
+  async obtenerFiltrosDisponibles(
+    actor: Actor,
+    filters: {
+      materiaId?: number;
+      grupoId?: number;
+      docenteId?: number;
+    },
+  ) {
+    const docenteId = actor.rol === 'ADMIN' ? filters.docenteId : actor.id;
+
+    const materias = await this.prisma.materia.findMany({
+      where: docenteId
+        ? {
+            OR: [
+              {
+                horarios: {
+                  some: { docenteId, activo: true, grupoId: { not: null } },
+                },
+              },
+              { claseSesiones: { some: { docenteId } } },
+            ],
+          }
+        : undefined,
+      select: { id: true, nombre: true, clave: true },
+      orderBy: [{ nombre: 'asc' }, { clave: 'asc' }],
+    });
+
+    if (!filters.materiaId) {
+      return { materias, grupos: [], unidades: [], fechasClase: [] };
+    }
+
+    const materia = await this.prisma.materia.findUnique({
+      where: { id: filters.materiaId },
+      select: {
+        id: true,
+        clave: true,
+        unidades: {
+          select: { id: true, nombre: true, orden: true },
+          orderBy: { orden: 'asc' },
+        },
+      },
+    });
+    if (!materia) throw new NotFoundException('Materia no encontrada');
+
+    const materiaPermitida = materias.some((item) => item.id === materia.id);
+    if (docenteId && !materiaPermitida) {
+      throw new ForbiddenException('No impartes esta materia');
+    }
+
+    const candidatos = await this.prisma.grupo.findMany({
+      where: {
+        activo: true,
+        materias: { some: { id: materia.id } },
+        horarios: {
+          some: {
+            materiaId: materia.id,
+            activo: true,
+            ...(docenteId ? { docenteId } : {}),
+          },
+        },
+      },
+      select: {
+        id: true,
+        nombre: true,
+        semestre: true,
+        carreraId: true,
+        periodo: true,
+      },
+      orderBy: [{ semestre: 'asc' }, { nombre: 'asc' }],
+    });
+
+    const paresCarreraSemestre = Array.from(
+      new Map(
+        candidatos.map((grupo) => [
+          `${grupo.carreraId}:${grupo.semestre}`,
+          { carreraId: grupo.carreraId, semestre: grupo.semestre },
+        ]),
+      ).values(),
+    );
+    const entradasReticula = paresCarreraSemestre.length
+      ? await this.prisma.reticulaMateria.findMany({
+          where: {
+            clave: materia.clave,
+            activo: true,
+            OR: paresCarreraSemestre,
+          },
+          select: { carreraId: true, semestre: true },
+        })
+      : [];
+    const combinacionesValidas = new Set(
+      entradasReticula.map(
+        (entrada) => `${entrada.carreraId}:${entrada.semestre}`,
+      ),
+    );
+    const grupos = candidatos.filter((grupo) =>
+      combinacionesValidas.has(`${grupo.carreraId}:${grupo.semestre}`),
+    );
+
+    const grupoIdValido = filters.grupoId
+      ? grupos.some((grupo) => grupo.id === filters.grupoId)
+      : true;
+    if (!grupoIdValido) {
+      throw new BadRequestException(
+        'El grupo no corresponde a la materia, la retícula y el docente',
+      );
+    }
+
+    const sesiones = await this.prisma.claseSesion.findMany({
+      where: {
+        materiaId: materia.id,
+        ...(docenteId ? { docenteId } : {}),
+        ...(filters.grupoId ? { grupoId: filters.grupoId } : {}),
+      },
+      select: { fecha: true },
+      orderBy: { fecha: 'asc' },
+    });
+    const fechasClase = Array.from(
+      new Set(sesiones.map((sesion) => formatearFechaClave(sesion.fecha))),
+    );
+
+    return { materias, grupos, unidades: materia.unidades, fechasClase };
+  }
+
   async actualizarAsistencia(
     asistenciaId: number,
     actor: Actor,
@@ -687,6 +816,7 @@ export class AsistenciasService {
     });
 
     const registradosIds = registrados.map((item) => item.alumnoId);
+
     if (!sesion.grupoId) return registradosIds;
 
     const alumnosGrupo = await this.prisma.usuario.findMany({
