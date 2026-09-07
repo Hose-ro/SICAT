@@ -1387,11 +1387,16 @@ export class TareasService {
       where: {
         materiaId: tarea.materiaId,
         estado: 'ACEPTADA',
-        alumno: {
-          rol: 'ALUMNO',
-          activo: true,
-          ...(tarea.grupoId ? { grupoId: tarea.grupoId } : {}),
-        },
+        alumno: { rol: 'ALUMNO', activo: true },
+        // Cuentan los del grupo y los que el docente inscribió en esa clase.
+        ...(tarea.grupoId
+          ? {
+              OR: [
+                { alumno: { grupoId: tarea.grupoId } },
+                { grupoId: tarea.grupoId },
+              ],
+            }
+          : {}),
       },
       select: {
         alumno: {
@@ -1416,7 +1421,14 @@ export class TareasService {
         alumnoId,
         materiaId: tarea.materiaId,
         estado: 'ACEPTADA',
-        ...(tarea.grupoId ? { alumno: { grupoId: tarea.grupoId } } : {}),
+        ...(tarea.grupoId
+          ? {
+              OR: [
+                { alumno: { grupoId: tarea.grupoId } },
+                { grupoId: tarea.grupoId },
+              ],
+            }
+          : {}),
       },
     });
     if (!inscripcion) {

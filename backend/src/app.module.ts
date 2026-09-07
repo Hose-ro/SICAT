@@ -26,6 +26,7 @@ import { ReportesModule } from './reportes/reportes.module';
 import { JefesCarreraModule } from './jefes-carrera/jefes-carrera.module';
 import { CalificacionesModule } from './calificaciones/calificaciones.module';
 import { HorarioImportacionesModule } from './horario-importaciones/horario-importaciones.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -94,6 +95,7 @@ import { HorarioImportacionesModule } from './horario-importaciones/horario-impo
     JefesCarreraModule,
     CalificacionesModule,
     HorarioImportacionesModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [

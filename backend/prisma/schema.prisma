@@ -202,6 +202,7 @@ model Usuario {
   grupo   Grupo? @relation("AlumnoGrupo", fields: [grupoId], references: [id])
 
   docenteMaterias       Materia[]                  @relation("DocenteMateria")
+  gruposDocente         Grupo[]                    @relation("DocenteGrupo")
   horariosDocente       HorarioMateria[]           @relation("HorarioDocente")
   academias             Academia[]                 @relation("DocenteAcademia")
   inscripcionesAlumno   Inscripcion[]              @relation("InscripcionAlumno")
@@ -471,14 +472,17 @@ model Inscripcion {
   id        Int               @id @default(autoincrement())
   alumnoId  Int
   materiaId Int
+  grupoId   Int?
   estado    EstadoInscripcion @default(PENDIENTE)
   periodo   String
   createdAt DateTime          @default(now())
   updatedAt DateTime          @updatedAt
   alumno    Usuario           @relation("InscripcionAlumno", fields: [alumnoId], references: [id])
   materia   Materia           @relation(fields: [materiaId], references: [id])
+  grupo     Grupo?            @relation(fields: [grupoId], references: [id], onDelete: SetNull)
 
   @@unique([alumnoId, materiaId, periodo])
+  @@index([materiaId, grupoId, estado])
 }
 
 model ClaseSesion {
@@ -642,7 +646,9 @@ model Grupo {
   createdAt            DateTime             @default(now())
   updatedAt            DateTime             @updatedAt
   alumnos              Usuario[]            @relation("AlumnoGrupo")
+  docentes             Usuario[]            @relation("DocenteGrupo")
   materias             Materia[]            @relation("GrupoMateria")
+  inscripciones        Inscripcion[]
   horarios             HorarioMateria[]     @relation("HorarioGrupo")
   claseSesiones        ClaseSesion[]        @relation("ClaseSesionGrupo")
   tareas               Tarea[]

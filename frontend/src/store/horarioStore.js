@@ -16,6 +16,10 @@ export const useHorarioStore = create((set, get) => ({
   modoPropio: false,
   grupos: [],
   materiasCatalogo: [],
+  /** Materias del grupo elegido en el formulario (semestre de su retícula). */
+  materiasGrupo: [],
+  materiasGrupoId: null,
+  materiasGrupoLoading: false,
   docentesCatalogo: [],
   aulasCatalogo: [],
   horarios: [],
@@ -66,6 +70,40 @@ export const useHorarioStore = create((set, get) => ({
       })
     } catch (error) {
       set({ error: getErrorMessage(error, 'Error al cargar tu horario'), loading: false })
+    }
+  },
+
+  /**
+   * El grupo define el semestre, y el semestre define qué materias de la
+   * retícula de la carrera puede programar el docente.
+   */
+  cargarMateriasDeGrupo: async (grupoId) => {
+    const id = grupoId ? Number(grupoId) : null
+
+    if (!id) {
+      set({ materiasGrupo: [], materiasGrupoId: null, materiasGrupoLoading: false })
+      return []
+    }
+
+    if (get().materiasGrupoId === id && !get().materiasGrupoLoading) {
+      return get().materiasGrupo
+    }
+
+    set({ materiasGrupoId: id, materiasGrupo: [], materiasGrupoLoading: true })
+    try {
+      const res = await api.get(`/materias/para-grupo/${id}`)
+      // Otro grupo pudo seleccionarse mientras respondía la petición.
+      if (get().materiasGrupoId !== id) return res.data
+      set({ materiasGrupo: res.data, materiasGrupoLoading: false })
+      return res.data
+    } catch (error) {
+      if (get().materiasGrupoId !== id) return []
+      set({
+        materiasGrupo: [],
+        materiasGrupoLoading: false,
+        error: getErrorMessage(error, 'Error al cargar las materias del grupo'),
+      })
+      return []
     }
   },
 

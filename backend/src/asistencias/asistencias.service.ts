@@ -69,7 +69,7 @@ export class AsistenciasService {
     for (const registro of dto.registros) {
       if (!alumnosPermitidos.has(registro.alumnoId)) {
         throw new BadRequestException(
-          `El alumno ${registro.alumnoId} no pertenece al grupo autorizado para esta sesión`,
+          `El alumno ${registro.alumnoId} no pertenece al grupo ni está inscrito en la materia de esta sesión`,
         );
       }
 
@@ -152,25 +152,31 @@ export class AsistenciasService {
     if (!sesion) throw new NotFoundException('Sesión no encontrada');
     this.validarAccesoSesion(actor, sesion.docenteId);
 
-    const alumnosFormales = sesion.grupoId
-      ? await this.prisma.inscripcion.findMany({
-          where: {
-            materiaId: sesion.materiaId,
-            estado: 'ACEPTADA',
-            alumno: {
-              grupoId: sesion.grupoId,
-              rol: 'ALUMNO',
-              activo: true,
-            },
-          },
-          select: {
-            alumno: {
-              select: { id: true, nombre: true, numeroControl: true },
-            },
-          },
-          orderBy: { alumno: { nombre: 'asc' } },
-        })
-      : [];
+    // La lista la forman los inscritos en la materia: los que pertenecen al
+    // grupo de la sesión y los que el docente agregó a esta clase en concreto
+    // (inscripción con ese grupo, o sin grupo cuando la sesión tampoco lo
+    // tiene). Así una materia compartida por dos grupos no mezcla sus listas.
+    const alumnosFormales = await this.prisma.inscripcion.findMany({
+      where: {
+        materiaId: sesion.materiaId,
+        estado: 'ACEPTADA',
+        alumno: { rol: 'ALUMNO', activo: true },
+        ...(sesion.grupoId
+          ? {
+              OR: [
+                { alumno: { grupoId: sesion.grupoId } },
+                { grupoId: sesion.grupoId },
+              ],
+            }
+          : {}),
+      },
+      select: {
+        alumno: {
+          select: { id: true, nombre: true, numeroControl: true },
+        },
+      },
+      orderBy: { alumno: { nombre: 'asc' } },
+    });
 
     const idsFormales = new Set(alumnosFormales.map((item) => item.alumno.id));
     const idsRegistrados = new Set(
@@ -817,19 +823,32 @@ export class AsistenciasService {
 
     const registradosIds = registrados.map((item) => item.alumnoId);
 
-    if (!sesion.grupoId) return registradosIds;
-
-    const alumnosGrupo = await this.prisma.usuario.findMany({
-      where: {
-        grupoId: sesion.grupoId,
-        rol: 'ALUMNO',
-        activo: true,
-      },
-      select: { id: true },
-    });
+    // Puede pasar lista quien pertenece al grupo de la sesión y también quien
+    // está inscrito en la materia aunque no forme parte del grupo, que es como
+    // el docente agrega alumnos a su clase.
+    const [alumnosGrupo, inscritos] = await Promise.all([
+      sesion.grupoId
+        ? this.prisma.usuario.findMany({
+            where: { grupoId: sesion.grupoId, rol: 'ALUMNO', activo: true },
+            select: { id: true },
+          })
+        : Promise.resolve([]),
+      this.prisma.inscripcion.findMany({
+        where: {
+          materiaId: sesion.materiaId,
+          estado: 'ACEPTADA',
+          alumno: { rol: 'ALUMNO', activo: true },
+        },
+        select: { alumnoId: true },
+      }),
+    ]);
 
     return Array.from(
-      new Set([...alumnosGrupo.map((alumno) => alumno.id), ...registradosIds]),
+      new Set([
+        ...alumnosGrupo.map((alumno) => alumno.id),
+        ...inscritos.map((inscripcion) => inscripcion.alumnoId),
+        ...registradosIds,
+      ]),
     );
   }
 

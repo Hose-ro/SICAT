@@ -1537,6 +1537,10 @@ body.dark .pw-modal label { color: rgba(255,255,255,0.65) !important; }
   box-shadow: 0 24px 64px rgba(38,60,105,0.18);
 }
 
+.modal-panel--wide {
+  max-width: 760px;
+}
+
 .modal-header {
   display: flex;
   align-items: center;

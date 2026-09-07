@@ -3,6 +3,7 @@ import {
   Post,
   Get,
   Patch,
+  Delete,
   Param,
   Body,
   UseGuards,
@@ -15,6 +16,10 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { SolicitarInscripcionDto } from './dto/solicitar-inscripcion.dto';
+import { InscribirAlumnosDto } from './dto/inscribir-alumnos.dto';
+import { CrearAlumnoInscripcionDto } from './dto/crear-alumno-inscripcion.dto';
+import { ImportarAlumnosDto } from './dto/importar-alumnos.dto';
+import { CompletarAlumnoDto } from './dto/completar-alumno.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('inscripciones')
@@ -46,15 +51,86 @@ export class InscripcionesController {
   }
 
   @Get('alumnos/:materiaId')
-  @Roles('DOCENTE')
+  @Roles('DOCENTE', 'ADMIN')
   alumnosMateria(
     @Param('materiaId', ParseIntPipe) materiaId: number,
     @Req() req,
   ) {
-    return this.inscripcionesService.obtenerAlumnosMateria(
+    return this.inscripcionesService.obtenerAlumnosMateria(materiaId, req.user);
+  }
+
+  @Get('materias/:materiaId/alumnos-disponibles')
+  @Roles('DOCENTE', 'ADMIN')
+  alumnosDisponibles(
+    @Param('materiaId', ParseIntPipe) materiaId: number,
+    @Req() req,
+    @Query('q') q?: string,
+  ) {
+    return this.inscripcionesService.buscarAlumnosDisponibles(
       materiaId,
-      req.user.id,
+      req.user,
+      q,
     );
+  }
+
+  @Post('materias/:materiaId/alumnos')
+  @Roles('DOCENTE', 'ADMIN')
+  inscribirAlumnos(
+    @Param('materiaId', ParseIntPipe) materiaId: number,
+    @Body() dto: InscribirAlumnosDto,
+    @Req() req,
+  ) {
+    return this.inscripcionesService.inscribirAlumnos(materiaId, dto, req.user);
+  }
+
+  @Post('materias/:materiaId/alumnos/nuevo')
+  @Roles('DOCENTE', 'ADMIN')
+  crearAlumno(
+    @Param('materiaId', ParseIntPipe) materiaId: number,
+    @Body() dto: CrearAlumnoInscripcionDto,
+    @Req() req,
+  ) {
+    return this.inscripcionesService.crearAlumnoEInscribir(
+      materiaId,
+      dto,
+      req.user,
+    );
+  }
+
+  @Post('materias/:materiaId/alumnos/importar')
+  @Roles('DOCENTE', 'ADMIN')
+  importarAlumnos(
+    @Param('materiaId', ParseIntPipe) materiaId: number,
+    @Body() dto: ImportarAlumnosDto,
+    @Req() req,
+  ) {
+    return this.inscripcionesService.importarAlumnos(materiaId, dto, req.user);
+  }
+
+  @Patch('materias/:materiaId/alumnos/:alumnoId')
+  @Roles('DOCENTE', 'ADMIN')
+  completarAlumno(
+    @Param('materiaId', ParseIntPipe) materiaId: number,
+    @Param('alumnoId', ParseIntPipe) alumnoId: number,
+    @Body() dto: CompletarAlumnoDto,
+    @Req() req,
+  ) {
+    return this.inscripcionesService.completarDatosAlumno(
+      materiaId,
+      alumnoId,
+      dto,
+      req.user,
+    );
+  }
+
+  @Delete('materias/:materiaId/alumnos/:alumnoId')
+  @Roles('DOCENTE', 'ADMIN')
+  darDeBaja(
+    @Param('materiaId', ParseIntPipe) materiaId: number,
+    @Param('alumnoId', ParseIntPipe) alumnoId: number,
+    @Req() req,
+  ) {
+    return this.inscripcionesService.darDeBaja(materiaId, alumnoId, req.user);
   }
 
   @Patch(':id/aceptar')

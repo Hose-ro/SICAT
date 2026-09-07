@@ -1,12 +1,16 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { HorariosService } from '../horarios/horarios.service';
+import { UsuariosService } from '../usuarios/usuarios.service';
 import { GruposService } from './grupos.service';
 
 describe('GruposService', () => {
   const grupoFindUnique = jest.fn();
   const grupoFindFirst = jest.fn();
   const grupoUpdate = jest.fn();
+  const usuarioFindFirst = jest.fn();
+  const usuarioUpdate = jest.fn();
+  const usuarioCreate = jest.fn();
   const transaction = jest.fn();
   const prisma = {
     grupo: {
@@ -14,10 +18,16 @@ describe('GruposService', () => {
       findFirst: grupoFindFirst,
       update: grupoUpdate,
     },
+    usuario: {
+      findFirst: usuarioFindFirst,
+      update: usuarioUpdate,
+      create: usuarioCreate,
+    },
     $transaction: transaction,
   } as unknown as PrismaService;
   const horarios = {} as unknown as HorariosService;
-  const service = new GruposService(prisma, horarios);
+  const usuarios = {} as unknown as UsuariosService;
+  const service = new GruposService(prisma, horarios, usuarios);
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -99,6 +109,68 @@ describe('GruposService', () => {
       data: { grupoId: null },
     });
     expect(tx.grupo.delete).toHaveBeenCalledWith({ where: { id: 4 } });
+  });
+
+  // ─── Mis grupos (docente) ─────────────────────────────────────────────────
+
+  const grupoDelDocente = { id: 4, nombre: '106A', carreraId: 1, semestre: 1 };
+
+  it('importa la lista al grupo: vincula, crea y reporta a quien ya tiene grupo', async () => {
+    grupoFindFirst.mockResolvedValue(grupoDelDocente);
+    usuarioFindFirst
+      .mockResolvedValueOnce({
+        id: 11,
+        rol: 'ALUMNO',
+        grupoId: null,
+        carreraId: 1,
+        grupo: null,
+      })
+      .mockResolvedValueOnce({
+        id: 12,
+        rol: 'ALUMNO',
+        grupoId: 9,
+        carreraId: 1,
+        grupo: { nombre: '806A' },
+      });
+    usuarioCreate.mockResolvedValue({ id: 13 });
+
+    const resultado = await service.importarAlumnosAMiGrupo(4, 37, {
+      alumnos: [
+        { nombre: ' Ana López ', numeroControl: '225q0103' },
+        { nombre: 'Beto Ruiz', numeroControl: '225Q0104' },
+        { nombre: 'Carla Díaz' },
+      ],
+    });
+
+    expect(resultado).toEqual({
+      creados: 1,
+      vinculados: 1,
+      yaEnGrupo: 0,
+      errores: [{ nombre: 'Beto Ruiz', motivo: 'Ya está en el grupo 806A' }],
+    });
+    expect(usuarioUpdate).toHaveBeenCalledWith({
+      where: { id: 11 },
+      data: { grupoId: 4 },
+    });
+    // El alumno nuevo hereda carrera y semestre del grupo.
+    expect(usuarioCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          nombre: 'Carla Díaz',
+          carreraId: 1,
+          semestre: 1,
+          grupoId: 4,
+        }),
+      }),
+    );
+  });
+
+  it('no deja tocar un grupo que no es del docente', async () => {
+    grupoFindFirst.mockResolvedValue(null);
+
+    await expect(
+      service.agregarAlumnosAMiGrupo(4, 37, [11]),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('no elimina un grupo inexistente', async () => {

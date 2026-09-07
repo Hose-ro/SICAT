@@ -40,6 +40,9 @@ import PasarLista from "./pages/docente/PasarLista";
 import TareaForm from "./pages/docente/TareaForm";
 import TareaDetalle from "./pages/docente/TareaDetalle";
 import MiHorario from "./pages/docente/MiHorario";
+import MisGrupos from "./pages/docente/MisGrupos";
+import DashboardDocente from "./pages/docente/DashboardDocente";
+import SolicitudesPendientes from "./pages/docente/SolicitudesPendientes";
 import JefeDashboard from "./pages/jefe-carrera/JefeDashboard";
 import JefeDocentes from "./pages/jefe-carrera/JefeDocentes";
 import JefeDocenteDetalle from "./pages/jefe-carrera/JefeDocenteDetalle";
@@ -103,7 +106,9 @@ function RoleGate({ allowedRoles }) {
 
 function DashboardRoute() {
   const user = useAuthStore((state) => state.user);
-  return user?.rol === "JEFE_CARRERA" ? <JefeDashboard /> : <Dashboard />;
+  if (user?.rol === "JEFE_CARRERA") return <JefeDashboard />;
+  if (user?.rol === "DOCENTE") return <DashboardDocente />;
+  return <Dashboard />;
 }
 
 function App() {
@@ -188,6 +193,11 @@ function App() {
                 element={<PasarLista />}
               />
               <Route path="/docente/horario" element={<MiHorario />} />
+              <Route path="/docente/grupos" element={<MisGrupos />} />
+              <Route
+                path="/docente/solicitudes"
+                element={<SolicitudesPendientes />}
+              />
               <Route
                 path="/docente/horario/editar"
                 element={<HorariosPage soloPropias />}

@@ -8,6 +8,7 @@ import {
   Param,
   Query,
   ParseIntPipe,
+  Request,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -22,6 +23,9 @@ import { UpdateGrupoDto } from './dto/update-grupo.dto';
 import { AsignarAlumnosDto } from './dto/asignar-alumnos.dto';
 import { ModificarMateriasDto } from './dto/modificar-materias.dto';
 import { AsignarAulaGrupoDto } from './dto/asignar-aula-grupo.dto';
+import { AgregarGrupoDocenteDto } from './dto/agregar-grupo-docente.dto';
+import { CrearAlumnoGrupoDto } from './dto/crear-alumno-grupo.dto';
+import { ImportarAlumnosGrupoDto } from './dto/importar-alumnos-grupo.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -79,6 +83,81 @@ export class GruposController {
       semestre: semestre ? Number(semestre) : undefined,
       periodo,
     });
+  }
+
+  @Get('mis-grupos')
+  @Roles('DOCENTE')
+  @ApiOperation({
+    summary: 'Grupos del docente: los de su horario y los que agregó a mano',
+  })
+  misGrupos(@Request() req: any) {
+    return this.grupos.listarGruposDocente(req.user.id);
+  }
+
+  @Post('mis-grupos')
+  @Roles('DOCENTE')
+  @ApiOperation({ summary: 'Agregar a mis grupos uno que ya existe' })
+  agregarMiGrupo(@Body() dto: AgregarGrupoDocenteDto, @Request() req: any) {
+    return this.grupos.agregarGrupoDocente(req.user.id, dto.grupoId);
+  }
+
+  @Get('mis-grupos/:id')
+  @Roles('DOCENTE')
+  @ApiOperation({ summary: 'Detalle de uno de mis grupos con sus alumnos' })
+  miGrupo(@Param('id', ParseIntPipe) id: number, @Request() req: any) {
+    return this.grupos.obtenerGrupoDocente(id, req.user.id);
+  }
+
+  @Delete('mis-grupos/:id')
+  @Roles('DOCENTE')
+  @ApiOperation({ summary: 'Quitar de mis grupos uno que agregué a mano' })
+  quitarMiGrupo(@Param('id', ParseIntPipe) id: number, @Request() req: any) {
+    return this.grupos.quitarGrupoDocente(req.user.id, id);
+  }
+
+  @Get('mis-grupos/:id/alumnos-disponibles')
+  @Roles('DOCENTE')
+  @ApiOperation({ summary: 'Alumnos de la carrera que puedo agregar al grupo' })
+  @ApiQuery({ name: 'q', required: false, type: String })
+  alumnosParaMiGrupo(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req: any,
+    @Query('q') q?: string,
+  ) {
+    return this.grupos.buscarAlumnosParaGrupo(id, req.user.id, q);
+  }
+
+  @Post('mis-grupos/:id/alumnos')
+  @Roles('DOCENTE')
+  @ApiOperation({ summary: 'Agregar alumnos existentes a mi grupo' })
+  agregarAlumnosAMiGrupo(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AsignarAlumnosDto,
+    @Request() req: any,
+  ) {
+    return this.grupos.agregarAlumnosAMiGrupo(id, req.user.id, dto.alumnoIds);
+  }
+
+  @Post('mis-grupos/:id/alumnos/nuevo')
+  @Roles('DOCENTE')
+  @ApiOperation({ summary: 'Dar de alta un alumno nuevo en mi grupo' })
+  crearAlumnoEnMiGrupo(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CrearAlumnoGrupoDto,
+    @Request() req: any,
+  ) {
+    return this.grupos.crearAlumnoEnMiGrupo(id, req.user.id, dto);
+  }
+
+  @Post('mis-grupos/:id/alumnos/importar')
+  @Roles('DOCENTE')
+  @ApiOperation({ summary: 'Importar la lista de alumnos del grupo' })
+  importarAlumnosAMiGrupo(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ImportarAlumnosGrupoDto,
+    @Request() req: any,
+  ) {
+    return this.grupos.importarAlumnosAMiGrupo(id, req.user.id, dto);
   }
 
   @Get(':id')

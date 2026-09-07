@@ -303,7 +303,13 @@ function DocenteCalificaciones() {
     () => materias.find((materia) => materia.id === Number(filters.materiaId)),
     [materias, filters.materiaId],
   )
-  const rows = filters.materiaId ? reporteDocente?.rows ?? [] : []
+  // Sin memoizar, el `[]` era un array nuevo en cada render: el efecto de
+  // abajo depende de `rows`, llamaba a setDrafts y volvía a renderizar en
+  // bucle, dejando la app congelada hasta recargar.
+  const rows = useMemo(
+    () => (filters.materiaId ? reporteDocente?.rows ?? [] : []),
+    [filters.materiaId, reporteDocente?.rows],
+  )
   const metrics = filters.materiaId ? reporteDocente?.metrics ?? {} : {}
   const canExport = Boolean(filters.materiaId)
 
@@ -532,7 +538,7 @@ function AlumnoCalificaciones() {
     obtenerAlumno({ materiaId: materiaId || undefined }).catch(() => {})
   }, [materiaId, obtenerAlumno])
 
-  const rows = reporteAlumno?.rows ?? []
+  const rows = useMemo(() => reporteAlumno?.rows ?? [], [reporteAlumno?.rows])
   const metrics = reporteAlumno?.metrics ?? {}
   const rowsFiltradas = useMemo(
     () => [...rows].sort(

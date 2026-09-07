@@ -29,7 +29,6 @@ function crearEstadoInicial({ clase, preset, modo, docenteSeleccionado, grupoSel
           horaFin: bloque.horaFin,
         })),
       ),
-      semestre: clase.semestre ? String(clase.semestre) : '',
     }
   }
 
@@ -41,7 +40,6 @@ function crearEstadoInicial({ clase, preset, modo, docenteSeleccionado, grupoSel
     bloques: preset?.dia
       ? [{ dia: preset.dia, horaInicio: preset.horaInicio ?? '', horaFin: preset.horaFin ?? '' }]
       : [],
-    semestre: grupoSeleccionado?.semestre ? String(grupoSeleccionado.semestre) : '',
   }
 }
 
@@ -56,6 +54,10 @@ export default function HorarioForm({
 }) {
   const {
     materiasCatalogo,
+    materiasGrupo,
+    materiasGrupoId,
+    materiasGrupoLoading,
+    cargarMateriasDeGrupo,
     docentesCatalogo,
     aulasCatalogo,
     grupos,
@@ -85,6 +87,35 @@ export default function HorarioForm({
 
   const bloquesOrdenados = useMemo(() => ordenarBloques(form.bloques), [form.bloques])
 
+  // El docente programa siempre para un grupo: de ahí sale el semestre y, con
+  // él, las materias de la retícula que puede impartir. El admin conserva la
+  // opción de bloques sin grupo.
+  const requiereGrupo = soloPropias
+  const grupoElegido = useMemo(
+    () => grupos.find((grupo) => String(grupo.id) === String(form.grupoId)) ?? null,
+    [grupos, form.grupoId],
+  )
+
+  useEffect(() => {
+    cargarMateriasDeGrupo(form.grupoId)
+  }, [form.grupoId, cargarMateriasDeGrupo])
+
+  const materiasDelGrupoListas =
+    Boolean(form.grupoId) && materiasGrupoId === Number(form.grupoId) && !materiasGrupoLoading
+
+  const materiasDisponibles = useMemo(() => {
+    if (!form.grupoId) return requiereGrupo ? [] : materiasCatalogo
+    return materiasDelGrupoListas ? materiasGrupo : []
+  }, [form.grupoId, requiereGrupo, materiasCatalogo, materiasDelGrupoListas, materiasGrupo])
+
+  // Si la materia elegida no pertenece al semestre del grupo, se descarta.
+  useEffect(() => {
+    if (!materiasDelGrupoListas || !form.materiaId) return
+    if (materiasDisponibles.some((materia) => String(materia.id) === String(form.materiaId))) return
+    setForm((prev) => ({ ...prev, materiaId: '' }))
+    clearValidation()
+  }, [materiasDelGrupoListas, materiasDisponibles, form.materiaId, clearValidation])
+
   const payload = useMemo(() => ({
     materiaId: Number(form.materiaId),
     docenteId: Number(form.docenteId),
@@ -95,7 +126,6 @@ export default function HorarioForm({
       horaInicio: bloque.horaInicio,
       horaFin: bloque.horaFin,
     })),
-    semestre: form.semestre ? Number(form.semestre) : undefined,
   }), [bloquesOrdenados, form])
 
   const bloquesIncompletos = bloquesOrdenados.filter((bloque) => !bloque.horaInicio || !bloque.horaFin)
@@ -106,6 +136,7 @@ export default function HorarioForm({
   const estaCompleto = Boolean(
     form.materiaId &&
     form.docenteId &&
+    (!requiereGrupo || form.grupoId) &&
     bloquesOrdenados.length > 0 &&
     bloquesIncompletos.length === 0,
   )
@@ -125,6 +156,12 @@ export default function HorarioForm({
 
   function updateField(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }))
+    setSubmitError('')
+    clearValidation()
+  }
+
+  function updateGrupo(value) {
+    setForm((prev) => ({ ...prev, grupoId: value, materiaId: '' }))
     setSubmitError('')
     clearValidation()
   }
@@ -168,7 +205,11 @@ export default function HorarioForm({
     setSubmitError('')
 
     if (!estaCompleto) {
-      setSubmitError('Completa materia, docente y la hora de cada día seleccionado.')
+      setSubmitError(
+        requiereGrupo
+          ? 'Selecciona el grupo, la materia y la hora de cada día seleccionado.'
+          : 'Completa materia, docente y la hora de cada día seleccionado.',
+      )
       return
     }
 
@@ -199,7 +240,13 @@ export default function HorarioForm({
   }
 
   const estadoValidacion = !estaCompleto
-    ? { tone: 'slate', message: 'Completa el formulario para validar disponibilidad.' }
+    ? {
+        tone: 'slate',
+        message:
+          requiereGrupo && !form.grupoId
+            ? 'Selecciona primero el grupo al que le vas a dar clase.'
+            : 'Completa el formulario para validar disponibilidad.',
+      }
     : bloquesInvalidos.length > 0
       ? { tone: 'red', message: 'Cada día debe tener una hora de inicio menor que la hora de fin.' }
       : validating
@@ -227,7 +274,7 @@ export default function HorarioForm({
           <p className="text-xs text-slate-500">
             {clase
               ? 'Los cambios se aplican a todos los días de la clase. Quita un día para retirarlo del horario.'
-              : 'Programa materia, docente, grupo y un bloque independiente por cada día.'}
+              : 'Elige el grupo, la materia de su semestre y un bloque independiente por cada día.'}
           </p>
         </div>
         <button
@@ -246,19 +293,53 @@ export default function HorarioForm({
 
       <div className="space-y-3">
         <div>
+          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Grupo</label>
+          <select
+            value={form.grupoId}
+            onChange={(e) => updateGrupo(e.target.value)}
+            disabled={modo === 'grupo' && Boolean(grupoSeleccionado?.id)}
+            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-50"
+          >
+            <option value="">{requiereGrupo ? 'Selecciona un grupo' : 'Sin grupo específico'}</option>
+            {grupos.map((grupo) => (
+              <option key={grupo.id} value={grupo.id}>
+                {grupo.nombre} · Sem {grupo.semestre} · {grupo.periodo}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-xs text-slate-500">
+            {grupoElegido
+              ? `Verás las materias de ${grupoElegido.semestre}° semestre de la retícula${grupoElegido.carrera?.nombre ? ` de ${grupoElegido.carrera.nombre}` : ''}.`
+              : 'El semestre del grupo determina las materias que puedes programar.'}
+          </p>
+        </div>
+
+        <div>
           <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Materia</label>
           <select
             value={form.materiaId}
             onChange={(e) => updateField('materiaId', e.target.value)}
-            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            disabled={(requiereGrupo && !form.grupoId) || (Boolean(form.grupoId) && !materiasDelGrupoListas)}
+            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-400"
           >
-            <option value="">Selecciona una materia</option>
-            {materiasCatalogo.map((materia) => (
+            <option value="">
+              {requiereGrupo && !form.grupoId
+                ? 'Primero selecciona un grupo'
+                : form.grupoId && !materiasDelGrupoListas
+                  ? 'Cargando materias del grupo...'
+                  : 'Selecciona una materia'}
+            </option>
+            {materiasDisponibles.map((materia) => (
               <option key={materia.id} value={materia.id}>
                 {materia.clave} · {materia.nombre}
               </option>
             ))}
           </select>
+          {materiasDelGrupoListas && materiasDisponibles.length === 0 && (
+            <p className="mt-1 text-xs text-amber-600">
+              La retícula no tiene materias de {grupoElegido?.semestre}° semestre registradas para este grupo.
+            </p>
+          )}
         </div>
 
         {soloPropias ? (
@@ -287,23 +368,6 @@ export default function HorarioForm({
             </select>
           </div>
         )}
-
-        <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Grupo</label>
-          <select
-            value={form.grupoId}
-            onChange={(e) => updateField('grupoId', e.target.value)}
-            disabled={modo === 'grupo' && Boolean(grupoSeleccionado?.id)}
-            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-50"
-          >
-            <option value="">Sin grupo específico</option>
-            {grupos.map((grupo) => (
-              <option key={grupo.id} value={grupo.id}>
-                {grupo.nombre} · Sem {grupo.semestre} · {grupo.periodo}
-              </option>
-            ))}
-          </select>
-        </div>
 
         <div>
           <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Aula</label>
@@ -392,19 +456,6 @@ export default function HorarioForm({
             ))}
           </div>
         )}
-
-        <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Semestre</label>
-          <input
-            type="number"
-            min="1"
-            max="12"
-            value={form.semestre}
-            onChange={(e) => updateField('semestre', e.target.value)}
-            placeholder="Opcional"
-            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
       </div>
 
       <div className={`rounded-lg border px-3 py-2 text-sm ${clasesEstado}`}>

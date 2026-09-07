@@ -4,12 +4,24 @@ import {
   ConflictException,
   BadRequestException,
 } from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
+import { randomBytes } from 'crypto';
+import { Prisma, Rol } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
+import { UsuariosService } from '../usuarios/usuarios.service';
 import { CreateGrupoDto } from './dto/create-grupo.dto';
 import { UpdateGrupoDto } from './dto/update-grupo.dto';
 import { hayConflictoHorario } from '../horarios/utils/conflicto-horario.util';
 import { HorariosService } from '../horarios/horarios.service';
 import { unidadesIniciales } from '../common/unidades.util';
+import {
+  normalizeControlNumber,
+  normalizeEmail,
+  normalizeName,
+  normalizePhone,
+} from '../common/identity-normalization';
+import { CrearAlumnoGrupoDto } from './dto/crear-alumno-grupo.dto';
+import { ImportarAlumnosGrupoDto } from './dto/importar-alumnos-grupo.dto';
 
 const SECCIONES = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
@@ -44,11 +56,23 @@ const INCLUDE_DETAIL = {
   },
 };
 
+type GrupoDocentePayload = Prisma.GrupoGetPayload<{
+  include: {
+    carrera: { select: { id: true; nombre: true; codigo: true } };
+    docentes: { select: { id: true } };
+    _count: { select: { alumnos: true; materias: true } };
+    horarios: {
+      select: { materia: { select: { id: true; nombre: true; clave: true } } };
+    };
+  };
+}>;
+
 @Injectable()
 export class GruposService {
   constructor(
     private prisma: PrismaService,
     private horarios: HorariosService,
+    private usuarios: UsuariosService,
   ) {}
 
   // ─── Crear grupo ────────────────────────────────────────────────────────────
@@ -237,6 +261,358 @@ export class GruposService {
       },
       orderBy: [{ semestre: 'asc' }, { nombre: 'asc' }],
     });
+  }
+
+  // ─── Mis grupos (docente) ───────────────────────────────────────────────────
+
+  /**
+   * Un grupo llega a "Mis grupos" por dos caminos: porque el docente tiene un
+   * horario activo en él o porque lo agregó a mano desde el catálogo. El
+   * segundo existe para el docente que todavía no tiene horario cargado y aun
+   * así necesita ver a su grupo.
+   */
+  private gruposDelDocenteWhere(docenteId: number): Prisma.GrupoWhereInput {
+    return {
+      activo: true,
+      OR: [
+        { docentes: { some: { id: docenteId } } },
+        { horarios: { some: { docenteId, activo: true } } },
+      ],
+    };
+  }
+
+  private incluirParaDocente(docenteId: number) {
+    return {
+      carrera: { select: { id: true, nombre: true, codigo: true } },
+      docentes: { where: { id: docenteId }, select: { id: true } },
+      _count: { select: { alumnos: true, materias: true } },
+      horarios: {
+        where: { docenteId, activo: true },
+        select: {
+          materia: { select: { id: true, nombre: true, clave: true } },
+        },
+      },
+    };
+  }
+
+  /**
+   * `agregado` distingue el grupo que el docente puede quitar de su lista del
+   * que viene de su horario, que sólo desaparece si se lo reprograman.
+   */
+  private formatearParaDocente(grupo: GrupoDocentePayload) {
+    const { docentes, horarios, ...resto } = grupo;
+    const materias = [
+      ...new Map(horarios.map((h) => [h.materia.id, h.materia])).values(),
+    ];
+    return { ...resto, agregado: docentes.length > 0, materias };
+  }
+
+  async listarGruposDocente(docenteId: number) {
+    const grupos = await this.prisma.grupo.findMany({
+      where: this.gruposDelDocenteWhere(docenteId),
+      include: this.incluirParaDocente(docenteId),
+      orderBy: [{ semestre: 'asc' }, { nombre: 'asc' }],
+    });
+    return grupos.map((grupo) => this.formatearParaDocente(grupo));
+  }
+
+  async obtenerGrupoDocente(id: number, docenteId: number) {
+    const grupo = await this.prisma.grupo.findFirst({
+      where: { ...this.gruposDelDocenteWhere(docenteId), id },
+      include: {
+        ...this.incluirParaDocente(docenteId),
+        alumnos: {
+          where: { activo: true },
+          select: { id: true, nombre: true, numeroControl: true, email: true },
+          orderBy: { nombre: 'asc' },
+        },
+      },
+    });
+    if (!grupo) {
+      throw new NotFoundException('Grupo no encontrado entre tus grupos');
+    }
+    const { alumnos, ...resto } = grupo;
+    return { ...this.formatearParaDocente(resto), alumnos };
+  }
+
+  async agregarGrupoDocente(docenteId: number, grupoId: number) {
+    const grupo = await this.prisma.grupo.findUnique({
+      where: { id: grupoId },
+      select: { id: true, nombre: true, activo: true },
+    });
+    if (!grupo || !grupo.activo) throw new NotFoundException('Grupo no encontrado');
+
+    const yaEsMio = await this.prisma.grupo.count({
+      where: { id: grupoId, docentes: { some: { id: docenteId } } },
+    });
+    if (yaEsMio) {
+      throw new ConflictException(
+        `El grupo "${grupo.nombre}" ya está en tus grupos`,
+      );
+    }
+
+    await this.prisma.grupo.update({
+      where: { id: grupoId },
+      data: { docentes: { connect: { id: docenteId } } },
+    });
+
+    return this.obtenerGrupoDocente(grupoId, docenteId);
+  }
+
+  /**
+   * Sólo se suelta el vínculo que el docente creó: si el grupo sigue en su
+   * horario continúa apareciendo en la lista, porque ahí no lo puso él.
+   */
+  async quitarGrupoDocente(docenteId: number, grupoId: number) {
+    const agregado = await this.prisma.grupo.count({
+      where: { id: grupoId, docentes: { some: { id: docenteId } } },
+    });
+    if (!agregado) {
+      throw new NotFoundException('Ese grupo no lo agregaste a tus grupos');
+    }
+
+    await this.prisma.grupo.update({
+      where: { id: grupoId },
+      data: { docentes: { disconnect: { id: docenteId } } },
+    });
+    return { ok: true };
+  }
+
+  // ─── Alumnos de mis grupos (docente) ────────────────────────────────────────
+
+  private async asegurarGrupoDelDocente(grupoId: number, docenteId: number) {
+    const grupo = await this.prisma.grupo.findFirst({
+      where: { ...this.gruposDelDocenteWhere(docenteId), id: grupoId },
+      select: { id: true, nombre: true, carreraId: true, semestre: true },
+    });
+    if (!grupo) {
+      throw new NotFoundException('Grupo no encontrado entre tus grupos');
+    }
+    return grupo;
+  }
+
+  /**
+   * Alumnos de la carrera del grupo que todavía no están en él. Se devuelve
+   * también el grupo actual de cada uno para que el docente vea por qué no
+   * puede agregar a los que ya tienen uno.
+   */
+  async buscarAlumnosParaGrupo(
+    grupoId: number,
+    docenteId: number,
+    busqueda?: string,
+  ) {
+    const grupo = await this.asegurarGrupoDelDocente(grupoId, docenteId);
+    const texto = busqueda?.trim();
+
+    return this.prisma.usuario.findMany({
+      where: {
+        rol: Rol.ALUMNO,
+        activo: true,
+        carreraId: grupo.carreraId,
+        AND: [
+          // `NOT: { grupoId }` dejaría fuera a los que no tienen grupo, que
+          // son justo los que el docente puede agregar.
+          { OR: [{ grupoId: null }, { grupoId: { not: grupoId } }] },
+          ...(texto
+            ? [
+                {
+                  OR: [
+                    { nombre: { contains: texto, mode: 'insensitive' as const } },
+                    {
+                      numeroControl: {
+                        contains: texto,
+                        mode: 'insensitive' as const,
+                      },
+                    },
+                  ],
+                },
+              ]
+            : []),
+        ],
+      },
+      select: {
+        id: true,
+        nombre: true,
+        numeroControl: true,
+        semestre: true,
+        grupo: { select: { id: true, nombre: true } },
+      },
+      orderBy: { nombre: 'asc' },
+      take: 50,
+    });
+  }
+
+  async agregarAlumnosAMiGrupo(
+    grupoId: number,
+    docenteId: number,
+    alumnoIds: number[],
+  ) {
+    await this.asegurarGrupoDelDocente(grupoId, docenteId);
+    await this.asignarAlumnos(grupoId, alumnoIds);
+    return this.obtenerGrupoDocente(grupoId, docenteId);
+  }
+
+  /** Da de alta la cuenta y la deja en el grupo, con su carrera y semestre. */
+  async crearAlumnoEnMiGrupo(
+    grupoId: number,
+    docenteId: number,
+    dto: CrearAlumnoGrupoDto,
+  ) {
+    const grupo = await this.asegurarGrupoDelDocente(grupoId, docenteId);
+
+    const alumno = await this.usuarios.create({
+      nombre: dto.nombre,
+      numeroControl: dto.numeroControl,
+      password: dto.password,
+      email: dto.email,
+      telefono: dto.telefono,
+      carreraId: grupo.carreraId,
+      semestre: grupo.semestre,
+      rol: Rol.ALUMNO,
+    });
+
+    await this.prisma.usuario.update({
+      where: { id: alumno.id },
+      data: { grupoId },
+    });
+
+    return alumno;
+  }
+
+  /**
+   * Alta masiva desde la lista que el docente sube (Excel/CSV). Igual que la
+   * importación por materia, sólo el nombre es obligatorio y quien ya existe
+   * se vincula en lugar de duplicarse; lo que cambia es el destino: aquí el
+   * alumno queda en el grupo.
+   */
+  async importarAlumnosAMiGrupo(
+    grupoId: number,
+    docenteId: number,
+    dto: ImportarAlumnosGrupoDto,
+  ) {
+    const grupo = await this.asegurarGrupoDelDocente(grupoId, docenteId);
+
+    const resultado = {
+      creados: 0,
+      vinculados: 0,
+      yaEnGrupo: 0,
+      errores: [] as { nombre: string; motivo: string }[],
+    };
+
+    for (const fila of dto.alumnos) {
+      const nombre = normalizeName(fila.nombre ?? '');
+      if (!nombre) {
+        resultado.errores.push({ nombre: fila.nombre, motivo: 'Nombre vacío' });
+        continue;
+      }
+      const numeroControl = fila.numeroControl
+        ? normalizeControlNumber(fila.numeroControl)
+        : undefined;
+      const email = fila.email ? normalizeEmail(fila.email) : undefined;
+      const telefono = fila.telefono
+        ? normalizePhone(fila.telefono)
+        : undefined;
+
+      try {
+        const existente =
+          numeroControl || email
+            ? await this.prisma.usuario.findFirst({
+                where: {
+                  OR: [
+                    numeroControl
+                      ? {
+                          numeroControl: {
+                            equals: numeroControl,
+                            mode: 'insensitive' as const,
+                          },
+                        }
+                      : undefined,
+                    email
+                      ? {
+                          email: {
+                            equals: email,
+                            mode: 'insensitive' as const,
+                          },
+                        }
+                      : undefined,
+                  ].filter(
+                    (clausula): clausula is NonNullable<typeof clausula> =>
+                      Boolean(clausula),
+                  ),
+                },
+                select: {
+                  id: true,
+                  rol: true,
+                  grupoId: true,
+                  carreraId: true,
+                  grupo: { select: { nombre: true } },
+                },
+              })
+            : null;
+
+        if (existente) {
+          if (existente.rol !== Rol.ALUMNO) {
+            resultado.errores.push({
+              nombre,
+              motivo:
+                'Ese número de control o correo ya pertenece a un usuario que no es alumno',
+            });
+            continue;
+          }
+          if (existente.grupoId === grupoId) {
+            resultado.yaEnGrupo += 1;
+            continue;
+          }
+          if (existente.grupoId) {
+            resultado.errores.push({
+              nombre,
+              motivo: `Ya está en el grupo ${existente.grupo?.nombre ?? existente.grupoId}`,
+            });
+            continue;
+          }
+          if (existente.carreraId !== grupo.carreraId) {
+            resultado.errores.push({
+              nombre,
+              motivo: 'Pertenece a otra carrera',
+            });
+            continue;
+          }
+
+          await this.prisma.usuario.update({
+            where: { id: existente.id },
+            data: { grupoId },
+          });
+          resultado.vinculados += 1;
+          continue;
+        }
+
+        // Sin cuenta previa: se crea con una contraseña aleatoria, igual que
+        // en la importación por materia, y el alumno la restablece después.
+        const hash = await bcrypt.hash(randomBytes(24).toString('hex'), 12);
+        await this.prisma.usuario.create({
+          data: {
+            nombre,
+            numeroControl,
+            email,
+            telefono,
+            password: hash,
+            rol: Rol.ALUMNO,
+            carreraId: grupo.carreraId,
+            semestre: grupo.semestre,
+            grupoId,
+          },
+          select: { id: true },
+        });
+        resultado.creados += 1;
+      } catch {
+        resultado.errores.push({
+          nombre,
+          motivo: 'No se pudo registrar (dato duplicado o inválido)',
+        });
+      }
+    }
+
+    return resultado;
   }
 
   // ─── Detalle de grupo ───────────────────────────────────────────────────────

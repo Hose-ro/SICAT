@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { unidadesIniciales } from '../common/unidades.util';
 import { GenerarSeccionesDto } from './dto/generar-secciones.dto';
 
 @Injectable()
@@ -68,6 +69,8 @@ export class ReticulaService {
             docenteId: null,
             aulaId: null,
             numUnidades: 3,
+            // Sin unidades la materia no puede iniciar clase ni calificarse.
+            unidades: { create: unidadesIniciales(3) },
           },
         });
         creadas += 1;

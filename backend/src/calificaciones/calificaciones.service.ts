@@ -559,8 +559,11 @@ export class CalificacionesService {
       alumno: {
         rol: 'ALUMNO' as const,
         activo: true,
-        ...(grupoId ? { grupoId } : {}),
       },
+      // Del grupo, o inscritos por el docente en la clase de ese grupo.
+      ...(grupoId
+        ? { OR: [{ alumno: { grupoId } }, { grupoId }] }
+        : {}),
     };
 
     let inscripciones = await this.prisma.inscripcion.findMany({

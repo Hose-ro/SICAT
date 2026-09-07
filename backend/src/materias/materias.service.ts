@@ -7,6 +7,14 @@ import {
 } from '@nestjs/common';
 import { Prisma, TipoNotificacion } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
+import {
+  ActorMateria,
+  asegurarAccesoMateria,
+  esDocenteDeMateria,
+  materiasDelDocenteWhere,
+} from '../common/materia-ownership';
+import { unidadesIniciales } from '../common/unidades.util';
+import { ActualizarUnidadesDto } from './dto/actualizar-unidades.dto';
 import { CreateMateriaDto } from './dto/create-materia.dto';
 import { UpdateMateriaDto } from './dto/update-materia.dto';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
@@ -35,14 +43,9 @@ export class MateriasService {
         docenteId: docenteId ?? null,
         carreraId: dto.carreraId ?? null,
         semestre: dto.semestre ?? null,
+        unidades: { create: unidadesIniciales(dto.numUnidades) },
       },
     });
-
-    for (let i = 1; i <= dto.numUnidades; i++) {
-      await this.prisma.unidad.create({
-        data: { nombre: `Unidad ${i}`, orden: i, materiaId: materia.id },
-      });
-    }
 
     if (actor?.rol === 'DOCENTE') {
       await this.notificaciones.crearParaAdmins({
@@ -65,12 +68,7 @@ export class MateriasService {
         // Un docente imparte la materia por asignación directa o porque tiene
         // un horario activo en ella (una misma materia puede repartirse entre
         // varios docentes por grupo).
-        ...(docenteId && {
-          OR: [
-            { docenteId },
-            { horarios: { some: { docenteId, activo: true } } },
-          ],
-        }),
+        ...(docenteId ? materiasDelDocenteWhere(docenteId) : {}),
       },
       include: {
         docente: {
@@ -169,9 +167,51 @@ export class MateriasService {
     });
   }
 
+  /**
+   * Materias que puede cursar un grupo: las de su carrera cuyo semestre
+   * coincide con el que cursa el grupo. El semestre de la materia se toma de
+   * la retícula cuando la sección no lo tiene capturado, que es el mismo
+   * criterio con el que HorariosService valida al guardar la clase.
+   */
+  async findForGrupo(grupoId: number) {
+    const grupo = await this.prisma.grupo.findUnique({
+      where: { id: grupoId },
+      select: { id: true, semestre: true, carreraId: true },
+    });
+    if (!grupo) throw new NotFoundException('Grupo no encontrado');
+
+    const [materias, reticula] = await Promise.all([
+      this.prisma.materia.findMany({
+        where: { carreraId: grupo.carreraId },
+        select: {
+          id: true,
+          nombre: true,
+          clave: true,
+          semestre: true,
+          carreraId: true,
+          docente: { select: { id: true, nombre: true } },
+        },
+        orderBy: { nombre: 'asc' },
+      }),
+      this.prisma.reticulaMateria.findMany({
+        where: { carreraId: grupo.carreraId, activo: true },
+        select: { clave: true, semestre: true },
+      }),
+    ]);
+
+    const semestrePorClave = new Map(
+      reticula.map((materia) => [materia.clave, materia.semestre]),
+    );
+
+    return materias.filter((materia) => {
+      const semestre = materia.semestre ?? semestrePorClave.get(materia.clave);
+      return semestre === grupo.semestre;
+    });
+  }
+
   findByDocente(docenteId?: number) {
     return this.prisma.materia.findMany({
-      where: docenteId ? { docenteId } : undefined,
+      where: docenteId ? materiasDelDocenteWhere(docenteId) : undefined,
       include: {
         unidades: { orderBy: { orden: 'asc' } },
         carrera: { select: { id: true, nombre: true } },
@@ -234,8 +274,12 @@ export class MateriasService {
       },
     });
     if (!materia) throw new NotFoundException('Materia no encontrada');
-    if (actor?.rol === 'DOCENTE' && materia.docente?.id !== actor.id) {
-      throw new ForbiddenException('No puedes consultar esta materia');
+    if (actor?.rol === 'DOCENTE') {
+      // La asignación puede venir del horario, no sólo de Materia.docenteId.
+      const imparte = await esDocenteDeMateria(this.prisma, id, actor.id);
+      if (!imparte) {
+        throw new ForbiddenException('No puedes consultar esta materia');
+      }
     }
     return materia;
   }
@@ -321,6 +365,146 @@ export class MateriasService {
 
     await this.prisma.materia.update({ where: { id }, data });
     return this.findOne(id);
+  }
+
+  /**
+   * Define cuántas unidades tiene la materia. Crecer sólo agrega unidades;
+   * reducir borra las sobrantes con lo que tengan registrado, y por eso exige
+   * confirmación explícita (`forzar`) cuando hay algo que perder.
+   *
+   * Las unidades cuelgan de la materia, no del grupo: el cambio lo ven todos
+   * los grupos que la llevan.
+   */
+  async actualizarUnidades(
+    id: number,
+    dto: ActualizarUnidadesDto,
+    actor?: ActorMateria,
+  ) {
+    await asegurarAccesoMateria(this.prisma, actor, id);
+
+    const materia = await this.prisma.materia.findUnique({
+      where: { id },
+      select: { id: true, nombre: true, numUnidades: true },
+    });
+    if (!materia) throw new NotFoundException('Materia no encontrada');
+
+    const unidades = await this.prisma.unidad.findMany({
+      where: { materiaId: id },
+      orderBy: { orden: 'asc' },
+      select: { id: true, orden: true, nombre: true },
+    });
+
+    const objetivo = dto.numUnidades;
+    const sobrantes = unidades.filter((unidad) => unidad.orden > objetivo);
+
+    if (sobrantes.length) {
+      const resumen = await this.contarDatosDeUnidades(id, sobrantes);
+      const total =
+        resumen.calificaciones + resumen.tareas + resumen.sesiones;
+      if (total > 0 && !dto.forzar) {
+        throw new ConflictException({
+          requiereConfirmacion: true,
+          message: `Reducir a ${objetivo} unidades borrará ${this.describirResumen(resumen)} de ${sobrantes.map((u) => u.nombre).join(', ')}.`,
+          resumen,
+          unidades: sobrantes.map((u) => u.nombre),
+        });
+      }
+    }
+
+    await this.prisma.$transaction(
+      async (tx) => {
+        if (sobrantes.length) {
+          await this.borrarUnidades(tx, id, sobrantes);
+        }
+
+        // Se completan los órdenes que falten hasta el objetivo, por si la
+        // materia tenía huecos o ninguna unidad.
+        const conservadas = new Set(
+          unidades
+            .filter((unidad) => unidad.orden <= objetivo)
+            .map((unidad) => unidad.orden),
+        );
+        const faltantes: Prisma.UnidadCreateManyInput[] = [];
+        for (let orden = 1; orden <= objetivo; orden++) {
+          if (conservadas.has(orden)) continue;
+          faltantes.push({
+            nombre: `Unidad ${orden}`,
+            orden,
+            materiaId: id,
+          });
+        }
+        if (faltantes.length) {
+          await tx.unidad.createMany({ data: faltantes });
+        }
+
+        // numUnidades es sólo un contador: se recalcula de las filas reales.
+        const total = await tx.unidad.count({ where: { materiaId: id } });
+        await tx.materia.update({
+          where: { id },
+          data: { numUnidades: total },
+        });
+      },
+      { maxWait: 10_000, timeout: 30_000 },
+    );
+
+    return this.findOne(id, actor);
+  }
+
+  private describirResumen(resumen: {
+    calificaciones: number;
+    tareas: number;
+    sesiones: number;
+  }) {
+    const partes: string[] = [];
+    if (resumen.calificaciones)
+      partes.push(`${resumen.calificaciones} calificación(es)`);
+    if (resumen.tareas) partes.push(`${resumen.tareas} tarea(s)`);
+    if (resumen.sesiones)
+      partes.push(`${resumen.sesiones} sesión(es) de clase`);
+    return partes.join(', ');
+  }
+
+  /**
+   * Tareas y sesiones guardan la unidad por relación y también por el número
+   * de orden heredado, así que se cuentan las dos formas.
+   */
+  private async contarDatosDeUnidades(
+    materiaId: number,
+    unidades: { id: number; orden: number }[],
+  ) {
+    const ids = unidades.map((unidad) => unidad.id);
+    const ordenes = unidades.map((unidad) => unidad.orden);
+    const porUnidad = {
+      OR: [{ unidadId: { in: ids } }, { materiaId, unidad: { in: ordenes } }],
+    };
+
+    const [calificaciones, tareas, sesiones] = await Promise.all([
+      this.prisma.calificacionUnidad.count({
+        where: { unidadId: { in: ids } },
+      }),
+      this.prisma.tarea.count({ where: porUnidad }),
+      this.prisma.claseSesion.count({ where: porUnidad }),
+    ]);
+    return { calificaciones, tareas, sesiones };
+  }
+
+  private async borrarUnidades(
+    tx: Prisma.TransactionClient,
+    materiaId: number,
+    unidades: { id: number; orden: number }[],
+  ) {
+    const ids = unidades.map((unidad) => unidad.id);
+    const ordenes = unidades.map((unidad) => unidad.orden);
+    const porUnidad = {
+      OR: [{ unidadId: { in: ids } }, { materiaId, unidad: { in: ordenes } }],
+    };
+
+    await tx.asistencia.deleteMany({ where: { claseSesion: porUnidad } });
+    await tx.claseSesion.deleteMany({ where: porUnidad });
+    await tx.entregaTarea.deleteMany({ where: { tarea: porUnidad } });
+    await tx.tarea.deleteMany({ where: porUnidad });
+    await tx.calificacionUnidad.deleteMany({ where: { unidadId: { in: ids } } });
+    await tx.unidad.deleteMany({ where: { id: { in: ids } } });
   }
 
   /**

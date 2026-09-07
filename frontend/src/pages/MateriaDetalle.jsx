@@ -1,13 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
 import api from '../api/axios'
-
-const ESTADO_UNIDAD = {
-  PENDIENTE: 'bg-slate-100 text-slate-700',
-  ACTIVA: 'bg-emerald-100 text-emerald-700',
-  FINALIZADA: 'bg-blue-100 text-blue-700',
-}
+import { useAuthStore } from '../store/authStore'
+import UnidadesCard from './materia/UnidadesCard'
+import AlumnosMateriaCard from './materia/AlumnosMateriaCard'
 
 function formatDate(value) {
   if (!value) return 'Sin fecha'
@@ -20,6 +17,10 @@ function formatDate(value) {
 
 export default function MateriaDetalle() {
   const { id } = useParams()
+  const { user } = useAuthStore()
+  // El backend ya limita al docente a las materias que imparte: si abrió la
+  // página, la materia es suya.
+  const puedeGestionar = user?.rol === 'ADMIN' || user?.rol === 'DOCENTE'
   const [materia, setMateria] = useState(null)
   const [historial, setHistorial] = useState([])
   const [tareas, setTareas] = useState([])
@@ -59,6 +60,12 @@ export default function MateriaDetalle() {
     return () => {
       active = false
     }
+  }, [id])
+
+  /** Tras cambiar unidades o el padrón basta con releer la materia. */
+  const recargarMateria = useCallback(async () => {
+    const { data } = await api.get(`/materias/${id}`)
+    setMateria(data)
   }, [id])
 
   const resumen = useMemo(() => ({
@@ -134,58 +141,16 @@ export default function MateriaDetalle() {
       )}
 
       <section className="grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-        <article className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-          <h3 className="text-lg font-semibold text-gray-900">Unidades</h3>
-          <div className="mt-4 space-y-3">
-            {materia.unidades?.map((unidad) => (
-              <div key={unidad.id} className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="font-medium text-gray-800">{unidad.orden}. {unidad.nombre}</p>
-                    <p className="mt-1 text-xs text-gray-500">
-                      {unidad.fechaInicio ? `Inicio: ${formatDate(unidad.fechaInicio)}` : 'Sin inicio'} · {unidad.fechaFin ? `Fin: ${formatDate(unidad.fechaFin)}` : 'Sin cierre'}
-                    </p>
-                  </div>
-                  <span className={`rounded-full px-2 py-1 text-xs font-medium ${ESTADO_UNIDAD[unidad.status] || ESTADO_UNIDAD.PENDIENTE}`}>
-                    {unidad.status}
-                  </span>
-                </div>
-              </div>
-            ))}
-            {materia.unidades?.length === 0 && (
-              <p className="text-sm text-gray-400">No hay unidades registradas.</p>
-            )}
-          </div>
-        </article>
-
-        <article className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-          <h3 className="text-lg font-semibold text-gray-900">Alumnos inscritos</h3>
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[520px] text-sm">
-              <thead className="border-b border-gray-100 text-left text-xs uppercase tracking-wide text-gray-500">
-                <tr>
-                  <th className="px-2 py-3">Nombre</th>
-                  <th className="px-2 py-3">Control</th>
-                  <th className="px-2 py-3">Correo</th>
-                  <th className="px-2 py-3">Teléfono</th>
-                </tr>
-              </thead>
-              <tbody>
-                {materia.inscripciones?.map((inscripcion) => (
-                  <tr key={inscripcion.id} className="border-b border-gray-50">
-                    <td className="px-2 py-3 font-medium text-gray-800">{inscripcion.alumno.nombre}</td>
-                    <td className="px-2 py-3 text-gray-500">{inscripcion.alumno.numeroControl ?? '—'}</td>
-                    <td className="px-2 py-3 text-gray-500">{inscripcion.alumno.email ?? '—'}</td>
-                    <td className="px-2 py-3 text-gray-500">{inscripcion.alumno.telefono ?? '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {materia.inscripciones?.length === 0 && (
-              <p className="py-6 text-center text-sm text-gray-400">No hay alumnos aceptados en esta materia.</p>
-            )}
-          </div>
-        </article>
+        <UnidadesCard
+          materia={materia}
+          puedeEditar={puedeGestionar}
+          onActualizado={recargarMateria}
+        />
+        <AlumnosMateriaCard
+          materia={materia}
+          puedeEditar={puedeGestionar}
+          onActualizado={recargarMateria}
+        />
       </section>
 
       <section className="grid gap-6 xl:grid-cols-2">

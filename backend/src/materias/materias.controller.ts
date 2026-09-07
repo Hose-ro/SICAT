@@ -15,6 +15,7 @@ import { ApiBearerAuth, ApiTags, ApiOperation } from '@nestjs/swagger';
 import { MateriasService } from './materias.service';
 import { CreateMateriaDto } from './dto/create-materia.dto';
 import { UpdateMateriaDto } from './dto/update-materia.dto';
+import { ActualizarUnidadesDto } from './dto/actualizar-unidades.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -71,6 +72,16 @@ export class MateriasController {
     return this.materias.findForAlumno(req.user.id);
   }
 
+  @Get('para-grupo/:grupoId')
+  @Roles('ADMIN', 'DOCENTE')
+  @ApiOperation({
+    summary:
+      'Materias del semestre que cursa el grupo, segun la reticula de su carrera',
+  })
+  paraGrupo(@Param('grupoId', ParseIntPipe) grupoId: number) {
+    return this.materias.findForGrupo(grupoId);
+  }
+
   @Get('clave/:clave')
   @Roles('ADMIN', 'DOCENTE')
   @ApiOperation({ summary: 'Buscar materia por clave (ej: RSB-2403)' })
@@ -93,6 +104,17 @@ export class MateriasController {
   @ApiOperation({ summary: 'Editar los datos generales de una materia' })
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateMateriaDto) {
     return this.materias.update(id, dto);
+  }
+
+  @Patch(':id/unidades')
+  @Roles('ADMIN', 'DOCENTE')
+  @ApiOperation({ summary: 'Definir cuántas unidades tiene la materia' })
+  actualizarUnidades(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ActualizarUnidadesDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.materias.actualizarUnidades(id, dto, req.user);
   }
 
   @Delete(':id')
