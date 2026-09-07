@@ -22,6 +22,7 @@ import {
 } from '../common/identity-normalization';
 import { CrearAlumnoGrupoDto } from './dto/crear-alumno-grupo.dto';
 import { ImportarAlumnosGrupoDto } from './dto/importar-alumnos-grupo.dto';
+import { CompletarAlumnoGrupoDto } from './dto/completar-alumno-grupo.dto';
 
 const SECCIONES = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
@@ -613,6 +614,99 @@ export class GruposService {
     }
 
     return resultado;
+  }
+
+  /** Quita al alumno de mi grupo sin tocar su cuenta: queda sin grupo. */
+  async quitarAlumnoDeMiGrupo(
+    grupoId: number,
+    docenteId: number,
+    alumnoId: number,
+  ) {
+    await this.asegurarGrupoDelDocente(grupoId, docenteId);
+
+    const alumno = await this.prisma.usuario.findUnique({
+      where: { id: alumnoId },
+    });
+    if (!alumno || alumno.grupoId !== grupoId) {
+      throw new NotFoundException('El alumno no pertenece a este grupo');
+    }
+
+    await this.prisma.usuario.update({
+      where: { id: alumnoId },
+      data: { grupoId: null },
+    });
+    return { ok: true };
+  }
+
+  /**
+   * Completa o corrige los datos de un alumno de mi grupo (por ejemplo uno
+   * importado sólo con el nombre). Sólo alcanza a quien ya está en el grupo,
+   * igual que el resto de las acciones de este bloque.
+   */
+  async actualizarAlumnoDeMiGrupo(
+    grupoId: number,
+    docenteId: number,
+    alumnoId: number,
+    dto: CompletarAlumnoGrupoDto,
+  ) {
+    await this.asegurarGrupoDelDocente(grupoId, docenteId);
+
+    const alumno = await this.prisma.usuario.findUnique({
+      where: { id: alumnoId },
+    });
+    if (!alumno || alumno.grupoId !== grupoId) {
+      throw new NotFoundException('El alumno no pertenece a este grupo');
+    }
+
+    const nombre = dto.nombre ? normalizeName(dto.nombre) : undefined;
+    const numeroControl = dto.numeroControl
+      ? normalizeControlNumber(dto.numeroControl)
+      : undefined;
+    const email = dto.email ? normalizeEmail(dto.email) : undefined;
+    const telefono = dto.telefono ? normalizePhone(dto.telefono) : undefined;
+
+    if (numeroControl || email) {
+      const conflicto = await this.prisma.usuario.findFirst({
+        where: {
+          id: { not: alumnoId },
+          OR: [
+            numeroControl
+              ? { numeroControl: { equals: numeroControl, mode: 'insensitive' as const } }
+              : undefined,
+            email
+              ? { email: { equals: email, mode: 'insensitive' as const } }
+              : undefined,
+          ].filter((clausula): clausula is NonNullable<typeof clausula> => Boolean(clausula)),
+        },
+        select: { id: true },
+      });
+      if (conflicto) {
+        throw new ConflictException(
+          'Ese número de control o correo ya pertenece a otro usuario',
+        );
+      }
+    }
+
+    const password = dto.password ? await bcrypt.hash(dto.password, 12) : undefined;
+
+    return this.prisma.usuario.update({
+      where: { id: alumnoId },
+      data: {
+        nombre,
+        numeroControl,
+        email,
+        telefono,
+        password,
+        tokenVersion: password ? { increment: 1 } : undefined,
+      },
+      select: {
+        id: true,
+        nombre: true,
+        numeroControl: true,
+        email: true,
+        telefono: true,
+      },
+    });
   }
 
   // ─── Detalle de grupo ───────────────────────────────────────────────────────

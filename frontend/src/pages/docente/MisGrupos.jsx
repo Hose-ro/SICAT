@@ -384,34 +384,57 @@ function ModalAgregarGrupo({ open, misGrupos, onClose, onAgregado }) {
   )
 }
 
+function mensajeError(error, fallback) {
+  const message = error?.response?.data?.message
+  if (Array.isArray(message)) return message.join('. ')
+  return message || fallback
+}
+
+const FORM_EDITAR_ALUMNO = {
+  nombre: '',
+  numeroControl: '',
+  email: '',
+  telefono: '',
+  password: '',
+}
+
 function ModalDetalleGrupo({ grupo, onClose }) {
   const [detalle, setDetalle] = useState(null)
   const [cargando, setCargando] = useState(false)
   const [error, setError] = useState('')
+  const [aviso, setAviso] = useState('')
+  const [alumnoEditar, setAlumnoEditar] = useState(null)
+
+  const cargarDetalle = useCallback(async () => {
+    setCargando(true)
+    setError('')
+    try {
+      const { data } = await api.get(`/grupos/mis-grupos/${grupo.id}`)
+      setDetalle(data)
+    } catch (err) {
+      setError(mensajeError(err, 'No se pudo cargar el grupo'))
+    } finally {
+      setCargando(false)
+    }
+  }, [grupo.id])
 
   useEffect(() => {
-    let activo = true
-    const cargarDetalle = async () => {
-      setCargando(true)
-      setError('')
-      try {
-        const { data } = await api.get(`/grupos/mis-grupos/${grupo.id}`)
-        if (activo) setDetalle(data)
-      } catch (err) {
-        if (activo) {
-          setError(err.response?.data?.message ?? 'No se pudo cargar el grupo')
-        }
-      } finally {
-        if (activo) setCargando(false)
-      }
-    }
     cargarDetalle()
-    return () => {
-      activo = false
-    }
-  }, [grupo])
+  }, [cargarDetalle])
 
   const alumnos = detalle?.alumnos ?? []
+
+  const quitarAlumno = async (alumno) => {
+    if (!window.confirm(`¿Quitar a ${alumno.nombre} de este grupo?`)) return
+    setError('')
+    try {
+      await api.delete(`/grupos/mis-grupos/${grupo.id}/alumnos/${alumno.id}`)
+      setAviso(`${alumno.nombre} salió del grupo.`)
+      await cargarDetalle()
+    } catch (err) {
+      setError(mensajeError(err, 'No se pudo quitar al alumno'))
+    }
+  }
 
   return (
     <Modal open onClose={onClose} title={`Grupo ${grupo.nombre}`}>
@@ -419,7 +442,7 @@ function ModalDetalleGrupo({ grupo, onClose }) {
         <p className="py-8 text-center text-sm text-muted-foreground">
           Cargando alumnos...
         </p>
-      ) : error ? (
+      ) : error && !detalle ? (
         <p className="rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {error}
         </p>
@@ -443,27 +466,173 @@ function ModalDetalleGrupo({ grupo, onClose }) {
             </div>
           )}
 
+          {aviso && (
+            <p className="rounded-xl border border-success/30 bg-success/10 px-3 py-2 text-sm text-foreground">
+              {aviso}
+            </p>
+          )}
+          {error && (
+            <p className="rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {error}
+            </p>
+          )}
+
           {alumnos.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
               Este grupo todavía no tiene alumnos asignados.
             </p>
           ) : (
             <ul className="max-h-80 divide-y divide-border overflow-y-auto rounded-xl border border-border">
-              {alumnos.map((alumno) => (
-                <li key={alumno.id} className="px-3 py-2">
-                  <p className="text-sm font-medium text-foreground">
-                    {alumno.nombre}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {alumno.numeroControl ?? 'Sin número de control'}
-                    {alumno.email ? ` · ${alumno.email}` : ''}
-                  </p>
-                </li>
-              ))}
+              {alumnos.map((alumno) => {
+                const datosIncompletos = !alumno.numeroControl
+                return (
+                  <li
+                    key={alumno.id}
+                    className="flex items-center justify-between gap-3 px-3 py-2"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-foreground">
+                        {alumno.nombre}
+                        {datosIncompletos && (
+                          <span className="ml-2 inline-flex items-center rounded-full bg-warning/15 px-2 py-0.5 text-[11px] font-medium text-warning">
+                            Datos incompletos
+                          </span>
+                        )}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {alumno.numeroControl ?? 'Sin número de control'}
+                        {alumno.email ? ` · ${alumno.email}` : ''}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setAlumnoEditar(alumno)}
+                        className="rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-primary transition hover:bg-primary/10"
+                      >
+                        {datosIncompletos ? 'Completar datos' : 'Editar'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => quitarAlumno(alumno)}
+                        className="rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-destructive transition hover:bg-destructive/10"
+                      >
+                        Quitar
+                      </button>
+                    </div>
+                  </li>
+                )
+              })}
             </ul>
           )}
         </div>
       )}
+
+      {alumnoEditar && (
+        <ModalEditarAlumnoGrupo
+          grupo={grupo}
+          alumno={alumnoEditar}
+          onClose={() => setAlumnoEditar(null)}
+          onGuardado={async (mensaje) => {
+            setAlumnoEditar(null)
+            setAviso(mensaje)
+            await cargarDetalle()
+          }}
+        />
+      )}
+    </Modal>
+  )
+}
+
+function ModalEditarAlumnoGrupo({ grupo, alumno, onClose, onGuardado }) {
+  const [form, setForm] = useState({
+    nombre: alumno.nombre || '',
+    numeroControl: alumno.numeroControl || '',
+    email: alumno.email || '',
+    telefono: alumno.telefono || '',
+    password: '',
+  })
+  const [guardando, setGuardando] = useState(false)
+  const [error, setError] = useState('')
+
+  const cerrar = () => {
+    if (guardando) return
+    onClose()
+  }
+
+  const guardar = async (event) => {
+    event.preventDefault()
+    setGuardando(true)
+    setError('')
+    try {
+      const payload = {}
+      const nombre = form.nombre.trim()
+      if (nombre && nombre !== alumno.nombre) payload.nombre = nombre
+      if (form.numeroControl.trim()) payload.numeroControl = form.numeroControl.trim().toUpperCase()
+      if (form.email.trim()) payload.email = form.email.trim()
+      if (form.telefono.trim()) payload.telefono = form.telefono.trim()
+      if (form.password.trim()) payload.password = form.password.trim()
+
+      await api.patch(`/grupos/mis-grupos/${grupo.id}/alumnos/${alumno.id}`, payload)
+      await onGuardado(`Datos de ${nombre || alumno.nombre} actualizados.`)
+    } catch (err) {
+      setError(mensajeError(err, 'No se pudo actualizar al alumno'))
+    } finally {
+      setGuardando(false)
+    }
+  }
+
+  return (
+    <Modal open onClose={cerrar} title={`Editar alumno — ${alumno.nombre}`}>
+      <form onSubmit={guardar} className="space-y-3">
+        <p className="text-xs text-muted-foreground">
+          {alumno.numeroControl
+            ? 'Corrige los datos del alumno. Deja la contraseña vacía si no quieres cambiarla.'
+            : 'Este alumno se dio de alta sólo con su nombre. Agrega lo que tengas a la mano; puedes completar el resto más tarde.'}
+        </p>
+        {[
+          { campo: 'nombre', etiqueta: 'Nombre completo', tipo: 'text' },
+          { campo: 'numeroControl', etiqueta: 'Número de control', tipo: 'text', placeholder: '225Q0103' },
+          { campo: 'email', etiqueta: 'Correo', tipo: 'email' },
+          { campo: 'telefono', etiqueta: 'Teléfono', tipo: 'text', placeholder: '9611234567' },
+          { campo: 'password', etiqueta: 'Contraseña (déjalo vacío para no cambiarla)', tipo: 'password' },
+        ].map((campo) => (
+          <div key={campo.campo}>
+            <label
+              htmlFor={`editar-alumno-grupo-${campo.campo}`}
+              className="mb-1 block text-xs font-medium text-foreground"
+            >
+              {campo.etiqueta}
+            </label>
+            <input
+              id={`editar-alumno-grupo-${campo.campo}`}
+              type={campo.tipo}
+              minLength={campo.campo === 'password' ? 8 : undefined}
+              placeholder={campo.placeholder}
+              value={form[campo.campo]}
+              onChange={(event) => setForm({ ...form, [campo.campo]: event.target.value })}
+              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+            />
+          </div>
+        ))}
+        {!form.numeroControl && (
+          <p className="rounded-lg bg-warning/10 px-3 py-2 text-xs text-warning">
+            Sin número de control, correo o contraseña real el alumno no podrá iniciar sesión todavía.
+          </p>
+        )}
+        {error && (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        )}
+        <button
+          type="submit"
+          disabled={guardando}
+          className="w-full rounded-xl bg-primary py-2.5 text-sm font-medium text-primary-foreground transition hover:bg-primary-strong disabled:opacity-50"
+        >
+          {guardando ? 'Guardando...' : 'Guardar datos'}
+        </button>
+      </form>
     </Modal>
   )
 }

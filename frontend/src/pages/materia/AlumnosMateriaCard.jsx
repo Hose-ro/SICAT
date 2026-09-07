@@ -330,15 +330,13 @@ export default function AlumnosMateriaCard({ materia, puedeEditar, onActualizado
                   {puedeEditar && (
                     <td className="px-2 py-3">
                       <div className="flex justify-end gap-2">
-                        {datosIncompletos && (
-                          <button
-                            type="button"
-                            onClick={() => abrirCompletar(alumno)}
-                            className="rounded-lg border border-blue-200 px-3 py-1.5 text-xs font-medium text-blue-600 transition hover:bg-blue-50"
-                          >
-                            Completar datos
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => abrirCompletar(alumno)}
+                          className="rounded-lg border border-blue-200 px-3 py-1.5 text-xs font-medium text-blue-600 transition hover:bg-blue-50"
+                        >
+                          {datosIncompletos ? 'Completar datos' : 'Editar'}
+                        </button>
                         <button
                           type="button"
                           onClick={() => darDeBaja(alumno)}
@@ -603,11 +601,12 @@ export default function AlumnosMateriaCard({ materia, puedeEditar, onActualizado
         </div>
       </Modal>
 
-      <Modal open={completarModal} onClose={cerrarCompletar} title={`Completar datos — ${alumnoCompletar?.nombre ?? ''}`}>
+      <Modal open={completarModal} onClose={cerrarCompletar} title={`Editar alumno — ${alumnoCompletar?.nombre ?? ''}`}>
         <form onSubmit={guardarCompletar} className="space-y-3">
           <p className="text-xs text-gray-500">
-            Este alumno se dio de alta sólo con su nombre. Agrega lo que tengas a la mano; puedes completar el resto más
-            tarde.
+            {alumnoCompletar && !alumnoCompletar.numeroControl
+              ? 'Este alumno se dio de alta sólo con su nombre. Agrega lo que tengas a la mano; puedes completar el resto más tarde.'
+              : 'Corrige los datos del alumno. Deja la contraseña vacía si no quieres cambiarla.'}
           </p>
           {[
             { campo: 'nombre', etiqueta: 'Nombre completo', tipo: 'text' },

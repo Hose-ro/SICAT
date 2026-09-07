@@ -26,6 +26,7 @@ import { AsignarAulaGrupoDto } from './dto/asignar-aula-grupo.dto';
 import { AgregarGrupoDocenteDto } from './dto/agregar-grupo-docente.dto';
 import { CrearAlumnoGrupoDto } from './dto/crear-alumno-grupo.dto';
 import { ImportarAlumnosGrupoDto } from './dto/importar-alumnos-grupo.dto';
+import { CompletarAlumnoGrupoDto } from './dto/completar-alumno-grupo.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -158,6 +159,31 @@ export class GruposController {
     @Request() req: any,
   ) {
     return this.grupos.importarAlumnosAMiGrupo(id, req.user.id, dto);
+  }
+
+  @Delete('mis-grupos/:id/alumnos/:alumnoId')
+  @Roles('DOCENTE')
+  @ApiOperation({ summary: 'Quitar un alumno de mi grupo' })
+  quitarAlumnoDeMiGrupo(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('alumnoId', ParseIntPipe) alumnoId: number,
+    @Request() req: any,
+  ) {
+    return this.grupos.quitarAlumnoDeMiGrupo(id, req.user.id, alumnoId);
+  }
+
+  @Patch('mis-grupos/:id/alumnos/:alumnoId')
+  @Roles('DOCENTE')
+  @ApiOperation({
+    summary: 'Completar o corregir los datos de un alumno de mi grupo',
+  })
+  actualizarAlumnoDeMiGrupo(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('alumnoId', ParseIntPipe) alumnoId: number,
+    @Body() dto: CompletarAlumnoGrupoDto,
+    @Request() req: any,
+  ) {
+    return this.grupos.actualizarAlumnoDeMiGrupo(id, req.user.id, alumnoId, dto);
   }
 
   @Get(':id')
