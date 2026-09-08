@@ -3,6 +3,7 @@ import Modal from '../../../components/Modal'
 import api from '../../../api/axios'
 import {
   FILA_ALUMNO_VACIA,
+  esNumeroControlValido,
   leerListaDeArchivo,
 } from '../../../lib/listaAlumnosArchivo'
 
@@ -163,6 +164,16 @@ export default function AgregarAlumnosGrupoModal({ grupo, onClose, onListo }) {
 
     if (validas.length === 0) {
       setError('Agrega al menos un alumno con nombre antes de importar.')
+      return
+    }
+
+    const conControlInvalido = validas.filter(
+      (fila) => fila.numeroControl && !esNumeroControlValido(fila.numeroControl),
+    )
+    if (conControlInvalido.length > 0) {
+      setError(
+        `Revisa el número de control de ${conControlInvalido.length} alumno${conControlInvalido.length === 1 ? '' : 's'}: debe tener el formato 225Q0103 (8 caracteres). Puedes corregirlo o dejarlo en blanco.`,
+      )
       return
     }
 
@@ -373,9 +384,10 @@ export default function AgregarAlumnosGrupoModal({ grupo, onClose, onListo }) {
                 <div className="rounded-xl border border-dashed border-border bg-muted/40 p-4">
                   <p className="text-sm text-muted-foreground">
                     Sube el documento con la lista del grupo (Excel .xlsx/.xls o
-                    CSV). Sólo el nombre es obligatorio: si el archivo no trae
-                    número de control, correo o teléfono, el alumno queda dado de
-                    alta sin esos datos.
+                    CSV). No importa el orden de las columnas ni que traiga
+                    encabezado: el número de control, el correo y el teléfono se
+                    reconocen solos. Sólo el nombre es obligatorio; si el archivo
+                    no trae lo demás, el alumno queda dado de alta sin esos datos.
                   </p>
                   <input
                     ref={fileInputRef}
@@ -421,21 +433,34 @@ export default function AgregarAlumnosGrupoModal({ grupo, onClose, onListo }) {
                           {filasImportar.map((fila, indice) => (
                             <tr key={indice} className="border-t border-border">
                               {['nombre', 'numeroControl', 'email', 'telefono'].map(
-                                (campo) => (
-                                  <td key={campo} className="px-2 py-1.5">
-                                    <input
-                                      value={fila[campo]}
-                                      onChange={(event) =>
-                                        actualizarFilaImportar(
-                                          indice,
-                                          campo,
-                                          event.target.value,
-                                        )
-                                      }
-                                      className="w-full rounded-lg border border-border bg-background px-2 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
-                                    />
-                                  </td>
-                                ),
+                                (campo) => {
+                                  const invalido =
+                                    campo === 'numeroControl' &&
+                                    Boolean(fila.numeroControl.trim()) &&
+                                    !esNumeroControlValido(fila.numeroControl)
+                                  return (
+                                    <td key={campo} className="px-2 py-1.5">
+                                      <input
+                                        value={fila[campo]}
+                                        onChange={(event) =>
+                                          actualizarFilaImportar(
+                                            indice,
+                                            campo,
+                                            event.target.value,
+                                          )
+                                        }
+                                        title={
+                                          invalido
+                                            ? 'Debe tener el formato 225Q0103'
+                                            : undefined
+                                        }
+                                        className={`w-full rounded-lg border bg-background px-2 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/40 ${
+                                          invalido ? 'border-destructive' : 'border-border'
+                                        }`}
+                                      />
+                                    </td>
+                                  )
+                                },
                               )}
                               <td className="px-2 py-1.5 text-right">
                                 <button

@@ -3,6 +3,7 @@ import Modal from '../../components/Modal'
 import api from '../../api/axios'
 import {
   FILA_ALUMNO_VACIA,
+  esNumeroControlValido,
   leerListaDeArchivo,
 } from '../../lib/listaAlumnosArchivo'
 
@@ -189,6 +190,16 @@ export default function AlumnosMateriaCard({ materia, puedeEditar, onActualizado
 
     if (validas.length === 0) {
       setError('Agrega al menos un alumno con nombre antes de importar.')
+      return
+    }
+
+    const conControlInvalido = validas.filter(
+      (fila) => fila.numeroControl && !esNumeroControlValido(fila.numeroControl),
+    )
+    if (conControlInvalido.length > 0) {
+      setError(
+        `Revisa el número de control de ${conControlInvalido.length} alumno${conControlInvalido.length === 1 ? '' : 's'}: debe tener el formato 225Q0103 (8 caracteres). Puedes corregirlo o dejarlo en blanco.`,
+      )
       return
     }
 
@@ -515,8 +526,9 @@ export default function AlumnosMateriaCard({ materia, puedeEditar, onActualizado
                 <>
                   <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-4">
                     <p className="text-sm text-gray-600">
-                      Sube el documento con la lista del grupo (Excel .xlsx/.xls o CSV). Sólo el nombre es obligatorio: si el
-                      archivo no trae número de control, correo o teléfono, podrás completarlos después desde esta misma lista.
+                      Sube el documento con la lista del grupo (Excel .xlsx/.xls o CSV). No importa el orden de las columnas ni
+                      que traiga encabezado: el número de control, el correo y el teléfono se reconocen solos. Sólo el nombre es
+                      obligatorio; lo demás podrás completarlo después desde esta misma lista.
                     </p>
                     <input
                       ref={fileInputRef}
@@ -558,15 +570,24 @@ export default function AlumnosMateriaCard({ materia, puedeEditar, onActualizado
                           <tbody>
                             {filasImportar.map((fila, indice) => (
                               <tr key={indice} className="border-t border-gray-100">
-                                {['nombre', 'numeroControl', 'email', 'telefono'].map((campo) => (
-                                  <td key={campo} className="px-2 py-1.5">
-                                    <input
-                                      value={fila[campo]}
-                                      onChange={(event) => actualizarFilaImportar(indice, campo, event.target.value)}
-                                      className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    />
-                                  </td>
-                                ))}
+                                {['nombre', 'numeroControl', 'email', 'telefono'].map((campo) => {
+                                  const invalido =
+                                    campo === 'numeroControl' &&
+                                    Boolean(fila.numeroControl.trim()) &&
+                                    !esNumeroControlValido(fila.numeroControl)
+                                  return (
+                                    <td key={campo} className="px-2 py-1.5">
+                                      <input
+                                        value={fila[campo]}
+                                        onChange={(event) => actualizarFilaImportar(indice, campo, event.target.value)}
+                                        title={invalido ? 'Debe tener el formato 225Q0103' : undefined}
+                                        className={`w-full rounded-lg border px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                                          invalido ? 'border-red-500' : 'border-gray-200'
+                                        }`}
+                                      />
+                                    </td>
+                                  )
+                                })}
                                 <td className="px-2 py-1.5 text-right">
                                   <button
                                     type="button"
