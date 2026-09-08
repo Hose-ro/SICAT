@@ -639,6 +639,29 @@ export class GruposService {
   }
 
   /**
+   * Quita de golpe a varios alumnos del grupo. Se ignora en silencio a quien
+   * ya no esté en el grupo: la lista del docente pudo cambiar entre que
+   * seleccionó y confirmó, y eso no es motivo para tumbar la operación
+   * completa.
+   */
+  async quitarAlumnosDeMiGrupo(
+    grupoId: number,
+    docenteId: number,
+    alumnoIds: number[],
+  ) {
+    await this.asegurarGrupoDelDocente(grupoId, docenteId);
+
+    const ids = [...new Set(alumnoIds)];
+    if (ids.length === 0) return { quitados: 0 };
+
+    const { count } = await this.prisma.usuario.updateMany({
+      where: { id: { in: ids }, grupoId, rol: Rol.ALUMNO },
+      data: { grupoId: null },
+    });
+    return { quitados: count };
+  }
+
+  /**
    * Completa o corrige los datos de un alumno de mi grupo (por ejemplo uno
    * importado sólo con el nombre). Sólo alcanza a quien ya está en el grupo,
    * igual que el resto de las acciones de este bloque.

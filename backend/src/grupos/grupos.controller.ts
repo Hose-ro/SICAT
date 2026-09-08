@@ -172,6 +172,17 @@ export class GruposController {
     return this.grupos.quitarAlumnoDeMiGrupo(id, req.user.id, alumnoId);
   }
 
+  @Delete('mis-grupos/:id/alumnos')
+  @Roles('DOCENTE')
+  @ApiOperation({ summary: 'Quitar varios alumnos de mi grupo' })
+  quitarAlumnosDeMiGrupo(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AsignarAlumnosDto,
+    @Request() req: any,
+  ) {
+    return this.grupos.quitarAlumnosDeMiGrupo(id, req.user.id, dto.alumnoIds);
+  }
+
   @Patch('mis-grupos/:id/alumnos/:alumnoId')
   @Roles('DOCENTE')
   @ApiOperation({

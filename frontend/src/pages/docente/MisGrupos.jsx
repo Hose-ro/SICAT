@@ -404,6 +404,9 @@ function ModalDetalleGrupo({ grupo, onClose }) {
   const [error, setError] = useState('')
   const [aviso, setAviso] = useState('')
   const [alumnoEditar, setAlumnoEditar] = useState(null)
+  const [modoSeleccion, setModoSeleccion] = useState(false)
+  const [seleccion, setSeleccion] = useState([])
+  const [quitando, setQuitando] = useState(false)
 
   const cargarDetalle = useCallback(async () => {
     setCargando(true)
@@ -424,6 +427,26 @@ function ModalDetalleGrupo({ grupo, onClose }) {
 
   const alumnos = detalle?.alumnos ?? []
 
+  const todosSeleccionados =
+    alumnos.length > 0 && seleccion.length === alumnos.length
+
+  const alternarSeleccion = (alumnoId) => {
+    setSeleccion((actual) =>
+      actual.includes(alumnoId)
+        ? actual.filter((id) => id !== alumnoId)
+        : [...actual, alumnoId],
+    )
+  }
+
+  const alternarTodos = () => {
+    setSeleccion(todosSeleccionados ? [] : alumnos.map((alumno) => alumno.id))
+  }
+
+  const salirDeSeleccion = () => {
+    setModoSeleccion(false)
+    setSeleccion([])
+  }
+
   const quitarAlumno = async (alumno) => {
     if (!window.confirm(`¿Quitar a ${alumno.nombre} de este grupo?`)) return
     setError('')
@@ -433,6 +456,36 @@ function ModalDetalleGrupo({ grupo, onClose }) {
       await cargarDetalle()
     } catch (err) {
       setError(mensajeError(err, 'No se pudo quitar al alumno'))
+    }
+  }
+
+  const quitarSeleccionados = async () => {
+    if (seleccion.length === 0) return
+    const total = seleccion.length
+    const confirmacion = todosSeleccionados
+      ? `¿Quitar del grupo a los ${total} alumnos? Sus cuentas se conservan: sólo dejan de pertenecer al grupo.`
+      : `¿Quitar del grupo a ${total} alumno${total === 1 ? '' : 's'}? Sus cuentas se conservan: sólo dejan de pertenecer al grupo.`
+    if (!window.confirm(confirmacion)) return
+
+    setQuitando(true)
+    setError('')
+    try {
+      const { data } = await api.delete(
+        `/grupos/mis-grupos/${grupo.id}/alumnos`,
+        { data: { alumnoIds: seleccion } },
+      )
+      const quitados = data?.quitados ?? total
+      setAviso(
+        quitados === 1
+          ? '1 alumno salió del grupo.'
+          : `${quitados} alumnos salieron del grupo.`,
+      )
+      salirDeSeleccion()
+      await cargarDetalle()
+    } catch (err) {
+      setError(mensajeError(err, 'No se pudieron quitar los alumnos'))
+    } finally {
+      setQuitando(false)
     }
   }
 
@@ -482,48 +535,113 @@ function ModalDetalleGrupo({ grupo, onClose }) {
               Este grupo todavía no tiene alumnos asignados.
             </p>
           ) : (
-            <ul className="max-h-80 divide-y divide-border overflow-y-auto rounded-xl border border-border">
-              {alumnos.map((alumno) => {
-                const datosIncompletos = !alumno.numeroControl
-                return (
-                  <li
-                    key={alumno.id}
-                    className="flex items-center justify-between gap-3 px-3 py-2"
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-medium text-foreground">
+                  {modoSeleccion
+                    ? `${seleccion.length} de ${alumnos.length} seleccionado${seleccion.length === 1 ? '' : 's'}`
+                    : `${alumnos.length} alumno${alumnos.length === 1 ? '' : 's'}`}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {modoSeleccion && (
+                    <button
+                      type="button"
+                      onClick={alternarTodos}
+                      className="rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-primary transition hover:bg-primary/10"
+                    >
+                      {todosSeleccionados ? 'Quitar selección' : 'Seleccionar todos'}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      modoSeleccion ? salirDeSeleccion() : setModoSeleccion(true)
+                    }
+                    className="rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition hover:border-primary/40 hover:text-primary"
                   >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-foreground">
-                        {alumno.nombre}
-                        {datosIncompletos && (
-                          <span className="ml-2 inline-flex items-center rounded-full bg-warning/15 px-2 py-0.5 text-[11px] font-medium text-warning">
-                            Datos incompletos
-                          </span>
+                    {modoSeleccion ? 'Cancelar' : 'Seleccionar'}
+                  </button>
+                </div>
+              </div>
+
+              <ul className="max-h-80 divide-y divide-border overflow-y-auto rounded-xl border border-border">
+                {alumnos.map((alumno) => {
+                  const datosIncompletos = !alumno.numeroControl
+                  const marcado = seleccion.includes(alumno.id)
+                  return (
+                    <li
+                      key={alumno.id}
+                      onClick={
+                        modoSeleccion
+                          ? () => alternarSeleccion(alumno.id)
+                          : undefined
+                      }
+                      className={`flex items-center justify-between gap-3 px-3 py-2 ${
+                        modoSeleccion ? 'cursor-pointer' : ''
+                      } ${marcado ? 'bg-primary/10' : ''}`}
+                    >
+                      <div className="flex min-w-0 items-center gap-3">
+                        {modoSeleccion && (
+                          <input
+                            type="checkbox"
+                            checked={marcado}
+                            onChange={() => alternarSeleccion(alumno.id)}
+                            onClick={(event) => event.stopPropagation()}
+                            aria-label={`Seleccionar a ${alumno.nombre}`}
+                            className="size-4 shrink-0"
+                          />
                         )}
-                      </p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {alumno.numeroControl ?? 'Sin número de control'}
-                        {alumno.email ? ` · ${alumno.email}` : ''}
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setAlumnoEditar(alumno)}
-                        className="rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-primary transition hover:bg-primary/10"
-                      >
-                        {datosIncompletos ? 'Completar datos' : 'Editar'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => quitarAlumno(alumno)}
-                        className="rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-destructive transition hover:bg-destructive/10"
-                      >
-                        Quitar
-                      </button>
-                    </div>
-                  </li>
-                )
-              })}
-            </ul>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-foreground">
+                            {alumno.nombre}
+                            {datosIncompletos && (
+                              <span className="ml-2 inline-flex items-center rounded-full bg-warning/15 px-2 py-0.5 text-[11px] font-medium text-warning">
+                                Datos incompletos
+                              </span>
+                            )}
+                          </p>
+                          <p className="truncate text-xs text-muted-foreground">
+                            {alumno.numeroControl ?? 'Sin número de control'}
+                            {alumno.email ? ` · ${alumno.email}` : ''}
+                          </p>
+                        </div>
+                      </div>
+                      {!modoSeleccion && (
+                        <div className="flex shrink-0 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setAlumnoEditar(alumno)}
+                            className="rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-primary transition hover:bg-primary/10"
+                          >
+                            {datosIncompletos ? 'Completar datos' : 'Editar'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => quitarAlumno(alumno)}
+                            className="rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-destructive transition hover:bg-destructive/10"
+                          >
+                            Quitar
+                          </button>
+                        </div>
+                      )}
+                    </li>
+                  )
+                })}
+              </ul>
+
+              {modoSeleccion && (
+                <button
+                  type="button"
+                  onClick={quitarSeleccionados}
+                  disabled={seleccion.length === 0 || quitando}
+                  className="w-full rounded-xl bg-destructive py-2.5 text-sm font-medium text-destructive-foreground transition hover:opacity-90 disabled:opacity-50"
+                >
+                  {quitando
+                    ? 'Quitando...'
+                    : `Quitar del grupo ${seleccion.length || ''}`.trim()}
+                </button>
+              )}
+            </div>
           )}
         </div>
       )}
