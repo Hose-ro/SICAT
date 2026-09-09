@@ -167,7 +167,6 @@ export default function DashboardDocente() {
         nombre={user?.nombre?.split(' ')[0] ?? 'Docente'}
         fecha={ahora}
         resumen={panel?.resumen}
-        periodo={panel?.periodo}
         urgentes={urgentes}
       />
 
@@ -205,7 +204,7 @@ export default function DashboardDocente() {
   )
 }
 
-function Encabezado({ nombre, fecha, resumen, periodo, urgentes }) {
+function Encabezado({ nombre, fecha, resumen, urgentes }) {
   const clases = resumen?.clasesHoy ?? 0
   const listas = resumen?.listasPendientes ?? 0
 
@@ -225,11 +224,6 @@ function Encabezado({ nombre, fecha, resumen, periodo, urgentes }) {
         {urgentes > 0 && (
           <span className="rounded-full bg-destructive/10 px-3 py-1 text-xs font-medium text-destructive">
             {urgentes} urgente{urgentes === 1 ? '' : 's'}
-          </span>
-        )}
-        {periodo && (
-          <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-            Periodo {periodo}
           </span>
         )}
       </div>

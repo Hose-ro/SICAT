@@ -2,14 +2,31 @@ import { useEffect, useState } from 'react'
 import { CalendarRange } from 'lucide-react'
 import { usePeriodoStore } from '../store/periodoStore'
 
-function formatearFechaLarga(clave) {
+function aFecha(clave) {
   const [year, month, day] = (clave || '').split('-').map(Number)
-  if (!year || !month || !day) return clave || '—'
-  return new Date(year, month - 1, day).toLocaleDateString('es-MX', {
+  if (!year || !month || !day) return null
+  return new Date(year, month - 1, day)
+}
+
+function formatearFechaLarga(clave) {
+  const fecha = aFecha(clave)
+  if (!fecha) return clave || '—'
+  return fecha.toLocaleDateString('es-MX', {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
   })
+}
+
+/** "31 de agosto al 18 de diciembre de 2026": el año sólo se dice una vez. */
+function formatearRango(inicio, fin) {
+  const a = aFecha(inicio)
+  const b = aFecha(fin)
+  if (!a || !b) return `${inicio} al ${fin}`
+  const corto = { day: 'numeric', month: 'long' }
+  const desde = a.toLocaleDateString('es-MX',
+    a.getFullYear() === b.getFullYear() ? corto : { ...corto, year: 'numeric' })
+  return `${desde} al ${b.toLocaleDateString('es-MX', { ...corto, year: 'numeric' })}`
 }
 
 /** Días entre hoy y una clave `YYYY-MM-DD`, en positivo si aún no llega. */
@@ -62,8 +79,30 @@ export default function PeriodoEscolarCard({ editable = false, compacto = false 
     }
   }
 
+  const nota = !periodo.configurado
+    ? 'Fechas estimadas: captúralas en Horario'
+    : faltaIniciar > 0
+      ? `comienza en ${faltaIniciar} día${faltaIniciar === 1 ? '' : 's'}`
+      : restantes >= 0
+        ? `quedan ${restantes} día${restantes === 1 ? '' : 's'}`
+        : `terminó hace ${Math.abs(restantes)} día${Math.abs(restantes) === 1 ? '' : 's'}`
+
+  // En modo referencia basta una línea: las fechas y cuánto falta.
+  if (compacto) {
+    return (
+      <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+        <CalendarRange className="h-4 w-4 shrink-0 text-primary" />
+        <span className="text-foreground">
+          Semestre del {formatearRango(periodo.fechaInicio, periodo.fechaFin)}
+        </span>
+        <span aria-hidden="true">·</span>
+        <span>{nota}</span>
+      </p>
+    )
+  }
+
   return (
-    <section className={`rounded-2xl border border-border bg-card ${compacto ? 'p-4' : 'p-5'}`}>
+    <section className="rounded-2xl border border-border bg-card p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -71,19 +110,16 @@ export default function PeriodoEscolarCard({ editable = false, compacto = false 
           </div>
           <div className="min-w-0">
             <h2 className="text-base font-semibold text-foreground">
-              Periodo escolar {periodo.clave}
+              Periodo escolar
             </h2>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              Del {formatearFechaLarga(periodo.fechaInicio)} al {formatearFechaLarga(periodo.fechaFin)}
+              Del {formatearFechaLarga(periodo.fechaInicio)} al{' '}
+              {formatearFechaLarga(periodo.fechaFin)}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
               {!periodo.configurado
                 ? 'Fechas estimadas por calendario: captúralas para acotar las asistencias atrasadas.'
-                : faltaIniciar > 0
-                  ? `Comienza en ${faltaIniciar} día${faltaIniciar === 1 ? '' : 's'}.`
-                  : restantes >= 0
-                    ? `Quedan ${restantes} día${restantes === 1 ? '' : 's'} de clases.`
-                    : `Terminó hace ${Math.abs(restantes)} día${Math.abs(restantes) === 1 ? '' : 's'}.`}
+                : `${nota.charAt(0).toUpperCase()}${nota.slice(1)} de clases.`}
             </p>
           </div>
         </div>
@@ -98,12 +134,6 @@ export default function PeriodoEscolarCard({ editable = false, compacto = false 
           </button>
         )}
       </div>
-
-      {!periodo.configurado && !editable && (
-        <p className="mt-3 rounded-xl border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-          Aún no se capturan las fechas reales. Puedes hacerlo desde Horario.
-        </p>
-      )}
 
       {mensaje && !editando && (
         <p className="mt-3 rounded-xl border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
