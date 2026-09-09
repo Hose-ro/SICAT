@@ -84,3 +84,51 @@ export function mismoDia(a?: Date | null, b?: Date | null) {
   if (!a || !b) return false;
   return obtenerInicioDelDia(a).getTime() === obtenerInicioDelDia(b).getTime();
 }
+
+/**
+ * Interpreta una clave `YYYY-MM-DD` en la zona horaria local. `new Date(clave)`
+ * la leería como UTC y, con husos negativos, caería en el día anterior.
+ */
+export function parsearFechaClave(value: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value ?? '');
+  if (!match) return null;
+  const [, year, month, day] = match;
+  const fecha = new Date(Number(year), Number(month) - 1, Number(day));
+  return Number.isNaN(fecha.getTime()) ? null : fecha;
+}
+
+/** Combina el día de `fecha` con una hora `HH:MM` del horario. */
+export function combinarFechaYHora(fecha: Date, hora: string) {
+  const resultado = obtenerInicioDelDia(fecha);
+  const [horas, minutos] = hora.split(':').map((chunk) => Number(chunk));
+  resultado.setHours(horas || 0, minutos || 0, 0, 0);
+  return resultado;
+}
+
+export function sumarDias(fecha: Date, dias: number) {
+  const resultado = new Date(fecha);
+  resultado.setDate(resultado.getDate() + dias);
+  return resultado;
+}
+
+/**
+ * Interpreta una clave `YYYY-MM` como el rango completo de ese mes en hora
+ * local. `new Date(clave)` lo leería como UTC y correría el primer día.
+ */
+export function parsearMesClave(value: string) {
+  const match = /^(\d{4})-(\d{2})$/.exec(value ?? '');
+  if (!match) return null;
+  const [, year, month] = match;
+  const mes = Number(month);
+  if (mes < 1 || mes > 12) return null;
+  return {
+    inicio: new Date(Number(year), mes - 1, 1, 0, 0, 0, 0),
+    // El día 0 del mes siguiente es el último de este.
+    fin: new Date(Number(year), mes, 0, 23, 59, 59, 999),
+  };
+}
+
+/** Clave `YYYY-MM` del mes al que pertenece la fecha. */
+export function obtenerClaveMes(date: Date) {
+  return `${date.getFullYear()}-${`${date.getMonth() + 1}`.padStart(2, '0')}`;
+}

@@ -11,9 +11,12 @@ import { ActualizarAsistenciaDto } from './dto/actualizar-asistencia.dto';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import {
   formatearFechaClave,
+  obtenerClaveMes,
   obtenerClaveSemana,
   obtenerFinDelDia,
   obtenerInicioDelDia,
+  parsearFechaClave,
+  parsearMesClave,
 } from '../clases/clases.utils';
 import { esDocenteDeMateria } from '../common/materia-ownership';
 
@@ -450,6 +453,7 @@ export class AsistenciasService {
       grupoId?: number;
       fecha?: string;
       semana?: string;
+      mes?: string;
       unidadId?: number;
       docenteId?: number;
     },
@@ -468,19 +472,8 @@ export class AsistenciasService {
     if (filters.grupoId) Object.assign(where, { grupoId: filters.grupoId });
     if (filters.unidadId) Object.assign(where, { unidadId: filters.unidadId });
 
-    if (filters.fecha) {
-      const fecha = new Date(filters.fecha);
-      Object.assign(where, {
-        fecha: {
-          gte: obtenerInicioDelDia(fecha),
-          lte: obtenerFinDelDia(fecha),
-        },
-      });
-    } else if (filters.semana) {
-      Object.assign(where, {
-        semanaClave: obtenerClaveSemana(new Date(filters.semana)),
-      });
-    }
+    const rango = this.construirRangoDeFecha(filters);
+    if (rango) Object.assign(where, rango);
 
     const sesiones = await this.prisma.claseSesion.findMany({
       where,
@@ -566,7 +559,13 @@ export class AsistenciasService {
     });
 
     if (!filters.materiaId) {
-      return { materias, grupos: [], unidades: [], fechasClase: [] };
+      return {
+        materias,
+        grupos: [],
+        unidades: [],
+        fechasClase: [],
+        mesesClase: [],
+      };
     }
 
     const materia = await this.prisma.materia.findUnique({
@@ -657,8 +656,18 @@ export class AsistenciasService {
     const fechasClase = Array.from(
       new Set(sesiones.map((sesion) => formatearFechaClave(sesion.fecha))),
     );
+    // Sólo se ofrecen los meses que de verdad tuvieron clase, igual que las fechas.
+    const mesesClase = Array.from(
+      new Set(sesiones.map((sesion) => obtenerClaveMes(sesion.fecha))),
+    ).sort();
 
-    return { materias, grupos, unidades: materia.unidades, fechasClase };
+    return {
+      materias,
+      grupos,
+      unidades: materia.unidades,
+      fechasClase,
+      mesesClase,
+    };
   }
 
   async actualizarAsistencia(
@@ -697,6 +706,7 @@ export class AsistenciasService {
       grupoId?: number;
       fecha?: string;
       semana?: string;
+      mes?: string;
       unidadId?: number;
       docenteId?: number;
     },
@@ -720,19 +730,8 @@ export class AsistenciasService {
     if (filters.grupoId) Object.assign(where, { grupoId: filters.grupoId });
     if (filters.unidadId) Object.assign(where, { unidadId: filters.unidadId });
 
-    if (filters.fecha) {
-      const fecha = new Date(filters.fecha);
-      Object.assign(where, {
-        fecha: {
-          gte: obtenerInicioDelDia(fecha),
-          lte: obtenerFinDelDia(fecha),
-        },
-      });
-    } else if (filters.semana) {
-      Object.assign(where, {
-        semanaClave: obtenerClaveSemana(new Date(filters.semana)),
-      });
-    }
+    const rango = this.construirRangoDeFecha(filters);
+    if (rango) Object.assign(where, rango);
 
     const sesiones = await this.prisma.claseSesion.findMany({
       where,
@@ -807,8 +806,9 @@ export class AsistenciasService {
         grupoId: filters.grupoId ?? null,
         fecha: filters.fecha ?? null,
         semana: filters.semana
-          ? obtenerClaveSemana(new Date(filters.semana))
+          ? obtenerClaveSemana(parsearFechaClave(filters.semana) as Date)
           : null,
+        mes: filters.mes ?? null,
         unidadId: filters.unidadId ?? null,
       },
       sesiones,
@@ -817,6 +817,44 @@ export class AsistenciasService {
       ),
       asistencias,
     };
+  }
+
+  /**
+   * Acota las sesiones a un día, una semana o un mes. Se excluyen entre sí: el
+   * día es el más específico y el mes el más amplio. Las claves llegan como
+   * `YYYY-MM-DD` / `YYYY-MM` y se interpretan en hora local, porque
+   * `new Date(clave)` las leería como UTC y en husos negativos devolvería el
+   * día anterior.
+   */
+  private construirRangoDeFecha(filters: {
+    fecha?: string;
+    semana?: string;
+    mes?: string;
+  }): Record<string, unknown> | null {
+    if (filters.fecha) {
+      const fecha = parsearFechaClave(filters.fecha);
+      if (!fecha) throw new BadRequestException('Fecha inválida');
+      return {
+        fecha: {
+          gte: obtenerInicioDelDia(fecha),
+          lte: obtenerFinDelDia(fecha),
+        },
+      };
+    }
+
+    if (filters.semana) {
+      const semana = parsearFechaClave(filters.semana);
+      if (!semana) throw new BadRequestException('Semana inválida');
+      return { semanaClave: obtenerClaveSemana(semana) };
+    }
+
+    if (filters.mes) {
+      const mes = parsearMesClave(filters.mes);
+      if (!mes) throw new BadRequestException('Mes inválido');
+      return { fecha: { gte: mes.inicio, lte: mes.fin } };
+    }
+
+    return null;
   }
 
   private validarAccesoSesion(actor: Actor, docenteId: number) {

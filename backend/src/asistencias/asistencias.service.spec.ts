@@ -212,3 +212,93 @@ describe('AsistenciasService.obtenerAsistenciasAlumno (IDOR)', () => {
     expect(claseSesionFindMany).toHaveBeenCalled();
   });
 });
+
+describe('AsistenciasService rangos de día, semana y mes', () => {
+  const claseSesionFindMany = jest.fn();
+  const asistenciaFindMany = jest.fn();
+  const prisma = {
+    claseSesion: { findMany: claseSesionFindMany },
+    asistencia: { findMany: asistenciaFindMany },
+  } as unknown as PrismaService;
+  const service = new AsistenciasService(
+    prisma,
+    {} as unknown as NotificacionesService,
+  );
+  const docente = { id: 9, rol: 'DOCENTE' } as never;
+
+  const whereDeLaConsulta = () =>
+    (claseSesionFindMany.mock.calls[0][0] as { where: Record<string, never> })
+      .where;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    claseSesionFindMany.mockResolvedValue([]);
+    asistenciaFindMany.mockResolvedValue([]);
+  });
+
+  it('acota el día en hora local, sin correrse al día anterior', async () => {
+    await service.obtenerHistorial(docente, { fecha: '2026-09-08' });
+
+    const { fecha } = whereDeLaConsulta() as unknown as {
+      fecha: { gte: Date; lte: Date };
+    };
+    expect(fecha.gte).toEqual(new Date(2026, 8, 8, 0, 0, 0, 0));
+    expect(fecha.lte).toEqual(new Date(2026, 8, 8, 23, 59, 59, 999));
+  });
+
+  it('resuelve la semana del lunes elegido, no la anterior', async () => {
+    await service.obtenerHistorial(docente, { semana: '2026-09-07' });
+
+    expect(whereDeLaConsulta()).toMatchObject({ semanaClave: '2026-09-07' });
+  });
+
+  it('acota el mes completo', async () => {
+    await service.obtenerHistorial(docente, { mes: '2026-09' });
+
+    const { fecha } = whereDeLaConsulta() as unknown as {
+      fecha: { gte: Date; lte: Date };
+    };
+    expect(fecha.gte).toEqual(new Date(2026, 8, 1, 0, 0, 0, 0));
+    expect(fecha.lte).toEqual(new Date(2026, 8, 30, 23, 59, 59, 999));
+  });
+
+  it('acota febrero de un año bisiesto hasta el día 29', async () => {
+    await service.obtenerHistorial(docente, { mes: '2028-02' });
+
+    const { fecha } = whereDeLaConsulta() as unknown as {
+      fecha: { gte: Date; lte: Date };
+    };
+    expect(fecha.lte).toEqual(new Date(2028, 1, 29, 23, 59, 59, 999));
+  });
+
+  it('da prioridad al día sobre la semana y el mes', async () => {
+    await service.obtenerHistorial(docente, {
+      fecha: '2026-09-08',
+      semana: '2026-09-07',
+      mes: '2026-09',
+    });
+
+    expect(whereDeLaConsulta()).not.toHaveProperty('semanaClave');
+    const { fecha } = whereDeLaConsulta() as unknown as {
+      fecha: { gte: Date; lte: Date };
+    };
+    expect(fecha.gte).toEqual(new Date(2026, 8, 8, 0, 0, 0, 0));
+  });
+
+  it('rechaza un mes con formato inválido', async () => {
+    await expect(
+      service.obtenerHistorial(docente, { mes: '2026-13' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(
+      service.obtenerHistorial(docente, { mes: 'septiembre' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('sin filtros de fecha no acota el rango', async () => {
+    await service.obtenerHistorial(docente, { materiaId: 12 });
+
+    const where = whereDeLaConsulta();
+    expect(where).not.toHaveProperty('fecha');
+    expect(where).not.toHaveProperty('semanaClave');
+  });
+});

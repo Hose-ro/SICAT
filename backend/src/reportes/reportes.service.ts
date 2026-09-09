@@ -28,6 +28,7 @@ export class ReportesService {
         filtros.grupoId ? `Grupo: ${filtros.grupoId}` : null,
         filtros.fecha ? `Fecha: ${filtros.fecha}` : null,
         filtros.semana ? `Semana: ${filtros.semana}` : null,
+        filtros.mes ? `Mes: ${filtros.mes}` : null,
         filtros.unidadId ? `Unidad: ${filtros.unidadId}` : null,
       ]
         .filter(Boolean)
@@ -154,6 +155,7 @@ export class ReportesService {
           filtros.grupoId ? `Grupo ${filtros.grupoId}` : null,
           filtros.fecha ? `Fecha ${filtros.fecha}` : null,
           filtros.semana ? `Semana ${filtros.semana}` : null,
+          filtros.mes ? `Mes ${filtros.mes}` : null,
           filtros.unidadId ? `Unidad ${filtros.unidadId}` : null,
         ]
           .filter(Boolean)

@@ -125,6 +125,7 @@ export class AsistenciasController {
     @Query('grupoId') grupoId?: string,
     @Query('fecha') fecha?: string,
     @Query('semana') semana?: string,
+    @Query('mes') mes?: string,
     @Query('unidadId') unidadId?: string,
     @Query('docenteId') docenteId?: string,
   ) {
@@ -133,6 +134,7 @@ export class AsistenciasController {
       grupoId: grupoId ? parseInt(grupoId, 10) : undefined,
       fecha,
       semana,
+      mes,
       unidadId: unidadId ? parseInt(unidadId, 10) : undefined,
       docenteId: docenteId ? parseInt(docenteId, 10) : undefined,
     });
@@ -146,6 +148,7 @@ export class AsistenciasController {
     @Query('grupoId') grupoId?: string,
     @Query('fecha') fecha?: string,
     @Query('semana') semana?: string,
+    @Query('mes') mes?: string,
     @Query('unidadId') unidadId?: string,
     @Query('docenteId') docenteId?: string,
   ) {
@@ -154,6 +157,7 @@ export class AsistenciasController {
       grupoId: grupoId ? parseInt(grupoId, 10) : undefined,
       fecha,
       semana,
+      mes,
       unidadId: unidadId ? parseInt(unidadId, 10) : undefined,
       docenteId: docenteId ? parseInt(docenteId, 10) : undefined,
     });
@@ -194,6 +198,7 @@ export class AsistenciasController {
     @Query('grupoId') grupoId: string,
     @Query('fecha') fecha: string,
     @Query('semana') semana: string,
+    @Query('mes') mes: string,
     @Query('unidadId') unidadId: string,
     @Query('docenteId') docenteId: string,
     @Res() res,
@@ -207,6 +212,7 @@ export class AsistenciasController {
         grupoId: grupoId ? parseInt(grupoId, 10) : undefined,
         fecha,
         semana,
+        mes,
         unidadId: unidadId ? parseInt(unidadId, 10) : undefined,
         docenteId: docenteId ? parseInt(docenteId, 10) : undefined,
       },
