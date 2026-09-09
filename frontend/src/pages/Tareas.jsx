@@ -18,43 +18,23 @@ import api from '../api/axios'
 import { useAuthStore } from '../store/authStore'
 import { useTareaStore } from '../store/tareaStore'
 
-const TASK_STATE_LABEL = {
-  BORRADOR: 'Borrador',
-  PUBLICADA: 'Publicada',
-  VENCIDA: 'Vencida',
-  CERRADA: 'Cerrada',
-}
+import TaskNotice from '../components/TaskNotice'
+import { TASK_STATE_LABEL, DELIVERY_STATE_LABEL, TASK_TYPE_LABEL, searchTasks, taskError, deliveryHelp } from '../lib/tareas'
 
 const TASK_STATE_CLASS = {
-  BORRADOR: 'bg-slate-100 text-slate-700',
-  PUBLICADA: 'bg-emerald-100 text-emerald-700',
-  VENCIDA: 'bg-amber-100 text-amber-700',
-  CERRADA: 'bg-rose-100 text-rose-700',
-}
-
-const DELIVERY_STATE_LABEL = {
-  PENDIENTE: 'Pendiente',
-  ENTREGADA: 'Entregada',
-  REVISADA: 'Revisada',
-  INCORRECTA: 'Incorrecta',
-  CALIFICADA: 'Calificada',
-  NO_ENTREGADA: 'No entregada',
+  BORRADOR: 'bg-muted text-foreground',
+  PUBLICADA: 'bg-success/10 text-foreground',
+  VENCIDA: 'bg-warning/10 text-foreground',
+  CERRADA: 'bg-destructive/10 text-destructive',
 }
 
 const DELIVERY_STATE_CLASS = {
-  PENDIENTE: 'bg-slate-100 text-slate-700',
-  ENTREGADA: 'bg-sky-100 text-sky-700',
-  REVISADA: 'bg-violet-100 text-violet-700',
-  INCORRECTA: 'bg-rose-100 text-rose-700',
-  CALIFICADA: 'bg-emerald-100 text-emerald-700',
-  NO_ENTREGADA: 'bg-amber-100 text-amber-700',
-}
-
-const TASK_TYPE_LABEL = {
-  EN_LINEA: 'Entrega con archivo',
-  PRESENCIAL: 'Presencial',
-  FIRMA: 'Foto de firma',
-  REVISION_EN_LINEA: 'Revisión en línea',
+  PENDIENTE: 'bg-muted text-foreground',
+  ENTREGADA: 'bg-primary/10 text-primary',
+  REVISADA: 'bg-primary/10 text-primary',
+  INCORRECTA: 'bg-destructive/10 text-destructive',
+  CALIFICADA: 'bg-success/10 text-foreground',
+  NO_ENTREGADA: 'bg-warning/10 text-foreground',
 }
 
 function formatDateTime(date) {
@@ -71,20 +51,20 @@ function formatDateTime(date) {
 function SummaryCard({ icon, label, value, tone = 'blue' }) {
   const IconComponent = icon
   const tones = {
-    blue: 'border-sky-200 bg-sky-50 text-sky-700',
-    green: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-    amber: 'border-amber-200 bg-amber-50 text-amber-700',
-    slate: 'border-slate-200 bg-slate-50 text-slate-700',
+    blue: 'border-border bg-card text-foreground',
+    green: 'border-success/30 bg-success/10 text-foreground',
+    amber: 'border-warning/30 bg-warning/10 text-foreground',
+    slate: 'border-border bg-muted/40 text-foreground',
   }
 
   return (
-    <div className={`rounded-3xl border p-5 shadow-sm ${tones[tone] || tones.blue}`}>
-      <div className="flex items-center justify-between">
+    <div className={`rounded-3xl border p-4 shadow-sm ${tones[tone] || tones.blue}`}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="text-sm font-medium opacity-80">{label}</p>
           <p className="mt-2 text-3xl font-semibold">{value ?? 0}</p>
         </div>
-        <div className="rounded-2xl bg-white/80 p-3">
+        <div className="rounded-2xl bg-card p-3">
           <IconComponent className="h-5 w-5" />
         </div>
       </div>
@@ -95,12 +75,12 @@ function SummaryCard({ icon, label, value, tone = 'blue' }) {
 function SelectField({ label, value, onChange, children, disabled = false }) {
   return (
     <label className="flex min-w-[10rem] flex-col gap-1">
-      <span className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{label}</span>
+      <span className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{label}</span>
       <select
         value={value}
         onChange={onChange}
         disabled={disabled}
-        className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm outline-none transition focus:border-sky-400 disabled:cursor-not-allowed disabled:bg-slate-50"
+        className="rounded-2xl border border-border bg-card px-4 py-3 text-sm text-foreground shadow-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:bg-muted/40"
       >
         {children}
       </select>
@@ -108,8 +88,21 @@ function SelectField({ label, value, onChange, children, disabled = false }) {
   )
 }
 
+function TaskSearch({ query, setQuery, order, setOrder, docente = false }) {
+  return <div className="mb-4 flex flex-col gap-3 sm:flex-row">
+    <label className="flex flex-1 flex-col gap-1 text-sm font-medium">Buscar tareas
+      <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Título, materia, grupo o unidad" className="rounded-xl border border-input bg-background px-4 py-3 font-normal" />
+    </label>
+    <SelectField label="Ordenar por" value={order} onChange={(event) => setOrder(event.target.value)}>
+      <option value="deadline">Fecha límite más cercana</option>
+      <option value="title">Título: A a Z</option>
+      {docente && <option value="review">Más entregas por revisar</option>}
+    </SelectField>
+  </div>
+}
+
 function DocenteTareasModule() {
-  const { tareas, taskStats, loading, obtenerDocente, publicar, cerrar, reabrir, exportarTarea, descargarCierreUnidad } = useTareaStore()
+  const { tareas, taskStats, loading, error, obtenerDocente, publicar, cerrar, reabrir, exportarTarea, descargarCierreUnidad } = useTareaStore()
   const [materias, setMaterias] = useState([])
   const [filters, setFilters] = useState({
     materiaId: '',
@@ -118,13 +111,18 @@ function DocenteTareasModule() {
     estado: '',
     fecha: '',
   })
+  const [query, setQuery] = useState('')
+  const [order, setOrder] = useState('deadline')
+  const [actionError, setActionError] = useState('')
+  const [success, setSuccess] = useState('')
+  const visibleTasks = useMemo(() => searchTasks(tareas, query, order), [tareas, query, order])
   const [busyId, setBusyId] = useState(null)
   const [closingUnit, setClosingUnit] = useState(false)
 
   const cargarMaterias = useCallback(() => {
-    api.get('/materias/mis-materias')
+    return api.get('/materias/mis-materias')
       .then((res) => setMaterias(res.data || []))
-      .catch(() => setMaterias([]))
+      .catch((error) => setActionError(taskError(error, 'No se pudieron cargar las materias. Recarga la página.')))
   }, [])
 
   useEffect(() => {
@@ -150,7 +148,15 @@ function DocenteTareasModule() {
   const availableUnits = selectedMateria?.unidades || []
   const selectedUnit = availableUnits.find((unit) => unit.id === Number(filters.unidadId))
 
+  const download = async (callback) => {
+    setActionError('')
+    try { await callback() } catch (error) { setActionError(taskError(error, 'No se pudo descargar el archivo. Intenta de nuevo.')) }
+  }
+
   const handleStateAction = async (task) => {
+    if (busyId !== null) return
+    setActionError('')
+    setSuccess('')
     try {
       setBusyId(task.id)
       if (task.estado === 'BORRADOR') await publicar(task.id)
@@ -163,6 +169,9 @@ function DocenteTareasModule() {
         estado: filters.estado || undefined,
         fecha: filters.fecha || undefined,
       })
+      setSuccess(`Se actualizó la tarea «${task.titulo}».`)
+    } catch (error) {
+      setActionError(taskError(error))
     } finally {
       setBusyId(null)
     }
@@ -170,6 +179,8 @@ function DocenteTareasModule() {
 
   const handleCloseUnit = useCallback(async () => {
     if (!selectedUnit) return
+    if (selectedUnit.status !== 'FINALIZADA' && !window.confirm(`Cerrar «${selectedUnit.nombre}» finalizará la unidad. ¿Deseas continuar?`)) return
+    setActionError('')
     setClosingUnit(true)
     try {
       if (selectedUnit.status !== 'FINALIZADA') {
@@ -184,6 +195,9 @@ function DocenteTareasModule() {
         estado: filters.estado || undefined,
         fecha: filters.fecha || undefined,
       })
+      setSuccess('El cierre de unidad se descargó correctamente.')
+    } catch (error) {
+      setActionError(taskError(error, 'No se pudo completar el cierre o la descarga. Actualiza la página para consultar el estado de la unidad.'))
     } finally {
       setClosingUnit(false)
     }
@@ -231,15 +245,16 @@ function DocenteTareasModule() {
         </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <TaskNotice error={actionError} success={success} />
+      <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <SummaryCard icon={Layers3} label="Tareas activas" value={taskStats?.tareasActivas ?? 0} tone="blue" />
         <SummaryCard icon={Clock3} label="Pendientes de revisar" value={taskStats?.pendientesRevision ?? 0} tone="amber" />
         <SummaryCard icon={CalendarDays} label="Vencidas" value={taskStats?.vencidas ?? 0} tone="slate" />
         <SummaryCard icon={Send} label="Entregas tardías" value={taskStats?.entregasTardias ?? 0} tone="green" />
       </section>
 
-      <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="flex items-center gap-2 text-slate-700">
+      <section className="rounded-[2rem] border border-border bg-card p-5 shadow-sm">
+        <div className="flex items-center gap-2 text-foreground">
           <Filter className="h-4 w-4" />
           <h2 className="text-sm font-semibold uppercase tracking-[0.14em]">Filtros</h2>
         </div>
@@ -297,19 +312,19 @@ function DocenteTareasModule() {
           </SelectField>
 
           <label className="flex min-w-[10rem] flex-col gap-1">
-            <span className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Fecha</span>
+            <span className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Publicación o límite</span>
             <input
               type="date"
               value={filters.fecha}
               onChange={(event) => setFilters((prev) => ({ ...prev, fecha: event.target.value }))}
-              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm outline-none transition focus:border-sky-400"
+              className="rounded-2xl border border-border bg-card px-4 py-3 text-sm text-foreground shadow-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
             />
           </label>
 
           <button
             type="button"
-            onClick={() => setFilters({ materiaId: '', grupoId: '', unidadId: '', estado: '', fecha: '' })}
-            className="mt-auto inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+            onClick={() => { setFilters({ materiaId: '', grupoId: '', unidadId: '', estado: '', fecha: '' }); setQuery('') }}
+            className="mt-auto inline-flex items-center justify-center gap-2 rounded-2xl border border-border px-4 py-3 text-sm font-semibold text-muted-foreground transition hover:bg-muted/40"
           >
             <RefreshCcw className="h-4 w-4" />
             Limpiar
@@ -317,37 +332,37 @@ function DocenteTareasModule() {
         </div>
       </section>
 
-      <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="mb-5 flex items-center justify-between">
+      <section className="rounded-[2rem] border border-border bg-card p-5 shadow-sm">
+        <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-slate-900">Lista de tareas</h2>
-            <p className="text-sm text-slate-500">Cards operativas con estado, avance de entrega y acciones rápidas.</p>
+            <h2 className="text-lg font-semibold text-foreground">Lista de tareas</h2>
+            <p className="text-sm text-muted-foreground">Publica los borradores y entra a Ver entregas para revisar o calificar el trabajo del grupo.</p>
           </div>
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={() => useTareaStore.getState().exportarReporte({
+              onClick={() => download(() => useTareaStore.getState().exportarReporte({
                 materiaId: filters.materiaId || undefined,
                 grupoId: filters.grupoId || undefined,
                 unidadId: filters.unidadId || undefined,
                 estado: filters.estado || undefined,
                 fecha: filters.fecha || undefined,
-              }, 'excel')}
-              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+              }, 'excel'))}
+              className="inline-flex items-center gap-2 rounded-2xl border border-border px-4 py-2.5 text-sm font-semibold text-muted-foreground transition hover:bg-muted/40"
             >
               <Download className="h-4 w-4" />
               Excel
             </button>
             <button
               type="button"
-              onClick={() => useTareaStore.getState().exportarReporte({
+              onClick={() => download(() => useTareaStore.getState().exportarReporte({
                 materiaId: filters.materiaId || undefined,
                 grupoId: filters.grupoId || undefined,
                 unidadId: filters.unidadId || undefined,
                 estado: filters.estado || undefined,
                 fecha: filters.fecha || undefined,
-              }, 'pdf')}
-              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+              }, 'pdf'))}
+              className="inline-flex items-center gap-2 rounded-2xl border border-border px-4 py-2.5 text-sm font-semibold text-muted-foreground transition hover:bg-muted/40"
             >
               <FileDown className="h-4 w-4" />
               PDF
@@ -355,81 +370,83 @@ function DocenteTareasModule() {
           </div>
         </div>
 
+        <TaskSearch query={query} setQuery={setQuery} order={order} setOrder={setOrder} docente />
+        <p className="mb-4 text-sm text-muted-foreground" aria-live="polite">{visibleTasks.length} {visibleTasks.length === 1 ? 'tarea encontrada' : 'tareas encontradas'}. Los reportes usan los filtros de materia, grupo, unidad, estado y fecha.</p>
         {loading ? (
-          <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 px-6 py-16 text-center text-sm text-slate-500">
+          <div className="rounded-3xl border border-dashed border-border bg-muted/40 px-6 py-16 text-center text-sm text-muted-foreground">
             Cargando tareas...
           </div>
-        ) : tareas.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 px-6 py-16 text-center text-sm text-slate-500">
+        ) : error ? <TaskNotice error={error} onRetry={() => obtenerDocente(filters).catch(() => {})} /> : visibleTasks.length === 0 ? (
+          <div className="rounded-3xl border border-dashed border-border bg-muted/40 px-6 py-16 text-center text-sm text-muted-foreground">
             No hay tareas con los filtros actuales.
           </div>
         ) : (
           <div className="grid gap-4 2xl:grid-cols-2">
-            {tareas.map((task) => (
-              <article key={task.id} className="rounded-[1.75rem] border border-slate-200 bg-slate-50/70 p-5 shadow-sm">
+            {visibleTasks.map((task) => (
+              <article key={task.id} className="rounded-[1.75rem] border border-border bg-muted/40 p-5 shadow-sm">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div className="space-y-3">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className={`rounded-full px-3 py-1 text-xs font-semibold ${TASK_STATE_CLASS[task.estado] || 'bg-slate-100 text-slate-700'}`}>
+                      <span className={`rounded-full px-3 py-1 text-xs font-semibold ${TASK_STATE_CLASS[task.estado] || 'bg-muted text-foreground'}`}>
                         {TASK_STATE_LABEL[task.estado] || task.estado}
                       </span>
-                      <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600">
+                      <span className="rounded-full bg-card px-3 py-1 text-xs font-semibold text-muted-foreground">
                         {TASK_TYPE_LABEL[task.tipoEntrega] || task.tipoEntrega}
                       </span>
                     </div>
                     <div>
-                      <h3 className="text-xl font-semibold text-slate-900">{task.titulo}</h3>
-                      <p className="mt-1 text-sm text-slate-500">
+                      <h3 className="text-xl font-semibold text-foreground">{task.titulo}</h3>
+                      <p className="mt-1 text-sm text-muted-foreground">
                         {task.materia?.nombre} · {task.grupo?.nombre || 'Sin grupo'} · {task.unidadRef?.nombre || 'Sin unidad'}
                       </p>
                     </div>
-                    <div className="grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
-                      <p><span className="font-semibold text-slate-800">Publicación:</span> {task.fechaPublicacion ? formatDateTime(task.fechaPublicacion) : 'Pendiente'}</p>
-                      <p><span className="font-semibold text-slate-800">Límite:</span> {task.tieneFechaLimite ? formatDateTime(task.fechaLimite) : 'Sin límite'}</p>
-                      <p><span className="font-semibold text-slate-800">Evaluación:</span> {task.tipoEvaluacion === 'RUBRICA' ? 'Rúbrica' : 'Directa'}</p>
-                      <p><span className="font-semibold text-slate-800">Reenvío:</span> {task.permiteReenvio ? 'Permitido' : 'No permitido'}</p>
+                    <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
+                      <p><span className="font-semibold text-foreground">Publicación:</span> {task.fechaPublicacion ? formatDateTime(task.fechaPublicacion) : 'Pendiente'}</p>
+                      <p><span className="font-semibold text-foreground">Límite:</span> {task.tieneFechaLimite ? formatDateTime(task.fechaLimite) : 'Sin límite'}</p>
+                      <p><span className="font-semibold text-foreground">Evaluación:</span> {task.tipoEvaluacion === 'RUBRICA' ? 'Rúbrica' : 'Directa'}</p>
+                      <p><span className="font-semibold text-foreground">Reenvío:</span> {task.permiteReenvio ? 'Permitido' : 'No permitido'}</p>
                     </div>
                   </div>
 
-                  <div className="min-w-[14rem] rounded-3xl border border-slate-200 bg-white p-4">
-                    <div className="grid grid-cols-2 gap-3 text-sm text-slate-600">
+                  <div className="min-w-[14rem] rounded-3xl border border-border bg-card p-4">
+                    <div className="grid grid-cols-2 gap-3 text-sm text-muted-foreground">
                       <div>
-                        <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Entrega</p>
-                        <p className="mt-1 text-2xl font-semibold text-slate-900">{task.porcentajeEntrega}%</p>
+                        <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Entrega</p>
+                        <p className="mt-1 text-2xl font-semibold text-foreground">{task.porcentajeEntrega}%</p>
                       </div>
                       <div>
-                        <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Tardías</p>
-                        <p className="mt-1 text-2xl font-semibold text-slate-900">{task.entregasTardias}</p>
+                        <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Tardías</p>
+                        <p className="mt-1 text-2xl font-semibold text-foreground">{task.entregasTardias}</p>
                       </div>
                       <div>
-                        <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Revisión</p>
-                        <p className="mt-1 text-lg font-semibold text-slate-900">{task.pendientesRevision}</p>
+                        <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Revisión</p>
+                        <p className="mt-1 text-lg font-semibold text-foreground">{task.pendientesRevision}</p>
                       </div>
                       <div>
-                        <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Promedio</p>
-                        <p className="mt-1 text-lg font-semibold text-slate-900">{task.promedio ?? '-'}</p>
+                        <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Promedio</p>
+                        <p className="mt-1 text-lg font-semibold text-foreground">{task.promedio ?? '-'}</p>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 <div className="mt-5 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-                  <div className="flex flex-wrap gap-2 text-xs text-slate-500">
-                    <span className="rounded-full bg-white px-3 py-1">{task.entregadas}/{task.totalAlumnos} entregadas</span>
-                    <span className="rounded-full bg-white px-3 py-1">{task.noEntregadas} sin entregar</span>
-                    <span className="rounded-full bg-white px-3 py-1">{task.calificadas} calificadas</span>
+                  <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                    <span className="rounded-full bg-card px-3 py-1">{task.entregadas}/{task.totalAlumnos} entregadas</span>
+                    <span className="rounded-full bg-card px-3 py-1">{task.noEntregadas} sin entregar</span>
+                    <span className="rounded-full bg-card px-3 py-1">{task.calificadas} calificadas</span>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Link
                       to={`/docente/tareas/${task.id}`}
-                      className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+                      className="inline-flex items-center gap-2 rounded-2xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary"
                     >
                       <Users className="h-4 w-4" />
                       Ver entregas
                     </Link>
                     <Link
                       to={`/docente/tareas/crear?editarId=${task.id}`}
-                      className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                      className="inline-flex items-center gap-2 rounded-2xl border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground transition hover:bg-muted/40"
                     >
                       <PenSquare className="h-4 w-4" />
                       Editar
@@ -437,8 +454,8 @@ function DocenteTareasModule() {
                     <button
                       type="button"
                       onClick={() => handleStateAction(task)}
-                      disabled={busyId === task.id}
-                      className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+                      disabled={busyId !== null}
+                      className="rounded-2xl border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground transition hover:bg-muted/40 disabled:opacity-60"
                     >
                       {busyId === task.id
                         ? 'Procesando...'
@@ -450,15 +467,15 @@ function DocenteTareasModule() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => exportarTarea(task.id, 'pdf')}
-                      className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                      onClick={() => download(() => exportarTarea(task.id, 'pdf'))}
+                      className="rounded-2xl border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground transition hover:bg-muted/40"
                     >
                       PDF
                     </button>
                     <button
                       type="button"
-                      onClick={() => exportarTarea(task.id, 'excel')}
-                      className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                      onClick={() => download(() => exportarTarea(task.id, 'excel'))}
+                      className="rounded-2xl border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground transition hover:bg-muted/40"
                     >
                       Excel
                     </button>
@@ -474,14 +491,17 @@ function DocenteTareasModule() {
 }
 
 function AlumnoTareasModule() {
-  const { studentTasks, loading, obtenerMisTareas } = useTareaStore()
+  const { studentTasks, loading, error, obtenerMisTareas } = useTareaStore()
   const [materias, setMaterias] = useState([])
+  const [catalogError, setCatalogError] = useState('')
   const [filters, setFilters] = useState({ materiaId: '', estado: '' })
+  const [query, setQuery] = useState('')
+  const [order, setOrder] = useState('deadline')
 
   useEffect(() => {
     api.get('/materias/para-alumno')
       .then((res) => setMaterias(res.data || []))
-      .catch(() => setMaterias([]))
+      .catch((error) => setCatalogError(taskError(error, 'No se pudieron cargar las materias. Recarga la página.')))
   }, [])
 
   useEffect(() => {
@@ -489,9 +509,8 @@ function AlumnoTareasModule() {
   }, [filters.materiaId, obtenerMisTareas])
 
   const filteredTasks = useMemo(() => {
-    if (!filters.estado) return studentTasks
-    return studentTasks.filter((item) => item.estadoAlumno === filters.estado)
-  }, [studentTasks, filters.estado])
+    return searchTasks(studentTasks.filter((item) => !filters.estado || item.estadoAlumno === filters.estado), query, order)
+  }, [studentTasks, filters.estado, query, order])
 
   const stats = useMemo(() => ({
     pendientes: studentTasks.filter((item) => item.estadoAlumno === 'PENDIENTE' || item.estadoAlumno === 'NO_ENTREGADA').length,
@@ -514,14 +533,15 @@ function AlumnoTareasModule() {
         </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <TaskNotice error={catalogError} />
+      <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <SummaryCard icon={Clock3} label="Pendientes" value={stats.pendientes} tone="amber" />
         <SummaryCard icon={Send} label="Entregadas" value={stats.entregadas} tone="blue" />
         <SummaryCard icon={CalendarDays} label="Tardías" value={stats.tardias} tone="slate" />
         <SummaryCard icon={CheckCircle2} label="Calificadas" value={stats.calificadas} tone="green" />
       </section>
 
-      <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="rounded-[2rem] border border-border bg-card p-5 shadow-sm">
         <div className="flex flex-col gap-4 xl:flex-row">
           <SelectField
             label="Materia"
@@ -541,75 +561,77 @@ function AlumnoTareasModule() {
           >
             <option value="">Todos</option>
             <option value="PENDIENTE">Pendientes</option>
-            <option value="ENTREGADA">Entregadas</option>
+            <option value="ENTREGADA">Por revisar por el docente</option>
             <option value="REVISADA">Revisadas</option>
             <option value="CALIFICADA">Calificadas</option>
-            <option value="INCORRECTA">Incorrectas</option>
+            <option value="INCORRECTA">Requieren atención</option>
             <option value="NO_ENTREGADA">No entregadas</option>
           </SelectField>
         </div>
       </section>
 
-      <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="rounded-[2rem] border border-border bg-card p-5 shadow-sm">
         <div className="mb-4">
-          <h2 className="text-lg font-semibold text-slate-900">Tus tareas</h2>
-          <p className="text-sm text-slate-500">Cada card muestra límite, estado, observaciones y calificación.</p>
+          <h2 className="text-lg font-semibold text-foreground">Tus tareas</h2>
+          <p className="text-sm text-muted-foreground">Consulta qué debes entregar, las observaciones de tu docente y tu calificación.</p>
         </div>
 
+        <TaskSearch query={query} setQuery={setQuery} order={order} setOrder={setOrder} />
+        <div className="mb-4 flex items-center justify-between gap-3 text-sm text-muted-foreground"><span aria-live="polite">{filteredTasks.length} {filteredTasks.length === 1 ? 'tarea encontrada' : 'tareas encontradas'}</span><button type="button" onClick={() => { setFilters({ materiaId: '', estado: '' }); setQuery('') }} className="font-semibold underline">Limpiar filtros</button></div>
         {loading ? (
-          <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 px-6 py-16 text-center text-sm text-slate-500">
+          <div className="rounded-3xl border border-dashed border-border bg-muted/40 px-6 py-16 text-center text-sm text-muted-foreground">
             Cargando tareas...
           </div>
-        ) : filteredTasks.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 px-6 py-16 text-center text-sm text-slate-500">
+        ) : error ? <TaskNotice error={error} onRetry={() => obtenerMisTareas(filters.materiaId || undefined).catch(() => {})} /> : filteredTasks.length === 0 ? (
+          <div className="rounded-3xl border border-dashed border-border bg-muted/40 px-6 py-16 text-center text-sm text-muted-foreground">
             No hay tareas con los filtros actuales.
           </div>
         ) : (
           <div className="grid gap-4 xl:grid-cols-2">
             {filteredTasks.map(({ tarea, miEntrega, estadoAlumno, puedeEditarEntrega }) => (
-              <article key={tarea.id} className="rounded-[1.75rem] border border-slate-200 bg-slate-50/70 p-5 shadow-sm">
+              <article key={tarea.id} className="rounded-[1.75rem] border border-border bg-muted/40 p-5 shadow-sm">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                   <div className="space-y-3">
                     <div className="flex flex-wrap gap-2">
-                      <span className={`rounded-full px-3 py-1 text-xs font-semibold ${DELIVERY_STATE_CLASS[estadoAlumno] || 'bg-slate-100 text-slate-700'}`}>
+                      <span className={`rounded-full px-3 py-1 text-xs font-semibold ${DELIVERY_STATE_CLASS[estadoAlumno] || 'bg-muted text-foreground'}`}>
                         {DELIVERY_STATE_LABEL[estadoAlumno] || estadoAlumno}
                       </span>
-                      <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600">
+                      <span className="rounded-full bg-card px-3 py-1 text-xs font-semibold text-muted-foreground">
                         {TASK_TYPE_LABEL[tarea.tipoEntrega] || tarea.tipoEntrega}
                       </span>
                       {miEntrega?.fueTardia && (
-                        <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
+                        <span className="rounded-full bg-warning/10 px-3 py-1 text-xs font-semibold text-foreground">
                           Entrega tardía
                         </span>
                       )}
                     </div>
                     <div>
-                      <h3 className="text-xl font-semibold text-slate-900">{tarea.titulo}</h3>
-                      <p className="mt-1 text-sm text-slate-500">
+                      <h3 className="text-xl font-semibold text-foreground">{tarea.titulo}</h3>
+                      <p className="mt-1 text-sm text-muted-foreground">
                         {tarea.materia?.nombre} · {tarea.grupo?.nombre || 'Grupo'} · {tarea.unidadRef?.nombre || 'Sin unidad'}
                       </p>
                     </div>
-                    <div className="grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
-                      <p><span className="font-semibold text-slate-800">Fecha límite:</span> {tarea.tieneFechaLimite ? formatDateTime(tarea.fechaLimite) : 'Sin límite'}</p>
-                      <p><span className="font-semibold text-slate-800">Entrega:</span> {miEntrega?.fechaEntrega ? formatDateTime(miEntrega.fechaEntrega) : 'Aún sin entrega'}</p>
+                    <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
+                      <p><span className="font-semibold text-foreground">Fecha límite:</span> {tarea.tieneFechaLimite ? formatDateTime(tarea.fechaLimite) : 'Sin límite'}</p>
+                      <p><span className="font-semibold text-foreground">Entrega:</span> {miEntrega?.fechaEntrega ? formatDateTime(miEntrega.fechaEntrega) : 'Aún sin entrega'}</p>
                     </div>
                     {(miEntrega?.observacion || tarea.miEntrega?.observacion) && (
-                      <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
-                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Observación docente</p>
+                      <div className="rounded-2xl border border-border bg-card p-4 text-sm text-muted-foreground">
+                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Observación docente</p>
                         <p className="mt-2">{miEntrega?.observacion || tarea.miEntrega?.observacion}</p>
                       </div>
                     )}
                   </div>
 
-                  <div className="rounded-3xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
-                    <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Calificación</p>
-                    <p className="mt-2 text-2xl font-semibold text-slate-900">
+                  <div className="rounded-3xl border border-border bg-card p-4 text-sm text-muted-foreground">
+                    <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Calificación</p>
+                    <p className="mt-2 text-2xl font-semibold text-foreground">
                       {typeof miEntrega?.calificacion === 'number'
                         ? miEntrega.calificacion
                         : miEntrega?.calificacionTipo || 'Pendiente'}
                     </p>
-                    <p className="mt-3 text-xs text-slate-500">
-                      {puedeEditarEntrega ? 'Puedes editar o reenviar esta entrega.' : 'La entrega ya no admite cambios.'}
+                    <p className="mt-3 text-xs text-muted-foreground">
+                      {deliveryHelp(tarea, miEntrega, puedeEditarEntrega)}
                     </p>
                   </div>
                 </div>
@@ -617,9 +639,9 @@ function AlumnoTareasModule() {
                 <div className="mt-5 flex flex-wrap gap-2">
                   <Link
                     to={`/alumno/tareas/${tarea.id}`}
-                    className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+                    className="inline-flex items-center gap-2 rounded-2xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary"
                   >
-                    Ver detalle
+                    {tarea.tipoEntrega !== 'PRESENCIAL' && puedeEditarEntrega ? miEntrega ? 'Ver y actualizar entrega' : 'Entregar tarea' : 'Consultar tarea'}
                   </Link>
                 </div>
               </article>

@@ -4,6 +4,9 @@ import TablaAsistenciasAlumno from './components/TablaAsistenciasAlumno'
 import { useTareaStore } from '../../store/tareaStore'
 import { useClaseStore } from '../../store/claseStore'
 
+import { DELIVERY_STATE_LABEL } from '../../lib/tareas'
+import TaskNotice from '../../components/TaskNotice'
+
 const ESTADO_TAREA = {
   null:         { label: 'Pendiente',    bg: 'bg-slate-50',   text: 'text-slate-600',  ring: 'ring-slate-200'  },
   PENDIENTE:    { label: 'Pendiente',    bg: 'bg-slate-50',   text: 'text-slate-600',  ring: 'ring-slate-200'  },
@@ -18,7 +21,7 @@ function EstadoTareaBadge({ estado }) {
   const cfg = ESTADO_TAREA[estado] ?? ESTADO_TAREA[null]
   return (
     <span className={`rounded-full px-2.5 py-1 text-xs font-medium ring-1 ${cfg.bg} ${cfg.text} ${cfg.ring}`}>
-      {cfg.label}
+      {DELIVERY_STATE_LABEL[estado] || 'Por entregar'}
     </span>
   )
 }
@@ -36,12 +39,12 @@ const TABS = [
 export default function MateriaDetalleAlumno() {
   const { id } = useParams()
   const [tab, setTab] = useState('asistencias')
-  const { misEntregas, obtenerMisTareas, loading } = useTareaStore()
+  const { misEntregas, obtenerMisTareas, loading, error } = useTareaStore()
   const { misClasesActivas, obtenerMisClasesActivas } = useClaseStore()
 
   useEffect(() => {
-    if (tab === 'tareas') obtenerMisTareas(Number(id))
-  }, [tab, id])
+    if (tab === 'tareas') obtenerMisTareas(Number(id)).catch(() => {})
+  }, [tab, id, obtenerMisTareas])
 
   useEffect(() => {
     obtenerMisClasesActivas().catch(() => {})
@@ -49,7 +52,7 @@ export default function MateriaDetalleAlumno() {
       obtenerMisClasesActivas().catch(() => {})
     }, 20000)
     return () => clearInterval(interval)
-  }, [id])
+  }, [id, obtenerMisClasesActivas])
 
   const claseActiva = misClasesActivas.find((clase) => clase.materiaId === Number(id))
 
@@ -101,6 +104,7 @@ export default function MateriaDetalleAlumno() {
 
       {tab === 'asistencias' && <TablaAsistenciasAlumno materiaId={Number(id)} />}
 
+      {tab === 'tareas' && <TaskNotice error={error} onRetry={() => obtenerMisTareas(Number(id)).catch(() => {})} />}
       {tab === 'tareas' && (
         <div className="space-y-5">
           {loading ? (

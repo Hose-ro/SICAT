@@ -1,8 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, FileText, Save, Send, UploadCloud } from 'lucide-react'
 import api from '../../api/axios'
 import { useTareaStore } from '../../store/tareaStore'
+
+import TaskNotice from '../../components/TaskNotice'
+import TaskRubric from '../../components/TaskRubric'
+import { mergeTaskFiles, taskError, TASK_TYPE_HELP } from '../../lib/tareas'
 
 const DEFAULT_FORM = {
   titulo: '',
@@ -43,6 +47,10 @@ export default function TareaForm() {
 
   const { crear, editar, obtenerDetalle, saving, error, clearError } = useTareaStore()
 
+  const formRef = useRef(null)
+  const [localError, setLocalError] = useState('')
+  const [originalState, setOriginalState] = useState('BORRADOR')
+  const [loaded, setLoaded] = useState(!isEditing)
   const [materias, setMaterias] = useState([])
   const [form, setForm] = useState({
     ...DEFAULT_FORM,
@@ -59,14 +67,15 @@ export default function TareaForm() {
     clearError()
     api.get('/materias/mis-materias')
       .then((res) => setMaterias(res.data || []))
-      .catch(() => setMaterias([]))
+      .catch((error) => setLocalError(taskError(error, 'No se pudieron cargar las materias. Recarga la página.')))
   }, [clearError])
 
   useEffect(() => {
     if (!isEditing) return
-    setLoadingInitial(true)
     obtenerDetalle(Number(editId))
       .then((task) => {
+        setOriginalState(task.estado)
+        setLoaded(true)
         setForm({
           titulo: task.titulo || '',
           instrucciones: task.instrucciones || '',
@@ -79,10 +88,11 @@ export default function TareaForm() {
           tieneFechaLimite: task.tieneFechaLimite !== false,
           fechaLimite: formatDateInput(task.fechaLimite),
           horaLimite: formatTimeInput(task.fechaLimite, task.horaLimite),
-          rubricJson: task.rubricJson ? JSON.stringify(JSON.parse(task.rubricJson), null, 2) : '',
+          rubricJson: task.rubricJson || '',
         })
         setExistingFiles(task.archivos || [])
       })
+      .catch((error) => setLocalError(taskError(error, 'No se pudo cargar la tarea. Vuelve a la lista e intenta de nuevo.')))
       .finally(() => setLoadingInitial(false))
   }, [editId, isEditing, obtenerDetalle])
 
@@ -101,7 +111,11 @@ export default function TareaForm() {
   }
 
   const handleFileSelect = (event) => {
-    setNewFiles(Array.from(event.target.files || []))
+    try {
+      setNewFiles(mergeTaskFiles(newFiles, Array.from(event.target.files || [])))
+      setLocalError('')
+    } catch (error) { setLocalError(error.message) }
+    event.target.value = ''
   }
 
   const toggleRemoveFile = (fileId) => {
@@ -111,6 +125,21 @@ export default function TareaForm() {
   }
 
   const submitWithState = async (estado) => {
+    if (saving || !loaded || !formRef.current.reportValidity()) return
+    setLocalError('')
+    if (!form.titulo.trim() || !form.instrucciones.trim()) {
+      setLocalError('Escribe un título y las instrucciones de la tarea.')
+      return
+    }
+    if (form.tipoEvaluacion === 'RUBRICA') {
+      let rows
+      try { rows = JSON.parse(form.rubricJson) } catch { setLocalError('Agrega los criterios de la rúbrica.'); return }
+      if (Array.isArray(rows) && rows.every((row) => row && 'criterio' in row && 'peso' in row) &&
+        (!rows.length || rows.some((row) => !row.criterio.trim() || Number(row.peso) <= 0) || rows.reduce((sum, row) => sum + Number(row.peso), 0) !== 100)) {
+        setLocalError('Completa los criterios de la rúbrica y verifica que sumen 100%.')
+        return
+      }
+    }
     const payload = {
       ...form,
       estado,
@@ -122,15 +151,17 @@ export default function TareaForm() {
       horaLimite: form.tieneFechaLimite ? form.horaLimite : undefined,
     }
 
-    const result = isEditing
-      ? await editar(Number(editId), payload, newFiles)
-      : await crear(payload, newFiles)
+    try {
+      const result = isEditing
+        ? await editar(Number(editId), payload, newFiles)
+        : await crear(payload, newFiles)
 
-    navigate(`/docente/tareas/${result.id}`)
+      navigate(`/docente/tareas/${result.id}`)
+    } catch (error) { setLocalError(taskError(error, 'No se pudo guardar la tarea. Tus cambios siguen en el formulario.')) }
   }
 
   if (loadingInitial) {
-    return <div className="px-4 py-10 text-sm text-slate-500">Cargando tarea...</div>
+    return <div className="px-4 py-10 text-sm text-muted-foreground">Cargando tarea...</div>
   }
 
   return (
@@ -158,51 +189,47 @@ export default function TareaForm() {
           </div>
           <div className="task-hero-surface rounded-3xl px-5 py-4 text-sm">
             <p className="task-hero-emphasis font-semibold">Formatos permitidos</p>
-            <p className="task-hero-subtitle mt-1">PDF, Word e imagen. Puedes adjuntar varios archivos.</p>
+            <p className="task-hero-subtitle mt-1">PDF, Word e imagen. Hasta 12 archivos nuevos de 15 MB cada uno.</p>
           </div>
         </div>
       </section>
 
-      {error && (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-          {error}
-        </div>
-      )}
+      <TaskNotice error={localError || error} />
 
-      <div className="grid gap-6 xl:grid-cols-[1.4fr_0.8fr]">
-        <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+      <form ref={formRef} onSubmit={(event) => { event.preventDefault(); submitWithState(isEditing ? originalState : 'PUBLICADA') }} className="grid gap-6 xl:grid-cols-[1.4fr_0.8fr]">
+        <section className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
           <div className="grid gap-5">
             <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-700">Título</label>
+              <label className="mb-2 block text-sm font-semibold text-foreground" htmlFor="task-title">Título *</label>
               <input
-                name="titulo"
+                id="task-title" required maxLength={160} name="titulo"
                 value={form.titulo}
                 onChange={handleChange}
                 placeholder="Ej. Ensayo sobre arquitectura de software libre"
-                className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-sky-400"
+                className="w-full rounded-2xl border border-border px-4 py-3 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
               />
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-700">Instrucciones</label>
+              <label className="mb-2 block text-sm font-semibold text-foreground" htmlFor="task-instructions">Instrucciones *</label>
               <textarea
-                name="instrucciones"
+                id="task-instructions" required maxLength={5000} name="instrucciones"
                 value={form.instrucciones}
                 onChange={handleChange}
                 rows={8}
                 placeholder="Describe la actividad, el criterio de evaluación y cualquier requisito de entrega."
-                className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-sky-400"
+                className="w-full rounded-2xl border border-border px-4 py-3 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
               />
             </div>
 
             <div className="grid gap-4 lg:grid-cols-3">
               <label className="flex flex-col gap-2">
-                <span className="text-sm font-semibold text-slate-700">Materia</span>
+                <span className="text-sm font-semibold text-foreground">Materia</span>
                 <select
-                  name="materiaId"
+                  required name="materiaId"
                   value={form.materiaId}
                   onChange={handleChange}
-                  className="rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-sky-400"
+                  className="rounded-2xl border border-border px-4 py-3 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <option value="">Selecciona una materia</option>
                   {materias.map((materia) => (
@@ -212,13 +239,13 @@ export default function TareaForm() {
               </label>
 
               <label className="flex flex-col gap-2">
-                <span className="text-sm font-semibold text-slate-700">Grupo</span>
+                <span className="text-sm font-semibold text-foreground">Grupo</span>
                 <select
-                  name="grupoId"
+                  required name="grupoId"
                   value={form.grupoId}
                   onChange={handleChange}
                   disabled={!selectedMateria}
-                  className="rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-sky-400 disabled:bg-slate-50"
+                  className="rounded-2xl border border-border px-4 py-3 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring disabled:bg-muted/40"
                 >
                   <option value="">Selecciona un grupo</option>
                   {(selectedMateria?.grupos || []).map((grupo) => (
@@ -228,13 +255,13 @@ export default function TareaForm() {
               </label>
 
               <label className="flex flex-col gap-2">
-                <span className="text-sm font-semibold text-slate-700">Unidad (opcional)</span>
+                <span className="text-sm font-semibold text-foreground">Unidad (opcional)</span>
                 <select
                   name="unidadId"
                   value={form.unidadId}
                   onChange={handleChange}
                   disabled={!selectedMateria}
-                  className="rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-sky-400 disabled:bg-slate-50"
+                  className="rounded-2xl border border-border px-4 py-3 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring disabled:bg-muted/40"
                 >
                   <option value="">Sin unidad</option>
                   {(selectedMateria?.unidades || []).map((unidad) => (
@@ -246,27 +273,27 @@ export default function TareaForm() {
 
             <div className="grid gap-4 lg:grid-cols-2">
               <label className="flex flex-col gap-2">
-                <span className="text-sm font-semibold text-slate-700">Tipo de tarea</span>
+                <span className="text-sm font-semibold text-foreground">Tipo de tarea</span>
                 <select
                   name="tipoEntrega"
                   value={form.tipoEntrega}
                   onChange={handleChange}
-                  className="rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-sky-400"
+                  className="rounded-2xl border border-border px-4 py-3 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <option value="PRESENCIAL">Presencial</option>
                   <option value="EN_LINEA">Entrega con archivo</option>
                   <option value="FIRMA">Entrega con foto de firma</option>
-                  <option value="REVISION_EN_LINEA">Revisión en línea</option>
+                  <option value="REVISION_EN_LINEA">Comentario o archivos</option>
                 </select>
               </label>
 
               <label className="flex flex-col gap-2">
-                <span className="text-sm font-semibold text-slate-700">Tipo de evaluación</span>
+                <span className="text-sm font-semibold text-foreground">Tipo de evaluación</span>
                 <select
                   name="tipoEvaluacion"
                   value={form.tipoEvaluacion}
                   onChange={handleChange}
-                  className="rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-sky-400"
+                  className="rounded-2xl border border-border px-4 py-3 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <option value="DIRECTA">Calificación directa</option>
                   <option value="RUBRICA">Rúbrica</option>
@@ -274,33 +301,34 @@ export default function TareaForm() {
               </label>
             </div>
 
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
+            <p className="text-sm text-muted-foreground">{TASK_TYPE_HELP[form.tipoEntrega]}</p>
+            <div className="rounded-3xl border border-border bg-muted/40 p-5">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <h2 className="text-sm font-semibold text-slate-900">Archivos adjuntos</h2>
-                  <p className="mt-1 text-sm text-slate-500">Material de referencia o plantilla para el alumnado.</p>
+                  <h2 className="text-sm font-semibold text-foreground">Archivos adjuntos</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">Material de referencia o plantilla para el alumnado.</p>
                 </div>
-                <label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+                <label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground transition hover:bg-muted/40">
                   <UploadCloud className="h-4 w-4" />
                   Agregar archivos
-                  <input type="file" multiple accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.webp" onChange={handleFileSelect} className="hidden" />
+                  <input type="file" multiple accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.webp" onChange={handleFileSelect} className="block max-w-full text-xs" />
                 </label>
               </div>
 
               {existingFiles.length > 0 && (
                 <div className="mt-4 space-y-2">
-                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Adjuntos actuales</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Adjuntos actuales</p>
                   {existingFiles.map((file) => (
-                    <label key={file.id} className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+                    <label key={file.id} className="flex items-center justify-between rounded-2xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
                       <div>
-                        <p className="font-medium text-slate-800">{file.nombre}</p>
-                        <p className="text-xs text-slate-400">{file.tipoArchivo}</p>
+                        <p className="font-medium text-foreground">{file.nombre}</p>
+                        <p className="text-xs text-muted-foreground">{file.tipoArchivo}</p>
                       </div>
-                      <input
+                      <span className="flex items-center gap-2">Quitar al guardar<input
                         type="checkbox"
                         checked={removeFileIds.includes(file.id)}
                         onChange={() => toggleRemoveFile(file.id)}
-                      />
+                      /></span>
                     </label>
                   ))}
                 </div>
@@ -308,10 +336,11 @@ export default function TareaForm() {
 
               {newFiles.length > 0 && (
                 <div className="mt-4 space-y-2">
-                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Nuevos archivos</p>
-                  {newFiles.map((file) => (
-                    <div key={`${file.name}-${file.size}`} className="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Nuevos archivos</p>
+                  {newFiles.map((file, index) => (
+                    <div key={`${file.name}-${file.size}`} className="rounded-2xl border border-dashed border-border bg-card px-4 py-3 text-sm text-muted-foreground">
                       {file.name}
+                      <button type="button" onClick={() => setNewFiles((files) => files.filter((_, i) => i !== index))} className="ml-3 text-destructive" aria-label={`Quitar ${file.name}`}>Quitar</button>
                     </div>
                   ))}
                 </div>
@@ -321,14 +350,14 @@ export default function TareaForm() {
         </section>
 
         <aside className="space-y-6">
-          <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+          <section className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
             <div className="flex items-center gap-2">
-              <FileText className="h-4 w-4 text-slate-500" />
-              <h2 className="text-lg font-semibold text-slate-900">Publicación y entrega</h2>
+              <FileText className="h-4 w-4 text-muted-foreground" />
+              <h2 className="text-lg font-semibold text-foreground">Publicación y entrega</h2>
             </div>
 
             <div className="mt-5 space-y-5">
-              <label className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <label className="flex items-start gap-3 rounded-2xl border border-border bg-muted/40 px-4 py-3">
                 <input
                   type="checkbox"
                   name="tieneFechaLimite"
@@ -337,38 +366,38 @@ export default function TareaForm() {
                   className="mt-1"
                 />
                 <div>
-                  <p className="text-sm font-semibold text-slate-800">Usar fecha límite</p>
-                  <p className="text-sm text-slate-500">Si se desactiva, la tarea seguirá abierta hasta que la cierres manualmente.</p>
+                  <p className="text-sm font-semibold text-foreground">Usar fecha límite</p>
+                  <p className="text-sm text-muted-foreground">Si se desactiva, la tarea seguirá abierta hasta que la cierres manualmente.</p>
                 </div>
               </label>
 
               {form.tieneFechaLimite && (
                 <div className="grid gap-4 sm:grid-cols-2">
                   <label className="flex flex-col gap-2">
-                    <span className="text-sm font-semibold text-slate-700">Fecha límite</span>
+                    <span className="text-sm font-semibold text-foreground">Fecha límite</span>
                     <input
                       type="date"
-                      name="fechaLimite"
+                      required name="fechaLimite"
                       value={form.fechaLimite}
                       onChange={handleChange}
-                      className="rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-sky-400"
+                      className="rounded-2xl border border-border px-4 py-3 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
                     />
                   </label>
 
                   <label className="flex flex-col gap-2">
-                    <span className="text-sm font-semibold text-slate-700">Hora límite</span>
+                    <span className="text-sm font-semibold text-foreground">Hora límite</span>
                     <input
                       type="time"
                       name="horaLimite"
                       value={form.horaLimite}
                       onChange={handleChange}
-                      className="rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-sky-400"
+                      className="rounded-2xl border border-border px-4 py-3 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
                     />
                   </label>
                 </div>
               )}
 
-              <label className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <label className="flex items-start gap-3 rounded-2xl border border-border bg-muted/40 px-4 py-3">
                 <input
                   type="checkbox"
                   name="permiteReenvio"
@@ -377,50 +406,43 @@ export default function TareaForm() {
                   className="mt-1"
                 />
                 <div>
-                  <p className="text-sm font-semibold text-slate-800">Permitir reenvío</p>
-                  <p className="text-sm text-slate-500">El alumno podrá reenviar después de observaciones o fuera del primer envío si la tarea sigue abierta.</p>
+                  <p className="text-sm font-semibold text-foreground">Permitir reenvío</p>
+                  <p className="text-sm text-muted-foreground">Permite actualizar entregas después de la fecha límite mientras la tarea siga abierta. Antes del límite, el alumno puede actualizar su entrega.</p>
                 </div>
               </label>
             </div>
           </section>
 
-          <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-900">Rúbrica opcional</h2>
-            <p className="mt-1 text-sm text-slate-500">Solo si la evaluación será por rúbrica. Ingresa JSON válido.</p>
-            <textarea
-              name="rubricJson"
-              value={form.rubricJson}
-              onChange={handleChange}
-              rows={10}
-              placeholder='[{"criterio":"Investigación","peso":30}]'
-              className="mt-4 w-full rounded-2xl border border-slate-200 px-4 py-3 font-mono text-xs text-slate-700 outline-none transition focus:border-sky-400"
-            />
-          </section>
+          {form.tipoEvaluacion === 'RUBRICA' && <section className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
+            <h2 className="mb-3 text-lg font-semibold">Criterios de evaluación</h2>
+            <TaskRubric value={form.rubricJson} onChange={(rubricJson) => setForm((prev) => ({ ...prev, rubricJson }))} />
+          </section>}
 
-          <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+          <section className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
             <div className="flex flex-col gap-3">
+              <p className="text-sm text-muted-foreground">{isEditing ? 'Guardar cambios conserva el estado actual de la tarea.' : 'El borrador solo es visible para ti. Al publicar, el grupo podrá ver la actividad.'}</p>
               <button
                 type="button"
-                onClick={() => submitWithState('BORRADOR')}
-                disabled={saving}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+                onClick={() => submitWithState(isEditing ? originalState : 'BORRADOR')}
+                disabled={saving || !loaded}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-border bg-card px-4 py-3 text-sm font-semibold text-foreground transition hover:bg-muted/40 disabled:opacity-60"
               >
                 <Save className="h-4 w-4" />
-                {saving ? 'Guardando...' : 'Guardar borrador'}
+                {saving ? 'Guardando...' : isEditing ? 'Guardar cambios' : 'Guardar borrador'}
               </button>
-              <button
+              {(!isEditing || originalState === 'BORRADOR') && <button
                 type="button"
                 onClick={() => submitWithState('PUBLICADA')}
-                disabled={saving}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
+                disabled={saving || !loaded}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary disabled:opacity-60"
               >
                 <Send className="h-4 w-4" />
-                {saving ? 'Publicando...' : isEditing ? 'Guardar y publicar' : 'Publicar tarea'}
-              </button>
+                {saving ? 'Publicando...' : 'Publicar tarea'}
+              </button>}
             </div>
           </section>
         </aside>
-      </div>
+      </form>
     </div>
   )
 }

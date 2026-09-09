@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import api from '../api/axios'
 
+let latestRead = 0
+
 function getErrorMessage(error, fallback) {
   const message = error?.response?.data?.message
   if (Array.isArray(message)) return message.join(', ')
@@ -9,7 +11,7 @@ function getErrorMessage(error, fallback) {
 
 function appendFormData(fd, data = {}) {
   Object.entries(data).forEach(([key, value]) => {
-    if (value === undefined || value === null || value === '') return
+    if (value === undefined || value === null || (value === '' && !['comentario', 'rubricJson'].includes(key))) return
     if (Array.isArray(value)) {
       fd.append(key, JSON.stringify(value))
       return
@@ -122,20 +124,21 @@ export const useTareaStore = create((set, get) => ({
   },
 
   obtenerDocente: async (filters = {}) => {
+    const request = ++latestRead
     set({ loading: true, error: null })
     try {
       const res = await api.get('/tareas/docente', { params: filters })
-      set({
+      if (request === latestRead) set({
         tareas: res.data.items || [],
         taskStats: res.data.stats || null,
       })
       return res.data
     } catch (error) {
       const message = getErrorMessage(error, 'Error al cargar tareas')
-      set({ error: message })
+      if (request === latestRead) set({ error: message })
       throw error
     } finally {
-      set({ loading: false })
+      if (request === latestRead) set({ loading: false })
     }
   },
 
@@ -145,25 +148,27 @@ export const useTareaStore = create((set, get) => ({
   },
 
   obtenerDetalle: async (id) => {
+    const request = ++latestRead
     set({ loading: true, error: null })
     try {
       const res = await api.get(`/tareas/${id}`)
-      set({ tareaActiva: res.data })
+      if (request === latestRead) set({ tareaActiva: res.data })
       return res.data
     } catch (error) {
       const message = getErrorMessage(error, 'Error al cargar detalle de tarea')
-      set({ error: message })
+      if (request === latestRead) set({ error: message })
       throw error
     } finally {
-      set({ loading: false })
+      if (request === latestRead) set({ loading: false })
     }
   },
 
   obtenerEntregas: async (tareaId, filters = {}) => {
+    const request = ++latestRead
     set({ loading: true, error: null })
     try {
       const res = await api.get(`/tareas/${tareaId}/entregas`, { params: filters })
-      set({
+      if (request === latestRead) set({
         entregas: res.data.entregas || [],
         entregasStats: res.data.stats || null,
         tareaActiva: res.data.tarea || get().tareaActiva,
@@ -171,10 +176,10 @@ export const useTareaStore = create((set, get) => ({
       return res.data
     } catch (error) {
       const message = getErrorMessage(error, 'Error al cargar entregas')
-      set({ error: message })
+      if (request === latestRead) set({ error: message })
       throw error
     } finally {
-      set({ loading: false })
+      if (request === latestRead) set({ loading: false })
     }
   },
 
@@ -211,22 +216,23 @@ export const useTareaStore = create((set, get) => ({
   },
 
   obtenerMisTareas: async (materiaId) => {
+    const request = ++latestRead
     set({ loading: true, error: null })
     try {
       const res = await api.get('/tareas/mis-tareas', {
         params: materiaId ? { materiaId } : {},
       })
-      set({
+      if (request === latestRead) set({
         studentTasks: res.data || [],
         misEntregas: res.data || [],
       })
       return res.data
     } catch (error) {
       const message = getErrorMessage(error, 'Error al cargar tus tareas')
-      set({ error: message })
+      if (request === latestRead) set({ error: message })
       throw error
     } finally {
-      set({ loading: false })
+      if (request === latestRead) set({ loading: false })
     }
   },
 

@@ -3,6 +3,9 @@ import { FileBadge2, UploadCloud } from 'lucide-react'
 import api from '../../../api/axios'
 import { useTareaStore } from '../../../store/tareaStore'
 
+import TaskNotice from '../../../components/TaskNotice'
+import { mergeTaskFiles, taskError, deliveryHelp } from '../../../lib/tareas'
+
 function resolveApiUrl(url) {
   if (!url) return '#'
   return new URL(url, api.defaults.baseURL).toString()
@@ -18,6 +21,8 @@ export default function FormEntregaTarea({ tarea, miEntrega, puedeEditar, onSucc
   const [comentario, setComentario] = useState(miEntrega?.comentarioAlumno || '')
   const [archivos, setArchivos] = useState([])
   const [removeIds, setRemoveIds] = useState([])
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
   const [saving, setSaving] = useState(false)
 
   const existingFiles = miEntrega?.archivos || []
@@ -39,6 +44,14 @@ export default function FormEntregaTarea({ tarea, miEntrega, puedeEditar, onSucc
 
   const handleSubmit = async (event) => {
     event.preventDefault()
+    if (!isEditable || saving) return
+    setError('')
+    setSuccess('')
+    const remaining = existingFiles.filter((file) => !removeIds.includes(file.id)).length + archivos.length
+    if (!remaining && (tarea.tipoEntrega !== 'REVISION_EN_LINEA' || !comentario.trim())) {
+      setError(tarea.tipoEntrega === 'REVISION_EN_LINEA' ? 'Escribe un comentario o adjunta un archivo antes de enviar.' : 'Adjunta al menos un archivo antes de enviar.')
+      return
+    }
     setSaving(true)
     try {
       const payload = {
@@ -47,11 +60,12 @@ export default function FormEntregaTarea({ tarea, miEntrega, puedeEditar, onSucc
       }
       if (miEntrega) await editarMiEntrega(tarea.id, payload, archivos)
       else await entregar(tarea.id, payload, archivos)
-      onSuccess?.()
+      setSuccess('Tu entrega se guardó correctamente.')
+      await onSuccess?.()
       setArchivos([])
       setRemoveIds([])
     } catch (error) {
-      window.alert(error?.response?.data?.message || 'No fue posible enviar la tarea')
+      setError(taskError(error, 'No fue posible enviar la tarea. Tus archivos siguen seleccionados.'))
     } finally {
       setSaving(false)
     }
@@ -59,7 +73,7 @@ export default function FormEntregaTarea({ tarea, miEntrega, puedeEditar, onSucc
 
   if (tarea.tipoEntrega === 'PRESENCIAL') {
     return (
-      <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">
+      <div className="rounded-3xl border border-border bg-muted/40 p-5 text-sm text-muted-foreground">
         {summaryText}
       </div>
     )
@@ -67,69 +81,81 @@ export default function FormEntregaTarea({ tarea, miEntrega, puedeEditar, onSucc
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
-        <p className="text-sm font-semibold text-slate-900">Indicaciones de entrega</p>
-        <p className="mt-2 text-sm text-slate-600">{summaryText}</p>
+      <TaskNotice error={error} success={success} />
+      <p className="text-sm text-muted-foreground">{deliveryHelp(tarea, miEntrega, isEditable)}</p>
+      <div className="rounded-3xl border border-border bg-muted/40 p-5">
+        <p className="text-sm font-semibold text-foreground">Indicaciones de entrega</p>
+        <p className="mt-2 text-sm text-muted-foreground">{summaryText}</p>
       </div>
 
       {existingFiles.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Archivos actuales</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Archivos actuales</p>
           {existingFiles.map((file) => (
-            <label key={file.id} className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
-              <a href={resolveApiUrl(file.url)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 font-medium text-slate-800 hover:text-sky-700">
+            <label key={file.id} className="flex items-center justify-between rounded-2xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+              <a href={resolveApiUrl(file.url)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 font-medium text-foreground hover:text-primary">
                 <FileBadge2 className="h-4 w-4" />
                 {file.nombre}
               </a>
               {isEditable && (
-                <input
+                <span className="flex items-center gap-2">Quitar al enviar<input
                   type="checkbox"
+                  disabled={saving}
                   checked={removeIds.includes(file.id)}
                   onChange={() => toggleRemove(file.id)}
-                />
+                /></span>
               )}
             </label>
           ))}
         </div>
       )}
 
-      <label className="flex cursor-pointer flex-col gap-3 rounded-3xl border border-dashed border-slate-300 bg-slate-50 px-5 py-6 text-center">
-        <div className="mx-auto rounded-full bg-white p-3 shadow-sm">
-          <UploadCloud className="h-5 w-5 text-slate-600" />
+      <label className="flex cursor-pointer flex-col gap-3 rounded-3xl border border-dashed border-border bg-muted/40 px-5 py-6 text-center">
+        <div className="mx-auto rounded-full bg-card p-3 shadow-sm">
+          <UploadCloud className="h-5 w-5 text-muted-foreground" />
         </div>
         <div>
-          <p className="text-sm font-semibold text-slate-800">Agregar archivos</p>
-          <p className="mt-1 text-sm text-slate-500">Múltiples archivos permitidos</p>
+          <p className="text-sm font-semibold text-foreground">Agregar archivos</p>
+          <p className="mt-1 text-sm text-muted-foreground">Hasta 12 archivos nuevos, máximo 15 MB cada uno</p>
         </div>
         <input
           type="file"
           multiple
           accept={getAcceptByTaskType(tarea.tipoEntrega)}
-          onChange={(event) => setArchivos(Array.from(event.target.files || []))}
-          disabled={!isEditable}
-          className="hidden"
+          onChange={(event) => {
+            try {
+              setArchivos(mergeTaskFiles(archivos, Array.from(event.target.files || []), tarea.tipoEntrega === 'FIRMA'))
+              setError('')
+            } catch (error) { setError(error.message) }
+            event.target.value = ''
+          }}
+          disabled={!isEditable || saving}
+          className="mx-auto block max-w-full text-sm"
         />
       </label>
 
       {archivos.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Nuevos archivos</p>
-          {archivos.map((file) => (
-            <div key={`${file.name}-${file.size}`} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
-              {file.name}
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Nuevos archivos</p>
+          {archivos.map((file, index) => (
+            <div key={`${file.name}-${file.size}`} className="rounded-2xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+              {file.name} · {(file.size / 1024 / 1024).toFixed(2)} MB
+              <button type="button" disabled={saving} onClick={() => setArchivos((files) => files.filter((_, i) => i !== index))} className="ml-3 text-destructive" aria-label={`Quitar ${file.name}`}>Quitar</button>
             </div>
           ))}
         </div>
       )}
 
       <div>
-        <label className="mb-2 block text-sm font-semibold text-slate-700">Comentario al docente</label>
+        <label className="mb-2 block text-sm font-semibold text-foreground" htmlFor="delivery-comment">Comentario al docente</label>
         <textarea
+          id="delivery-comment"
+          maxLength={5000}
           value={comentario}
           onChange={(event) => setComentario(event.target.value)}
           rows={4}
-          disabled={!isEditable}
-          className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-sky-400 disabled:bg-slate-50"
+          disabled={!isEditable || saving}
+          className="w-full rounded-2xl border border-border px-4 py-3 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring disabled:bg-muted/40"
           placeholder="Explica tu entrega o agrega contexto adicional"
         />
       </div>
@@ -137,7 +163,7 @@ export default function FormEntregaTarea({ tarea, miEntrega, puedeEditar, onSucc
       <button
         type="submit"
         disabled={!isEditable || saving}
-        className="w-full rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+        className="w-full rounded-2xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary disabled:cursor-not-allowed disabled:opacity-60"
       >
         {saving ? 'Guardando...' : buttonLabel}
       </button>
