@@ -1,5 +1,8 @@
 export function normalizeName(value: string): string {
-  return value.trim().replace(/\s+/g, ' ');
+  return value
+    .replace(/<[^>]*>/g, '')
+    .trim()
+    .replace(/\s+/g, ' ');
 }
 
 export function normalizeEmail(value: string): string {

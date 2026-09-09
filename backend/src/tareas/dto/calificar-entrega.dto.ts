@@ -1,17 +1,12 @@
-import { Type } from 'class-transformer';
+import * as V from 'class-validator';
+import { ToNumber, SanitizeText } from '../../common/validation/transforms';
+
 import { TipoCalificacion } from '@prisma/client';
-import {
-  IsEnum,
-  IsNumber,
-  Min,
-  Max,
-  IsOptional,
-  IsString,
-} from 'class-validator';
+import { IsEnum, IsNumber, Min, Max, IsString } from 'class-validator';
 
 export class CalificarEntregaDto {
-  @IsOptional()
-  @Type(() => Number)
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
+  @ToNumber()
   @IsNumber()
   @Min(1)
   @Max(100)
@@ -20,7 +15,9 @@ export class CalificarEntregaDto {
   @IsEnum(TipoCalificacion)
   calificacionTipo: TipoCalificacion;
 
-  @IsOptional()
+  @V.MaxLength(5000)
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
+  @SanitizeText()
   @IsString()
   observacion?: string;
 }

@@ -1,3 +1,4 @@
+import { JustificarFaltaDto } from './dto/justificar-falta.dto';
 import {
   Controller,
   Post,
@@ -14,6 +15,7 @@ import {
   Patch,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { validatedUploadStorage } from '../common/uploads/validated-upload';
 import { TipoNotificacion } from '@prisma/client';
 import { AsistenciasService } from './asistencias.service';
 import { ReportesService } from '../reportes/reportes.service';
@@ -62,12 +64,14 @@ export class AsistenciasController {
   @Get('alumno/:alumnoId/materia/:materiaId')
   @Roles('DOCENTE', 'ADMIN')
   asistenciasAlumno(
+    @Req() req,
     @Param('alumnoId', ParseIntPipe) alumnoId: number,
     @Param('materiaId', ParseIntPipe) materiaId: number,
   ) {
     return this.asistenciasService.obtenerAsistenciasAlumno(
       alumnoId,
       materiaId,
+      req.user,
     );
   }
 
@@ -80,6 +84,7 @@ export class AsistenciasController {
     return this.asistenciasService.obtenerAsistenciasAlumno(
       req.user.id,
       materiaId,
+      req.user,
     );
   }
 
@@ -91,17 +96,22 @@ export class AsistenciasController {
 
   @Post(':id/justificar')
   @Roles('ALUMNO')
-  @UseInterceptors(FileInterceptor('archivo'))
+  @UseInterceptors(
+    FileInterceptor('archivo', {
+      storage: validatedUploadStorage({ maxBytes: 15 * 1024 * 1024 }),
+      limits: { files: 1, fileSize: 15 * 1024 * 1024 },
+    }),
+  )
   justificar(
     @Param('id', ParseIntPipe) id: number,
     @Req() req,
-    @Body('justificacion') justificacion: string,
+    @Body() dto: JustificarFaltaDto,
     @UploadedFile() archivo?: Express.Multer.File,
   ) {
     return this.asistenciasService.justificarFalta(
       id,
       req.user.id,
-      justificacion,
+      dto.justificacion,
       archivo?.filename,
     );
   }

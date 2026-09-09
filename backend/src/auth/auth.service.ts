@@ -17,8 +17,16 @@ import { LoginDto } from './dto/login.dto';
 import { PublicStudentRegisterDto } from './dto/public-student-register.dto';
 import { AuthMailService } from './auth-mail.service';
 import { HorarioImportacionesService } from '../horario-importaciones/horario-importaciones.service';
-import type { AuthenticatedUser, AuthRequestContext } from './auth.types';
+import type {
+  AuthenticatedUser,
+  AuthRequestContext,
+  PublicAuthUser,
+} from './auth.types';
 import { normalizeEmail } from '../common/identity-normalization';
+import {
+  AUTH_SESSION_TTL_SECONDS,
+  MAX_SESIONES_CONCURRENTES,
+} from './auth-session.constants';
 
 const DUMMY_PASSWORD_HASH =
   '$2b$12$uVYO5z6fujxGJDT3UpVGd.exDoCLdQodzlaGh/L27ja9Midx1/ete';
@@ -187,21 +195,73 @@ export class AuthService {
       data: { failedLoginAttempts: 0, lockedUntil: null },
     });
 
+    const sesion = await this.crearSesion(user.id, context);
+
     await this.audit(TipoEventoAuth.LOGIN_EXITOSO, context, {
       userId: user.id,
       identifier: dto.identifier,
     });
     return {
-      accessToken: this.signAccessToken(user),
+      accessToken: this.signAccessToken(user, sesion.id),
       user: this.toAuthUser(user),
     };
   }
 
-  async logout(userId: number, context: AuthRequestContext = {}) {
+  /**
+   * Crea la sesión (dispositivo) del login actual. Si el usuario ya tiene
+   * MAX_SESIONES_CONCURRENTES sesiones vigentes, expulsa las más antiguas
+   * para dejar sitio — no se rechaza el login, se cierra el dispositivo
+   * menos reciente (como Netflix/Spotify), no el primero que abrió sesión.
+   */
+  private async crearSesion(usuarioId: number, context: AuthRequestContext) {
+    const ahora = new Date();
+    return this.prisma.$transaction(async (tx) => {
+      const activas = await tx.sesion.findMany({
+        where: { usuarioId, revocadaEn: null, expiraEn: { gt: ahora } },
+        orderBy: { creadaEn: 'asc' },
+        select: { id: true, ip: true, userAgent: true },
+      });
+
+      const excedentes = activas.length - MAX_SESIONES_CONCURRENTES + 1;
+      if (excedentes > 0) {
+        const expulsadas = activas.slice(0, excedentes);
+        await tx.sesion.updateMany({
+          where: { id: { in: expulsadas.map((sesion) => sesion.id) } },
+          data: { revocadaEn: ahora },
+        });
+        for (const expulsada of expulsadas) {
+          await tx.authAudit.create({
+            data: {
+              usuarioId,
+              tipo: TipoEventoAuth.SESION_EXPULSADA,
+              ip: context.ip,
+              userAgent: context.userAgent,
+              metadata: {
+                sesionExpulsadaId: expulsada.id,
+                sesionExpulsadaIp: expulsada.ip,
+                sesionExpulsadaUserAgent: expulsada.userAgent,
+              },
+            },
+          });
+        }
+      }
+
+      return tx.sesion.create({
+        data: {
+          usuarioId,
+          ip: context.ip,
+          userAgent: context.userAgent,
+          expiraEn: new Date(ahora.getTime() + AUTH_SESSION_TTL_SECONDS * 1000),
+        },
+      });
+    });
+  }
+
+  async logout(userId: number, sid: string, context: AuthRequestContext = {}) {
     await this.prisma.$transaction(async (tx) => {
-      await tx.usuario.update({
-        where: { id: userId },
-        data: { tokenVersion: { increment: 1 } },
+      await tx.sesion.updateMany({
+        where: { id: sid, usuarioId: userId, revocadaEn: null },
+        data: { revocadaEn: new Date() },
       });
       await tx.authAudit.create({
         data: {
@@ -216,6 +276,7 @@ export class AuthService {
 
   async changePassword(
     userId: number,
+    sid: string,
     currentPassword: string,
     newPassword: string,
     context: AuthRequestContext = {},
@@ -263,6 +324,13 @@ export class AuthService {
         },
         data: { usedAt: new Date() },
       });
+      // Cambiar la contraseña cierra el resto de dispositivos por seguridad;
+      // la sesión actual (sid) se conserva para no desconectar a quien la
+      // está cambiando.
+      await tx.sesion.updateMany({
+        where: { usuarioId: userId, id: { not: sid }, revocadaEn: null },
+        data: { revocadaEn: new Date() },
+      });
       await tx.authAudit.create({
         data: {
           usuarioId: userId,
@@ -276,7 +344,7 @@ export class AuthService {
 
     return {
       message: 'Contraseña actualizada correctamente',
-      accessToken: this.signAccessToken(updated),
+      accessToken: this.signAccessToken(updated, sid),
     };
   }
 
@@ -363,6 +431,10 @@ export class AuthService {
       await tx.usuario.update({
         where: { id: record.usuarioId },
         data: { emailVerificadoAt: new Date(), tokenVersion: { increment: 1 } },
+      });
+      await tx.sesion.updateMany({
+        where: { usuarioId: record.usuarioId, revocadaEn: null },
+        data: { revocadaEn: new Date() },
       });
       await tx.authAudit.create({
         data: {
@@ -471,6 +543,10 @@ export class AuthService {
           failedLoginAttempts: 0,
           lockedUntil: null,
         },
+      });
+      await tx.sesion.updateMany({
+        where: { usuarioId: record.usuarioId, revocadaEn: null },
+        data: { revocadaEn: new Date() },
       });
       await tx.authAudit.create({
         data: {
@@ -584,8 +660,11 @@ export class AuthService {
     );
   }
 
-  private signAccessToken(user: { id: number; tokenVersion: number }) {
-    return this.jwt.sign({ sub: user.id, ver: user.tokenVersion });
+  private signAccessToken(
+    user: { id: number; tokenVersion: number },
+    sid: string,
+  ) {
+    return this.jwt.sign({ sub: user.id, ver: user.tokenVersion, sid });
   }
 
   private toAuthUser(user: {
@@ -596,7 +675,7 @@ export class AuthService {
     username: string | null;
     rol: AuthenticatedUser['rol'];
     tokenVersion: number;
-  }): AuthenticatedUser {
+  }): PublicAuthUser {
     return {
       id: user.id,
       nombre: user.nombre,

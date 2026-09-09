@@ -4,6 +4,7 @@ import * as bcrypt from 'bcrypt';
 import { createHash } from 'crypto';
 import { PrismaService } from '../prisma.service';
 import { UsuariosService } from '../usuarios/usuarios.service';
+import { HorarioImportacionesService } from '../horario-importaciones/horario-importaciones.service';
 import { AuthMailService } from './auth-mail.service';
 import { AuthService } from './auth.service';
 
@@ -15,6 +16,9 @@ describe('AuthService', () => {
   const authTokenUpdateMany = jest.fn();
   const authTokenCreate = jest.fn();
   const authAuditCreate = jest.fn();
+  const sesionFindMany = jest.fn();
+  const sesionUpdateMany = jest.fn();
+  const sesionCreate = jest.fn();
   const transaction = jest.fn();
   const prisma = {
     usuario: {
@@ -28,6 +32,11 @@ describe('AuthService', () => {
       create: authTokenCreate,
     },
     authAudit: { create: authAuditCreate },
+    sesion: {
+      findMany: sesionFindMany,
+      updateMany: sesionUpdateMany,
+      create: sesionCreate,
+    },
     $transaction: transaction,
   } as unknown as PrismaService;
 
@@ -43,8 +52,20 @@ describe('AuthService', () => {
     isEmailEnabled,
     sendVerification,
   } as unknown as AuthMailService;
+  const registrarDesdeRegistro = jest
+    .fn()
+    .mockResolvedValue({ estado: 'NO_SOLICITADO' });
+  const horarioImportaciones = {
+    registrarDesdeRegistro,
+  } as unknown as HorarioImportacionesService;
 
-  const service = new AuthService(prisma, jwt, usuarios, mail);
+  const service = new AuthService(
+    prisma,
+    jwt,
+    usuarios,
+    mail,
+    horarioImportaciones,
+  );
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -52,9 +73,20 @@ describe('AuthService', () => {
     authTokenUpdateMany.mockResolvedValue({ count: 0 });
     authTokenCreate.mockResolvedValue({ id: 1 });
     authAuditCreate.mockResolvedValue({ id: 1 });
+    // Por defecto, sin sesiones previas: crearSesion() (usada por login) no
+    // expulsa a nadie y crea una sesión nueva con este id fijo.
+    sesionFindMany.mockResolvedValue([]);
+    sesionUpdateMany.mockResolvedValue({ count: 0 });
+    sesionCreate.mockResolvedValue({ id: 'sid-nueva' });
+    // Soporta tanto $transaction([...]) (createAuthToken) como
+    // $transaction(async (tx) => ...) (crearSesion y el resto de flujos que
+    // no definen su propio `tx` de prueba más abajo).
     transaction.mockImplementation(async (input: unknown) => {
       if (Array.isArray(input)) return Promise.all(input);
-      throw new Error('Transacción callback no configurada para esta prueba');
+      if (typeof input === 'function') {
+        return (input as (client: typeof prisma) => unknown)(prisma);
+      }
+      throw new Error('Transacción no reconocida en esta prueba');
     });
   });
 
@@ -146,6 +178,7 @@ describe('AuthService', () => {
         }),
         update: jest.fn().mockResolvedValue({ id: 20 }),
       },
+      sesion: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
       authAudit: { create: jest.fn().mockResolvedValue({ id: 1 }) },
     };
     transaction.mockImplementation((callback: (client: typeof tx) => unknown) =>
@@ -162,6 +195,10 @@ describe('AuthService', () => {
         emailVerificadoAt: expect.any(Date) as Date,
         tokenVersion: { increment: 1 },
       },
+    });
+    expect(tx.sesion.updateMany).toHaveBeenCalledWith({
+      where: { usuarioId: 20, revocadaEn: null },
+      data: { revocadaEn: expect.any(Date) as Date },
     });
   });
 
@@ -223,8 +260,9 @@ describe('AuthService', () => {
 
     const result = await service.login({ identifier: '225Q0325', password });
 
-    expect(sign).toHaveBeenCalledWith({ sub: 20, ver: 7 });
+    expect(sign).toHaveBeenCalledWith({ sub: 20, ver: 7, sid: 'sid-nueva' });
     expect(result.user).not.toHaveProperty('password');
+    expect(result.user).not.toHaveProperty('sid');
     expect(result).toEqual(
       expect.objectContaining({ accessToken: 'signed-token' }),
     );
@@ -322,6 +360,7 @@ describe('AuthService', () => {
         }),
       },
       authToken: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+      sesion: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
       authAudit: { create: jest.fn().mockResolvedValue({ id: 1 }) },
     };
     transaction.mockImplementation((callback: (client: typeof tx) => unknown) =>
@@ -331,6 +370,7 @@ describe('AuthService', () => {
 
     const result = await service.changePassword(
       20,
+      'sid-actual',
       currentPassword,
       'password-nuevo',
     );
@@ -339,6 +379,14 @@ describe('AuthService', () => {
       { data: { tokenVersion: { increment: number } } },
     ];
     expect(updateCall[0].data.tokenVersion).toEqual({ increment: 1 });
+
+    expect(tx.sesion.updateMany).toHaveBeenCalledWith({
+      where: { usuarioId: 20, id: { not: 'sid-actual' }, revocadaEn: null },
+      data: { revocadaEn: expect.any(Date) as Date },
+    });
+    expect(sign).toHaveBeenCalledWith(
+      expect.objectContaining({ sid: 'sid-actual' }),
+    );
 
     const revokeCall = tx.authToken.updateMany.mock.calls[0] as unknown as [
       {
@@ -364,23 +412,23 @@ describe('AuthService', () => {
     expect(result.accessToken).toBe('fresh-token');
   });
 
-  it('cerrar sesión incrementa la versión y registra el evento', async () => {
+  it('cerrar sesión revoca sólo el dispositivo actual y registra el evento', async () => {
     const tx = {
-      usuario: { update: jest.fn().mockResolvedValue({ id: 20 }) },
+      sesion: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
       authAudit: { create: jest.fn().mockResolvedValue({ id: 1 }) },
     };
     transaction.mockImplementation((callback: (client: typeof tx) => unknown) =>
       Promise.resolve(callback(tx)),
     );
 
-    await service.logout(20, {
+    await service.logout(20, 'sid-actual', {
       ip: '127.0.0.1',
       userAgent: 'jest',
     });
 
-    expect(tx.usuario.update).toHaveBeenCalledWith({
-      where: { id: 20 },
-      data: { tokenVersion: { increment: 1 } },
+    expect(tx.sesion.updateMany).toHaveBeenCalledWith({
+      where: { id: 'sid-actual', usuarioId: 20, revocadaEn: null },
+      data: { revocadaEn: expect.any(Date) as Date },
     });
     expect(tx.authAudit.create).toHaveBeenCalledWith({
       data: {
@@ -389,6 +437,94 @@ describe('AuthService', () => {
         ip: '127.0.0.1',
         userAgent: 'jest',
       },
+    });
+  });
+
+  describe('crearSesion (límite de dispositivos concurrentes)', () => {
+    beforeEach(() => {
+      usuarioFindMany.mockResolvedValue([
+        {
+          id: 20,
+          nombre: 'Ana López',
+          email: 'ana@example.com',
+          numeroControl: '225Q0325',
+          username: null,
+          password: undefined,
+          rol: Rol.ALUMNO,
+          activo: true,
+          registroAprobado: true,
+          emailVerificadoAt: new Date(),
+          lockedUntil: null,
+          tokenVersion: 0,
+        },
+      ]);
+      usuarioUpdate.mockResolvedValue({});
+      sign.mockReturnValue('signed-token');
+    });
+
+    async function login(password: string, hash: string) {
+      usuarioFindMany.mockResolvedValueOnce([
+        {
+          id: 20,
+          nombre: 'Ana López',
+          email: 'ana@example.com',
+          numeroControl: '225Q0325',
+          username: null,
+          password: hash,
+          rol: Rol.ALUMNO,
+          activo: true,
+          registroAprobado: true,
+          emailVerificadoAt: new Date(),
+          lockedUntil: null,
+          tokenVersion: 0,
+        },
+      ]);
+      return service.login({ identifier: '225Q0325', password });
+    }
+
+    it('no expulsa a nadie cuando hay menos de 2 sesiones activas', async () => {
+      const hash = await bcrypt.hash('password-seguro', 4);
+      sesionFindMany.mockResolvedValue([
+        { id: 'sid-1', ip: null, userAgent: null },
+      ]);
+      sesionCreate.mockResolvedValue({ id: 'sid-nueva' });
+
+      await login('password-seguro', hash);
+
+      expect(sesionUpdateMany).not.toHaveBeenCalled();
+      const createCall = sesionCreate.mock.calls[0] as unknown as [
+        { data: { usuarioId: number } },
+      ];
+      expect(createCall[0].data.usuarioId).toBe(20);
+    });
+
+    it('expulsa únicamente la sesión más antigua al llegar a un 3er dispositivo', async () => {
+      const hash = await bcrypt.hash('password-seguro', 4);
+      sesionFindMany.mockResolvedValue([
+        { id: 'sid-vieja', ip: '1.1.1.1', userAgent: 'viejo' },
+        { id: 'sid-reciente', ip: '2.2.2.2', userAgent: 'reciente' },
+      ]);
+      sesionCreate.mockResolvedValue({ id: 'sid-nueva' });
+
+      await login('password-seguro', hash);
+
+      expect(sesionUpdateMany).toHaveBeenCalledWith({
+        where: { id: { in: ['sid-vieja'] } },
+        data: { revocadaEn: expect.any(Date) as Date },
+      });
+
+      const auditCall = authAuditCreate.mock.calls[0] as unknown as [
+        {
+          data: {
+            usuarioId: number;
+            tipo: TipoEventoAuth;
+            metadata: { sesionExpulsadaId: string };
+          };
+        },
+      ];
+      expect(auditCall[0].data.usuarioId).toBe(20);
+      expect(auditCall[0].data.tipo).toBe(TipoEventoAuth.SESION_EXPULSADA);
+      expect(auditCall[0].data.metadata.sesionExpulsadaId).toBe('sid-vieja');
     });
   });
 });

@@ -98,13 +98,17 @@ export class AuthController {
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Cerrar sesión e invalidar tokens existentes' })
+  @ApiOperation({ summary: 'Cerrar sesión de este dispositivo' })
   async logout(
     @Req() req: AuthenticatedRequest,
     @Res({ passthrough: true }) response: Response,
   ) {
     try {
-      await this.auth.logout(req.user.id, this.getRequestContext(req));
+      await this.auth.logout(
+        req.user.id,
+        req.user.sid,
+        this.getRequestContext(req),
+      );
     } finally {
       response.clearCookie(
         AUTH_COOKIE_NAME,
@@ -125,6 +129,7 @@ export class AuthController {
   ) {
     const result = await this.auth.changePassword(
       req.user.id,
+      req.user.sid,
       body.currentPassword,
       body.newPassword,
       this.getRequestContext(req),

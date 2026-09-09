@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import { AsistenciasService } from './asistencias.service';
@@ -115,5 +115,100 @@ describe('AsistenciasService filtros de historial', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
 
     expect(claseSesionFindMany).not.toHaveBeenCalled();
+  });
+});
+
+describe('AsistenciasService.obtenerAsistenciasAlumno (IDOR)', () => {
+  const usuarioFindUnique = jest.fn();
+  const materiaCount = jest.fn();
+  const horarioMateriaCount = jest.fn();
+  const claseSesionFindMany = jest.fn();
+  const asistenciaFindMany = jest.fn();
+  const prisma = {
+    usuario: { findUnique: usuarioFindUnique },
+    materia: { count: materiaCount },
+    horarioMateria: { count: horarioMateriaCount },
+    claseSesion: { findMany: claseSesionFindMany },
+    asistencia: { findMany: asistenciaFindMany },
+  } as unknown as PrismaService;
+  const notificaciones = {} as unknown as NotificacionesService;
+  const service = new AsistenciasService(prisma, notificaciones);
+
+  const alumnoId = 50;
+  const materiaId = 12;
+  const docenteId = 31;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    usuarioFindUnique.mockResolvedValue({ grupoId: 4 });
+    claseSesionFindMany.mockResolvedValue([]);
+    asistenciaFindMany.mockResolvedValue([]);
+  });
+
+  it('rechaza a un DOCENTE que no imparte la materia del alumno', async () => {
+    materiaCount.mockResolvedValue(0);
+    horarioMateriaCount.mockResolvedValue(0);
+
+    await expect(
+      service.obtenerAsistenciasAlumno(alumnoId, materiaId, {
+        id: docenteId,
+        rol: 'DOCENTE',
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(claseSesionFindMany).not.toHaveBeenCalled();
+    expect(asistenciaFindMany).not.toHaveBeenCalled();
+  });
+
+  it('permite a un DOCENTE que sí imparte la materia (asignación directa)', async () => {
+    materiaCount.mockResolvedValue(1);
+    horarioMateriaCount.mockResolvedValue(0);
+
+    await expect(
+      service.obtenerAsistenciasAlumno(alumnoId, materiaId, {
+        id: docenteId,
+        rol: 'DOCENTE',
+      }),
+    ).resolves.not.toThrow();
+
+    expect(claseSesionFindMany).toHaveBeenCalled();
+  });
+
+  it('permite a un DOCENTE que imparte la materia sólo por horario activo', async () => {
+    materiaCount.mockResolvedValue(0);
+    horarioMateriaCount.mockResolvedValue(1);
+
+    await expect(
+      service.obtenerAsistenciasAlumno(alumnoId, materiaId, {
+        id: docenteId,
+        rol: 'DOCENTE',
+      }),
+    ).resolves.not.toThrow();
+
+    expect(claseSesionFindMany).toHaveBeenCalled();
+  });
+
+  it('no restringe a un ADMIN aunque no imparta la materia', async () => {
+    await expect(
+      service.obtenerAsistenciasAlumno(alumnoId, materiaId, {
+        id: 1,
+        rol: 'ADMIN',
+      }),
+    ).resolves.not.toThrow();
+
+    expect(materiaCount).not.toHaveBeenCalled();
+    expect(claseSesionFindMany).toHaveBeenCalled();
+  });
+
+  it('no restringe la consulta de un ALUMNO sobre sus propias asistencias', async () => {
+    await expect(
+      service.obtenerAsistenciasAlumno(alumnoId, materiaId, {
+        id: alumnoId,
+        rol: 'ALUMNO',
+      }),
+    ).resolves.not.toThrow();
+
+    expect(materiaCount).not.toHaveBeenCalled();
+    expect(claseSesionFindMany).toHaveBeenCalled();
   });
 });

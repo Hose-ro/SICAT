@@ -1,9 +1,11 @@
-import { Transform, Type } from 'class-transformer';
+import * as V from 'class-validator';
+import { toBoolean } from '../../common/validation/transforms';
+import { ToNumber } from '../../common/validation/transforms';
+import { Transform } from 'class-transformer';
 import {
   IsEmail,
   IsInt,
   IsNotEmpty,
-  IsOptional,
   IsString,
   Matches,
   Max,
@@ -21,6 +23,7 @@ import {
 } from '../../common/identity-normalization';
 
 export class PublicStudentRegisterDto {
+  @V.Matches(/\S/, { message: 'El texto no puede estar vacío' })
   @ApiProperty()
   @Transform(({ value }) => transformString(value as unknown, normalizeName))
   @IsString()
@@ -28,6 +31,7 @@ export class PublicStudentRegisterDto {
   @MaxLength(120)
   nombre: string;
 
+  @V.MaxLength(200)
   @ApiProperty({ example: '225Q0103' })
   @Transform(({ value }) =>
     transformString(value as unknown, normalizeControlNumber),
@@ -39,14 +43,15 @@ export class PublicStudentRegisterDto {
   numeroControl: string;
 
   @ApiPropertyOptional()
-  @IsOptional()
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
   @Transform(({ value }) => transformString(value as unknown, normalizeEmail))
   @IsEmail()
   @MaxLength(254)
   email?: string;
 
+  @V.MaxLength(200)
   @ApiPropertyOptional()
-  @IsOptional()
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
   @Transform(({ value }) => transformString(value as unknown, normalizePhone))
   @IsString()
   @Matches(/^\d{10}$/, {
@@ -54,35 +59,39 @@ export class PublicStudentRegisterDto {
   })
   telefono?: string;
 
+  @V.IsByteLength(0, 72)
   @ApiProperty()
   @IsString()
   @MinLength(8)
   @MaxLength(72)
   password: string;
 
+  @V.Max(2147483647)
   @ApiProperty()
-  @Type(() => Number)
+  @ToNumber()
   @IsInt()
   @Min(1)
   carreraId: number;
 
   @ApiProperty({ minimum: 1, maximum: 12 })
-  @Type(() => Number)
+  @ToNumber()
   @IsInt()
   @Min(1)
   @Max(12)
   semestre: number;
 
+  @V.MaxLength(200)
   @ApiPropertyOptional({ example: '2026-A' })
-  @IsOptional()
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
   @IsString()
   @Matches(/^\d{4}-[AB]$/, {
     message: 'El periodo debe tener el formato 2026-A',
   })
   periodo?: string;
 
+  @V.MaxLength(200)
   @ApiPropertyOptional({ example: 'A' })
-  @IsOptional()
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim().toUpperCase() : value,
   )
@@ -92,10 +101,9 @@ export class PublicStudentRegisterDto {
   })
   seccion?: string;
 
+  @V.IsBoolean()
   @ApiPropertyOptional()
-  @IsOptional()
-  @Transform(
-    ({ value }: { value: unknown }) => value === true || value === 'true',
-  )
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
+  @Transform(toBoolean)
   usarHorarioExistente?: boolean;
 }

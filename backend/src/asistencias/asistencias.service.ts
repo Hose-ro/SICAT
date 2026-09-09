@@ -15,6 +15,7 @@ import {
   obtenerFinDelDia,
   obtenerInicioDelDia,
 } from '../clases/clases.utils';
+import { esDocenteDeMateria } from '../common/materia-ownership';
 
 type Actor = {
   id: number;
@@ -286,11 +287,27 @@ export class AsistenciasService {
     return this.construirResumenAlumnos(registros);
   }
 
-  async obtenerAsistenciasAlumno(alumnoId: number, materiaId: number) {
+  async obtenerAsistenciasAlumno(
+    alumnoId: number,
+    materiaId: number,
+    actor: Actor,
+  ) {
     const alumno = await this.prisma.usuario.findUnique({
       where: { id: alumnoId },
       select: { grupoId: true },
     });
+
+    if (actor.rol === 'DOCENTE') {
+      const imparte = await esDocenteDeMateria(
+        this.prisma,
+        materiaId,
+        actor.id,
+        alumno?.grupoId,
+      );
+      if (!imparte) {
+        throw new ForbiddenException('No impartes esta materia');
+      }
+    }
 
     const sesiones = await this.prisma.claseSesion.findMany({
       where: {

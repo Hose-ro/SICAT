@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { diskStorage } from 'multer';
+import { validatedUploadStorage } from '../common/uploads/validated-upload';
 import type { Options } from 'multer';
 import { existsSync, mkdirSync } from 'fs';
 import { extname, join } from 'path';
@@ -23,31 +23,10 @@ export function ensureTareasUploadDir() {
   }
 }
 
-function sanitizeBaseName(name: string) {
-  return name
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-zA-Z0-9._-]+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 80);
-}
-
 export const tareasUploadOptions: Options = {
-  storage: diskStorage({
-    destination: (_req, _file, cb) => {
-      ensureTareasUploadDir();
-      cb(null, UPLOAD_ROOT);
-    },
-    filename: (_req, file, cb) => {
-      const extension = extname(file.originalname).toLowerCase();
-      const base =
-        sanitizeBaseName(file.originalname.replace(extension, '')) || 'archivo';
-      cb(
-        null,
-        `${Date.now()}-${Math.round(Math.random() * 1e9)}-${base}${extension}`,
-      );
-    },
+  storage: validatedUploadStorage({
+    directory: UPLOAD_ROOT,
+    maxBytes: 15 * 1024 * 1024,
   }),
   fileFilter: (_req, file, cb) => {
     const extension = extname(file.originalname).toLowerCase();

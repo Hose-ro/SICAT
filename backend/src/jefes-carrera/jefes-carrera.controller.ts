@@ -1,3 +1,5 @@
+import { EstadoAlertaCarrera } from '@prisma/client';
+import { OptionalEnumPipe } from '../common/validation/optional-enum.pipe';
 import {
   BadRequestException,
   Body,
@@ -44,7 +46,11 @@ export class JefesCarreraController {
     @Req() req: AuthenticatedRequest,
     @Query('carreraId') carreraId?: string,
     @Query('q') q?: string,
-    @Query('estado') estado?: string,
+    @Query(
+      'estado',
+      new OptionalEnumPipe(['FUERA_DE_HORARIO', 'EN_CURSO', 'SIN_CLASE']),
+    )
+    estado?: string,
   ) {
     return this.service.obtenerDocentes(req.user.id, {
       carreraId: this.numero(carreraId),
@@ -113,7 +119,8 @@ export class JefesCarreraController {
   alertas(
     @Req() req: AuthenticatedRequest,
     @Query('carreraId') carreraId?: string,
-    @Query('estado') estado?: string,
+    @Query('estado', new OptionalEnumPipe(Object.values(EstadoAlertaCarrera)))
+    estado?: string,
   ) {
     return this.service.obtenerAlertas(req.user.id, {
       carreraId: this.numero(carreraId),

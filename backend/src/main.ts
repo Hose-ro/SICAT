@@ -1,6 +1,9 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { ValidationPipe } from '@nestjs/common';
+import {
+  InputValidationPipe,
+  validateQueryShape,
+} from './common/validation/input-validation.pipe';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import express, {
@@ -42,7 +45,8 @@ async function bootstrap() {
     credentials: true,
   });
 
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+  app.useGlobalPipes(new InputValidationPipe());
+  app.use(validateQueryShape);
 
   app.setGlobalPrefix('api');
   ensureTareasUploadDir();

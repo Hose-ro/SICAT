@@ -1,8 +1,9 @@
-import { Type } from 'class-transformer';
+import * as V from 'class-validator';
+import { ToNumber, SanitizeText } from '../../common/validation/transforms';
+
 import {
   IsInt,
   IsNumber,
-  IsOptional,
   IsString,
   Max,
   Min,
@@ -10,31 +11,43 @@ import {
 } from 'class-validator';
 
 export class GuardarCalificacionManualDto {
-  @Type(() => Number)
+  @V.Min(1)
+  @V.Max(2147483647)
+  @ToNumber()
   @IsInt()
   alumnoId: number;
 
-  @Type(() => Number)
+  @V.Min(1)
+  @V.Max(2147483647)
+  @ToNumber()
   @IsInt()
   materiaId: number;
 
-  @Type(() => Number)
+  @V.Min(1)
+  @V.Max(2147483647)
+  @ToNumber()
   @IsInt()
   unidadId: number;
 
-  @IsOptional()
-  @Type(() => Number)
+  @V.Min(1)
+  @V.Max(2147483647)
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
+  @ToNumber()
   @IsInt()
   grupoId?: number;
 
-  @ValidateIf((_, value) => value !== null && value !== undefined && value !== '')
-  @Type(() => Number)
+  @ValidateIf(
+    (_, value) => value !== null && value !== undefined && value !== '',
+  )
+  @ToNumber()
   @IsNumber()
   @Min(1)
   @Max(100)
   calificacionManual?: number | null;
 
-  @IsOptional()
+  @V.MaxLength(5000)
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
+  @SanitizeText()
   @IsString()
   observacion?: string;
 }

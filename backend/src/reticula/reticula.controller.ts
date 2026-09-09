@@ -35,7 +35,7 @@ export class ReticulaController {
   @ApiQuery({ name: 'carreraId', required: true, type: Number })
   @ApiQuery({ name: 'semestre', required: false, type: Number })
   obtener(
-    @Query('carreraId') carreraId: string,
+    @Query('carreraId', ParseIntPipe) carreraId: number,
     @Query('semestre') semestre?: string,
   ) {
     return this.reticula.obtenerPorCarrera(

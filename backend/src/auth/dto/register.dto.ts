@@ -1,4 +1,6 @@
-import { Transform, Type } from 'class-transformer';
+import * as V from 'class-validator';
+import { ToNumber } from '../../common/validation/transforms';
+import { Transform } from 'class-transformer';
 import {
   ArrayNotEmpty,
   ArrayUnique,
@@ -7,7 +9,6 @@ import {
   IsEnum,
   IsInt,
   IsNotEmpty,
-  IsOptional,
   IsString,
   Matches,
   Max,
@@ -27,6 +28,7 @@ import {
 } from '../../common/identity-normalization';
 
 export class RegisterDto {
+  @V.Matches(/\S/, { message: 'El texto no puede estar vacío' })
   @ApiProperty()
   @Transform(({ value }) => transformString(value as unknown, normalizeName))
   @IsNotEmpty()
@@ -35,14 +37,14 @@ export class RegisterDto {
   nombre: string;
 
   @ApiPropertyOptional()
-  @IsOptional()
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
   @Transform(({ value }) => transformString(value as unknown, normalizeEmail))
   @IsEmail()
   @MaxLength(254)
   email?: string;
 
   @ApiPropertyOptional()
-  @IsOptional()
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
   @Transform(({ value }) =>
     transformString(value as unknown, normalizeControlNumber),
   )
@@ -51,8 +53,9 @@ export class RegisterDto {
   })
   numeroControl?: string;
 
+  @V.Matches(/\S/, { message: 'El texto no puede estar vacío' })
   @ApiPropertyOptional()
-  @IsOptional()
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
   @Transform(({ value }) =>
     transformString(value as unknown, normalizeUsername),
   )
@@ -61,6 +64,7 @@ export class RegisterDto {
   @MaxLength(60)
   username?: string;
 
+  @V.IsByteLength(0, 72)
   @ApiProperty()
   @IsString()
   @MinLength(8)
@@ -71,41 +75,45 @@ export class RegisterDto {
   @IsEnum(Rol)
   rol: Rol;
 
+  @V.Max(2147483647)
   @ApiPropertyOptional()
-  @IsOptional()
-  @Type(() => Number)
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
+  @ToNumber()
   @IsInt()
   @Min(1)
   academiaId?: number;
 
   @ApiPropertyOptional()
-  @IsOptional()
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
   @Transform(({ value }) => transformString(value as unknown, normalizePhone))
   @Matches(/^\d{10}$/, {
     message: 'El teléfono debe contener 10 dígitos',
   })
   telefono?: string;
 
+  @V.Max(2147483647)
   @ApiPropertyOptional()
-  @IsOptional()
-  @Type(() => Number)
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
+  @ToNumber()
   @IsInt()
   @Min(1)
   carreraId?: number;
 
+  @V.Max(2147483647, { each: true })
+  @V.ArrayMaxSize(500)
   @ApiPropertyOptional({ type: [Number] })
-  @IsOptional()
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
   @IsArray()
   @ArrayNotEmpty()
   @ArrayUnique()
-  @Type(() => Number)
+  @ToNumber()
   @IsInt({ each: true })
   @Min(1, { each: true })
   carreraIds?: number[];
 
   @ApiPropertyOptional({ minimum: 1, maximum: 12 })
-  @IsOptional()
-  @Type(() => Number)
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
+  @ToNumber()
   @IsInt()
   @Min(1)
   @Max(12)

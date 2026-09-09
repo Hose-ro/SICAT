@@ -1035,8 +1035,8 @@ export class TareasService {
       Boolean(entregaActual) &&
       Boolean(
         entregaActual?.permiteCorreccion ||
-          entregaActual?.estadoRevision === EstadoRevision.INCORRECTA ||
-          (entregaActual?.versionEntrega ?? 0) >= 1,
+        entregaActual?.estadoRevision === EstadoRevision.INCORRECTA ||
+        (entregaActual?.versionEntrega ?? 0) >= 1,
       );
     const archivoUrl =
       archivosRestantes.find((item) => item.tipoArchivo !== 'IMAGEN')?.url ??
@@ -1486,11 +1486,11 @@ export class TareasService {
     if (Number.isNaN(limite.getTime())) {
       throw new BadRequestException('La fecha límite no es válida');
     }
-    if (hora && /^\d{2}:\d{2}$/.test(hora)) {
+    if (hora && /^([01]\d|2[0-3]):[0-5]\d$/.test(hora)) {
       const [hours, minutes] = hora.split(':').map((value) => Number(value));
       limite.setHours(hours, minutes, 0, 0);
     }
-    if (hora && !/^\d{2}:\d{2}$/.test(hora)) {
+    if (hora && !/^([01]\d|2[0-3]):[0-5]\d$/.test(hora)) {
       throw new BadRequestException('La hora límite debe usar formato HH:mm');
     }
     return limite;
@@ -1521,17 +1521,36 @@ export class TareasService {
 
   private parseIdList(value?: string | null) {
     if (!value) return [];
+    let parsed: unknown;
     try {
-      const parsed = JSON.parse(value);
-      if (Array.isArray(parsed))
-        return parsed.map((item) => Number(item)).filter(Number.isFinite);
+      parsed = JSON.parse(value);
     } catch {
-      return value
-        .split(',')
-        .map((item) => Number(item.trim()))
-        .filter(Number.isFinite);
+      parsed = value.split(',').map((item) => item.trim());
     }
-    return [];
+    if (!Array.isArray(parsed) || parsed.length > 500) {
+      throw new BadRequestException('La lista de archivos no es valida');
+    }
+    const ids = parsed.map((item: unknown) => {
+      if (
+        (typeof item !== 'number' && typeof item !== 'string') ||
+        !/^\d+$/.test(String(item))
+      ) {
+        throw new BadRequestException(
+          'La lista de archivos contiene un identificador invalido',
+        );
+      }
+      const id = Number(item);
+      if (!Number.isInteger(id) || id < 1 || id > 2147483647) {
+        throw new BadRequestException(
+          'La lista de archivos contiene un identificador invalido',
+        );
+      }
+      return id;
+    });
+    if (new Set(ids).size !== ids.length) {
+      throw new BadRequestException('La lista de archivos contiene duplicados');
+    }
+    return ids;
   }
 
   private formatHora(date?: Date | null) {

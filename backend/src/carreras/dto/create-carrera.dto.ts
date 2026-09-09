@@ -1,10 +1,5 @@
-import {
-  IsNotEmpty,
-  IsOptional,
-  IsString,
-  Matches,
-  MaxLength,
-} from 'class-validator';
+import * as V from 'class-validator';
+import { IsNotEmpty, IsString, Matches, MaxLength } from 'class-validator';
 import { Transform } from 'class-transformer';
 import type { TransformFnParams } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -15,6 +10,7 @@ function trimText({ value }: TransformFnParams): unknown {
 }
 
 export class CreateCarreraDto {
+  @V.Matches(/\S/, { message: 'El texto no puede estar vacío' })
   @ApiProperty({ example: 'Ingeniería en Sistemas Computacionales' })
   @Transform(trimText)
   @IsString()
@@ -22,6 +18,7 @@ export class CreateCarreraDto {
   @MaxLength(120)
   nombre: string;
 
+  @V.Matches(/\S/, { message: 'El texto no puede estar vacío' })
   @ApiProperty({ example: 'ISC' })
   @Transform(trimText)
   @IsString()
@@ -35,7 +32,7 @@ export class CreateCarreraDto {
 
   @ApiPropertyOptional({ example: 'ISIC-2010-224' })
   @Transform(trimText)
-  @IsOptional()
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
   @IsString()
   @MaxLength(80)
   planEstudios?: string;

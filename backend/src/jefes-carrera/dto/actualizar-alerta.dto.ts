@@ -1,3 +1,4 @@
+import * as V from 'class-validator';
 import { EstadoAlertaCarrera } from '@prisma/client';
 import {
   IsDateString,
@@ -6,21 +7,26 @@ import {
   IsOptional,
   IsString,
 } from 'class-validator';
+import { SanitizeText } from '../../common/validation/transforms';
 
 export class ActualizarAlertaDto {
-  @IsOptional()
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
   @IsEnum(EstadoAlertaCarrera)
   estado?: EstadoAlertaCarrera;
 
-  @IsOptional()
+  @V.MaxLength(5000)
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
+  @SanitizeText()
   @IsString()
   observacion?: string;
 
+  @V.Min(1)
+  @V.Max(2147483647)
   @IsOptional()
   @IsInt()
   responsableId?: number | null;
 
   @IsOptional()
-  @IsDateString()
+  @IsDateString({ strict: true, strictSeparator: true })
   fechaSeguimiento?: string | null;
 }

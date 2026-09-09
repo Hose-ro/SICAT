@@ -1,4 +1,6 @@
-import { Transform, Type } from 'class-transformer';
+import * as V from 'class-validator';
+import { toNumber, ToNumber } from '../../common/validation/transforms';
+import { Transform } from 'class-transformer';
 import {
   ArrayNotEmpty,
   ArrayUnique,
@@ -41,12 +43,13 @@ const nullableString = (
 
 const nullableInt = (value: unknown): unknown => {
   if (value === null || value === '') return null;
-  return value === undefined ? undefined : Number(value);
+  return toNumber(value);
 };
 
 export class AdminUpdateUserDto {
+  @V.Matches(/\S/, { message: 'El texto no puede estar vacío' })
   @ApiPropertyOptional()
-  @IsOptional()
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
   @Transform(({ value }) => transformString(value as unknown, normalizeName))
   @IsString()
   @IsNotEmpty()
@@ -60,6 +63,7 @@ export class AdminUpdateUserDto {
   @MaxLength(254)
   email?: string | null;
 
+  @V.MaxLength(200)
   @ApiPropertyOptional({ nullable: true })
   @IsOptional()
   @Transform(({ value }) =>
@@ -71,6 +75,7 @@ export class AdminUpdateUserDto {
   })
   numeroControl?: string | null;
 
+  @V.Matches(/\S/, { message: 'El texto no puede estar vacío' })
   @ApiPropertyOptional({ nullable: true })
   @IsOptional()
   @Transform(({ value }) => nullableString(value as unknown, normalizeUsername))
@@ -79,6 +84,7 @@ export class AdminUpdateUserDto {
   @MaxLength(60)
   username?: string | null;
 
+  @V.MaxLength(200)
   @ApiPropertyOptional({ nullable: true })
   @IsOptional()
   @Transform(({ value }) => nullableString(value as unknown, normalizePhone))
@@ -88,18 +94,20 @@ export class AdminUpdateUserDto {
   })
   telefono?: string | null;
 
+  @V.IsByteLength(0, 72)
   @ApiPropertyOptional()
-  @IsOptional()
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
   @IsString()
   @MinLength(8)
   @MaxLength(72)
   password?: string;
 
   @ApiPropertyOptional({ enum: Rol })
-  @IsOptional()
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
   @IsEnum(Rol)
   rol?: Rol;
 
+  @V.Max(2147483647)
   @ApiPropertyOptional({ nullable: true })
   @IsOptional()
   @Transform(({ value }) => nullableInt(value as unknown))
@@ -115,6 +123,7 @@ export class AdminUpdateUserDto {
   @Max(12)
   semestre?: number | null;
 
+  @V.Max(2147483647)
   @ApiPropertyOptional({ nullable: true })
   @IsOptional()
   @Transform(({ value }) => nullableInt(value as unknown))
@@ -122,18 +131,20 @@ export class AdminUpdateUserDto {
   @Min(1)
   academiaId?: number | null;
 
+  @V.Max(2147483647, { each: true })
+  @V.ArrayMaxSize(500)
   @ApiPropertyOptional({ type: [Number] })
-  @IsOptional()
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
   @IsArray()
   @ArrayNotEmpty()
   @ArrayUnique()
-  @Type(() => Number)
+  @ToNumber()
   @IsInt({ each: true })
   @Min(1, { each: true })
   carreraIds?: number[];
 
   @ApiPropertyOptional()
-  @IsOptional()
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
   @IsBoolean()
   activo?: boolean;
 }

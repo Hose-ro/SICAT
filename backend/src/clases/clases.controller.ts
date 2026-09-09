@@ -61,8 +61,11 @@ export class ClasesController {
 
   @Get('historial/:materiaId')
   @Roles('DOCENTE')
-  obtenerHistorial(@Param('materiaId', ParseIntPipe) materiaId: number) {
-    return this.clasesService.obtenerHistorial(materiaId);
+  obtenerHistorial(
+    @Param('materiaId', ParseIntPipe) materiaId: number,
+    @Req() req,
+  ) {
+    return this.clasesService.obtenerHistorial(materiaId, req.user.id);
   }
 
   @Get('mis-clases-activas')

@@ -1,3 +1,5 @@
+import * as V from 'class-validator';
+import { ToNumber } from '../../common/validation/transforms';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
@@ -6,7 +8,6 @@ import {
   IsArray,
   IsEmail,
   IsInt,
-  IsOptional,
   IsString,
   Matches,
   MaxLength,
@@ -30,8 +31,9 @@ export class AlumnoImportadoDto {
   @MaxLength(120)
   nombre: string;
 
+  @V.MaxLength(200)
   @ApiPropertyOptional({ example: '225Q0103' })
-  @IsOptional()
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
   @IsString()
   @Matches(/^\d{3}[A-Za-z]\d{4}$/, {
     message: 'El número de control debe tener el formato 225Q0103',
@@ -39,13 +41,14 @@ export class AlumnoImportadoDto {
   numeroControl?: string;
 
   @ApiPropertyOptional()
-  @IsOptional()
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
   @IsEmail()
   @MaxLength(254)
   email?: string;
 
+  @V.MaxLength(200)
   @ApiPropertyOptional({ example: '9611234567' })
-  @IsOptional()
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
   @IsString()
   @Matches(/^\d{10}$/, { message: 'El teléfono debe contener 10 dígitos' })
   telefono?: string;
@@ -60,9 +63,10 @@ export class ImportarAlumnosDto {
   @Type(() => AlumnoImportadoDto)
   alumnos: AlumnoImportadoDto[];
 
+  @V.Max(2147483647)
   @ApiPropertyOptional({ example: 6 })
-  @IsOptional()
-  @Type(() => Number)
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
+  @ToNumber()
   @IsInt()
   @Min(1)
   grupoId?: number;

@@ -1,3 +1,4 @@
+require('dotenv/config');
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcrypt');
 
@@ -38,7 +39,11 @@ function numControl() {
 }
 
 async function main() {
-  const hash = await bcrypt.hash('123456', 10);
+  const seedPassword = process.env.SEED_USER_PASSWORD;
+  if (!seedPassword || seedPassword.length < 12 || Buffer.byteLength(seedPassword, 'utf8') > 72) {
+    throw new Error('Configura SEED_USER_PASSWORD con al menos 12 caracteres y un m?ximo de 72 bytes');
+  }
+  const hash = await bcrypt.hash(seedPassword, 12);
 
   // Crear academias si no existen
   let academias = await prisma.academia.findMany();
@@ -127,7 +132,7 @@ async function main() {
     }
   }
 
-  console.log('\n✅ Seed completado. Todos con contraseña: 123456');
+  console.log('\n✅ Seed completado. Todos con contraseña: [configurada mediante SEED_USER_PASSWORD]');
 }
 
 main()

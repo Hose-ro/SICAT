@@ -1,7 +1,11 @@
-import { IsOptional, IsString } from 'class-validator';
+import * as V from 'class-validator';
+import { IsString } from 'class-validator';
+import { SanitizeText } from '../../common/validation/transforms';
 
 export class RevisarEntregaDto {
-  @IsOptional()
+  @V.MaxLength(5000)
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
+  @SanitizeText()
   @IsString()
   observacion?: string;
 }

@@ -238,9 +238,9 @@ export class ClasesService {
     });
   }
 
-  async obtenerHistorial(materiaId: number) {
+  async obtenerHistorial(materiaId: number, docenteId: number) {
     return this.prisma.claseSesion.findMany({
-      where: { materiaId },
+      where: { materiaId, docenteId },
       orderBy: { fecha: 'desc' },
       include: {
         grupo: { select: { id: true, nombre: true } },

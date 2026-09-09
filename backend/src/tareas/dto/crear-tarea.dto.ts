@@ -1,41 +1,46 @@
-import { Transform, Type } from 'class-transformer';
+import * as V from 'class-validator';
+import { toBoolean, SanitizeText } from '../../common/validation/transforms';
+import { ToNumber } from '../../common/validation/transforms';
+import { Transform } from 'class-transformer';
 import {
   IsDateString,
   IsEnum,
   IsInt,
   IsNotEmpty,
-  IsOptional,
   IsString,
   MaxLength,
 } from 'class-validator';
 import { EstadoTarea, TipoEntrega, TipoEvaluacion } from '@prisma/client';
 
-const toBoolean = ({ value }) => {
-  if (typeof value === 'boolean') return value;
-  if (typeof value === 'string')
-    return ['true', '1', 'on', 'yes'].includes(value.toLowerCase());
-  return false;
-};
-
 export class CrearTareaDto {
-  @Type(() => Number)
+  @V.Min(1)
+  @V.Max(2147483647)
+  @ToNumber()
   @IsInt()
   materiaId: number;
 
-  @Type(() => Number)
+  @V.Min(1)
+  @V.Max(2147483647)
+  @ToNumber()
   @IsInt()
   grupoId: number;
 
-  @IsOptional()
-  @Type(() => Number)
+  @V.Min(1)
+  @V.Max(2147483647)
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
+  @ToNumber()
   @IsInt()
   unidadId?: number;
 
+  @V.Matches(/\S/, { message: 'El texto no puede estar vacío' })
+  @SanitizeText()
   @IsString()
   @IsNotEmpty()
   @MaxLength(160)
   titulo: string;
 
+  @V.Matches(/\S/, { message: 'El texto no puede estar vacío' })
+  @SanitizeText()
   @IsString()
   @IsNotEmpty()
   @MaxLength(5000)
@@ -44,35 +49,41 @@ export class CrearTareaDto {
   @IsEnum(TipoEntrega)
   tipoEntrega: TipoEntrega;
 
-  @IsOptional()
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
   @IsEnum(TipoEvaluacion)
   tipoEvaluacion?: TipoEvaluacion;
 
-  @IsOptional()
+  @V.IsBoolean()
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
   @Transform(toBoolean)
   permiteReenvio?: boolean;
 
-  @IsOptional()
+  @V.IsBoolean()
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
   @Transform(toBoolean)
   tieneFechaLimite?: boolean;
 
-  @IsOptional()
-  @IsDateString()
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
+  @IsDateString({ strict: true, strictSeparator: true })
   fechaLimite?: string;
 
-  @IsOptional()
+  @V.MaxLength(200)
+  @V.Matches(/^([01]\d|2[0-3]):[0-5]\d$/)
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
   @IsString()
   horaLimite?: string;
 
-  @IsOptional()
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
   @IsEnum(EstadoTarea)
   estado?: EstadoTarea;
 
-  @IsOptional()
+  @V.MaxLength(100000)
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
   @IsString()
   rubricJson?: string;
 
-  @IsOptional()
+  @V.MaxLength(6000)
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
   @IsString()
   removerArchivoIds?: string;
 }

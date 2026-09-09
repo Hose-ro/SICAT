@@ -1,3 +1,11 @@
+import { EstadoTarea, EstadoRevision } from '@prisma/client';
+import { OptionalEnumPipe } from '../common/validation/optional-enum.pipe';
+import { UpdateTareaDto } from './dto/update-tarea.dto';
+import {
+  MarcarIncorrectaDto,
+  DescargarEntregasDto,
+  EntregaPresencialDto,
+} from './dto/acciones-entrega.dto';
 import {
   Body,
   Controller,
@@ -76,7 +84,8 @@ export class TareasController {
     @Query('materiaId') materiaId?: string,
     @Query('grupoId') grupoId?: string,
     @Query('unidadId') unidadId?: string,
-    @Query('estado') estado?: any,
+    @Query('estado', new OptionalEnumPipe(Object.values(EstadoTarea)))
+    estado?: EstadoTarea,
     @Query('fecha') fecha?: string,
     @Query('alumnoId') alumnoId?: string,
     @Query('docenteId') docenteId?: string,
@@ -142,7 +151,8 @@ export class TareasController {
     @Query('grupoId') grupoId?: string,
     @Query('unidadId') unidadId?: string,
     @Query('alumnoId') alumnoId?: string,
-    @Query('estado') estado?: any,
+    @Query('estado', new OptionalEnumPipe(Object.values(EstadoTarea)))
+    estado?: EstadoTarea,
     @Query('fecha') fecha?: string,
     @Query('docenteId') docenteId?: string,
   ) {
@@ -167,7 +177,8 @@ export class TareasController {
     @Query('grupoId') grupoId?: string,
     @Query('unidadId') unidadId?: string,
     @Query('alumnoId') alumnoId?: string,
-    @Query('estado') estado?: any,
+    @Query('estado', new OptionalEnumPipe(Object.values(EstadoTarea)))
+    estado?: EstadoTarea,
     @Query('fecha') fecha?: string,
     @Query('docenteId') docenteId?: string,
   ) {
@@ -297,12 +308,12 @@ export class TareasController {
   marcarIncorrecta(
     @Param('entregaId', ParseIntPipe) id: number,
     @Req() req,
-    @Body('observacion') observacion: string,
+    @Body() dto: MarcarIncorrectaDto,
   ) {
     return this.tareasService.marcarIncorrecta(
       id,
       req.user.id,
-      observacion,
+      dto.observacion,
       req.user.rol,
     );
   }
@@ -373,15 +384,15 @@ export class TareasController {
   async descargarEntregas(
     @Req() req,
     @Param('id', ParseIntPipe) id: number,
-    @Body('entregaIds') entregaIds: number[] | undefined,
+    @Body() dto: DescargarEntregasDto,
     @Res() res,
   ) {
     const { entregas, tarea } = await this.tareasService.obtenerEntregas(
       id,
       req.user,
     );
-    const selectedIds = Array.isArray(entregaIds)
-      ? entregaIds.map((item) => Number(item))
+    const selectedIds = Array.isArray(dto.entregaIds)
+      ? dto.entregaIds.map((item) => Number(item))
       : [];
     const seleccionadas = selectedIds.length
       ? entregas.filter(
@@ -469,7 +480,7 @@ export class TareasController {
   editar(
     @Param('id', ParseIntPipe) id: number,
     @Req() req,
-    @Body() dto: Partial<CrearTareaDto>,
+    @Body() dto: UpdateTareaDto,
     @UploadedFiles() files?: Record<string, Express.Multer.File[]>,
   ) {
     return this.tareasService.editar(
@@ -544,12 +555,12 @@ export class TareasController {
   marcarPresencial(
     @Param('tareaId', ParseIntPipe) tareaId: number,
     @Req() req,
-    @Body('alumnoId', ParseIntPipe) alumnoId: number,
+    @Body() dto: EntregaPresencialDto,
   ) {
     return this.tareasService.marcarEntregaPresencial(
       tareaId,
       req.user.id,
-      alumnoId,
+      dto.alumnoId,
       req.user.rol,
     );
   }
@@ -559,7 +570,16 @@ export class TareasController {
   entregas(
     @Param('id', ParseIntPipe) id: number,
     @Req() req,
-    @Query('estado') estado?: string,
+    @Query(
+      'estado',
+      new OptionalEnumPipe([
+        ...Object.values(EstadoRevision),
+        'PENDIENTES',
+        'TARDIAS',
+        'NO_ENTREGADAS',
+      ]),
+    )
+    estado?: string,
     @Query('tardia') tardia?: string,
     @Query('q') q?: string,
   ) {

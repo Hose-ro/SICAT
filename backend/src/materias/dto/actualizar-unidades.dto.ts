@@ -1,10 +1,11 @@
+import * as V from 'class-validator';
+import { ToNumber } from '../../common/validation/transforms';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsInt, IsOptional, Max, Min } from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsBoolean, IsInt, Max, Min } from 'class-validator';
 
 export class ActualizarUnidadesDto {
   @ApiProperty({ example: 4, minimum: 1, maximum: 12 })
-  @Type(() => Number)
+  @ToNumber()
   @IsInt()
   @Min(1)
   @Max(12)
@@ -15,7 +16,7 @@ export class ActualizarUnidadesDto {
    * servicio responde 409 con el resumen de lo que se perdería.
    */
   @ApiPropertyOptional({ default: false })
-  @IsOptional()
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
   @IsBoolean()
   forzar?: boolean;
 }

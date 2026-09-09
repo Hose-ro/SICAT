@@ -1,9 +1,10 @@
+import * as V from 'class-validator';
+import { ToNumber, SanitizeText } from '../../common/validation/transforms';
 import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   IsArray,
   IsInt,
-  IsOptional,
   IsString,
   Matches,
   MaxLength,
@@ -12,29 +13,35 @@ import {
 } from 'class-validator';
 
 export class BloqueImportacionDto {
-  @Type(() => Number)
+  @V.Max(2147483647)
+  @ToNumber()
   @IsInt()
   @Min(1)
   reticulaMateriaId: number;
 
-  @Type(() => Number)
+  @V.Max(2147483647)
+  @ToNumber()
   @IsInt()
   @Min(1)
   docenteId: number;
 
+  @V.MaxLength(200)
   @IsString()
   @Matches(/^(Lunes|Martes|Miercoles|Jueves|Viernes|Sabado)$/)
   dia: string;
 
+  @V.MaxLength(200)
   @IsString()
   @Matches(/^([01]\d|2[0-3]):[0-5]\d$/)
   horaInicio: string;
 
+  @V.MaxLength(200)
   @IsString()
   @Matches(/^([01]\d|2[0-3]):[0-5]\d$/)
   horaFin: string;
 
-  @IsOptional()
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
+  @SanitizeText()
   @IsString()
   @MaxLength(80)
   aulaDetectada?: string;
@@ -47,7 +54,8 @@ export class UpdateImportacionHorarioDto {
   @Type(() => BloqueImportacionDto)
   bloques: BloqueImportacionDto[];
 
-  @IsOptional()
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
+  @SanitizeText()
   @IsString()
   @MaxLength(500)
   observaciones?: string;

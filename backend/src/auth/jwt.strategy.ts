@@ -32,14 +32,16 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       config.get<string>('AUTH_EMAIL_ENABLED') === 'true';
   }
 
-  async validate(payload: { sub?: unknown; ver?: unknown }) {
+  async validate(payload: { sub?: unknown; ver?: unknown; sid?: unknown }) {
     if (
       typeof payload?.sub !== 'number' ||
       !Number.isInteger(payload.sub) ||
       payload.sub <= 0 ||
       typeof payload.ver !== 'number' ||
       !Number.isInteger(payload.ver) ||
-      payload.ver < 0
+      payload.ver < 0 ||
+      typeof payload.sid !== 'string' ||
+      !payload.sid
     ) {
       throw new UnauthorizedException('La sesión no contiene datos válidos');
     }
@@ -72,6 +74,19 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('La sesión ya no es válida');
     }
 
+    const sesion = await this.prisma.sesion.findUnique({
+      where: { id: payload.sid },
+      select: { usuarioId: true, revocadaEn: true, expiraEn: true },
+    });
+    if (
+      !sesion ||
+      sesion.usuarioId !== user.id ||
+      sesion.revocadaEn ||
+      sesion.expiraEn <= new Date()
+    ) {
+      throw new UnauthorizedException('La sesión ya no es válida');
+    }
+
     return {
       id: user.id,
       nombre: user.nombre,
@@ -80,6 +95,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       username: user.username,
       rol: user.rol,
       tokenVersion: user.tokenVersion,
+      sid: payload.sid,
     };
   }
 }

@@ -1,8 +1,8 @@
+import * as V from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsEmail,
   IsNotEmpty,
-  IsOptional,
   IsString,
   Matches,
   MaxLength,
@@ -15,15 +15,17 @@ import {
  * opcionales: el docente llena lo que tenga a la mano en el momento.
  */
 export class CompletarAlumnoDto {
+  @V.Matches(/\S/, { message: 'El texto no puede estar vacío' })
   @ApiPropertyOptional({ example: 'Ana López' })
-  @IsOptional()
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
   @IsString()
   @IsNotEmpty()
   @MaxLength(120)
   nombre?: string;
 
+  @V.MaxLength(200)
   @ApiPropertyOptional({ example: '225Q0103' })
-  @IsOptional()
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
   @IsString()
   @Matches(/^\d{3}[A-Za-z]\d{4}$/, {
     message: 'El número de control debe tener el formato 225Q0103',
@@ -31,19 +33,21 @@ export class CompletarAlumnoDto {
   numeroControl?: string;
 
   @ApiPropertyOptional()
-  @IsOptional()
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
   @IsEmail()
   @MaxLength(254)
   email?: string;
 
+  @V.MaxLength(200)
   @ApiPropertyOptional({ example: '9611234567' })
-  @IsOptional()
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
   @IsString()
   @Matches(/^\d{10}$/, { message: 'El teléfono debe contener 10 dígitos' })
   telefono?: string;
 
+  @V.IsByteLength(0, 72)
   @ApiPropertyOptional({ minLength: 8, maxLength: 72 })
-  @IsOptional()
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
   @IsString()
   @MinLength(8)
   @MaxLength(72)

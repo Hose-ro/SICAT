@@ -1,10 +1,11 @@
+import * as V from 'class-validator';
+import { ToNumber } from '../../common/validation/transforms';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import {
   ArrayMinSize,
   IsArray,
   IsInt,
-  IsOptional,
   IsPositive,
   IsString,
   Matches,
@@ -24,6 +25,7 @@ function normalizarDiasEntrada(value: unknown): string[] {
 }
 
 export class HorarioBloqueDto {
+  @V.MaxLength(200)
   @ApiProperty({ example: 'Lunes' })
   @IsString()
   dia: string;
@@ -38,34 +40,39 @@ export class HorarioBloqueDto {
 }
 
 export class BaseHorarioDto {
+  @V.Max(2147483647)
   @ApiProperty()
-  @Type(() => Number)
+  @ToNumber()
   @IsInt()
   @IsPositive()
   materiaId: number;
 
+  @V.Max(2147483647)
   @ApiProperty()
-  @Type(() => Number)
+  @ToNumber()
   @IsInt()
   @IsPositive()
   docenteId: number;
 
+  @V.Max(2147483647)
   @ApiPropertyOptional()
-  @IsOptional()
-  @Type(() => Number)
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
+  @ToNumber()
   @IsInt()
   @IsPositive()
   aulaId?: number;
 
+  @V.Max(2147483647)
   @ApiPropertyOptional()
-  @IsOptional()
-  @Type(() => Number)
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
+  @ToNumber()
   @IsInt()
   @IsPositive()
   grupoId?: number;
 
+  @V.ArrayMaxSize(500)
   @ApiPropertyOptional({ type: [String], example: ['Lunes', 'Miercoles'] })
-  @IsOptional()
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
   @Transform(({ value }) => normalizarDiasEntrada(value))
   @IsArray()
   @ArrayMinSize(1)
@@ -73,26 +80,29 @@ export class BaseHorarioDto {
   dias?: string[];
 
   @ApiPropertyOptional({ example: '07:00' })
-  @IsOptional()
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
   @Matches(/^([01]\d|2[0-3]):([0-5]\d)$/)
   horaInicio?: string;
 
   @ApiPropertyOptional({ example: '09:00' })
-  @IsOptional()
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
   @Matches(/^([01]\d|2[0-3]):([0-5]\d)$/)
   horaFin?: string;
 
+  @V.ArrayMaxSize(500)
   @ApiPropertyOptional({ type: [HorarioBloqueDto] })
-  @IsOptional()
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
   @IsArray()
   @ArrayMinSize(1)
   @ValidateNested({ each: true })
   @Type(() => HorarioBloqueDto)
   bloques?: HorarioBloqueDto[];
 
+  @V.Min(1)
+  @V.Max(12)
   @ApiPropertyOptional()
-  @IsOptional()
-  @Type(() => Number)
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
+  @ToNumber()
   @IsInt()
   semestre?: number;
 }

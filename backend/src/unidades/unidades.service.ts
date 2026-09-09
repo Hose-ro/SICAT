@@ -5,14 +5,19 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import {
+  asegurarAccesoMateria,
+  ActorMateria,
+} from '../common/materia-ownership';
 
 @Injectable()
 export class UnidadesService {
   constructor(private prisma: PrismaService) {}
 
-  async iniciar(id: number) {
+  async iniciar(id: number, actor: ActorMateria) {
     const unidad = await this.prisma.unidad.findUnique({ where: { id } });
     if (!unidad) throw new NotFoundException('Unidad no encontrada');
+    await asegurarAccesoMateria(this.prisma, actor, unidad.materiaId);
     if (unidad.status !== 'PENDIENTE')
       throw new BadRequestException('La unidad ya fue iniciada');
 
@@ -36,9 +41,10 @@ export class UnidadesService {
     });
   }
 
-  async finalizar(id: number) {
+  async finalizar(id: number, actor: ActorMateria) {
     const unidad = await this.prisma.unidad.findUnique({ where: { id } });
     if (!unidad) throw new NotFoundException('Unidad no encontrada');
+    await asegurarAccesoMateria(this.prisma, actor, unidad.materiaId);
     if (unidad.status !== 'ACTIVA')
       throw new BadRequestException('La unidad no está activa');
     return this.prisma.unidad.update({
@@ -47,7 +53,8 @@ export class UnidadesService {
     });
   }
 
-  findByMateria(materiaId: number) {
+  async findByMateria(materiaId: number, actor: ActorMateria) {
+    await asegurarAccesoMateria(this.prisma, actor, materiaId);
     return this.prisma.unidad.findMany({
       where: { materiaId },
       orderBy: { orden: 'asc' },

@@ -35,6 +35,7 @@ enum TipoEventoAuth {
   CUENTA_ACTIVADA
   ROL_CAMBIADO
   CUENTA_ELIMINADA
+  SESION_EXPULSADA
 }
 
 enum TipoAlertaCarrera {
@@ -218,6 +219,7 @@ model Usuario {
   alertasResponsable    AlertaCarrera[]            @relation("AlertaCarreraResponsable")
   authTokens            AuthToken[]
   authEventos           AuthAudit[]
+  sesiones              Sesion[]
   importacionesHorario  ImportacionHorario[]       @relation("ImportacionHorarioAlumno")
   revisionesHorario     ImportacionHorario[]       @relation("ImportacionHorarioRevisor")
   bloquesImportados     BloqueImportacionHorario[] @relation("BloqueImportacionDocente")
@@ -236,6 +238,22 @@ model AuthToken {
 
   @@index([usuarioId, tipo, usedAt])
   @@index([expiresAt])
+}
+
+/// Una fila por dispositivo con sesión vigente. El login la crea, el logout
+/// o el límite de sesiones concurrentes la marca revocada; nunca se borra
+/// (queda como historial de accesos).
+model Sesion {
+  id         String    @id @default(uuid())
+  usuarioId  Int
+  ip         String?
+  userAgent  String?
+  creadaEn   DateTime  @default(now())
+  expiraEn   DateTime
+  revocadaEn DateTime?
+  usuario    Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId, revocadaEn, expiraEn])
 }
 
 model AuthAudit {

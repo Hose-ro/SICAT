@@ -4,6 +4,7 @@ import {
   Patch,
   Param,
   ParseIntPipe,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags, ApiOperation } from '@nestjs/swagger';
@@ -22,20 +23,24 @@ export class UnidadesController {
   @Patch(':id/iniciar')
   @Roles('DOCENTE', 'ADMIN')
   @ApiOperation({ summary: 'Iniciar unidad' })
-  iniciar(@Param('id', ParseIntPipe) id: number) {
-    return this.unidades.iniciar(id);
+  iniciar(@Param('id', ParseIntPipe) id: number, @Req() req) {
+    return this.unidades.iniciar(id, req.user);
   }
 
   @Patch(':id/finalizar')
   @Roles('DOCENTE', 'ADMIN')
   @ApiOperation({ summary: 'Finalizar unidad' })
-  finalizar(@Param('id', ParseIntPipe) id: number) {
-    return this.unidades.finalizar(id);
+  finalizar(@Param('id', ParseIntPipe) id: number, @Req() req) {
+    return this.unidades.finalizar(id, req.user);
   }
 
   @Get('materia/:materiaId')
+  @Roles('DOCENTE', 'ADMIN')
   @ApiOperation({ summary: 'Unidades de una materia' })
-  findByMateria(@Param('materiaId', ParseIntPipe) materiaId: number) {
-    return this.unidades.findByMateria(materiaId);
+  findByMateria(
+    @Param('materiaId', ParseIntPipe) materiaId: number,
+    @Req() req,
+  ) {
+    return this.unidades.findByMateria(materiaId, req.user);
   }
 }

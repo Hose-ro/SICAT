@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { memoryStorage } from 'multer';
+import { validatedUploadStorage } from '../common/uploads/validated-upload';
 import type { Options } from 'multer';
 import { readFile, unlink } from 'node:fs/promises';
 import { basename, join } from 'node:path';
@@ -8,7 +8,10 @@ const PRIVATE_ROOT = join(process.cwd(), 'private-uploads', 'horarios');
 const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
 export const horarioFotoUploadOptions: Options = {
-  storage: memoryStorage(),
+  storage: validatedUploadStorage({
+    imagesOnly: true,
+    maxBytes: 8 * 1024 * 1024,
+  }),
   fileFilter: (_request, file, callback) => {
     if (!ALLOWED_MIME.has(file.mimetype)) {
       const error = new BadRequestException(
