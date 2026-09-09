@@ -20,6 +20,7 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RegisterDto } from '../auth/dto/register.dto';
 import { AsignarCarrerasJefeDto } from './dto/asignar-carreras-jefe.dto';
+import { EliminarUsuariosDto } from './dto/eliminar-usuarios.dto';
 import { UpdateOwnProfileDto } from './dto/update-own-profile.dto';
 import { AdminUpdateUserDto } from './dto/admin-update-user.dto';
 import { ListUsersQueryDto } from './dto/list-users-query.dto';
@@ -109,6 +110,16 @@ export class UsuariosController {
     @Req() req: AuthenticatedRequest,
   ) {
     return this.usuarios.approveRegistration(id, req.user.id);
+  }
+
+  @Delete('lote')
+  @Roles('ADMIN')
+  @ApiOperation({ summary: 'Eliminar varios usuarios definitivamente (admin)' })
+  removeManyPermanently(
+    @Body() dto: EliminarUsuariosDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.usuarios.removeManyPermanently(dto.usuarioIds, req.user.id);
   }
 
   @Delete(':id')

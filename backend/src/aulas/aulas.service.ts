@@ -56,4 +56,27 @@ export class AulasService {
       };
     });
   }
+
+  /**
+   * Borrado definitivo en lote: reusa removePermanently por cada id, uno por
+   * uno, para que un id inválido no tumbe a los demás.
+   */
+  async removeManyPermanently(ids: number[]) {
+    const unicos = [...new Set(ids)];
+    const errores: { id: number; motivo: string }[] = [];
+    let eliminados = 0;
+    for (const id of unicos) {
+      try {
+        await this.removePermanently(id);
+        eliminados += 1;
+      } catch (error) {
+        errores.push({
+          id,
+          motivo:
+            error instanceof Error ? error.message : 'No se pudo eliminar',
+        });
+      }
+    }
+    return { eliminados, errores };
+  }
 }

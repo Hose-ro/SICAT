@@ -62,6 +62,19 @@ export const useGrupoStore = create((set, get) => ({
     }
   },
 
+  eliminarGrupos: async (grupoIds) => {
+    set({ loading: true, error: null })
+    try {
+      const res = await api.delete('/grupos/lote', { data: { grupoIds } })
+      await get().cargarGrupos()
+      return res.data
+    } catch (e) {
+      const msg = e.response?.data?.message || 'Error al eliminar los grupos'
+      set({ error: msg, loading: false })
+      throw new Error(msg)
+    }
+  },
+
   seleccionarGrupo: async (id) => {
     set({ loading: true, error: null })
     try {
@@ -148,7 +161,7 @@ export const useGrupoStore = create((set, get) => ({
     try {
       const res = await api.get(`/horarios/grupo/${grupoId}`)
       return res.data
-    } catch (e) {
+    } catch {
       return null
     }
   },
