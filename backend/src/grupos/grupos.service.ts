@@ -63,7 +63,22 @@ type GrupoDocentePayload = Prisma.GrupoGetPayload<{
     docentes: { select: { id: true } };
     _count: { select: { alumnos: true; materias: true } };
     horarios: {
-      select: { materia: { select: { id: true; nombre: true; clave: true } } };
+      select: {
+        dias: true;
+        horaInicio: true;
+        horaFin: true;
+        aula: { select: { id: true; nombre: true } };
+        materia: {
+          select: {
+            id: true;
+            nombre: true;
+            clave: true;
+            unidades: {
+              select: { id: true; nombre: true; orden: true; status: true };
+            };
+          };
+        };
+      };
     };
   };
 }>;
@@ -290,7 +305,21 @@ export class GruposService {
       horarios: {
         where: { docenteId, activo: true },
         select: {
-          materia: { select: { id: true, nombre: true, clave: true } },
+          dias: true,
+          horaInicio: true,
+          horaFin: true,
+          aula: { select: { id: true, nombre: true } },
+          materia: {
+            select: {
+              id: true,
+              nombre: true,
+              clave: true,
+              unidades: {
+                orderBy: { orden: 'asc' as const },
+                select: { id: true, nombre: true, orden: true, status: true },
+              },
+            },
+          },
         },
       },
     };
@@ -302,9 +331,48 @@ export class GruposService {
    */
   private formatearParaDocente(grupo: GrupoDocentePayload) {
     const { docentes, horarios, ...resto } = grupo;
-    const materias = [
-      ...new Map(horarios.map((h) => [h.materia.id, h.materia])).values(),
-    ];
+
+    // Una materia puede ocupar varios bloques del horario con el mismo grupo,
+    // así que se agrupan bajo la materia en vez de repetirla.
+    const porMateria = new Map<
+      number,
+      {
+        id: number;
+        nombre: string;
+        clave: string;
+        unidadActiva: { id: number; nombre: string; orden: number } | null;
+        horarios: Array<{
+          dias: string;
+          horaInicio: string;
+          horaFin: string;
+          aula: { id: number; nombre: string } | null;
+        }>;
+      }
+    >();
+
+    for (const bloque of horarios) {
+      const { unidades, ...materia } = bloque.materia;
+      if (!porMateria.has(materia.id)) {
+        const activa = unidades.find((unidad) => unidad.status === 'ACTIVA');
+        porMateria.set(materia.id, {
+          ...materia,
+          unidadActiva: activa
+            ? { id: activa.id, nombre: activa.nombre, orden: activa.orden }
+            : null,
+          horarios: [],
+        });
+      }
+      porMateria.get(materia.id)?.horarios.push({
+        dias: bloque.dias,
+        horaInicio: bloque.horaInicio,
+        horaFin: bloque.horaFin,
+        aula: bloque.aula,
+      });
+    }
+
+    const materias = [...porMateria.values()].sort((a, b) =>
+      a.nombre.localeCompare(b.nombre, 'es'),
+    );
     return { ...resto, agregado: docentes.length > 0, materias };
   }
 
@@ -341,7 +409,8 @@ export class GruposService {
       where: { id: grupoId },
       select: { id: true, nombre: true, activo: true },
     });
-    if (!grupo || !grupo.activo) throw new NotFoundException('Grupo no encontrado');
+    if (!grupo || !grupo.activo)
+      throw new NotFoundException('Grupo no encontrado');
 
     const yaEsMio = await this.prisma.grupo.count({
       where: { id: grupoId, docentes: { some: { id: docenteId } } },
@@ -418,7 +487,9 @@ export class GruposService {
             ? [
                 {
                   OR: [
-                    { nombre: { contains: texto, mode: 'insensitive' as const } },
+                    {
+                      nombre: { contains: texto, mode: 'insensitive' as const },
+                    },
                     {
                       numeroControl: {
                         contains: texto,
@@ -694,12 +765,19 @@ export class GruposService {
           id: { not: alumnoId },
           OR: [
             numeroControl
-              ? { numeroControl: { equals: numeroControl, mode: 'insensitive' as const } }
+              ? {
+                  numeroControl: {
+                    equals: numeroControl,
+                    mode: 'insensitive' as const,
+                  },
+                }
               : undefined,
             email
               ? { email: { equals: email, mode: 'insensitive' as const } }
               : undefined,
-          ].filter((clausula): clausula is NonNullable<typeof clausula> => Boolean(clausula)),
+          ].filter((clausula): clausula is NonNullable<typeof clausula> =>
+            Boolean(clausula),
+          ),
         },
         select: { id: true },
       });
@@ -710,7 +788,9 @@ export class GruposService {
       }
     }
 
-    const password = dto.password ? await bcrypt.hash(dto.password, 12) : undefined;
+    const password = dto.password
+      ? await bcrypt.hash(dto.password, 12)
+      : undefined;
 
     return this.prisma.usuario.update({
       where: { id: alumnoId },

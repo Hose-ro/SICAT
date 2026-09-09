@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { CalendarClock, Plus, Search, Trash2, UserPlus, UsersRound } from 'lucide-react'
+import {
+  BookOpen,
+  CalendarClock,
+  Plus,
+  Search,
+  Trash2,
+  UserPlus,
+  UsersRound,
+} from 'lucide-react'
 import api from '../../api/axios'
 import Modal from '../../components/Modal'
 import AgregarAlumnosGrupoModal from './components/AgregarAlumnosGrupoModal'
@@ -25,6 +33,7 @@ export default function MisGrupos() {
   const [modalAgregar, setModalAgregar] = useState(false)
   const [grupoDetalle, setGrupoDetalle] = useState(null)
   const [grupoAlumnos, setGrupoAlumnos] = useState(null)
+  const [grupoMaterias, setGrupoMaterias] = useState(null)
   const [aviso, setAviso] = useState('')
 
   const cargar = useCallback(async () => {
@@ -127,6 +136,7 @@ export default function MisGrupos() {
               key={grupo.id}
               grupo={grupo}
               onVer={() => setGrupoDetalle(grupo)}
+              onVerMaterias={() => setGrupoMaterias(grupo)}
               onAgregarAlumnos={() => {
                 setAviso('')
                 setGrupoAlumnos(grupo)
@@ -158,6 +168,13 @@ export default function MisGrupos() {
         />
       )}
 
+      {grupoMaterias && (
+        <ModalMateriasGrupo
+          grupo={grupoMaterias}
+          onClose={() => setGrupoMaterias(null)}
+        />
+      )}
+
       {grupoAlumnos && (
         <AgregarAlumnosGrupoModal
           grupo={grupoAlumnos}
@@ -169,7 +186,13 @@ export default function MisGrupos() {
   )
 }
 
-function TarjetaGrupo({ grupo, onVer, onAgregarAlumnos, onQuitar }) {
+function TarjetaGrupo({
+  grupo,
+  onVer,
+  onVerMaterias,
+  onAgregarAlumnos,
+  onQuitar,
+}) {
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5">
       <div className="flex items-start justify-between gap-3">
@@ -205,12 +228,18 @@ function TarjetaGrupo({ grupo, onVer, onAgregarAlumnos, onQuitar }) {
       </div>
 
       {grupo.materias?.length > 0 ? (
-        <p className="text-sm text-muted-foreground">
+        <button
+          type="button"
+          onClick={onVerMaterias}
+          className="rounded-xl text-left text-sm text-muted-foreground transition hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
+        >
           Le impartes{' '}
-          <span className="text-foreground">
-            {grupo.materias.map((materia) => materia.nombre).join(', ')}
+          <span className="font-medium text-foreground underline decoration-dotted underline-offset-4">
+            {grupo.materias.length === 1
+              ? grupo.materias[0].nombre
+              : `${grupo.materias.length} materias`}
           </span>
-        </p>
+        </button>
       ) : (
         <p className="inline-flex flex-wrap items-center gap-1 text-sm text-muted-foreground">
           <CalendarClock className="h-4 w-4" />
@@ -240,6 +269,16 @@ function TarjetaGrupo({ grupo, onVer, onAgregarAlumnos, onQuitar }) {
         >
           Ver alumnos
         </button>
+        {grupo.materias?.length > 0 && (
+          <button
+            type="button"
+            onClick={onVerMaterias}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-sm font-medium text-foreground transition hover:bg-muted"
+          >
+            <BookOpen className="h-4 w-4" />
+            Ver materias
+          </button>
+        )}
         {grupo.agregado && (
           <button
             type="button"
@@ -252,6 +291,114 @@ function TarjetaGrupo({ grupo, onVer, onAgregarAlumnos, onQuitar }) {
         )}
       </div>
     </div>
+  )
+}
+
+const DIAS_ORDEN = [
+  'lunes',
+  'martes',
+  'miercoles',
+  'jueves',
+  'viernes',
+  'sabado',
+  'domingo',
+]
+
+function ordenarDias(dias) {
+  return (dias || '')
+    .split(',')
+    .map((dia) => dia.trim())
+    .filter(Boolean)
+    .sort(
+      (a, b) =>
+        DIAS_ORDEN.indexOf(
+          a.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(),
+        ) -
+        DIAS_ORDEN.indexOf(
+          b.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(),
+        ),
+    )
+    .join(', ')
+}
+
+/** Materias que el docente le imparte al grupo, con sus bloques de horario. */
+function ModalMateriasGrupo({ grupo, onClose }) {
+  const materias = grupo.materias ?? []
+
+  return (
+    <Modal open onClose={onClose} title={`Materias de ${grupo.nombre}`}>
+      <div className="space-y-4">
+        <p className="text-sm text-muted-foreground">
+          {materias.length} materia{materias.length === 1 ? '' : 's'} ·{' '}
+          {grupo.carrera?.nombre ?? 'Sin carrera'} · Sem. {grupo.semestre}
+        </p>
+
+        {materias.length === 0 ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            No tienes clases programadas con este grupo.
+          </p>
+        ) : (
+          <ul className="space-y-3">
+            {materias.map((materia) => (
+              <li
+                key={materia.id}
+                className="rounded-2xl border border-border bg-card p-4"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-foreground">
+                      {materia.nombre}
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {materia.clave ?? 'Sin clave'}
+                    </p>
+                  </div>
+                  <span
+                    className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${
+                      materia.unidadActiva
+                        ? 'bg-success/15 text-success'
+                        : 'bg-muted text-muted-foreground'
+                    }`}
+                  >
+                    {materia.unidadActiva
+                      ? materia.unidadActiva.nombre
+                      : 'Sin unidad activa'}
+                  </span>
+                </div>
+
+                {materia.horarios?.length > 0 && (
+                  <ul className="mt-3 space-y-1 border-t border-border pt-3">
+                    {materia.horarios.map((bloque, i) => (
+                      <li
+                        key={`${materia.id}-${i}`}
+                        className="flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground"
+                      >
+                        <CalendarClock className="h-4 w-4 shrink-0" />
+                        <span className="capitalize text-foreground">
+                          {ordenarDias(bloque.dias)}
+                        </span>
+                        <span>
+                          {bloque.horaInicio} - {bloque.horaFin}
+                        </span>
+                        <span aria-hidden="true">·</span>
+                        <span>{bloque.aula?.nombre ?? 'Aula pendiente'}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                <Link
+                  to={`/materias/${materia.id}`}
+                  className="mt-3 inline-flex text-sm font-medium text-primary hover:underline"
+                >
+                  Abrir materia
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </Modal>
   )
 }
 
