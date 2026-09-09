@@ -177,6 +177,11 @@ export default function AsistenciaSesionPanel({
                 Fuera de horario
               </span>
             )}
+            {sesion.registroAtrasado && (
+              <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-800">
+                Asistencia atrasada
+              </span>
+            )}
           </div>
 
           <div>
@@ -210,6 +215,12 @@ export default function AsistenciaSesionPanel({
       {sesion.fueFueraDeHorario && (
         <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           Esta sesión se inició fuera del horario programado. La lista se puede capturar y editar, pero no se muestra como clase en línea para el alumno.
+        </div>
+      )}
+
+      {sesion.registroAtrasado && (
+        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          Esta clase se registró después de ocurrir. La asistencia queda guardada con la fecha y el horario reales de la clase.
         </div>
       )}
 

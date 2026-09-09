@@ -133,6 +133,7 @@ export const useAsistenciaStore = create((set) => ({
       grupoId,
       fecha,
       semana,
+      mes,
       unidadId,
       docenteId,
     } = normalized
@@ -142,6 +143,7 @@ export const useAsistenciaStore = create((set) => ({
     if (grupoId) params.set('grupoId', grupoId)
     if (fecha) params.set('fecha', fecha)
     if (semana) params.set('semana', semana)
+    if (mes) params.set('mes', mes)
     if (unidadId) params.set('unidadId', unidadId)
     if (docenteId) params.set('docenteId', docenteId)
 

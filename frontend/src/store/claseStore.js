@@ -5,6 +5,7 @@ export const useClaseStore = create((set) => ({
   sesionActiva: null,
   historial: [],
   panelDocente: null,
+  clasesAtrasadas: [],
   misClasesActivas: [],
   loading: false,
   error: null,
@@ -50,6 +51,30 @@ export const useClaseStore = create((set) => ({
     } finally {
       set({ loading: false })
     }
+  },
+
+  cargarClasesAtrasadas: async () => {
+    try {
+      const response = await api.get('/clases/docente/atrasadas')
+      set({ clasesAtrasadas: response.data })
+      return response.data
+    } catch (error) {
+      set({ clasesAtrasadas: [] })
+      throw error
+    }
+  },
+
+  registrarClaseAtrasada: async ({ horarioId, fecha }) => {
+    const response = await api.post('/clases/atrasada', { horarioId, fecha })
+    return response.data
+  },
+
+  marcarAsistenciaAtrasadas: async (clases, estado) => {
+    const response = await api.post('/clases/atrasadas/marcar-asistencia', {
+      clases: clases.map(({ horarioId, fecha }) => ({ horarioId, fecha })),
+      ...(estado ? { estado } : {}),
+    })
+    return response.data
   },
 
   obtenerActiva: async (materiaId) => {

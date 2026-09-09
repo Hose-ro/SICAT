@@ -517,6 +517,7 @@ model ClaseSesion {
   unidad              Int
   activa              Boolean         @default(true)
   fueFueraDeHorario   Boolean         @default(false)
+  registroAtrasado    Boolean         @default(false)
   notificacionEnviada Boolean         @default(false)
   createdAt           DateTime        @default(now())
   materia             Materia         @relation(fields: [materiaId], references: [id])

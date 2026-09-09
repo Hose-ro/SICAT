@@ -14,6 +14,8 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { IniciarClaseDto } from './dto/iniciar-clase.dto';
+import { RegistrarClaseAtrasadaDto } from './dto/registrar-clase-atrasada.dto';
+import { MarcarAsistenciaAtrasadasDto } from './dto/marcar-asistencia-atrasadas.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('clases')
@@ -57,6 +59,27 @@ export class ClasesController {
   @Roles('DOCENTE')
   obtenerClasesHoy(@Req() req) {
     return this.clasesService.obtenerClasesHoyDocente(req.user.id);
+  }
+
+  @Get('docente/atrasadas')
+  @Roles('DOCENTE')
+  obtenerClasesAtrasadas(@Req() req) {
+    return this.clasesService.obtenerClasesAtrasadas(req.user.id);
+  }
+
+  @Post('atrasada')
+  @Roles('DOCENTE')
+  registrarClaseAtrasada(@Req() req, @Body() dto: RegistrarClaseAtrasadaDto) {
+    return this.clasesService.registrarClaseAtrasada(req.user.id, dto);
+  }
+
+  @Post('atrasadas/marcar-asistencia')
+  @Roles('DOCENTE')
+  marcarAsistenciaAtrasadas(
+    @Req() req,
+    @Body() dto: MarcarAsistenciaAtrasadasDto,
+  ) {
+    return this.clasesService.marcarAsistenciaClasesAtrasadas(req.user.id, dto);
   }
 
   @Get('historial/:materiaId')

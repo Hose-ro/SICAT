@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react'
 import api from '../api/axios'
@@ -80,7 +80,7 @@ function StatPill({ label, value, tone = 'slate' }) {
   )
 }
 
-function ExportActions({ onExportPdf, onExportExcel, label }) {
+function ExportActions({ onExportPdf, onExportExcel, label, disabled = false, ayudaId }) {
   return (
     <div className="flex flex-wrap gap-2">
       {label && (
@@ -91,14 +91,18 @@ function ExportActions({ onExportPdf, onExportExcel, label }) {
       <button
         type="button"
         onClick={onExportPdf}
-        className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+        disabled={disabled}
+        aria-describedby={ayudaId}
+        className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
       >
         Exportar PDF
       </button>
       <button
         type="button"
         onClick={onExportExcel}
-        className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
+        disabled={disabled}
+        aria-describedby={ayudaId}
+        className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
       >
         Exportar Excel
       </button>
@@ -311,6 +315,16 @@ const MESES = [
   'Diciembre',
 ]
 
+function formatMesClave(value) {
+  const [year, month] = (value || '').split('-').map(Number)
+  if (!year || !month) return value
+  const etiqueta = new Date(year, month - 1, 1).toLocaleDateString('es-MX', {
+    month: 'long',
+    year: 'numeric',
+  })
+  return etiqueta.charAt(0).toUpperCase() + etiqueta.slice(1)
+}
+
 function parseDateKey(value) {
   const [year, month, day] = (value || '').split('-').map(Number)
   if (!year || !month || !day) return null
@@ -514,6 +528,7 @@ function FiltroToolbar({
   docentes = [],
   showDocente = false,
   fechasClase = null,
+  mesesClase = [],
   gruposLoading = false,
   fechasLoading = false,
   gruposRestringidos = false,
@@ -622,6 +637,26 @@ function FiltroToolbar({
               loading={fechasLoading}
               week
             />
+            <label className="min-w-0">
+              <span className="mb-1.5 block text-xs font-medium text-slate-500">Mes de clase</span>
+              <select
+                value={filters.mes}
+                onChange={(event) => onChange('mes', event.target.value)}
+                disabled={!filters.materiaId || mesesClase.length === 0}
+                className="min-h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+              >
+                <option value="">
+                  {!filters.materiaId
+                    ? 'Selecciona una materia'
+                    : mesesClase.length === 0
+                      ? 'Sin clases registradas'
+                      : 'Todos los meses'}
+                </option>
+                {mesesClase.map((mes) => (
+                  <option key={mes} value={mes}>{formatMesClave(mes)}</option>
+                ))}
+              </select>
+            </label>
           </>
         ) : (
           <>
@@ -643,6 +678,15 @@ function FiltroToolbar({
                 className="min-h-12 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700"
               />
             </label>
+            <label className="min-w-0">
+              <span className="mb-1.5 block text-xs font-medium text-slate-500">Mes</span>
+              <input
+                type="month"
+                value={filters.mes}
+                onChange={(event) => onChange('mes', event.target.value)}
+                className="min-h-12 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700"
+              />
+            </label>
           </>
         )}
       </div>
@@ -656,7 +700,7 @@ function FiltroToolbar({
           Aplicar filtros
         </button>
         <span className="rounded-full bg-slate-100 px-3 py-2 text-xs font-medium text-slate-600">
-          Para filtrar por semana, elige cualquier fecha de esa semana.
+          Fecha, semana y mes se excluyen entre sí. Para la semana, elige cualquier fecha de esa semana.
         </span>
       </div>
     </div>
@@ -930,9 +974,289 @@ function AlumnoAsistenciasView() {
   )
 }
 
+function formatFechaClave(value) {
+  const date = parseDateKey(value)
+  if (!date) return value
+  return date.toLocaleDateString('es-MX', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  })
+}
+
+function describirFiltro(filters, { materias = [], grupos = [], unidades = [] }) {
+  const partes = []
+  const materia = materias.find((item) => String(item.id) === String(filters.materiaId))
+  if (materia) partes.push(materia.nombre)
+  const grupo = grupos.find((item) => String(item.id) === String(filters.grupoId))
+  if (grupo) partes.push(grupo.nombre)
+  const unidad = unidades.find((item) => String(item.id) === String(filters.unidadId))
+  if (unidad) partes.push(unidad.nombre)
+
+  if (filters.fecha) partes.push(formatFechaClave(filters.fecha))
+  else if (filters.semana) partes.push(`Semana del ${formatFechaClave(filters.semana)}`)
+  else if (filters.mes) partes.push(formatMesClave(filters.mes))
+
+  if (!partes.length) return 'Todo el historial disponible'
+  if (!filters.fecha && !filters.semana && !filters.mes) {
+    partes.push('todas las fechas')
+  }
+  return partes.join(' · ')
+}
+
+function claveAtrasada(item) {
+  return `${item.horarioId}-${item.fecha}`
+}
+
+/**
+ * Clases del horario que ya pasaron dentro de una unidad iniciada y siguen sin
+ * pase de lista. Sólo estas fechas se pueden capturar de forma atrasada.
+ */
+function ClasesAtrasadasSection({
+  items,
+  loading,
+  error,
+  procesando,
+  onCapturar,
+  onMarcarTodas,
+  marcandoLote,
+}) {
+  const [abierta, setAbierta] = useState(true)
+  const [seleccion, setSeleccion] = useState([])
+  const [confirmando, setConfirmando] = useState(false)
+
+  // Sólo se puede capturar lo que tiene unidad a la que asociarse.
+  const capturables = items.filter((item) => item.unidad)
+  const clavesCapturables = capturables.map(claveAtrasada)
+
+  // Si el listado cambia (por ejemplo tras guardar), se descartan las
+  // selecciones de clases que ya no están pendientes.
+  useEffect(() => {
+    setSeleccion((prev) => prev.filter((clave) => clavesCapturables.includes(clave)))
+    setConfirmando(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clavesCapturables.join('|')])
+
+  const alternar = (clave) => {
+    setConfirmando(false)
+    setSeleccion((prev) =>
+      prev.includes(clave) ? prev.filter((item) => item !== clave) : [...prev, clave],
+    )
+  }
+
+  const todasSeleccionadas =
+    clavesCapturables.length > 0 && seleccion.length === clavesCapturables.length
+
+  const alternarTodas = () => {
+    setConfirmando(false)
+    setSeleccion(todasSeleccionadas ? [] : clavesCapturables)
+  }
+
+  const confirmarLote = async () => {
+    const elegidas = capturables.filter((item) => seleccion.includes(claveAtrasada(item)))
+    if (!elegidas.length) return
+    await onMarcarTodas(elegidas)
+    setSeleccion([])
+    setConfirmando(false)
+  }
+
+  const grupos = []
+  items.forEach((item) => {
+    const clave = `${item.materiaId}-${item.grupoId ?? 'sin-grupo'}`
+    let grupo = grupos.find((entry) => entry.clave === clave)
+    if (!grupo) {
+      grupo = { clave, materia: item.materia, grupo: item.grupo, clases: [] }
+      grupos.push(grupo)
+    }
+    grupo.clases.push(item)
+  })
+
+  return (
+    <section className="space-y-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-semibold text-slate-900">Asistencias atrasadas</h2>
+            {items.length > 0 && (
+              <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
+                {items.length} pendiente{items.length === 1 ? '' : 's'}
+              </span>
+            )}
+          </div>
+          <p className="mt-1 text-sm text-slate-500">
+            Clases de tu horario que ya ocurrieron en este periodo y quedaron sin lista.
+          </p>
+        </div>
+
+        {items.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setAbierta((prev) => !prev)}
+            className="self-start rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+          >
+            {abierta ? 'Ocultar' : 'Ver pendientes'}
+          </button>
+        )}
+      </div>
+
+      {error && (
+        <p role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+          {error}
+        </p>
+      )}
+
+      {loading && items.length === 0 ? (
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-500">
+          Revisando tu horario...
+        </div>
+      ) : items.length === 0 ? (
+        <div className="rounded-3xl border border-dashed border-slate-200 bg-white p-6 text-center text-sm text-slate-500">
+          No tienes asistencias atrasadas: todas las clases de tu horario ya tienen lista.
+        </div>
+      ) : (
+        abierta && (
+          <>
+            {capturables.length > 0 && (
+              <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <label className="flex items-center gap-3 text-sm text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={todasSeleccionadas}
+                      onChange={alternarTodas}
+                      className="size-4 rounded border-slate-300"
+                    />
+                    <span>
+                      Seleccionar todas
+                      <span className="ml-2 text-xs text-slate-500">
+                        {seleccion.length} de {capturables.length} elegidas
+                      </span>
+                    </span>
+                  </label>
+
+                  <button
+                    type="button"
+                    onClick={() => setConfirmando(true)}
+                    disabled={seleccion.length === 0 || marcandoLote || confirmando}
+                    className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Marcar asistencia a todos
+                  </button>
+                </div>
+
+                {confirmando && (
+                  <div className="mt-3 flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-sm text-amber-900">
+                      Se marcará <strong>asistencia</strong> a todos los alumnos en {seleccion.length}{' '}
+                      clase{seleccion.length === 1 ? '' : 's'}. Después puedes abrir cualquiera y ajustar casos sueltos.
+                    </p>
+                    <div className="flex shrink-0 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setConfirmando(false)}
+                        disabled={marcandoLote}
+                        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={confirmarLote}
+                        disabled={marcandoLote}
+                        className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {marcandoLote ? 'Marcando...' : 'Sí, marcar asistencia'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="grid gap-4 xl:grid-cols-2">
+              {grupos.map((entry) => (
+                <article key={entry.clave} className="rounded-3xl border border-amber-200 bg-amber-50/60 p-5">
+                  <div>
+                    <h3 className="text-lg font-semibold text-slate-900">{entry.materia?.nombre}</h3>
+                    <p className="mt-1 text-sm text-slate-600">
+                      {entry.grupo?.nombre ?? 'Sin grupo'} · {entry.materia?.clave ?? 'Sin clave'}
+                    </p>
+                  </div>
+
+                  <ul className="mt-4 space-y-2">
+                    {entry.clases.map((item) => {
+                      const clave = claveAtrasada(item)
+                      const enProceso = procesando === clave
+                      // Sin unidad iniciada no hay a qué asociar la asistencia.
+                      const sinUnidad = !item.unidad
+                      const ayudaId = sinUnidad ? `atrasada-${clave}-ayuda` : undefined
+                      return (
+                        <li
+                          key={clave}
+                          className="flex flex-col gap-3 rounded-2xl bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                        >
+                          <div className="flex min-w-0 items-start gap-3">
+                            <input
+                              type="checkbox"
+                              checked={seleccion.includes(clave)}
+                              onChange={() => alternar(clave)}
+                              disabled={sinUnidad || marcandoLote}
+                              aria-label={`Seleccionar la clase del ${formatFechaClave(item.fecha)}`}
+                              className="mt-1 size-4 shrink-0 rounded border-slate-300 disabled:opacity-40"
+                            />
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium capitalize text-slate-900">
+                                {formatFechaClave(item.fecha)}
+                              </p>
+                              <p className="mt-1 text-xs text-slate-500">
+                                {formatTime(item.horaInicio)} - {formatTime(item.horaFin)}
+                                {item.unidad ? ` · ${item.unidad.nombre}` : ' · sin unidad iniciada'}
+                                {item.estado === 'SIN_CAPTURA' && ' · sesión abierta sin lista'}
+                              </p>
+                              {sinUnidad && (
+                                <p id={ayudaId} className="mt-1 text-xs leading-relaxed text-amber-800">
+                                  Inicia una unidad de la materia para poder capturar esta lista.
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => onCapturar(item)}
+                            disabled={enProceso || sinUnidad || marcandoLote}
+                            aria-describedby={ayudaId}
+                            className="shrink-0 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {enProceso ? 'Abriendo...' : 'Capturar asistencia'}
+                          </button>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </article>
+              ))}
+            </div>
+          </>
+        )
+      )}
+    </section>
+  )
+}
+
+
 function DocenteAsistenciasView() {
   const navigate = useNavigate()
-  const { panelDocente, cargarPanelDocente, iniciar, finalizar } = useClaseStore()
+  const {
+    panelDocente,
+    cargarPanelDocente,
+    clasesAtrasadas,
+    cargarClasesAtrasadas,
+    registrarClaseAtrasada,
+    marcarAsistenciaAtrasadas,
+    iniciar,
+    finalizar,
+  } = useClaseStore()
   const { historial, estadisticas, obtenerHistorial, exportar } = useAsistenciaStore()
   const { user } = useAuthStore()
   const [selectedSessionId, setSelectedSessionId] = useState(null)
@@ -944,16 +1268,23 @@ function DocenteAsistenciasView() {
     unidadId: '',
     fecha: '',
     semana: '',
+    mes: '',
   })
   const [opcionesFiltros, setOpcionesFiltros] = useState({
     materias: [],
     grupos: [],
     unidades: [],
     fechasClase: [],
+    mesesClase: [],
   })
   const [opcionesLoading, setOpcionesLoading] = useState(false)
   const [opcionesError, setOpcionesError] = useState('')
+  const [atrasadasLoading, setAtrasadasLoading] = useState(true)
+  const [atrasadasError, setAtrasadasError] = useState('')
+  const [atrasadaProcesando, setAtrasadaProcesando] = useState('')
+  const [marcandoLote, setMarcandoLote] = useState(false)
   const opcionesRequestId = useRef(0)
+  const panelCapturaRef = useRef(null)
 
   const cargarOpcionesFiltros = async (materiaId, grupoId = '') => {
     if (!materiaId) return null
@@ -980,6 +1311,7 @@ function DocenteAsistenciasView() {
           ...current,
           grupos: [],
           fechasClase: [],
+          mesesClase: [],
         }))
         setOpcionesError(getApiErrorMessage(error, 'No se pudieron comprobar los grupos y fechas de esta materia.'))
       }
@@ -989,10 +1321,23 @@ function DocenteAsistenciasView() {
     }
   }
 
+  const cargarAtrasadas = useCallback(async () => {
+    setAtrasadasLoading(true)
+    try {
+      await cargarClasesAtrasadas()
+      setAtrasadasError('')
+    } catch (error) {
+      setAtrasadasError(getApiErrorMessage(error, 'No se pudieron revisar tus clases sin asistencia.'))
+    } finally {
+      setAtrasadasLoading(false)
+    }
+  }, [cargarClasesAtrasadas])
+
   const cargarTodo = async (nextFilters = filters) => {
     const requests = [
       cargarPanelDocente(),
       obtenerHistorial(nextFilters),
+      cargarAtrasadas(),
     ]
     if (nextFilters.materiaId) {
       requests.push(cargarOpcionesFiltros(nextFilters.materiaId, nextFilters.grupoId))
@@ -1004,6 +1349,7 @@ function DocenteAsistenciasView() {
     Promise.all([
       cargarPanelDocente(),
       obtenerHistorial({}),
+      cargarAtrasadas(),
     ]).catch(() => {})
 
     const requestId = opcionesRequestId.current + 1
@@ -1024,7 +1370,7 @@ function DocenteAsistenciasView() {
     }, 30000)
 
     return () => clearInterval(interval)
-  }, [cargarPanelDocente, obtenerHistorial])
+  }, [cargarPanelDocente, obtenerHistorial, cargarAtrasadas])
 
   const clasesHoy = panelDocente?.clasesHoy ?? []
   const clasePrincipal = panelDocente?.claseActual ?? panelDocente?.proximaClase ?? null
@@ -1032,7 +1378,9 @@ function DocenteAsistenciasView() {
   const materias = opcionesFiltros.materias ?? []
   const grupos = opcionesFiltros.grupos ?? []
   const fechasClase = opcionesFiltros.fechasClase ?? []
+  const mesesClase = opcionesFiltros.mesesClase ?? []
   const unidades = opcionesFiltros.unidades ?? []
+  const resumenFiltro = describirFiltro(filters, { materias, grupos, unidades })
 
   const handleStartClass = async (clase) => {
     setMensaje('')
@@ -1106,7 +1454,70 @@ function DocenteAsistenciasView() {
     }
   }
 
+  const handleCapturarAtrasada = async (item) => {
+    const clave = claveAtrasada(item)
+    setMensaje('')
+    setAtrasadaProcesando(clave)
+
+    try {
+      let sesionId = item.sesion?.id
+      if (!sesionId) {
+        const sesion = await registrarClaseAtrasada({
+          horarioId: item.horarioId,
+          fecha: item.fecha,
+        })
+        sesionId = sesion.id
+      }
+
+      setSelectedSessionId(sesionId)
+      setMensaje(
+        `Captura la lista del ${formatFechaClave(item.fecha)}. Se guardará con la fecha real de la clase.`,
+      )
+      await cargarTodo()
+      panelCapturaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    } catch (error) {
+      setMensaje(getApiErrorMessage(error, 'No se pudo abrir la clase atrasada.'))
+    } finally {
+      setAtrasadaProcesando('')
+    }
+  }
+
+  const handleMarcarAtrasadas = async (elegidas) => {
+    setMensaje('')
+    setMarcandoLote(true)
+    try {
+      const resultado = await marcarAsistenciaAtrasadas(elegidas)
+      const partes = [
+        `Se marcó asistencia a ${resultado.alumnosMarcados} alumno${resultado.alumnosMarcados === 1 ? '' : 's'} en ${resultado.procesadas.length} clase${resultado.procesadas.length === 1 ? '' : 's'}.`,
+      ]
+      if (resultado.omitidas.length) {
+        partes.push(
+          `${resultado.omitidas.length} se omitieron: ${resultado.omitidas[0].motivo}.`,
+        )
+      }
+      setMensaje(partes.join(' '))
+      await cargarTodo()
+    } catch (error) {
+      setMensaje(getApiErrorMessage(error, 'No se pudo marcar la asistencia de las clases elegidas.'))
+    } finally {
+      setMarcandoLote(false)
+    }
+  }
+
   const applyFilters = () => cargarTodo(filters)
+
+  // Exporta el conjunto filtrado completo, no una sola sesión.
+  const exportarFiltrado = (formato) => {
+    if (!filters.materiaId) return
+    return exportar(filters.materiaId, {
+      formato,
+      grupoId: filters.grupoId || undefined,
+      unidadId: filters.unidadId || undefined,
+      fecha: filters.fecha || undefined,
+      semana: filters.semana || undefined,
+      mes: filters.mes || undefined,
+    })
+  }
 
   const abrirPaseDeLista = (sesionId) => {
     if (!sesionId) {
@@ -1126,29 +1537,42 @@ function DocenteAsistenciasView() {
         grupos: [],
         unidades: [],
         fechasClase: [],
+        mesesClase: [],
       }))
       if (value) {
         cargarOpcionesFiltros(value)
       }
     } else if (key === 'grupoId') {
       opcionesRequestId.current += 1
-      setOpcionesFiltros((current) => ({ ...current, fechasClase: [] }))
+      setOpcionesFiltros((current) => ({ ...current, fechasClase: [], mesesClase: [] }))
       cargarOpcionesFiltros(filters.materiaId, value)
     }
 
     setFilters((prev) => {
       const next = { ...prev, [key]: value }
-      if (key === 'fecha' && value) next.semana = ''
-      if (key === 'semana' && value) next.fecha = ''
+      if (key === 'fecha' && value) {
+        next.semana = ''
+        next.mes = ''
+      }
+      if (key === 'semana' && value) {
+        next.fecha = ''
+        next.mes = ''
+      }
+      if (key === 'mes' && value) {
+        next.fecha = ''
+        next.semana = ''
+      }
       if (key === 'materiaId') {
         next.grupoId = ''
         next.unidadId = ''
         next.fecha = ''
         next.semana = ''
+        next.mes = ''
       }
       if (key === 'grupoId') {
         next.fecha = ''
         next.semana = ''
+        next.mes = ''
       }
       return next
     })
@@ -1242,7 +1666,17 @@ function DocenteAsistenciasView() {
         </div>
       </section>
 
-      <section className="space-y-4">
+      <ClasesAtrasadasSection
+        items={clasesAtrasadas ?? []}
+        loading={atrasadasLoading}
+        error={atrasadasError}
+        procesando={atrasadaProcesando}
+        onCapturar={handleCapturarAtrasada}
+        onMarcarTodas={handleMarcarAtrasadas}
+        marcandoLote={marcandoLote}
+      />
+
+      <section ref={panelCapturaRef} className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold text-slate-900">Toma de asistencia</h2>
           {selectedSessionId && (
@@ -1266,7 +1700,7 @@ function DocenteAsistenciasView() {
           <div>
             <h2 className="text-xl font-semibold text-slate-900">Historial y reportes</h2>
             <p className="mt-1 text-sm text-slate-500">
-              Filtra por materia, grupo, fecha, semana o unidad. Puedes abrir cualquier sesión histórica y volver a editarla.
+              Filtra por materia, grupo, unidad, día, semana o mes. Puedes abrir cualquier sesión histórica y volver a editarla, o guardar el reporte de todo lo filtrado.
             </p>
           </div>
 
@@ -1289,10 +1723,29 @@ function DocenteAsistenciasView() {
           grupos={grupos}
           unidades={unidades}
           fechasClase={fechasClase}
+          mesesClase={mesesClase}
           gruposLoading={opcionesLoading}
           fechasLoading={opcionesLoading}
           gruposRestringidos
         />
+
+        <div className="flex flex-col gap-2 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-slate-900">Reporte de lo filtrado</p>
+            <p className="mt-0.5 text-xs text-slate-500">{resumenFiltro}</p>
+            {!filters.materiaId && (
+              <p id="export-filtrado-ayuda" className="mt-1 text-xs text-slate-500">
+                Elige una materia para poder guardar el reporte.
+              </p>
+            )}
+          </div>
+          <ExportActions
+            onExportPdf={() => exportarFiltrado('pdf')}
+            onExportExcel={() => exportarFiltrado('excel')}
+            disabled={!filters.materiaId}
+            ayudaId={!filters.materiaId ? 'export-filtrado-ayuda' : undefined}
+          />
+        </div>
 
         {opcionesError && (
           <p role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
@@ -1334,6 +1787,7 @@ function AdminAsistenciasView() {
     unidadId: '',
     fecha: '',
     semana: '',
+    mes: '',
   })
   const [docentes, setDocentes] = useState([])
   const [materias, setMaterias] = useState([])
@@ -1390,11 +1844,35 @@ function AdminAsistenciasView() {
     }
   }, [filters.materiaId])
 
+  // Exporta el conjunto filtrado completo, no una sola sesión.
+  const exportarFiltrado = (formato) => {
+    if (!filters.materiaId) return
+    return exportar(filters.materiaId, {
+      formato,
+      grupoId: filters.grupoId || undefined,
+      unidadId: filters.unidadId || undefined,
+      fecha: filters.fecha || undefined,
+      semana: filters.semana || undefined,
+      mes: filters.mes || undefined,
+      docenteId: filters.docenteId || undefined,
+    })
+  }
+
   const handleFilterChange = (key, value) => {
     setFilters((prev) => {
       const next = { ...prev, [key]: value }
-      if (key === 'fecha' && value) next.semana = ''
-      if (key === 'semana' && value) next.fecha = ''
+      if (key === 'fecha' && value) {
+        next.semana = ''
+        next.mes = ''
+      }
+      if (key === 'semana' && value) {
+        next.fecha = ''
+        next.mes = ''
+      }
+      if (key === 'mes' && value) {
+        next.fecha = ''
+        next.semana = ''
+      }
       // La materia elegida puede no ser de este docente.
       if (key === 'docenteId') {
         next.materiaId = ''
@@ -1409,7 +1887,7 @@ function AdminAsistenciasView() {
       <header className="space-y-2">
         <h1 className="text-3xl font-semibold tracking-tight text-slate-950">Administración de asistencias</h1>
         <p className="max-w-3xl text-sm text-slate-600">
-          Consulta el historial completo, filtra por docente, materia, grupo, fecha, semana o unidad, y exporta reportes reales en PDF o Excel.
+          Consulta el historial completo, filtra por docente, materia, grupo, unidad, día, semana o mes, y exporta reportes reales en PDF o Excel.
         </p>
       </header>
 
@@ -1433,6 +1911,30 @@ function AdminAsistenciasView() {
         docentes={docentes}
         showDocente
       />
+
+      <div className="flex flex-col gap-2 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-slate-900">Reporte de lo filtrado</p>
+          <p className="mt-0.5 text-xs text-slate-500">
+            {describirFiltro(filters, {
+              materias,
+              grupos,
+              unidades: materiaDetalle?.unidades ?? [],
+            })}
+          </p>
+          {!filters.materiaId && (
+            <p id="export-filtrado-admin-ayuda" className="mt-1 text-xs text-slate-500">
+              Elige una materia para poder guardar el reporte.
+            </p>
+          )}
+        </div>
+        <ExportActions
+          onExportPdf={() => exportarFiltrado('pdf')}
+          onExportExcel={() => exportarFiltrado('excel')}
+          disabled={!filters.materiaId}
+          ayudaId={!filters.materiaId ? 'export-filtrado-admin-ayuda' : undefined}
+        />
+      </div>
 
       {estadisticas?.rankingFaltas?.length > 0 && (
         <div className="rounded-3xl border border-rose-200 bg-rose-50 p-5">
