@@ -24,6 +24,12 @@ export default defineConfig([
     },
     rules: {
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      // Usar un const/let antes de su declaración revienta en runtime pero
+      // compila sin quejas: esbuild no analiza la zona muerta temporal.
+      'no-use-before-define': [
+        'error',
+        { functions: false, classes: true, variables: true },
+      ],
     },
   },
 ])
