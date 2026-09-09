@@ -3,9 +3,10 @@ import { ClasesController } from './clases.controller';
 import { ClasesService } from './clases.service';
 import { RecordatoriosClaseService } from './recordatorios-clase.service';
 import { NotificacionesModule } from '../notificaciones/notificaciones.module';
+import { PeriodosModule } from '../periodos/periodos.module';
 
 @Module({
-  imports: [NotificacionesModule],
+  imports: [NotificacionesModule, PeriodosModule],
   controllers: [ClasesController],
   providers: [ClasesService, RecordatoriosClaseService],
   exports: [ClasesService],

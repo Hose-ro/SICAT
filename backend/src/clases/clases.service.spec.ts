@@ -2,6 +2,17 @@ import { BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import { ClasesService } from './clases.service';
+import { PeriodosService } from '../periodos/periodos.service';
+
+const periodosFalsos = (inicio: Date, fin: Date) =>
+  ({
+    obtenerRangoActual: jest.fn().mockResolvedValue({
+      clave: '2026-B',
+      configurado: true,
+      inicio,
+      fin,
+    }),
+  }) as unknown as PeriodosService;
 
 describe('ClasesService asistencias atrasadas', () => {
   const horarioFindMany = jest.fn();
@@ -32,7 +43,11 @@ describe('ClasesService asistencias atrasadas', () => {
   const notificaciones = {
     crearParaAdmins,
   } as unknown as NotificacionesService;
-  const service = new ClasesService(prisma, notificaciones);
+  const service = new ClasesService(
+    prisma,
+    notificaciones,
+    periodosFalsos(new Date(2026, 7, 29), new Date(2026, 11, 18)),
+  );
 
   // Martes 8 de septiembre de 2026, 15:00. La clase de martes 12:00-14:00 ya
   // terminó; la de martes 16:00-18:00 todavía no.
@@ -89,15 +104,15 @@ describe('ClasesService asistencias atrasadas', () => {
     const pendientes = await service.obtenerClasesAtrasadas(9);
     const fechas = pendientes.map((item) => item.fecha);
 
-    // El periodo 2026-B arranca el 1 de julio: se enumeran todos los lunes y
-    // martes desde esa fecha, del más reciente al más antiguo.
+    // El periodo arranca el sábado 29 de agosto, así que el pendiente más
+    // antiguo es el primer lunes posterior: nada de julio ni de agosto previo.
     expect(fechas.slice(0, 3)).toEqual([
       '2026-09-08',
       '2026-09-07',
       '2026-09-01',
     ]);
-    expect(fechas[fechas.length - 1]).toBe('2026-07-06');
-    expect(fechas.every((fecha) => fecha >= '2026-07-01')).toBe(true);
+    expect(fechas[fechas.length - 1]).toBe('2026-08-31');
+    expect(fechas.every((fecha) => fecha >= '2026-08-29')).toBe(true);
     expect(pendientes[0]).toMatchObject({
       horarioId: 3,
       materiaId: 12,
@@ -108,6 +123,51 @@ describe('ClasesService asistencias atrasadas', () => {
       sesion: null,
       unidad: unidadActiva,
     });
+  });
+
+  it('no ofrece clases anteriores al inicio del semestre', async () => {
+    // Semestre que arranca el 7 de septiembre: el 1 de septiembre queda fuera.
+    const acotado = new ClasesService(
+      prisma,
+      notificaciones,
+      periodosFalsos(new Date(2026, 8, 7), new Date(2026, 11, 18)),
+    );
+
+    const fechas = (await acotado.obtenerClasesAtrasadas(9)).map(
+      (item) => item.fecha,
+    );
+
+    expect(fechas).toEqual(['2026-09-08', '2026-09-07']);
+    expect(fechas).not.toContain('2026-09-01');
+  });
+
+  it('no ofrece clases posteriores al fin del semestre', async () => {
+    const cerrado = new ClasesService(
+      prisma,
+      notificaciones,
+      periodosFalsos(new Date(2026, 7, 29), new Date(2026, 8, 2)),
+    );
+
+    const fechas = (await cerrado.obtenerClasesAtrasadas(9)).map(
+      (item) => item.fecha,
+    );
+
+    expect(fechas).toEqual(['2026-09-01', '2026-08-31']);
+    expect(fechas).not.toContain('2026-09-07');
+  });
+
+  it('rechaza registrar una clase anterior al inicio del semestre', async () => {
+    horarioFindUnique.mockResolvedValue(horarioBase);
+    const acotado = new ClasesService(
+      prisma,
+      notificaciones,
+      periodosFalsos(new Date(2026, 8, 7), new Date(2026, 11, 18)),
+    );
+
+    await expect(
+      acotado.registrarClaseAtrasada(9, { horarioId: 3, fecha: '2026-09-01' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(claseSesionCreate).not.toHaveBeenCalled();
   });
 
   it('omite la clase de hoy mientras no termine', async () => {
@@ -299,9 +359,11 @@ describe('ClasesService marcado masivo de clases atrasadas', () => {
       updateMany: asistenciaUpdateMany,
     },
   } as unknown as PrismaService;
-  const service = new ClasesService(prisma, {
-    crearParaAdmins,
-  } as unknown as NotificacionesService);
+  const service = new ClasesService(
+    prisma,
+    { crearParaAdmins } as unknown as NotificacionesService,
+    periodosFalsos(new Date(2026, 7, 29), new Date(2026, 11, 18)),
+  );
 
   const AHORA = new Date(2026, 8, 8, 15, 0);
   const horario = {
@@ -457,7 +519,11 @@ describe('ClasesService.obtenerHistorial (IDOR)', () => {
     claseSesion: { findMany: claseSesionFindMany },
   } as unknown as PrismaService;
   const notificaciones = {} as unknown as NotificacionesService;
-  const service = new ClasesService(prisma, notificaciones);
+  const service = new ClasesService(
+    prisma,
+    notificaciones,
+    periodosFalsos(new Date(2026, 7, 29), new Date(2026, 11, 18)),
+  );
 
   const materiaId = 12;
   const docenteId = 31;

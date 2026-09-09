@@ -27,10 +27,8 @@ import {
   parsearFechaClave,
   sumarDias,
 } from './clases.utils';
-import {
-  getAcademicPeriodStart,
-  getCurrentAcademicPeriod,
-} from '../common/periodo.util';
+import { getCurrentAcademicPeriod } from '../common/periodo.util';
+import { PeriodosService } from '../periodos/periodos.service';
 
 /** Tope de seguridad hacia atrás, por si el periodo empezó hace mucho. */
 const DIAS_MAXIMOS_ATRASO = 120;
@@ -40,6 +38,7 @@ export class ClasesService {
   constructor(
     private prisma: PrismaService,
     private notificaciones: NotificacionesService,
+    private periodos: PeriodosService,
   ) {}
 
   async iniciar(docenteId: number, dto: IniciarClaseDto) {
@@ -398,13 +397,22 @@ export class ClasesService {
   }
 
   /**
-   * Primera fecha capturable: el inicio del periodo académico, acotado por el
-   * tope de seguridad de {@link DIAS_MAXIMOS_ATRASO} días.
+   * Ventana capturable: del inicio del periodo escolar hasta hoy, sin pasar de
+   * su fecha de fin. Antes del inicio no había clases que registrar. El tope de
+   * {@link DIAS_MAXIMOS_ATRASO} días sigue como red de seguridad por si nadie
+   * ha capturado las fechas reales del periodo.
    */
-  private obtenerFechaMinimaAtraso(hoy: Date) {
-    const inicioPeriodo = obtenerInicioDelDia(getAcademicPeriodStart(hoy));
+  private async obtenerVentanaAtraso(hoy: Date) {
+    const periodo = await this.periodos.obtenerRangoActual(hoy);
+    const inicioPeriodo = obtenerInicioDelDia(periodo.inicio);
     const tope = sumarDias(hoy, -DIAS_MAXIMOS_ATRASO);
-    return inicioPeriodo > tope ? inicioPeriodo : tope;
+    const finPeriodo = obtenerInicioDelDia(periodo.fin);
+
+    return {
+      desde: inicioPeriodo > tope ? inicioPeriodo : tope,
+      hasta: finPeriodo < hoy ? finPeriodo : hoy,
+      periodo,
+    };
   }
 
   /**
@@ -463,7 +471,7 @@ export class ClasesService {
     const ahora = new Date();
     const hoy = obtenerInicioDelDia(ahora);
     const ahoraMinutos = convertirFechaAMinutos(ahora);
-    const fechaMinima = this.obtenerFechaMinimaAtraso(hoy);
+    const ventana = await this.obtenerVentanaAtraso(hoy);
 
     const horarios = await this.prisma.horarioMateria.findMany({
       where: { docenteId, activo: true, grupoId: { not: null } },
@@ -505,7 +513,11 @@ export class ClasesService {
     let fechaMasAntigua: Date | null = null;
 
     for (const horario of horarios) {
-      for (let dia = fechaMinima; dia <= hoy; dia = sumarDias(dia, 1)) {
+      for (
+        let dia = ventana.desde;
+        dia <= ventana.hasta;
+        dia = sumarDias(dia, 1)
+      ) {
         if (!horarioAplicaEnFecha(horario.dias, dia)) continue;
         // La clase de hoy sólo se considera atrasada cuando ya terminó.
         if (
@@ -639,9 +651,10 @@ export class ClasesService {
         'La clase de hoy aún no termina; inicia la clase desde el panel',
       );
     }
-    if (hoy < this.obtenerFechaMinimaAtraso(inicioHoy)) {
+    const ventana = await this.obtenerVentanaAtraso(inicioHoy);
+    if (hoy < ventana.desde || hoy > obtenerInicioDelDia(ventana.hasta)) {
       throw new BadRequestException(
-        'Esa fecha está fuera del periodo académico en curso',
+        `Esa fecha está fuera del periodo ${ventana.periodo.clave}, que va del ${formatearFechaClave(ventana.periodo.inicio)} al ${formatearFechaClave(ventana.periodo.fin)}`,
       );
     }
     if (!horarioAplicaEnFecha(horario.dias, fecha)) {

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import PeriodoEscolarCard from '../../components/PeriodoEscolarCard'
 import { CalendarClock, Download } from 'lucide-react'
 import api from '../../api/axios'
 import TarjetaMateria from '../admin/horarios/components/TarjetaMateria'
@@ -123,6 +124,10 @@ export default function MiHorario() {
           </button>
         )}
         </div>
+      </div>
+
+      <div className="print-hidden">
+        <PeriodoEscolarCard editable />
       </div>
 
       {error && (

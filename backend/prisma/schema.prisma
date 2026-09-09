@@ -313,6 +313,18 @@ model AlertaCarrera {
   @@index([responsableId])
 }
 
+/// Fechas reales del periodo escolar. Una fila por clave de periodo ("2026-B").
+/// Acota hasta dónde se puede capturar asistencia atrasada: antes de esto el
+/// semestre no había empezado.
+model PeriodoAcademico {
+  clave            String   @id
+  fechaInicio      DateTime
+  fechaFin         DateTime
+  actualizadoPorId Int?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
 model Aula {
   id        Int              @id @default(autoincrement())
   nombre    String           @unique
