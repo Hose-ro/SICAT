@@ -5,6 +5,12 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  // Las migraciones necesitan conexión directa, sin el pooler: los advisory
+  // locks de Postgres son por sesión y PgBouncer en modo transacción reparte
+  // cada transacción entre conexiones distintas, así que `migrate deploy` se
+  // queda esperando el lock y expira con P1002. La app en runtime sigue usando
+  // `url` (el pooler); `directUrl` sólo lo usan migrate e introspection.
+  directUrl = env("DIRECT_URL")
 }
 
 // ==================== ENUMS ====================
