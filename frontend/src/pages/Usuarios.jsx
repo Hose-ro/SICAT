@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { CheckCircle2, Eye, GraduationCap, KeyRound, MoreHorizontal, Pencil, Power, Trash2, X } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { CheckCircle2, Eye, GraduationCap, KeyRound, Pencil, Power, Trash2 } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import Modal from '../components/Modal'
 import SwipeableRow from '../components/SwipeableRow'
@@ -296,47 +296,6 @@ export default function Usuarios() {
     error: '',
   })
   const [authAudit, setAuthAudit] = useState({ loading: false, items: [], error: '' })
-
-  // Escritorio: id del usuario cuyas acciones sensibles (Desactivar, Contraseña,
-  // Eliminar) están reveladas. Se abren deslizando sobre la fila —con el mouse
-  // (clic y arrastrar) o con dos dedos en el trackpad— o con el botón "⋯".
-  const [filaRevelada, setFilaRevelada] = useState(null)
-  const arrastreRef = useRef({ id: null, startX: 0, activo: false })
-
-  const alternarRevelado = (userId) => {
-    setFilaRevelada((current) => (current === userId ? null : userId))
-  }
-
-  const manejarWheelFila = (userId) => (event) => {
-    if (Math.abs(event.deltaX) <= Math.abs(event.deltaY)) return
-    event.preventDefault()
-    if (event.deltaX < -12) setFilaRevelada(userId)
-    else if (event.deltaX > 12) {
-      setFilaRevelada((current) => (current === userId ? null : current))
-    }
-  }
-
-  const manejarPointerDownFila = (userId) => (event) => {
-    if (event.pointerType !== 'mouse') return
-    arrastreRef.current = { id: userId, startX: event.clientX, activo: true }
-  }
-
-  const manejarPointerMoveFila = (event) => {
-    const arrastre = arrastreRef.current
-    if (!arrastre.activo) return
-    const delta = event.clientX - arrastre.startX
-    if (delta < -50) {
-      setFilaRevelada(arrastre.id)
-      arrastreRef.current.activo = false
-    } else if (delta > 50) {
-      setFilaRevelada((current) => (current === arrastre.id ? null : current))
-      arrastreRef.current.activo = false
-    }
-  }
-
-  const terminarPointerFila = () => {
-    arrastreRef.current.activo = false
-  }
 
   const usuariosFiltrados = usuarios.filter((u) => {
     const matchNombre = u.nombre.toLowerCase().includes(filtroNombre.toLowerCase())
@@ -636,15 +595,7 @@ export default function Usuarios() {
           </thead>
           <tbody>
             {usuariosFiltrados.map((u) => (
-              <tr
-                key={u.id}
-                onWheel={manejarWheelFila(u.id)}
-                onPointerDown={manejarPointerDownFila(u.id)}
-                onPointerMove={manejarPointerMoveFila}
-                onPointerUp={terminarPointerFila}
-                onPointerLeave={terminarPointerFila}
-                className={`border-b border-gray-50 transition ${filaRevelada === u.id ? 'bg-red-50/40' : 'hover:bg-gray-50'}`}
-              >
+              <tr key={u.id} className="group border-b border-gray-50 transition hover:bg-gray-50">
                 <td className="px-4 py-3 font-medium text-gray-800">{u.nombre}</td>
                 <td className="px-4 py-3 text-gray-500">{u.numeroControl || u.username || u.email || '—'}</td>
                 <td className="px-4 py-3">
@@ -692,53 +643,33 @@ export default function Usuarios() {
                         </button>
                       )}
 
-                    {/* Desactivar/Contraseña/Eliminar: ocultas hasta deslizar sobre la fila
-                        (mouse o dos dedos en el trackpad) o pulsar "⋯", para reducir clics
-                        accidentales en acciones sensibles. */}
-                    {filaRevelada === u.id ? (
-                      <>
-                        <button
-                          onClick={() => { solicitarConfirmacion(u, 'toggle'); setFilaRevelada(null) }}
-                          className={`text-xs px-3 py-1.5 rounded-lg font-medium transition ${
-                            u.activo
-                              ? 'text-orange-600 hover:bg-orange-50 border border-orange-200'
-                              : 'text-green-600 hover:bg-green-50 border border-green-200'
-                          }`}
-                        >
-                          {u.activo ? 'Desactivar' : 'Activar'}
-                        </button>
-
-                        <button
-                          onClick={() => { abrirPassword(u); setFilaRevelada(null) }}
-                          className="text-xs px-3 py-1.5 rounded-lg font-medium text-blue-500 hover:bg-blue-50 border border-blue-200 transition"
-                        >
-                          Contraseña
-                        </button>
-
-                        <button
-                          onClick={() => { solicitarConfirmacion(u, 'delete'); setFilaRevelada(null) }}
-                          className="text-xs px-3 py-1.5 rounded-lg font-medium text-red-600 hover:bg-red-50 border border-red-200 transition"
-                        >
-                          Eliminar
-                        </button>
-
-                        <button
-                          onClick={() => setFilaRevelada(null)}
-                          title="Ocultar acciones"
-                          className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      </>
-                    ) : (
+                    {/* Desactivar/Contraseña/Eliminar: sólo aparecen con el mouse encima de la fila. */}
+                    <div className="hidden items-center gap-2 group-hover:flex">
                       <button
-                        onClick={() => alternarRevelado(u.id)}
-                        title="Más acciones: desactivar, contraseña, eliminar (o desliza sobre la fila)"
-                        className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition"
+                        onClick={() => solicitarConfirmacion(u, 'toggle')}
+                        className={`text-xs px-3 py-1.5 rounded-lg font-medium transition ${
+                          u.activo
+                            ? 'text-orange-600 hover:bg-orange-50 border border-orange-200'
+                            : 'text-green-600 hover:bg-green-50 border border-green-200'
+                        }`}
                       >
-                        <MoreHorizontal className="h-4 w-4" />
+                        {u.activo ? 'Desactivar' : 'Activar'}
                       </button>
-                    )}
+
+                      <button
+                        onClick={() => abrirPassword(u)}
+                        className="text-xs px-3 py-1.5 rounded-lg font-medium text-blue-500 hover:bg-blue-50 border border-blue-200 transition"
+                      >
+                        Contraseña
+                      </button>
+
+                      <button
+                        onClick={() => solicitarConfirmacion(u, 'delete')}
+                        className="text-xs px-3 py-1.5 rounded-lg font-medium text-red-600 hover:bg-red-50 border border-red-200 transition"
+                      >
+                        Eliminar
+                      </button>
+                    </div>
                   </div>
                 </td>
               </tr>
