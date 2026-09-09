@@ -1,5 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { EstadoAsistencia, EstadoRevision, EstadoUnidad } from '@prisma/client';
+import {
+  EstadoAsistencia,
+  EstadoImportacionHorario,
+  EstadoRevision,
+  EstadoTarea,
+  EstadoUnidad,
+  Rol,
+} from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { ClasesService } from '../clases/clases.service';
 import { materiasDelDocenteWhere } from '../common/materia-ownership';
@@ -197,6 +204,116 @@ export class DashboardService {
         solicitudes,
       },
       materias: resumenMaterias,
+    };
+  }
+
+  /**
+   * Panel del admin. Mismo criterio que el del docente: una sola respuesta con
+   * lo accionable arriba. Lo que el admin resuelve son colas (registros por
+   * aprobar, horarios por revisar) y huecos de configuración (materias sin
+   * docente o sin horario), no promedios.
+   */
+  async obtenerPanelAdmin() {
+    const periodo = getCurrentAcademicPeriod();
+    const inicioDeHoy = new Date();
+    inicioDeHoy.setHours(0, 0, 0, 0);
+    const inicioDeManana = new Date(inicioDeHoy);
+    inicioDeManana.setDate(inicioDeManana.getDate() + 1);
+
+    const [
+      registrosPorAprobar,
+      horariosPorRevisar,
+      inscripcionesPendientes,
+      carreras,
+      materias,
+      grupos,
+      docentes,
+      alumnos,
+      clasesHoy,
+      asistenciasHoy,
+      ultimaClase,
+      tareasPublicadas,
+      materiasIncompletas,
+    ] = await Promise.all([
+      // Mismo criterio que la lista de Usuarios: alumno activo cuyo registro
+      // todavía no aprueba nadie.
+      this.prisma.usuario.count({
+        where: { rol: Rol.ALUMNO, activo: true, registroAprobado: false },
+      }),
+      this.prisma.importacionHorario.count({
+        where: { estado: EstadoImportacionHorario.PENDIENTE_REVISION },
+      }),
+      this.prisma.inscripcion.count({ where: { estado: 'PENDIENTE' } }),
+      this.prisma.carrera.count(),
+      this.prisma.materia.count(),
+      this.prisma.grupo.count({ where: { activo: true, periodo } }),
+      this.prisma.usuario.count({ where: { rol: Rol.DOCENTE, activo: true } }),
+      this.prisma.usuario.count({
+        where: { rol: Rol.ALUMNO, activo: true, registroAprobado: true },
+      }),
+      this.prisma.claseSesion.count({
+        where: { fecha: { gte: inicioDeHoy, lt: inicioDeManana } },
+      }),
+      this.prisma.asistencia.count({
+        where: { createdAt: { gte: inicioDeHoy, lt: inicioDeManana } },
+      }),
+      // Para poder decir "hace 3 días" en vez de un "Hoy" escrito a mano.
+      this.prisma.claseSesion.findFirst({
+        orderBy: { fecha: 'desc' },
+        select: { fecha: true },
+      }),
+      this.prisma.tarea.count({
+        where: { activa: true, estado: EstadoTarea.PUBLICADA },
+      }),
+      // Una materia sin docente o sin horario activo no se puede impartir:
+      // es trabajo pendiente del admin, no una métrica.
+      this.prisma.materia.findMany({
+        where: {
+          OR: [{ docenteId: null }, { horarios: { none: { activo: true } } }],
+        },
+        select: {
+          id: true,
+          nombre: true,
+          clave: true,
+          docenteId: true,
+          carrera: { select: { nombre: true } },
+          _count: { select: { horarios: { where: { activo: true } } } },
+        },
+        orderBy: { nombre: 'asc' },
+        take: 6,
+      }),
+    ]);
+
+    const totalMateriasIncompletas = await this.prisma.materia.count({
+      where: {
+        OR: [{ docenteId: null }, { horarios: { none: { activo: true } } }],
+      },
+    });
+
+    return {
+      periodo,
+      pendientes: {
+        registrosPorAprobar,
+        horariosPorRevisar,
+        inscripcionesPendientes,
+      },
+      catalogo: { carreras, materias, grupos, docentes, alumnos },
+      actividad: {
+        clasesHoy,
+        asistenciasHoy,
+        tareasPublicadas,
+        // null y no una fecha inventada: puede que nunca se haya pasado lista.
+        ultimoRegistro: ultimaClase?.fecha ?? null,
+      },
+      materiasIncompletas: materiasIncompletas.map((materia) => ({
+        id: materia.id,
+        nombre: materia.nombre,
+        clave: materia.clave,
+        carrera: materia.carrera?.nombre ?? null,
+        sinDocente: materia.docenteId === null,
+        sinHorario: materia._count.horarios === 0,
+      })),
+      totalMateriasIncompletas,
     };
   }
 }

@@ -19,4 +19,13 @@ export class DashboardController {
   docente(@Req() req) {
     return this.dashboard.obtenerPanelDocente(req.user.id);
   }
+
+  @Get('admin')
+  @Roles('ADMIN')
+  @ApiOperation({
+    summary: 'Panel del admin: colas pendientes, catálogo y actividad de hoy',
+  })
+  admin() {
+    return this.dashboard.obtenerPanelAdmin();
+  }
 }
