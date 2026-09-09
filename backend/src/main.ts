@@ -36,11 +36,12 @@ async function bootstrap() {
     },
   );
 
-  const frontendUrl = (
-    process.env.FRONTEND_URL || 'http://localhost:5173'
-  ).replace(/\/+$/, '');
+  const frontendUrls = (process.env.FRONTEND_URL || 'http://localhost:5173')
+    .split(',')
+    .map((url) => url.trim().replace(/\/+$/, ''))
+    .filter(Boolean);
   app.enableCors({
-    origin: frontendUrl,
+    origin: frontendUrls.length > 1 ? frontendUrls : frontendUrls[0],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   });

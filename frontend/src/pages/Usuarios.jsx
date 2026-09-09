@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
+import { CheckCircle2, Eye, GraduationCap, KeyRound, Pencil, Power, Trash2 } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import Modal from '../components/Modal'
+import SwipeableRow from '../components/SwipeableRow'
 import api from '../api/axios'
 import { EMAIL_AUTH_ENABLED } from '../lib/authFeatures'
 
@@ -456,6 +458,40 @@ export default function Usuarios() {
     }
   }
 
+  const abrirCarreras = (u) => {
+    setFormError('')
+    setCareerModal({
+      open: true,
+      user: u,
+      carreraIds: u.carrerasJefe?.map((item) => item.carrera.id) ?? [],
+    })
+  }
+
+  const abrirPassword = (u) => {
+    setPwModal({ open: true, user: u })
+    setNewPassword('')
+    setPwMsg('')
+  }
+
+  /** Acciones reveladas al deslizar una fila en la lista móvil (mismas que los botones de escritorio). */
+  const accionesMovil = (u) => [
+    { key: 'ver', label: 'Ver', icon: <Eye className="h-4 w-4" />, className: 'bg-gray-500', onClick: () => abrirDetalle(u) },
+    { key: 'editar', label: 'Editar', icon: <Pencil className="h-4 w-4" />, className: 'bg-indigo-600', onClick: () => abrirEdicion(u) },
+    u.rol === 'JEFE_CARRERA' && {
+      key: 'carreras', label: 'Carreras', icon: <GraduationCap className="h-4 w-4" />, className: 'bg-amber-500', onClick: () => abrirCarreras(u),
+    },
+    u.rol === 'ALUMNO' && u.activo && !u.registroAprobado && {
+      key: 'aprobar', label: 'Aprobar', icon: <CheckCircle2 className="h-4 w-4" />, className: 'bg-emerald-600',
+      disabled: !puedeAprobar(u), onClick: () => solicitarConfirmacion(u, 'approve'),
+    },
+    {
+      key: 'toggle', label: u.activo ? 'Desactivar' : 'Activar', icon: <Power className="h-4 w-4" />,
+      className: u.activo ? 'bg-orange-500' : 'bg-green-600', onClick: () => solicitarConfirmacion(u, 'toggle'),
+    },
+    { key: 'password', label: 'Clave', icon: <KeyRound className="h-4 w-4" />, className: 'bg-blue-500', onClick: () => abrirPassword(u) },
+    { key: 'eliminar', label: 'Eliminar', icon: <Trash2 className="h-4 w-4" />, className: 'bg-red-600', onClick: () => solicitarConfirmacion(u, 'delete') },
+  ].filter(Boolean)
+
   return (
     <>
       <PageHeader
@@ -516,7 +552,37 @@ export default function Usuarios() {
         )}
       </div>
 
-      <div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-sm">
+      {/* Lista móvil: desliza una fila hacia la izquierda para ver sus acciones */}
+      <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm sm:hidden">
+        {usuariosFiltrados.map((u) => (
+          <SwipeableRow key={u.id} actions={accionesMovil(u)} onTap={() => abrirDetalle(u)}>
+            <div className="flex items-center justify-between gap-3 px-4 py-3">
+              <div className="min-w-0">
+                <p className="truncate font-medium text-gray-800">{u.nombre}</p>
+                <p className="truncate text-xs text-gray-500">
+                  {u.numeroControl || u.username || u.email || '—'}
+                </p>
+              </div>
+              <div className="flex shrink-0 flex-col items-end gap-1">
+                <span className={`text-xs px-2 py-1 rounded-full font-medium ${ROL_COLORS[u.rol]}`}>{u.rol}</span>
+                <span className={`text-xs px-2 py-1 rounded-full font-medium ${getAccountStatus(u).className}`}>
+                  {getAccountStatus(u).label}
+                </span>
+              </div>
+            </div>
+          </SwipeableRow>
+        ))}
+        {usuariosFiltrados.length === 0 && (
+          <p className="text-center text-gray-400 py-10">No hay usuarios</p>
+        )}
+        {usuariosFiltrados.length > 0 && (
+          <p className="border-t border-gray-100 px-4 py-2 text-center text-[11px] text-gray-400">
+            Desliza un usuario hacia la izquierda para ver sus acciones
+          </p>
+        )}
+      </div>
+
+      <div className="hidden overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-sm sm:block">
         <table className="w-full min-w-[760px] text-sm">
           <thead className="bg-gray-50 border-b border-gray-100">
             <tr>
