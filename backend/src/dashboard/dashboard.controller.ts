@@ -4,6 +4,7 @@ import { DashboardService } from './dashboard.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
+import type { AuthenticatedRequest } from '../auth/auth.types';
 
 @ApiTags('dashboard')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -16,7 +17,7 @@ export class DashboardController {
   @ApiOperation({
     summary: 'Panel del docente: clases de hoy, pendientes y sus materias',
   })
-  docente(@Req() req) {
+  docente(@Req() req: AuthenticatedRequest) {
     return this.dashboard.obtenerPanelDocente(req.user.id);
   }
 

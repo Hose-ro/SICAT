@@ -108,7 +108,8 @@ function DashboardRoute() {
   const user = useAuthStore((state) => state.user);
   if (user?.rol === "JEFE_CARRERA") return <JefeDashboard />;
   if (user?.rol === "DOCENTE") return <DashboardDocente />;
-  return <Dashboard />;
+  if (user?.rol === "ADMIN") return <Dashboard />;
+  return <Navigate to="/materias" replace />;
 }
 
 function App() {
