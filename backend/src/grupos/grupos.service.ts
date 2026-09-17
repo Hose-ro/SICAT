@@ -15,6 +15,10 @@ import { hayConflictoHorario } from '../horarios/utils/conflicto-horario.util';
 import { HorariosService } from '../horarios/horarios.service';
 import { unidadesIniciales } from '../common/unidades.util';
 import {
+  inscribirAlumnosDelGrupo,
+  quitarInscripcionesDelGrupo,
+} from '../common/inscripciones-grupo';
+import {
   normalizeControlNumber,
   normalizeEmail,
   normalizeName,
@@ -547,6 +551,9 @@ export class GruposService {
       where: { id: alumno.id },
       data: { grupoId },
     });
+    await inscribirAlumnosDelGrupo(this.prisma, grupoId, {
+      alumnoIds: [alumno.id],
+    });
 
     return alumno;
   }
@@ -570,6 +577,7 @@ export class GruposService {
       yaEnGrupo: 0,
       errores: [] as { nombre: string; motivo: string }[],
     };
+    const agregados: number[] = [];
 
     for (const fila of dto.alumnos) {
       const nombre = normalizeName(fila.nombre ?? '');
@@ -654,6 +662,7 @@ export class GruposService {
             where: { id: existente.id },
             data: { grupoId },
           });
+          agregados.push(existente.id);
           resultado.vinculados += 1;
           continue;
         }
@@ -661,7 +670,7 @@ export class GruposService {
         // Sin cuenta previa: se crea con una contraseña aleatoria, igual que
         // en la importación por materia, y el alumno la restablece después.
         const hash = await bcrypt.hash(randomBytes(24).toString('hex'), 12);
-        await this.prisma.usuario.create({
+        const creado = await this.prisma.usuario.create({
           data: {
             nombre,
             numeroControl,
@@ -675,6 +684,7 @@ export class GruposService {
           },
           select: { id: true },
         });
+        agregados.push(creado.id);
         resultado.creados += 1;
       } catch {
         resultado.errores.push({
@@ -683,6 +693,10 @@ export class GruposService {
         });
       }
     }
+
+    await inscribirAlumnosDelGrupo(this.prisma, grupoId, {
+      alumnoIds: agregados,
+    });
 
     return resultado;
   }
@@ -706,6 +720,7 @@ export class GruposService {
       where: { id: alumnoId },
       data: { grupoId: null },
     });
+    await quitarInscripcionesDelGrupo(this.prisma, grupoId, [alumnoId]);
     return { ok: true };
   }
 
@@ -729,6 +744,7 @@ export class GruposService {
       where: { id: { in: ids }, grupoId, rol: Rol.ALUMNO },
       data: { grupoId: null },
     });
+    await quitarInscripcionesDelGrupo(this.prisma, grupoId, ids);
     return { quitados: count };
   }
 
@@ -997,6 +1013,7 @@ export class GruposService {
       where: { id: { in: alumnoIds } },
       data: { grupoId },
     });
+    await inscribirAlumnosDelGrupo(this.prisma, grupoId, { alumnoIds });
 
     return this.obtenerGrupo(grupoId);
   }
@@ -1020,6 +1037,7 @@ export class GruposService {
       where: { id: alumnoId },
       data: { grupoId: null },
     });
+    await quitarInscripcionesDelGrupo(this.prisma, grupoId, [alumnoId]);
     return this.obtenerGrupo(grupoId);
   }
 
@@ -1084,11 +1102,13 @@ export class GruposService {
       }
     }
 
-    return this.prisma.grupo.update({
+    const actualizado = await this.prisma.grupo.update({
       where: { id: grupoId },
       data: { materias: { connect: materiaIds.map((id) => ({ id })) } },
       include: INCLUDE_DETAIL,
     });
+    await inscribirAlumnosDelGrupo(this.prisma, grupoId, { materiaIds });
+    return actualizado;
   }
 
   // ─── Quitar materia ─────────────────────────────────────────────────────────

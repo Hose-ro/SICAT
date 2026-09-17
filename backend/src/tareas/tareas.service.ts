@@ -1410,7 +1410,12 @@ export class TareasService {
       },
       orderBy: { alumno: { nombre: 'asc' } },
     });
-    const alumnos = inscripciones.map((item) => item.alumno);
+    // Una sola vez por alumno aunque tenga inscripción en varios periodos.
+    const alumnos = Array.from(
+      new Map(
+        inscripciones.map((item) => [item.alumno.id, item.alumno]),
+      ).values(),
+    );
     cache.set(key, alumnos);
     return alumnos;
   }

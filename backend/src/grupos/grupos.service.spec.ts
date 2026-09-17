@@ -3,12 +3,24 @@ import { PrismaService } from '../prisma.service';
 import { HorariosService } from '../horarios/horarios.service';
 import { UsuariosService } from '../usuarios/usuarios.service';
 import { GruposService } from './grupos.service';
+import {
+  inscribirAlumnosDelGrupo,
+  quitarInscripcionesDelGrupo,
+} from '../common/inscripciones-grupo';
+
+jest.mock('../common/inscripciones-grupo', () => ({
+  inscribirAlumnosDelGrupo: jest
+    .fn()
+    .mockResolvedValue({ creadas: 0, reactivadas: 0 }),
+  quitarInscripcionesDelGrupo: jest.fn().mockResolvedValue(0),
+}));
 
 describe('GruposService', () => {
   const grupoFindUnique = jest.fn();
   const grupoFindFirst = jest.fn();
   const grupoUpdate = jest.fn();
   const usuarioFindFirst = jest.fn();
+  const usuarioFindUnique = jest.fn();
   const usuarioUpdate = jest.fn();
   const usuarioCreate = jest.fn();
   const transaction = jest.fn();
@@ -20,6 +32,7 @@ describe('GruposService', () => {
     },
     usuario: {
       findFirst: usuarioFindFirst,
+      findUnique: usuarioFindUnique,
       update: usuarioUpdate,
       create: usuarioCreate,
     },
@@ -63,9 +76,9 @@ describe('GruposService', () => {
     grupoFindUnique.mockResolvedValue(grupoExistente);
     grupoFindFirst.mockResolvedValue({ id: 9, nombre: 'ISC-1A' });
 
-    await expect(service.editarGrupo(4, { nombre: 'ISC-1A' })).rejects.toBeInstanceOf(
-      ConflictException,
-    );
+    await expect(
+      service.editarGrupo(4, { nombre: 'ISC-1A' }),
+    ).rejects.toBeInstanceOf(ConflictException);
     expect(grupoUpdate).not.toHaveBeenCalled();
   });
 
@@ -78,7 +91,9 @@ describe('GruposService', () => {
       tarea: { updateMany: contador(5) },
       calificacionUnidad: { updateMany: contador(60) },
       importacionHorario: { updateMany: contador(2) },
-      grupo: { delete: jest.fn().mockResolvedValue({ id: 4, nombre: 'ISC-1A' }) },
+      grupo: {
+        delete: jest.fn().mockResolvedValue({ id: 4, nombre: 'ISC-1A' }),
+      },
     };
     transaction.mockImplementation((callback: (client: typeof tx) => unknown) =>
       Promise.resolve(callback(tx)),
@@ -163,6 +178,24 @@ describe('GruposService', () => {
         }),
       }),
     );
+    // Quien entra al grupo queda inscrito en sus materias; el rechazado no.
+    expect(inscribirAlumnosDelGrupo).toHaveBeenCalledWith(prisma, 4, {
+      alumnoIds: [11, 13],
+    });
+  });
+
+  it('al quitar a un alumno del grupo también lo saca de sus clases', async () => {
+    grupoFindFirst.mockResolvedValue(grupoDelDocente);
+    usuarioFindUnique.mockResolvedValue({ id: 11, grupoId: 4 });
+
+    await expect(service.quitarAlumnoDeMiGrupo(4, 37, 11)).resolves.toEqual({
+      ok: true,
+    });
+    expect(usuarioUpdate).toHaveBeenCalledWith({
+      where: { id: 11 },
+      data: { grupoId: null },
+    });
+    expect(quitarInscripcionesDelGrupo).toHaveBeenCalledWith(prisma, 4, [11]);
   });
 
   it('no deja tocar un grupo que no es del docente', async () => {
