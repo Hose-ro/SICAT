@@ -410,6 +410,54 @@ function describirSesion(item) {
   ].filter(Boolean).join(' · ')
 }
 
+/** Alumnos con más faltas del filtro actual; plegado para no amontonar la vista. */
+function RankingFaltas({ items }) {
+  const [abierto, setAbierto] = useState(false)
+  const panelId = useId()
+  const maximo = items[0]?.faltas ?? 0
+  const resumen = `${items.length} ${items.length === 1 ? 'alumno' : 'alumnos'} · hasta ${maximo} ${maximo === 1 ? 'falta' : 'faltas'}`
+
+  return (
+    <div className="overflow-hidden rounded-3xl border border-destructive/30 bg-destructive/10">
+      <button
+        type="button"
+        onClick={() => setAbierto((prev) => !prev)}
+        aria-expanded={abierto}
+        aria-controls={panelId}
+        className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left transition-colors hover:bg-destructive/15"
+      >
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold text-destructive-foreground">Ranking de alumnos con más faltas</h3>
+          <p className="mt-0.5 text-xs text-destructive-foreground/80">{resumen}</p>
+        </div>
+        <span className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-destructive-foreground">
+          {abierto ? 'Ocultar' : 'Mostrar'}
+          <ChevronDown aria-hidden="true" className={`size-4 transition-transform ${abierto ? 'rotate-180' : ''}`} />
+        </span>
+      </button>
+
+      {abierto && (
+        <ol id={panelId} className="divide-y divide-destructive/20 border-t border-destructive/30">
+          {items.map((item, indice) => (
+            <li key={item.alumnoId} className="flex items-center gap-3 bg-card/60 px-5 py-2.5 text-sm">
+              <span className="w-6 shrink-0 text-xs font-semibold tabular-nums text-muted-foreground">{indice + 1}.</span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-medium text-foreground">{item.nombre}</span>
+                {item.numeroControl && (
+                  <span className="block text-xs text-muted-foreground">{item.numeroControl}</span>
+                )}
+              </span>
+              <span className="shrink-0 rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-semibold tabular-nums text-destructive-foreground">
+                {item.faltas} {item.faltas === 1 ? 'falta' : 'faltas'}
+              </span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  )
+}
+
 function HistorialTable({ items, onEditar, onVer, onExportarPdf, onExportarExcel, abierto = false, onToggle }) {
   const panelId = useId()
 
@@ -1980,16 +2028,7 @@ function DocenteAsistenciasView() {
         )}
 
         {estadisticas?.rankingFaltas?.length > 0 && (
-          <div className="rounded-3xl border border-destructive/30 bg-destructive/10 p-5">
-            <h3 className="text-sm font-semibold text-destructive-foreground">Ranking de alumnos con más faltas</h3>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {estadisticas.rankingFaltas.map((item) => (
-                <span key={item.alumnoId} className="rounded-full bg-card px-3 py-2 text-xs font-medium text-destructive-foreground">
-                  {item.nombre}: {item.faltas}
-                </span>
-              ))}
-            </div>
-          </div>
+          <RankingFaltas items={estadisticas.rankingFaltas} />
         )}
 
         <HistorialTable
@@ -2175,16 +2214,7 @@ function AdminAsistenciasView() {
       </div>
 
       {estadisticas?.rankingFaltas?.length > 0 && (
-        <div className="rounded-3xl border border-destructive/30 bg-destructive/10 p-5">
-          <h3 className="text-sm font-semibold text-destructive-foreground">Ranking de alumnos con más faltas</h3>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {estadisticas.rankingFaltas.map((item) => (
-              <span key={item.alumnoId} className="rounded-full bg-card px-3 py-2 text-xs font-medium text-destructive-foreground">
-                {item.nombre}: {item.faltas}
-              </span>
-            ))}
-          </div>
-        </div>
+        <RankingFaltas items={estadisticas.rankingFaltas} />
       )}
 
       <HistorialTable
