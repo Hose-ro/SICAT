@@ -72,6 +72,9 @@ import { PeriodosModule } from './periodos/periodos.module';
       {
         ttl: 60_000,
         limit: 120,
+        // Sólo para las pruebas e2e locales, que encadenan más logins por
+        // minuto de los que permite el límite de /auth/login.
+        skipIf: () => process.env.THROTTLE_DISABLED === '1',
       },
     ]),
     ScheduleModule.forRoot(),

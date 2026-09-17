@@ -62,7 +62,7 @@ export default function JefeDocentes() {
       <PageState loading={loading} error={error} empty={!filtrados.length} emptyText="No hay docentes que coincidan con los filtros." />
       {!loading && !error && filtrados.length > 0 && (
         <div className="overflow-hidden rounded-2xl border border-border bg-card">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Tabla de docentes">
             <table className="w-full min-w-[820px] text-sm">
               <thead className="bg-muted/70"><tr className="border-b border-border text-left text-xs text-muted-foreground">
                 <th className="px-4 py-3 font-medium">Docente</th><th className="px-4 py-3 font-medium">Materias</th><th className="px-4 py-3 font-medium">Carga</th><th className="px-4 py-3 font-medium">Estado</th><th className="px-4 py-3 text-right font-medium">Detalle</th>
@@ -74,7 +74,7 @@ export default function JefeDocentes() {
                     <td className="px-4 py-3 text-muted-foreground">{docente.docenteMaterias.length}</td>
                     <td className="px-4 py-3 text-muted-foreground">{docente.cargaSemanal} horario(s)</td>
                     <td className="px-4 py-3"><StatusBadge value={docente.estado} /></td>
-                    <td className="px-4 py-3 text-right"><Link to={`/jefe-carrera/docentes/${docente.id}`} className="inline-flex items-center gap-1 font-medium text-primary hover:underline">Consultar <ArrowRight className="h-4 w-4" /></Link></td>
+                    <td className="px-4 py-3 text-right"><Link to={`/jefe-carrera/docentes/${docente.id}`} className="inline-flex items-center gap-1 font-medium text-primary-ink hover:underline">Consultar <ArrowRight className="h-4 w-4" /></Link></td>
                   </tr>
                 ))}
               </tbody>

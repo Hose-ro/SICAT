@@ -1,10 +1,11 @@
+import { Button } from '@/components/ui/button'
 import { useEffect, useState } from 'react'
 import api from '../../api/axios'
 
 const ESTADO_UNIDAD = {
-  PENDIENTE: 'bg-slate-100 text-slate-700',
-  ACTIVA: 'bg-emerald-100 text-emerald-700',
-  FINALIZADA: 'bg-blue-100 text-blue-700',
+  PENDIENTE: "bg-muted text-foreground",
+  ACTIVA: "bg-success/10 text-success-foreground",
+  FINALIZADA: "bg-accent text-primary-ink",
 }
 
 function formatDate(value) {
@@ -68,12 +69,12 @@ export default function UnidadesCard({ materia, puedeEditar, onActualizado }) {
   const sinCambios = Number(valor) === unidades.length
 
   return (
-    <article className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+    <article className="min-w-0 rounded-2xl border border-border bg-card p-5 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 className="text-lg font-semibold text-gray-900">Unidades</h3>
+        <h2 className="text-lg font-semibold text-foreground">Unidades</h2>
         {puedeEditar && (
           <div className="flex items-center gap-2">
-            <label htmlFor="materia-unidades" className="text-xs font-medium text-gray-500">
+            <label htmlFor="materia-unidades" className="text-xs font-medium text-muted-foreground">
               Total
             </label>
             <input
@@ -83,59 +84,59 @@ export default function UnidadesCard({ materia, puedeEditar, onActualizado }) {
               max={12}
               value={valor}
               onChange={(event) => setValor(event.target.value)}
-              className="w-20 rounded-xl border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-20 rounded-xl border border-border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
-            <button
+            <Button variant="default"
               type="button"
               onClick={() => guardar(false)}
               disabled={guardando || sinCambios}
-              className="rounded-xl bg-blue-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
             >
               {guardando ? 'Guardando...' : 'Guardar'}
-            </button>
+            </Button>
           </div>
         )}
       </div>
 
       {puedeEditar && (
-        <p className="mt-2 text-xs text-gray-500">
+        <p className="mt-2 text-xs text-muted-foreground">
           Las unidades son de la materia: el cambio lo ven todos los grupos que la llevan.
         </p>
       )}
 
-      {error && <p role="alert" className="mt-3 text-sm text-red-500">{error}</p>}
+      {error && <p role="alert" className="mt-3 text-sm text-destructive-foreground">{error}</p>}
 
       {confirmacion && (
-        <div className="mt-3 space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
-          <p className="text-sm text-amber-900">{confirmacion.message}</p>
-          <p className="text-xs text-amber-700">Esta acción no se puede deshacer.</p>
+        <div className="mt-3 space-y-3 rounded-xl border border-warning/30 bg-warning/10 p-3">
+          <p className="text-sm text-warning-foreground">{confirmacion.message}</p>
+          <p className="text-xs text-warning-foreground">Esta acción no se puede deshacer.</p>
           <div className="flex flex-wrap gap-2">
-            <button
+            <Button variant="destructive"
               type="button"
               onClick={() => guardar(true)}
               disabled={guardando}
-              className="rounded-xl bg-red-600 px-3 py-2 text-xs font-medium text-white transition hover:bg-red-700 disabled:opacity-50"
+              className="px-3 py-2 text-xs font-medium disabled:opacity-50"
             >
               {guardando ? 'Borrando...' : 'Borrar y reducir'}
-            </button>
-            <button
+            </Button>
+            <Button variant="outline"
               type="button"
               onClick={() => setConfirmacion(null)}
-              className="rounded-xl border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 transition hover:bg-gray-50"
+              className="border px-3 py-2 text-xs font-medium"
             >
               Cancelar
-            </button>
+            </Button>
           </div>
         </div>
       )}
 
       <div className="mt-4 space-y-3">
         {unidades.map((unidad) => (
-          <div key={unidad.id} className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+          <div key={unidad.id} className="rounded-xl border border-border bg-background px-4 py-3">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="font-medium text-gray-800">{unidad.orden}. {unidad.nombre}</p>
-                <p className="mt-1 text-xs text-gray-500">
+                <p className="font-medium text-foreground">{unidad.orden}. {unidad.nombre}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
                   {formatDate(unidad.fechaInicio) ? `Inicio: ${formatDate(unidad.fechaInicio)}` : 'Sin inicio'} · {formatDate(unidad.fechaFin) ? `Fin: ${formatDate(unidad.fechaFin)}` : 'Sin cierre'}
                 </p>
               </div>
@@ -146,7 +147,7 @@ export default function UnidadesCard({ materia, puedeEditar, onActualizado }) {
           </div>
         ))}
         {unidades.length === 0 && (
-          <p className="text-sm text-gray-400">No hay unidades registradas.</p>
+          <p className="text-sm text-muted-foreground">No hay unidades registradas.</p>
         )}
       </div>
     </article>

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { searchTasks, mergeTaskFiles, deliveryHelp } from '../src/lib/tareas.js'
+import { searchTasks, mergeTaskFiles, deliveryHelp, taskFileUrl } from '../src/lib/tareas.js'
 
 test('buscar ignora acentos y espacios, incluye materia y conserva la lista original', () => {
   const tasks = [{ id: 1, titulo: 'Investigación', materia: { nombre: 'Álgebra' } }, { id: 2, titulo: 'Ensayo' }]
@@ -36,4 +36,11 @@ test('explica la entrega presencial, cerrada y tardía sin prometer edición', (
   assert.match(deliveryHelp({ tipoEntrega: 'PRESENCIAL' }, null, true), /docente registra/)
   assert.match(deliveryHelp({ estado: 'CERRADA' }, null, false), /no recibe entregas/)
   assert.match(deliveryHelp({ estado: 'VENCIDA' }, null, true), /entrega tardía/)
+})
+
+test('los archivos de tareas se piden a la API protegida, nunca a la raíz pública', () => {
+  assert.equal(taskFileUrl('/uploads/tareas/a.pdf', 'http://localhost:3000/api'), 'http://localhost:3000/api/uploads/tareas/a.pdf')
+  assert.equal(taskFileUrl('/uploads/tareas/a.pdf', 'https://api.sicatapp.com/api/'), 'https://api.sicatapp.com/api/uploads/tareas/a.pdf')
+  assert.equal(taskFileUrl('https://cdn.example.com/x.pdf', 'http://localhost:3000/api'), 'https://cdn.example.com/x.pdf')
+  assert.equal(taskFileUrl(null, 'http://localhost:3000/api'), '#')
 })

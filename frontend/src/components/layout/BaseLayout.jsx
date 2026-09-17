@@ -1,21 +1,10 @@
-import { useState, useEffect } from 'react'
+import useDesktop from '@/hooks/useDesktop'
+import { LogOut } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import FeedbackDialogs from '@/components/FeedbackDialogs'
+import { useState, useRef } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import {
-  CiBoxes,
-  CiCalendar,
-  CiCalendarDate,
-  CiDark,
-  CiHome,
-  CiLock,
-  CiLogout,
-  CiMenuBurger,
-  CiRead,
-  CiSearch,
-  CiShop,
-  CiSun,
-  CiUser,
-  CiViewList,
-} from 'react-icons/ci'
+import { Boxes as CiBoxes, Calendar as CiCalendar, CalendarDays as CiCalendarDate, Moon as CiDark, House as CiHome, LockKeyhole as CiLock, LogOut as CiLogout, Menu as CiMenuBurger, BookOpen as CiRead, Search as CiSearch, School as CiShop, Sun as CiSun, UserRound as CiUser, List as CiViewList } from 'lucide-react'
 import {
   BarChart3,
   BellRing,
@@ -32,9 +21,13 @@ import { useAuthStore } from '@/store/authStore'
 import { useThemeStore } from '@/store/useThemeStore'
 import api from '@/api/axios'
 import NotificacionesBell from '@/components/shared/NotificacionesBell'
+import { useNotificacionesPolling } from '@/store/notificacionStore'
 import BrandMark from '@/components/branding/BrandMark'
 
 export function BaseLayout({ children }) {
+  const desktop = useDesktop()
+  useNotificacionesPolling()
+  const passwordRef = useRef(null)
   const { user, logout } = useAuthStore()
   const navigate = useNavigate()
   const role = user?.rol
@@ -42,6 +35,7 @@ export function BaseLayout({ children }) {
   const displayRole = role === 'JEFE_CARRERA' ? 'Jefe de carrera' : (role || 'Miembro')
   const avatarText = displayName?.[0]?.toUpperCase() || '?'
 
+  const [menuQuery, setMenuQuery] = useState('')
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const dark = useThemeStore((s) => s.isDark)
@@ -52,10 +46,6 @@ export function BaseLayout({ children }) {
   const [pwSuccess, setPwSuccess] = useState('')
   const [pwLoading, setPwLoading] = useState(false)
 
-  useEffect(() => {
-    document.body.style.overflow = mobileOpen ? 'hidden' : ''
-    return () => { document.body.style.overflow = '' }
-  }, [mobileOpen])
 
   const handleLogout = async () => {
     try {
@@ -70,16 +60,7 @@ export function BaseLayout({ children }) {
     `nav__item${isActive ? ' active' : ''}`
   const ThemeIcon = dark ? CiSun : CiDark
 
-  return (
-    <div>
-      {/* ── Mobile overlay ── */}
-      <div
-        className={`sidebar-overlay${mobileOpen ? ' visible' : ''}`}
-        onClick={() => setMobileOpen(false)}
-      />
-
-      {/* ── Sidebar ── */}
-      <aside className={`sidebar${collapsed ? ' collapsed' : ''}${mobileOpen ? ' mobile-open' : ''}`}>
+  const sidebarContent = <>
 
         {/* Header: logo + toggle */}
         <div className="sidebar__header">
@@ -89,62 +70,62 @@ export function BaseLayout({ children }) {
             </div>
             <span className="logo__text">SICAT</span>
           </div>
-          <button
+          <Button variant="ghost" aria-label={!desktop ? 'Cerrar menú' : collapsed ? 'Expandir menú' : 'Colapsar menú'}
             className="sidebar__toggle"
-            onClick={() => setCollapsed(c => !c)}
+            onClick={() => desktop ? setCollapsed(c => !c) : setMobileOpen(false)}
             title={collapsed ? 'Expandir' : 'Colapsar'}
           >
             <div className="sidebar-bar" />
             <div className="sidebar-bar" />
             <div className="sidebar-bar" />
-          </button>
+          </Button>
         </div>
 
         {/* Search */}
         <div className="sidebar__search">
           <CiSearch className="sidebar__search-icon" />
-          <input type="text" placeholder="Buscar..." />
+          <input aria-label="Buscar en el menú" type="search" placeholder="Buscar..." value={menuQuery} onChange={(event) => setMenuQuery(event.target.value)} />
         </div>
 
         {/* Nav */}
         <nav className="sidebar__nav">
           <span className="nav__section">Principal</span>
 
-          <NavLink to="/dashboard" className={navClass} data-tip="Inicio" onClick={() => setMobileOpen(false)}>
+          <NavLink to="/dashboard" className={navClass} data-tip="Inicio" hidden={!'Inicio'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
             <CiHome className="nav__icon" />
             <span className="nav__label">Inicio</span>
           </NavLink>
 
           {role !== 'JEFE_CARRERA' && (
             <>
-              <NavLink to="/materias" className={navClass} data-tip="Materias" onClick={() => setMobileOpen(false)}>
+              <NavLink to="/materias" className={navClass} data-tip="Materias" hidden={!'Materias'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
                 <CiRead className="nav__icon" />
                 <span className="nav__label">Materias</span>
               </NavLink>
 
-              <NavLink to="/asistencias" className={navClass} data-tip="Asistencias" onClick={() => setMobileOpen(false)}>
+              <NavLink to="/asistencias" className={navClass} data-tip="Asistencias" hidden={!'Asistencias'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
                 <CiCalendar className="nav__icon" />
                 <span className="nav__label">Asistencias</span>
               </NavLink>
 
-              <NavLink to="/tareas" className={navClass} data-tip="Tareas" onClick={() => setMobileOpen(false)}>
+              <NavLink to="/tareas" className={navClass} data-tip="Tareas" hidden={!'Tareas'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
                 <CiViewList className="nav__icon" />
                 <span className="nav__label">Tareas</span>
               </NavLink>
 
-              <NavLink to="/calificaciones" className={navClass} data-tip="Calificaciones" onClick={() => setMobileOpen(false)}>
+              <NavLink to="/calificaciones" className={navClass} data-tip="Calificaciones" hidden={!'Calificaciones'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
                 <GraduationCap className="nav__icon" />
                 <span className="nav__label">Calificaciones</span>
               </NavLink>
 
               {role === 'DOCENTE' && (
                 <>
-                  <NavLink to="/docente/grupos" className={navClass} data-tip="Mis grupos" onClick={() => setMobileOpen(false)}>
+                  <NavLink to="/docente/grupos" className={navClass} data-tip="Mis grupos" hidden={!'Mis grupos'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
                     <UsersRound className="nav__icon" />
                     <span className="nav__label">Mis grupos</span>
                   </NavLink>
 
-                  <NavLink to="/docente/horario" className={navClass} data-tip="Horario" onClick={() => setMobileOpen(false)}>
+                  <NavLink to="/docente/horario" className={navClass} data-tip="Horario" hidden={!'Horario'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
                     <CalendarClock className="nav__icon" />
                     <span className="nav__label">Horario</span>
                   </NavLink>
@@ -152,7 +133,7 @@ export function BaseLayout({ children }) {
               )}
 
               {role === 'ALUMNO' && (
-                <NavLink to="/alumno/horario" className={navClass} data-tip="Horario" onClick={() => setMobileOpen(false)}>
+                <NavLink to="/alumno/horario" className={navClass} data-tip="Horario" hidden={!'Horario'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
                   <CalendarClock className="nav__icon" />
                   <span className="nav__label">Horario</span>
                 </NavLink>
@@ -163,23 +144,23 @@ export function BaseLayout({ children }) {
           {role === 'JEFE_CARRERA' && (
             <>
               <span className="nav__section">Jefatura</span>
-              <NavLink to="/jefe-carrera/docentes" className={navClass} data-tip="Docentes" onClick={() => setMobileOpen(false)}>
+              <NavLink to="/jefe-carrera/docentes" className={navClass} data-tip="Docentes" hidden={!'Docentes'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
                 <UsersRound className="nav__icon" />
                 <span className="nav__label">Docentes</span>
               </NavLink>
-              <NavLink to="/jefe-carrera/clases" className={navClass} data-tip="Clases y horarios" onClick={() => setMobileOpen(false)}>
+              <NavLink to="/jefe-carrera/clases" className={navClass} data-tip="Clases y horarios" hidden={!'Clases y horarios'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
                 <CalendarClock className="nav__icon" />
                 <span className="nav__label">Clases y horarios</span>
               </NavLink>
-              <NavLink to="/jefe-carrera/seguimiento" className={navClass} data-tip="Seguimiento" onClick={() => setMobileOpen(false)}>
+              <NavLink to="/jefe-carrera/seguimiento" className={navClass} data-tip="Seguimiento" hidden={!'Seguimiento'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
                 <BookOpenCheck className="nav__icon" />
                 <span className="nav__label">Seguimiento</span>
               </NavLink>
-              <NavLink to="/jefe-carrera/alertas" className={navClass} data-tip="Alertas" onClick={() => setMobileOpen(false)}>
+              <NavLink to="/jefe-carrera/alertas" className={navClass} data-tip="Alertas" hidden={!'Alertas'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
                 <BellRing className="nav__icon" />
                 <span className="nav__label">Alertas</span>
               </NavLink>
-              <NavLink to="/jefe-carrera/reportes" className={navClass} data-tip="Reportes" onClick={() => setMobileOpen(false)}>
+              <NavLink to="/jefe-carrera/reportes" className={navClass} data-tip="Reportes" hidden={!'Reportes'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
                 <BarChart3 className="nav__icon" />
                 <span className="nav__label">Reportes</span>
               </NavLink>
@@ -190,37 +171,37 @@ export function BaseLayout({ children }) {
             <>
               <span className="nav__section">Administración</span>
 
-              <NavLink to="/carreras" className={navClass} data-tip="Carreras" onClick={() => setMobileOpen(false)}>
+              <NavLink to="/carreras" className={navClass} data-tip="Carreras" hidden={!'Carreras'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
                 <CiRead className="nav__icon" />
                 <span className="nav__label">Carreras</span>
               </NavLink>
 
-              <NavLink to="/usuarios" className={navClass} data-tip="Usuarios" onClick={() => setMobileOpen(false)}>
+              <NavLink to="/usuarios" className={navClass} data-tip="Usuarios" hidden={!'Usuarios'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
                 <CiUser className="nav__icon" />
                 <span className="nav__label">Usuarios</span>
               </NavLink>
 
-              <NavLink to="/admin/horarios" className={navClass} data-tip="Horarios" onClick={() => setMobileOpen(false)}>
+              <NavLink to="/admin/horarios" className={navClass} data-tip="Horarios" hidden={!'Horarios'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
                 <CiCalendarDate className="nav__icon" />
                 <span className="nav__label">Horarios</span>
               </NavLink>
 
-              <NavLink to="/admin/horarios-importados" className={navClass} data-tip="Horarios por revisar" onClick={() => setMobileOpen(false)}>
+              <NavLink to="/admin/horarios-importados" className={navClass} data-tip="Horarios por revisar" hidden={!'Horarios por revisar'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
                 <ScanLine className="nav__icon" />
                 <span className="nav__label">Horarios por revisar</span>
               </NavLink>
 
-              <NavLink to="/admin/academias" className={navClass} data-tip="Academias" onClick={() => setMobileOpen(false)}>
+              <NavLink to="/admin/academias" className={navClass} data-tip="Academias" hidden={!'Academias'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
                 <CiShop className="nav__icon" />
                 <span className="nav__label">Academias</span>
               </NavLink>
 
-              <NavLink to="/admin/aulas" className={navClass} data-tip="Aulas" onClick={() => setMobileOpen(false)}>
+              <NavLink to="/admin/aulas" className={navClass} data-tip="Aulas" hidden={!'Aulas'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
                 <DoorOpen className="nav__icon" />
                 <span className="nav__label">Aulas</span>
               </NavLink>
 
-              <NavLink to="/admin/grupos" className={navClass} data-tip="Grupos" onClick={() => setMobileOpen(false)}>
+              <NavLink to="/admin/grupos" className={navClass} data-tip="Grupos" hidden={!'Grupos'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
                 <CiBoxes className="nav__icon" />
                 <span className="nav__label">Grupos</span>
               </NavLink>
@@ -234,22 +215,10 @@ export function BaseLayout({ children }) {
         <div className="sidebar__footer">
 
           {/* Dark mode toggle */}
-          <div className="dark-toggle">
-            <ThemeIcon className="dark-toggle__icon" />
+          <Button variant="ghost" className="dark-toggle" onClick={toggleDark} aria-label={dark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'} aria-pressed={dark}>
+            <ThemeIcon className="dark-toggle__icon" aria-hidden="true" />
             <span className="dark-toggle__label">{dark ? 'Modo claro' : 'Modo oscuro'}</span>
-            <input
-              id="dark-check"
-              type="checkbox"
-              className="mode-switch-input"
-              checked={dark}
-              onChange={toggleDark}
-            />
-            <label className="mode-switch" htmlFor="dark-check">
-              <svg viewBox="0 0 212.4992 84.4688" overflow="visible">
-                <path pathLength={360} fill="none" stroke="currentColor" d="M 42.2496,84.4688 C 18.913594,84.474104 -0.00530424,65.555206 0,42.2192 0.01148477,18.895066 18.925464,-0.00530377 42.2496,0 65.573736,-0.00530377 84.487715,18.895066 84.4992,42.2192 84.504504,65.555206 65.585606,84.474104 42.2496,84.4688 18.913594,84.474104 -0.00530424,65.555206 0,42.2192 0.01148477,18.895066 18.925463,-0.00188652 42.2496,0 c 64,0 64,84.4688 128,84.4688 23.32414,0.0019 42.23812,-18.895066 42.2496,-42.2192 C 212.5042,18.913594 193.58561,-0.005304 170.2496,0 146.91359,-0.005304 127.9947,18.913594 128,42.2496 c 0.0115,23.324134 18.92546,42.224504 42.2496,42.2192 23.32414,0.0053 42.23812,-18.895066 42.2496,-42.2192 C 212.5042,18.913594 193.58561,-0.005304 170.2496,0 c -64,0 -64,84.4688 -128,84.4688 z" />
-              </svg>
-            </label>
-          </div>
+          </Button>
 
           {/* User */}
           <div className="sidebar__user">
@@ -260,37 +229,46 @@ export function BaseLayout({ children }) {
               <div className="user__name">{displayName}</div>
               <div className="user__role">{displayRole}</div>
             </div>
-            <button className="btn-logout" onClick={handleLogout} title="Cerrar sesión">
-              <span className="btn-logout__sign">
-                <CiLogout />
-              </span>
-              <span className="btn-logout__text">Salir</span>
-            </button>
+            <Button variant="ghost" size="icon" aria-label="Cerrar sesión" className="sidebar-logout" onClick={handleLogout} title="Cerrar sesión"><LogOut aria-hidden="true" /></Button>
           </div>
 
           {/* Change password button */}
-          <button
+          <Button variant="ghost"
             type="button"
-            className="sidebar__pw-btn"
+            className="sidebar__pw-btn" aria-label="Cambiar contraseña"
             onClick={() => setPwModal(true)}
           >
             <CiLock className="sidebar__pw-icon" />
             <span className="sidebar__pw-label">Cambiar contraseña</span>
-          </button>
+          </Button>
 
         </div>
-      </aside>
+      </>
+
+  return (
+    <div>
+      <a className="skip-link" href="#contenido-principal" onClick={() => document.getElementById('contenido-principal')?.focus()}>Saltar al contenido</a>
+      {desktop ? (
+        <aside aria-label="Menú principal" className={`sidebar${collapsed ? ' collapsed' : ''}`}>{sidebarContent}</aside>
+      ) : (
+        <Dialog.Root open={mobileOpen} onOpenChange={setMobileOpen}>
+          <Dialog.Portal>
+            <Dialog.Backdrop className="sidebar-overlay" />
+            <Dialog.Popup aria-modal="true" className="sidebar" aria-label="Menú principal">{sidebarContent}</Dialog.Popup>
+          </Dialog.Portal>
+        </Dialog.Root>
+      )}
 
       {/* ── Mobile top bar ── */}
       <div className="mobile-topbar">
-        <button
+        <Button variant="outline"
           onClick={() => setMobileOpen(true)}
           type="button"
           aria-label="Abrir menú"
-          className="rounded-lg border border-transparent p-2 text-[20px] text-[#263C69] transition hover:bg-white/60"
+          className="border border-transparent p-2 text-[20px]"
         >
           <CiMenuBurger />
-        </button>
+        </Button>
         <div className="mobile-topbar__brand">
           <BrandMark className="mobile-topbar__brand-icon" decorative />
           <span className="mobile-topbar__brand-text">SICAT</span>
@@ -298,12 +276,13 @@ export function BaseLayout({ children }) {
         <NotificacionesBell />
       </div>
 
+      <FeedbackDialogs />
       {/* ── Main content ── */}
       <div className={`layout-main${collapsed ? ' collapsed' : ''}`}>
         <div className="print-hidden hidden items-center justify-end px-4 pt-4 sm:px-6 lg:flex lg:px-7">
           <NotificacionesBell />
         </div>
-        <main className="min-h-screen px-4 py-4 sm:px-6 sm:py-6 lg:px-7">
+        <main id="contenido-principal" tabIndex={-1} className="min-h-screen px-4 py-4 sm:px-6 sm:py-6 lg:px-7">
           {children}
         </main>
       </div>
@@ -321,18 +300,19 @@ export function BaseLayout({ children }) {
         }}
       >
         <Dialog.Portal>
-          <Dialog.Backdrop className="fixed inset-0 z-[199] bg-black/40 transition-opacity duration-200 data-[ending-style]:opacity-0 data-[starting-style]:opacity-0" />
-          <Dialog.Popup
+          <Dialog.Backdrop className="fixed inset-0 z-[199] bg-overlay/40 transition-opacity duration-200 data-[ending-style]:opacity-0 data-[starting-style]:opacity-0" />
+          <Dialog.Popup aria-modal="true"
+            initialFocus={passwordRef}
             aria-describedby={pwError ? 'pw-modal-error' : pwSuccess ? 'pw-modal-success' : undefined}
-            className="pw-modal fixed left-1/2 top-1/2 z-[200] w-[calc(100vw-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl bg-white shadow-xl transition-all duration-200 data-[ending-style]:scale-95 data-[ending-style]:opacity-0 data-[starting-style]:scale-95 data-[starting-style]:opacity-0"
+            className="pw-modal fixed left-1/2 top-1/2 z-[200] w-[calc(100vw-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl bg-card shadow-xl transition-[color,background-color,border-color,opacity,transform] duration-200 data-[ending-style]:scale-95 data-[ending-style]:opacity-0 data-[starting-style]:scale-95 data-[starting-style]:opacity-0"
           >
-            <div className="flex items-center justify-between border-b border-gray-100 p-4 sm:p-5">
-              <Dialog.Title className="text-lg font-semibold text-gray-800">
+            <div className="flex items-center justify-between border-b border-border p-4 sm:p-5">
+              <Dialog.Title className="text-lg font-semibold text-foreground">
                 Cambiar contraseña
               </Dialog.Title>
               <Dialog.Close
                 aria-label="Cerrar"
-                className="-mr-1 rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-300"
+                className="-mr-1 rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <X className="h-5 w-5" aria-hidden="true" />
               </Dialog.Close>
@@ -361,57 +341,57 @@ export function BaseLayout({ children }) {
               }}
             >
               <div>
-                <label htmlFor="pw-current" className="block text-xs font-medium text-gray-700 mb-1">Contraseña actual</label>
+                <label htmlFor="pw-current" className="block text-xs font-medium text-foreground mb-1">Contraseña actual</label>
                 <input
                   id="pw-current"
-                  type="password" required maxLength={72} autoFocus
+                  ref={passwordRef} type="password" required maxLength={72}
                   autoComplete="current-password"
                   value={pwForm.current}
                   onChange={(e) => setPwForm({ ...pwForm, current: e.target.value })}
-                  className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-border rounded-xl px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 />
               </div>
               <div>
-                <label htmlFor="pw-new" className="block text-xs font-medium text-gray-700 mb-1">Nueva contraseña</label>
+                <label htmlFor="pw-new" className="block text-xs font-medium text-foreground mb-1">Nueva contraseña</label>
                 <input
                   id="pw-new"
                   type="password" required minLength={8} maxLength={72}
                   autoComplete="new-password"
                   value={pwForm.newPw}
                   onChange={(e) => setPwForm({ ...pwForm, newPw: e.target.value })}
-                  className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-border rounded-xl px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 />
               </div>
               <div>
-                <label htmlFor="pw-confirm" className="block text-xs font-medium text-gray-700 mb-1">Confirmar nueva contraseña</label>
+                <label htmlFor="pw-confirm" className="block text-xs font-medium text-foreground mb-1">Confirmar nueva contraseña</label>
                 <input
                   id="pw-confirm"
                   type="password" required minLength={8} maxLength={72}
                   autoComplete="new-password"
                   value={pwForm.confirm}
                   onChange={(e) => setPwForm({ ...pwForm, confirm: e.target.value })}
-                  className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-border rounded-xl px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 />
               </div>
 
               {pwError && (
-                <p id="pw-modal-error" role="alert" className="text-sm text-red-500 font-medium">
+                <p id="pw-modal-error" role="alert" className="text-sm text-destructive-foreground font-medium">
                   {pwError}
                 </p>
               )}
               {pwSuccess && (
-                <p id="pw-modal-success" role="status" className="text-sm text-green-600 font-medium">
+                <p id="pw-modal-success" role="status" className="text-sm text-success-foreground font-medium">
                   {pwSuccess}
                 </p>
               )}
 
-              <button
+              <Button variant="default"
                 type="submit"
                 disabled={pwLoading}
-                className="w-full bg-blue-600 text-white py-2.5 rounded-xl font-medium hover:bg-blue-700 transition disabled:opacity-50"
+                className="w-full py-2.5 font-medium disabled:opacity-50"
               >
                 {pwLoading ? 'Guardando...' : 'Actualizar contraseña'}
-              </button>
+              </Button>
             </form>
           </Dialog.Popup>
         </Dialog.Portal>

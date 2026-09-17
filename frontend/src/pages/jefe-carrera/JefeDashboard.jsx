@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button'
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AlertTriangle, ArrowRight, CalendarClock, MapPin, Radio, UsersRound } from 'lucide-react'
@@ -64,13 +65,13 @@ export default function JefeDashboard() {
         { label: 'Docentes activos', value: indicadores.docentesActivos },
         { label: 'Clases de hoy', value: indicadores.clasesHoy, detail: `${indicadores.clasesEnCurso} en curso` },
         { label: 'Asistencia acumulada', value: `${indicadores.asistenciaPromedio}%` },
-        { label: 'Alertas abiertas', value: indicadores.alertasAbiertas, tone: indicadores.alertasAbiertas ? 'text-destructive' : 'text-success' },
+        { label: 'Alertas abiertas', value: indicadores.alertasAbiertas, tone: indicadores.alertasAbiertas ? "text-destructive-foreground" : "text-success-foreground" },
       ]} />
 
       <section className="rounded-2xl border border-border bg-card p-5">
         <div className="mb-4 flex items-center gap-2">
-          <Radio className="h-4 w-4 text-success" />
-          <h3 className="text-base font-semibold text-foreground">Clases en vivo</h3>
+          <Radio className="h-4 w-4 text-success-foreground" />
+          <h2 className="text-base font-semibold text-foreground">Clases en vivo</h2>
           <span className="ml-auto text-xs text-muted-foreground">Se actualiza automáticamente</span>
         </div>
         {enVivo.length ? (
@@ -79,13 +80,13 @@ export default function JefeDashboard() {
               const clase = docente.claseActual
               if (!clase) return null
               return (
-                <button
+                <Button variant="outline" size="row"
                   key={docente.id}
                   type="button"
                   onClick={() => setSesionSeleccionada(clase.id)}
-                  className="rounded-xl border border-success/25 bg-success/5 p-4 text-left transition-colors hover:bg-success/10 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
+                  className="rounded-xl border border-success/25 p-4 transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
                 >
-                  <div className="flex items-center gap-1.5 text-xs font-medium text-success">
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-success-foreground">
                     <span className="h-2 w-2 animate-pulse rounded-full bg-success" aria-hidden="true" /> En línea ahora
                   </div>
                   <p className="mt-1.5 truncate text-sm font-semibold text-foreground">{docente.nombre}</p>
@@ -96,7 +97,7 @@ export default function JefeDashboard() {
                     <span className="inline-flex items-center gap-1"><CalendarClock className="h-3.5 w-3.5" /> {formatHora(clase.horaInicio)}–{formatHora(clase.horarioMateria?.horaFin)}</span>
                     {clase.horarioMateria?.aula && <span className="inline-flex items-center gap-1"><MapPin className="h-3.5 w-3.5" /> {clase.horarioMateria.aula.nombre}</span>}
                   </div>
-                </button>
+                </Button>
               )
             })}
           </div>
@@ -109,10 +110,10 @@ export default function JefeDashboard() {
         <section className="rounded-2xl border border-border bg-card p-5 lg:col-span-2">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
-              <h3 className="text-base font-semibold text-foreground">Clases de hoy</h3>
+              <h2 className="text-base font-semibold text-foreground">Clases de hoy</h2>
               <p className="text-sm text-muted-foreground">Estado operativo según horario y sesión registrada</p>
             </div>
-            <Link to="/jefe-carrera/clases" className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">
+            <Link to="/jefe-carrera/clases" className="inline-flex items-center gap-1 text-sm font-medium text-primary-ink hover:underline">
               Ver jornada <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
@@ -132,7 +133,7 @@ export default function JefeDashboard() {
         </section>
 
         <section className="rounded-2xl border border-border bg-card p-5">
-          <h3 className="text-base font-semibold text-foreground">Atención requerida</h3>
+          <h2 className="text-base font-semibold text-foreground">Atención requerida</h2>
           <div className="mt-4 space-y-4">
             <AttentionRow icon={<CalendarClock className="h-4 w-4" />} label="Clases con incidencia" value={indicadores.clasesConIncidencia} />
             <AttentionRow icon={<AlertTriangle className="h-4 w-4" />} label="Materias sin horario" value={indicadores.materiasSinHorario} />
@@ -148,14 +149,14 @@ export default function JefeDashboard() {
       <section className="rounded-2xl border border-border bg-card p-5">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
-            <h3 className="text-base font-semibold text-foreground">Docentes</h3>
+            <h2 className="text-base font-semibold text-foreground">Docentes</h2>
             <p className="text-sm text-muted-foreground">Carga asignada y estado actual</p>
           </div>
-          <Link to="/jefe-carrera/docentes" className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">
+          <Link to="/jefe-carrera/docentes" className="inline-flex items-center gap-1 text-sm font-medium text-primary-ink hover:underline">
             Ver directorio <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Resumen de docentes">
           <table className="w-full min-w-[620px] text-sm">
             <thead><tr className="border-b border-border text-left text-xs text-muted-foreground">
               <th className="pb-3 font-medium">Docente</th><th className="pb-3 font-medium">Materias</th><th className="pb-3 font-medium">Horarios</th><th className="pb-3 text-right font-medium">Estado</th>
@@ -186,7 +187,7 @@ function AttentionRow({ icon, label, value }) {
     <div className="flex items-center gap-3">
       <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted text-muted-foreground">{icon}</span>
       <div className="min-w-0 flex-1"><p className="truncate text-sm text-foreground">{label}</p></div>
-      <strong className={value ? 'text-destructive' : 'text-success'}>{value}</strong>
+      <strong className={value ? "text-destructive-foreground" : "text-success-foreground"}>{value}</strong>
     </div>
   )
 }

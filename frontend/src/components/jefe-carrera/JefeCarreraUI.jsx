@@ -32,7 +32,7 @@ export function CarreraSelector({ className = '' }) {
           ))}
         </select>
       </div>
-      {error && <p className="text-xs text-destructive">{error}</p>}
+      {error && <p className="text-xs text-destructive-foreground">{error}</p>}
     </div>
   )
 }
@@ -47,7 +47,7 @@ export function PageState({ loading, error, empty, emptyText = 'No hay informaci
   }
   if (error) {
     return (
-      <div role="alert" className="flex min-h-40 items-center justify-center rounded-2xl border border-destructive/25 bg-destructive/10 px-6 text-sm text-destructive">
+      <div role="alert" className="flex min-h-40 items-center justify-center rounded-2xl border border-destructive/25 bg-destructive/10 px-6 text-sm text-destructive-foreground">
         <AlertCircle className="mr-2 h-4 w-4" /> {error}
       </div>
     )
@@ -63,17 +63,17 @@ export function PageState({ loading, error, empty, emptyText = 'No hay informaci
 }
 
 const STATE_STYLES = {
-  EN_CURSO: 'bg-success/10 text-success border-success/20',
+  EN_CURSO: "bg-success/10 text-success-foreground border-success/20",
   FINALIZADA: 'bg-muted text-muted-foreground border-border',
-  PROGRAMADA: 'bg-primary/10 text-primary border-primary/20',
-  PROXIMA: 'bg-primary/10 text-primary border-primary/20',
-  NO_INICIADA: 'bg-destructive/10 text-destructive border-destructive/20',
+  PROGRAMADA: "bg-primary/10 text-primary-ink border-primary/20",
+  PROXIMA: "bg-primary/10 text-primary-ink border-primary/20",
+  NO_INICIADA: "bg-destructive/10 text-destructive-foreground border-destructive/20",
   FUERA_DE_HORARIO: 'bg-warning/15 text-warning-foreground border-warning/30',
   SIN_CLASE: 'bg-muted text-muted-foreground border-border',
-  NUEVA: 'bg-destructive/10 text-destructive border-destructive/20',
-  REVISADA: 'bg-primary/10 text-primary border-primary/20',
+  NUEVA: "bg-destructive/10 text-destructive-foreground border-destructive/20",
+  REVISADA: "bg-primary/10 text-primary-ink border-primary/20",
   EN_SEGUIMIENTO: 'bg-warning/15 text-warning-foreground border-warning/30',
-  CERRADA: 'bg-success/10 text-success border-success/20',
+  CERRADA: "bg-success/10 text-success-foreground border-success/20",
 }
 
 const STATE_LABELS = {

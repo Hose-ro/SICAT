@@ -7,6 +7,7 @@ export default function PasarLista() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6 sm:py-6">
+      <h1 className="mb-4 text-xl font-bold text-foreground">Pasar lista</h1>
       <AsistenciaSesionPanel
         sesionId={Number(sesionId)}
         onClose={() => navigate(-1)}

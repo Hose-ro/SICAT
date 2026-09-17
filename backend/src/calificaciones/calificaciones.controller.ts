@@ -9,12 +9,14 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
+import type { AuthenticatedRequest } from '../auth/auth.types';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { ReportesService } from '../reportes/reportes.service';
 import { CalificacionesService } from './calificaciones.service';
 import { GuardarCalificacionManualDto } from './dto/guardar-calificacion-manual.dto';
+import { GuardarPonderacionDto } from './dto/guardar-ponderacion.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('calificaciones')
@@ -32,8 +34,6 @@ export class CalificacionesController {
     @Query('grupoId') grupoId?: string,
     @Query('unidadId') unidadId?: string,
     @Query('docenteId') docenteId?: string,
-    @Query('pesoTareas') pesoTareas?: string,
-    @Query('pesoAsistencia') pesoAsistencia?: string,
   ) {
     if (!materiaId) {
       throw new BadRequestException('La materia es obligatoria');
@@ -44,9 +44,16 @@ export class CalificacionesController {
       grupoId: grupoId ? Number(grupoId) : undefined,
       unidadId: unidadId ? Number(unidadId) : undefined,
       docenteId: docenteId ? Number(docenteId) : undefined,
-      pesoTareas: pesoTareas ? Number(pesoTareas) : undefined,
-      pesoAsistencia: pesoAsistencia ? Number(pesoAsistencia) : undefined,
     });
+  }
+
+  @Patch('ponderacion')
+  @Roles('DOCENTE', 'ADMIN')
+  guardarPonderacion(
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: GuardarPonderacionDto,
+  ) {
+    return this.calificacionesService.guardarPonderacion(req.user, dto);
   }
 
   @Get('alumno')
@@ -55,14 +62,10 @@ export class CalificacionesController {
     @Req() req,
     @Query('materiaId') materiaId?: string,
     @Query('unidadId') unidadId?: string,
-    @Query('pesoTareas') pesoTareas?: string,
-    @Query('pesoAsistencia') pesoAsistencia?: string,
   ) {
     return this.calificacionesService.obtenerReporteAlumno(req.user.id, {
       materiaId: materiaId ? Number(materiaId) : undefined,
       unidadId: unidadId ? Number(unidadId) : undefined,
-      pesoTareas: pesoTareas ? Number(pesoTareas) : undefined,
-      pesoAsistencia: pesoAsistencia ? Number(pesoAsistencia) : undefined,
     });
   }
 
@@ -73,14 +76,10 @@ export class CalificacionesController {
     @Body() dto: GuardarCalificacionManualDto,
     @Query('grupoId') grupoId?: string,
     @Query('unidadId') unidadId?: string,
-    @Query('pesoTareas') pesoTareas?: string,
-    @Query('pesoAsistencia') pesoAsistencia?: string,
   ) {
     return this.calificacionesService.guardarManual(req.user, dto, {
       grupoId: grupoId ? Number(grupoId) : undefined,
       unidadId: unidadId ? Number(unidadId) : undefined,
-      pesoTareas: pesoTareas ? Number(pesoTareas) : undefined,
-      pesoAsistencia: pesoAsistencia ? Number(pesoAsistencia) : undefined,
     });
   }
 
@@ -93,8 +92,6 @@ export class CalificacionesController {
     @Query('grupoId') grupoId?: string,
     @Query('unidadId') unidadId?: string,
     @Query('docenteId') docenteId?: string,
-    @Query('pesoTareas') pesoTareas?: string,
-    @Query('pesoAsistencia') pesoAsistencia?: string,
     @Query('formato') formato = 'excel',
   ) {
     if (!materiaId) {
@@ -108,8 +105,6 @@ export class CalificacionesController {
         grupoId: grupoId ? Number(grupoId) : undefined,
         unidadId: unidadId ? Number(unidadId) : undefined,
         docenteId: docenteId ? Number(docenteId) : undefined,
-        pesoTareas: pesoTareas ? Number(pesoTareas) : undefined,
-        pesoAsistencia: pesoAsistencia ? Number(pesoAsistencia) : undefined,
       },
     );
 

@@ -43,7 +43,7 @@ export default function VerificarCorreo() {
       {status.message && (
         <div
           aria-live="polite"
-          className="rounded-lg border border-success/25 bg-success/10 p-4 text-sm text-success"
+          className="rounded-lg border border-success/25 bg-success/10 p-4 text-sm text-success-foreground"
         >
           {status.message}
         </div>
@@ -51,13 +51,13 @@ export default function VerificarCorreo() {
       {status.error && (
         <div
           role="alert"
-          className="rounded-lg border border-destructive/25 bg-destructive/10 p-4 text-sm text-destructive"
+          className="rounded-lg border border-destructive/25 bg-destructive/10 p-4 text-sm text-destructive-foreground"
         >
           {status.error}
         </div>
       )}
       <div className="mt-6 flex gap-4 text-sm">
-        <Link to="/login" className="font-medium text-primary hover:underline">
+        <Link to="/login" className="font-medium text-primary-ink hover:underline">
           Ir al inicio de sesión
         </Link>
         {status.error && (

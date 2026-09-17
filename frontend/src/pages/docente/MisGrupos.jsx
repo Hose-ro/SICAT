@@ -1,3 +1,6 @@
+import useAsyncAction from '@/hooks/useAsyncAction'
+import { Button } from '@/components/ui/button'
+import { confirmAction } from '@/lib/feedback'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
@@ -78,7 +81,7 @@ export default function MisGrupos() {
     <div className="space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary-ink">
             <UsersRound className="h-5 w-5" />
           </div>
           <div>
@@ -93,18 +96,18 @@ export default function MisGrupos() {
           </div>
         </div>
 
-        <button
+        <Button variant="default"
           type="button"
           onClick={() => setModalAgregar(true)}
-          className="inline-flex items-center gap-2 self-start rounded-2xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-primary-strong sm:self-auto"
+          className="inline-flex items-center gap-2 self-start px-4 py-2 text-sm font-medium shadow-sm sm:self-auto"
         >
           <Plus className="h-4 w-4" />
           Agregar grupo
-        </button>
+        </Button>
       </div>
 
       {error && (
-        <div className="rounded-2xl border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        <div className="rounded-2xl border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground">
           {error}
         </div>
       )}
@@ -197,14 +200,14 @@ function TarjetaGrupo({
     <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="truncate text-2xl font-bold text-primary">
+          <h2 className="truncate text-2xl font-bold text-primary-ink">
             {grupo.nombre}
           </h2>
           <p className="mt-0.5 truncate text-sm text-muted-foreground">
             {grupo.carrera?.nombre ?? 'Sin carrera'}
           </p>
         </div>
-        <span className="shrink-0 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+        <span className="shrink-0 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary-ink">
           Sem. {grupo.semestre}
         </span>
       </div>
@@ -220,7 +223,7 @@ function TarjetaGrupo({
           className={`rounded-full px-2.5 py-1 ${
             grupo.agregado
               ? 'bg-muted text-muted-foreground'
-              : 'bg-success/15 text-success'
+              : "bg-success/15 text-success-foreground"
           }`}
         >
           {grupo.agregado ? 'Agregado por ti' : 'De tu horario'}
@@ -228,10 +231,10 @@ function TarjetaGrupo({
       </div>
 
       {grupo.materias?.length > 0 ? (
-        <button
+        <Button variant="ghost" size="row"
           type="button"
           onClick={onVerMaterias}
-          className="rounded-xl text-left text-sm text-muted-foreground transition hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
+          className="w-auto max-w-full rounded-md text-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
         >
           Le impartes{' '}
           <span className="font-medium text-foreground underline decoration-dotted underline-offset-4">
@@ -239,14 +242,14 @@ function TarjetaGrupo({
               ? grupo.materias[0].nombre
               : `${grupo.materias.length} materias`}
           </span>
-        </button>
+        </Button>
       ) : (
         <p className="inline-flex flex-wrap items-center gap-1 text-sm text-muted-foreground">
           <CalendarClock className="h-4 w-4" />
           Sin clases programadas con este grupo.
           <Link
             to="/docente/horario/editar"
-            className="font-medium text-primary hover:underline"
+            className="font-medium text-primary-ink hover:underline"
           >
             Programar una
           </Link>
@@ -254,40 +257,40 @@ function TarjetaGrupo({
       )}
 
       <div className="mt-auto flex flex-wrap gap-2 pt-1">
-        <button
+        <Button variant="default"
           type="button"
           onClick={onAgregarAlumnos}
-          className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary-strong"
+          className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium"
         >
           <UserPlus className="h-4 w-4" />
           Agregar alumnos
-        </button>
-        <button
+        </Button>
+        <Button variant="outline"
           type="button"
           onClick={onVer}
-          className="inline-flex items-center rounded-xl border border-border px-3 py-2 text-sm font-medium text-foreground transition hover:bg-muted"
+          className="inline-flex items-center border px-3 py-2 text-sm font-medium"
         >
           Ver alumnos
-        </button>
+        </Button>
         {grupo.materias?.length > 0 && (
-          <button
+          <Button variant="outline"
             type="button"
             onClick={onVerMaterias}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-sm font-medium text-foreground transition hover:bg-muted"
+            className="inline-flex items-center gap-1.5 border px-3 py-2 text-sm font-medium"
           >
             <BookOpen className="h-4 w-4" />
             Ver materias
-          </button>
+          </Button>
         )}
         {grupo.agregado && (
-          <button
+          <Button variant="destructive"
             type="button"
             onClick={onQuitar}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-sm font-medium text-destructive transition hover:bg-destructive/10"
+            className="inline-flex items-center gap-1.5 border px-3 py-2 text-sm font-medium"
           >
             <Trash2 className="h-4 w-4" />
             Quitar
-          </button>
+          </Button>
         )}
       </div>
     </div>
@@ -356,7 +359,7 @@ function ModalMateriasGrupo({ grupo, onClose }) {
                   <span
                     className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${
                       materia.unidadActiva
-                        ? 'bg-success/15 text-success'
+                        ? "bg-success/15 text-success-foreground"
                         : 'bg-muted text-muted-foreground'
                     }`}
                   >
@@ -389,7 +392,7 @@ function ModalMateriasGrupo({ grupo, onClose }) {
 
                 <Link
                   to={`/materias/${materia.id}`}
-                  className="mt-3 inline-flex text-sm font-medium text-primary hover:underline"
+                  className="mt-3 inline-flex text-sm font-medium text-primary-ink hover:underline"
                 >
                   Abrir materia
                 </Link>
@@ -466,17 +469,17 @@ function ModalAgregarGrupo({ open, misGrupos, onClose, onAgregado }) {
       <div className="space-y-4">
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
+          <input aria-label="Buscar por nombre, carrera o periodo"
             type="text"
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
             placeholder="Buscar por nombre, carrera o periodo..."
-            className="w-full rounded-xl border border-border bg-background py-2 pl-9 pr-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+            className="w-full rounded-xl border border-border bg-background py-2 pl-9 pr-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
           />
         </div>
 
         {error && (
-          <p className="rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <p className="rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground">
             {error}
           </p>
         )}
@@ -509,18 +512,18 @@ function ModalAgregarGrupo({ open, misGrupos, onClose, onAgregado }) {
                       {grupo.semestre} · {grupo.periodo}
                     </p>
                   </div>
-                  <button
+                  <Button variant="default"
                     type="button"
                     disabled={yaEsMio || agregando === grupo.id}
                     onClick={() => agregar(grupo)}
-                    className="shrink-0 rounded-xl bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition hover:bg-primary-strong disabled:cursor-default disabled:bg-muted disabled:text-muted-foreground"
+                    className="shrink-0 px-3 py-1.5 text-xs font-medium disabled:cursor-default"
                   >
                     {yaEsMio
                       ? 'Ya es tuyo'
                       : agregando === grupo.id
                         ? 'Agregando...'
                         : 'Agregar'}
-                  </button>
+                  </Button>
                 </li>
               )
             })}
@@ -594,8 +597,8 @@ function ModalDetalleGrupo({ grupo, onClose }) {
     setSeleccion([])
   }
 
-  const quitarAlumno = async (alumno) => {
-    if (!window.confirm(`¿Quitar a ${alumno.nombre} de este grupo?`)) return
+  const quitarAlumno = useAsyncAction(async (alumno) => {
+    if (!(await confirmAction(`¿Quitar a ${alumno.nombre} de este grupo?`))) return
     setError('')
     try {
       await api.delete(`/grupos/mis-grupos/${grupo.id}/alumnos/${alumno.id}`)
@@ -604,15 +607,15 @@ function ModalDetalleGrupo({ grupo, onClose }) {
     } catch (err) {
       setError(mensajeError(err, 'No se pudo quitar al alumno'))
     }
-  }
+  })
 
-  const quitarSeleccionados = async () => {
+  const quitarSeleccionados = useAsyncAction(async () => {
     if (seleccion.length === 0) return
     const total = seleccion.length
     const confirmacion = todosSeleccionados
       ? `¿Quitar del grupo a los ${total} alumnos? Sus cuentas se conservan: sólo dejan de pertenecer al grupo.`
       : `¿Quitar del grupo a ${total} alumno${total === 1 ? '' : 's'}? Sus cuentas se conservan: sólo dejan de pertenecer al grupo.`
-    if (!window.confirm(confirmacion)) return
+    if (!(await confirmAction(confirmacion))) return
 
     setQuitando(true)
     setError('')
@@ -634,7 +637,7 @@ function ModalDetalleGrupo({ grupo, onClose }) {
     } finally {
       setQuitando(false)
     }
-  }
+  })
 
   return (
     <Modal open onClose={onClose} title={`Grupo ${grupo.nombre}`}>
@@ -643,7 +646,7 @@ function ModalDetalleGrupo({ grupo, onClose }) {
           Cargando alumnos...
         </p>
       ) : error && !detalle ? (
-        <p className="rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <p className="rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground">
           {error}
         </p>
       ) : (
@@ -658,7 +661,7 @@ function ModalDetalleGrupo({ grupo, onClose }) {
               {detalle.materias.map((materia) => (
                 <span
                   key={materia.id}
-                  className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary"
+                  className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary-ink"
                 >
                   {materia.nombre}
                 </span>
@@ -672,7 +675,7 @@ function ModalDetalleGrupo({ grupo, onClose }) {
             </p>
           )}
           {error && (
-            <p className="rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <p className="rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground">
               {error}
             </p>
           )}
@@ -691,23 +694,23 @@ function ModalDetalleGrupo({ grupo, onClose }) {
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {modoSeleccion && (
-                    <button
+                    <Button variant="outline"
                       type="button"
                       onClick={alternarTodos}
-                      className="rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-primary transition hover:bg-primary/10"
+                      className="border px-2.5 py-1.5 text-xs font-medium"
                     >
                       {todosSeleccionados ? 'Quitar selección' : 'Seleccionar todos'}
-                    </button>
+                    </Button>
                   )}
-                  <button
+                  <Button variant="outline"
                     type="button"
                     onClick={() =>
                       modoSeleccion ? salirDeSeleccion() : setModoSeleccion(true)
                     }
-                    className="rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition hover:border-primary/40 hover:text-primary"
+                    className="border px-2.5 py-1.5 text-xs font-medium"
                   >
                     {modoSeleccion ? 'Cancelar' : 'Seleccionar'}
-                  </button>
+                  </Button>
                 </div>
               </div>
 
@@ -718,11 +721,6 @@ function ModalDetalleGrupo({ grupo, onClose }) {
                   return (
                     <li
                       key={alumno.id}
-                      onClick={
-                        modoSeleccion
-                          ? () => alternarSeleccion(alumno.id)
-                          : undefined
-                      }
                       className={`flex items-center justify-between gap-3 px-3 py-2 ${
                         modoSeleccion ? 'cursor-pointer' : ''
                       } ${marcado ? 'bg-primary/10' : ''}`}
@@ -742,7 +740,7 @@ function ModalDetalleGrupo({ grupo, onClose }) {
                           <p className="truncate text-sm font-medium text-foreground">
                             {alumno.nombre}
                             {datosIncompletos && (
-                              <span className="ml-2 inline-flex items-center rounded-full bg-warning/15 px-2 py-0.5 text-[11px] font-medium text-warning">
+                              <span className="ml-2 inline-flex items-center rounded-full bg-warning/15 px-2 py-0.5 text-[11px] font-medium text-warning-foreground">
                                 Datos incompletos
                               </span>
                             )}
@@ -755,20 +753,20 @@ function ModalDetalleGrupo({ grupo, onClose }) {
                       </div>
                       {!modoSeleccion && (
                         <div className="flex shrink-0 gap-2">
-                          <button
+                          <Button variant="outline"
                             type="button"
                             onClick={() => setAlumnoEditar(alumno)}
-                            className="rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-primary transition hover:bg-primary/10"
+                            className="border px-2.5 py-1.5 text-xs font-medium"
                           >
                             {datosIncompletos ? 'Completar datos' : 'Editar'}
-                          </button>
-                          <button
+                          </Button>
+                          <Button variant="destructive"
                             type="button"
                             onClick={() => quitarAlumno(alumno)}
-                            className="rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-destructive transition hover:bg-destructive/10"
+                            className="border px-2.5 py-1.5 text-xs font-medium"
                           >
                             Quitar
-                          </button>
+                          </Button>
                         </div>
                       )}
                     </li>
@@ -777,16 +775,16 @@ function ModalDetalleGrupo({ grupo, onClose }) {
               </ul>
 
               {modoSeleccion && (
-                <button
+                <Button variant="destructive"
                   type="button"
                   onClick={quitarSeleccionados}
                   disabled={seleccion.length === 0 || quitando}
-                  className="w-full rounded-xl bg-destructive py-2.5 text-sm font-medium text-destructive-foreground transition hover:opacity-90 disabled:opacity-50"
+                  className="w-full py-2.5 text-sm font-medium hover:opacity-90 disabled:opacity-50"
                 >
                   {quitando
                     ? 'Quitando...'
                     : `Quitar del grupo ${seleccion.length || ''}`.trim()}
-                </button>
+                </Button>
               )}
             </div>
           )}
@@ -876,27 +874,27 @@ function ModalEditarAlumnoGrupo({ grupo, alumno, onClose, onGuardado }) {
               placeholder={campo.placeholder}
               value={form[campo.campo]}
               onChange={(event) => setForm({ ...form, [campo.campo]: event.target.value })}
-              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
             />
           </div>
         ))}
         {!form.numeroControl && (
-          <p className="rounded-lg bg-warning/10 px-3 py-2 text-xs text-warning">
+          <p className="rounded-lg bg-warning/10 px-3 py-2 text-xs text-warning-foreground">
             Sin número de control, correo o contraseña real el alumno no podrá iniciar sesión todavía.
           </p>
         )}
         {error && (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="text-sm text-destructive-foreground">
             {error}
           </p>
         )}
-        <button
+        <Button variant="default"
           type="submit"
           disabled={guardando}
-          className="w-full rounded-xl bg-primary py-2.5 text-sm font-medium text-primary-foreground transition hover:bg-primary-strong disabled:opacity-50"
+          className="w-full py-2.5 text-sm font-medium disabled:opacity-50"
         >
           {guardando ? 'Guardando...' : 'Guardar datos'}
-        </button>
+        </Button>
       </form>
     </Modal>
   )

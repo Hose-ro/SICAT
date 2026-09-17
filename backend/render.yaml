@@ -16,6 +16,8 @@ services:
         sync: false
       - key: AUTH_EMAIL_ENABLED
         value: 'false'
+      - key: APP_TIMEZONE
+        value: America/Mexico_City
       - key: OPENAI_API_KEY
         sync: false
       - key: OPENAI_VISION_MODEL

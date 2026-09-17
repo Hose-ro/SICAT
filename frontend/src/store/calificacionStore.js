@@ -72,6 +72,17 @@ export const useCalificacionStore = create((set) => ({
     }
   },
 
+  guardarPonderacion: async (payload) => {
+    set({ error: null })
+    try {
+      const response = await api.patch('/calificaciones/ponderacion', payload)
+      return response.data
+    } catch (error) {
+      set({ error: error.response?.data?.message || 'Error al guardar la ponderación' })
+      throw error
+    }
+  },
+
   exportarCaptura: async (filters = {}, formato = 'excel') => {
     const response = await api.get('/calificaciones/exportar', {
       params: limpiarFiltros({ ...filters, formato }),

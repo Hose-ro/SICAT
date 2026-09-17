@@ -8,6 +8,7 @@ import {
 import {
   EstadoRevision,
   EstadoTarea,
+  Prisma,
   TipoCalificacion,
   TipoEntrega,
   TipoEvaluacion,
@@ -23,12 +24,25 @@ import { CalificarEntregaDto } from './dto/calificar-entrega.dto';
 import { DevolverEntregaDto } from './dto/devolver-entrega.dto';
 import { BulkRevisarEntregasDto } from './dto/bulk-revisar-entregas.dto';
 import {
-  buildPublicUploadUrl,
+  buildUploadUrl,
   fileTypeFromName,
   getUploadAbsolutePath,
   isImageFile,
+  isUploadFilename,
 } from './tareas.storage';
 import { getCurrentAcademicPeriod } from '../common/periodo.util';
+import {
+  esHoraValida,
+  formatearHoraEnZona,
+  rangoDiaEnZona,
+  resolverFechaHoraLimite,
+} from '../common/zona-horaria.util';
+import {
+  asegurarAccesoMateria,
+  clasesDelDocenteWhere,
+  docenteResponsableDeMateria,
+  esDocenteDeMateria,
+} from '../common/materia-ownership';
 
 type Actor = {
   id: number;
@@ -83,7 +97,11 @@ export class TareasService {
           ...data,
           docenteId:
             actor.rol === 'ADMIN'
-              ? (contexto.materia.docenteId ?? actor.id)
+              ? ((await docenteResponsableDeMateria(
+                  tx,
+                  contexto.materia.id,
+                  contexto.grupo.id,
+                )) ?? actor.id)
               : actor.id,
           archivosAdjuntos: archivosAdjuntos.length
             ? JSON.stringify(archivosAdjuntos.map((item) => item.url))
@@ -253,9 +271,10 @@ export class TareasService {
   async listarDocente(actor: Actor, filtros: TareaFiltros = {}) {
     await this.sincronizarTareasVencidas();
 
-    const where: Record<string, unknown> = {};
+    const where: Prisma.TareaWhereInput = {};
+    const and: Prisma.TareaWhereInput[] = [];
     if (actor.rol !== 'ADMIN') {
-      where.docenteId = actor.id;
+      and.push(await this.tareasDelDocenteWhere(actor.id));
     } else if (filtros.docenteId) {
       where.docenteId = filtros.docenteId;
     }
@@ -264,7 +283,8 @@ export class TareasService {
     if (filtros.unidadId) where.unidadId = filtros.unidadId;
     if (filtros.estado) where.estado = filtros.estado;
     const dateWhere = this.buildDateWhere(filtros.fecha);
-    if (dateWhere) Object.assign(where, dateWhere);
+    if (dateWhere) and.push(dateWhere);
+    if (and.length) where.AND = and;
 
     const tareas = await this.prisma.tarea.findMany({
       where,
@@ -290,7 +310,7 @@ export class TareasService {
     if (actor.rol === 'ALUMNO') {
       await this.validarAccesoAlumno(actor.id, tarea);
     } else {
-      this.validarAccesoDocente(actor, tarea.docenteId);
+      await this.asegurarAccesoTarea(actor, tarea);
     }
 
     const enriched = await this.enrichTask(tarea);
@@ -319,6 +339,69 @@ export class TareasService {
 
   async desactivar(tareaId: number, docenteId: number, rol = 'DOCENTE') {
     return this.cerrar(tareaId, { id: docenteId, rol });
+  }
+
+  /**
+   * Resuelve un archivo físico a partir de su nombre y verifica que el actor
+   * pueda verlo: los adjuntos de una tarea los ve su docente y los alumnos
+   * inscritos (nunca en borrador); las evidencias sólo el alumno que las
+   * entregó y su docente. ADMIN ve todo.
+   */
+  async obtenerArchivo(filename: string, actor: Actor) {
+    if (!isUploadFilename(filename)) {
+      throw new NotFoundException('Archivo no encontrado');
+    }
+    const url = buildUploadUrl(filename);
+
+    const adjunto = await this.prisma.tareaArchivo.findFirst({
+      where: { url },
+      select: {
+        nombre: true,
+        tarea: {
+          select: {
+            materiaId: true,
+            grupoId: true,
+            docenteId: true,
+            estado: true,
+          },
+        },
+      },
+    });
+    if (adjunto) {
+      if (actor.rol === 'ALUMNO') {
+        if (adjunto.tarea.estado === EstadoTarea.BORRADOR) {
+          throw new ForbiddenException('No tienes acceso a este archivo');
+        }
+        await this.validarAccesoAlumno(actor.id, adjunto.tarea);
+      } else {
+        await this.asegurarAccesoTarea(actor, adjunto.tarea);
+      }
+      return { path: getUploadAbsolutePath(filename), nombre: adjunto.nombre };
+    }
+
+    const evidencia = await this.prisma.entregaArchivo.findFirst({
+      where: { url },
+      select: {
+        nombre: true,
+        entrega: {
+          select: {
+            alumnoId: true,
+            tarea: {
+              select: { materiaId: true, grupoId: true, docenteId: true },
+            },
+          },
+        },
+      },
+    });
+    if (!evidencia) throw new NotFoundException('Archivo no encontrado');
+    if (actor.rol === 'ALUMNO') {
+      if (evidencia.entrega.alumnoId !== actor.id) {
+        throw new ForbiddenException('No tienes acceso a este archivo');
+      }
+    } else {
+      await this.asegurarAccesoTarea(actor, evidencia.entrega.tarea);
+    }
+    return { path: getUploadAbsolutePath(filename), nombre: evidencia.nombre };
   }
 
   async entregar(
@@ -953,9 +1036,7 @@ export class TareasService {
       },
     });
     if (!unidad) throw new NotFoundException('Unidad no encontrada');
-    if (actor.rol !== 'ADMIN' && unidad.materia.docenteId !== actor.id) {
-      throw new ForbiddenException('No tienes permisos para esta unidad');
-    }
+    await asegurarAccesoMateria(this.prisma, actor, unidad.materiaId);
 
     const reporte = await this.obtenerDatosReporteDocente(actor, { unidadId });
     const evidencias = await this.prisma.entregaArchivo.findMany({
@@ -1163,7 +1244,7 @@ export class TareasService {
       },
     });
     if (!materia) throw new NotFoundException('Materia no encontrada');
-    this.validarAccesoDocente(actor, materia.docenteId ?? undefined);
+    await asegurarAccesoMateria(this.prisma, actor, dto.materiaId, dto.grupoId);
 
     const grupo = await this.prisma.grupo.findUnique({
       where: { id: dto.grupoId },
@@ -1215,7 +1296,7 @@ export class TareasService {
       tieneFechaLimite,
       fechaLimite,
       horaLimite: tieneFechaLimite
-        ? (dto.horaLimite ?? this.formatHora(fechaLimite))
+        ? (dto.horaLimite ?? formatearHoraEnZona(fechaLimite))
         : null,
       fechaPublicacion: this.esEstadoPublicada(estado) ? new Date() : null,
       estado,
@@ -1239,14 +1320,12 @@ export class TareasService {
 
   private buildDateWhere(fecha?: string) {
     if (!fecha) return null;
-    const start = new Date(`${fecha}T00:00:00`);
-    const end = new Date(`${fecha}T23:59:59.999`);
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()))
-      return null;
+    const rango = rangoDiaEnZona(fecha);
+    if (!rango) return null;
     return {
       OR: [
-        { fechaPublicacion: { gte: start, lte: end } },
-        { fechaLimite: { gte: start, lte: end } },
+        { fechaPublicacion: { gte: rango.inicio, lte: rango.fin } },
+        { fechaLimite: { gte: rango.inicio, lte: rango.fin } },
       ],
     };
   }
@@ -1456,7 +1535,7 @@ export class TareasService {
       include: this.taskInclude(),
     });
     if (!tarea) throw new NotFoundException('Tarea no encontrada');
-    this.validarAccesoDocente(actor, tarea.docenteId);
+    await this.asegurarAccesoTarea(actor, tarea);
     return tarea;
   }
 
@@ -1469,15 +1548,39 @@ export class TareasService {
       },
     });
     if (!entrega) throw new NotFoundException('Entrega no encontrada');
-    this.validarAccesoDocente(actor, entrega.tarea.docenteId);
+    await this.asegurarAccesoTarea(actor, entrega.tarea);
     return entrega;
   }
 
-  private validarAccesoDocente(actor: Actor, docenteId?: number | null) {
+  /**
+   * Política común docente–materia–grupo: además de quien la creó, puede
+   * operar la tarea cualquier docente que imparta su materia en su grupo
+   * (asignación directa u horario activo). ADMIN siempre.
+   */
+  private async asegurarAccesoTarea(
+    actor: Actor,
+    tarea: { docenteId: number; materiaId: number; grupoId: number | null },
+  ) {
     if (actor.rol === 'ADMIN') return;
-    if (!docenteId || docenteId !== actor.id) {
-      throw new ForbiddenException('No tienes permisos sobre este recurso');
+    if (actor.rol === 'DOCENTE') {
+      if (tarea.docenteId === actor.id) return;
+      const imparte = await esDocenteDeMateria(
+        this.prisma,
+        tarea.materiaId,
+        actor.id,
+        tarea.grupoId,
+      );
+      if (imparte) return;
     }
+    throw new ForbiddenException('No tienes permisos sobre este recurso');
+  }
+
+  /** Tareas creadas por el docente o de las clases (materia/grupo) que imparte. */
+  private async tareasDelDocenteWhere(
+    docenteId: number,
+  ): Promise<Prisma.TareaWhereInput> {
+    const clases = await clasesDelDocenteWhere(this.prisma, docenteId);
+    return { OR: [{ docenteId }, ...clases] };
   }
 
   private resolverFechaLimite(
@@ -1487,16 +1590,13 @@ export class TareasService {
   ) {
     if (!tieneFechaLimite) return null;
     if (!fecha) throw new BadRequestException('La fecha límite es obligatoria');
-    const limite = new Date(fecha);
-    if (Number.isNaN(limite.getTime())) {
-      throw new BadRequestException('La fecha límite no es válida');
-    }
-    if (hora && /^([01]\d|2[0-3]):[0-5]\d$/.test(hora)) {
-      const [hours, minutes] = hora.split(':').map((value) => Number(value));
-      limite.setHours(hours, minutes, 0, 0);
-    }
-    if (hora && !/^([01]\d|2[0-3]):[0-5]\d$/.test(hora)) {
+    if (hora && !esHoraValida(hora)) {
       throw new BadRequestException('La hora límite debe usar formato HH:mm');
+    }
+    // Hora de pared del plantel, no del servidor (ver zona-horaria.util).
+    const limite = resolverFechaHoraLimite(fecha, hora);
+    if (!limite) {
+      throw new BadRequestException('La fecha límite no es válida');
     }
     return limite;
   }
@@ -1558,15 +1658,10 @@ export class TareasService {
     return ids;
   }
 
-  private formatHora(date?: Date | null) {
-    if (!date) return null;
-    return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-  }
-
   private mapUploadedFiles(files: Express.Multer.File[]) {
     return files.map((file) => ({
       nombre: file.originalname,
-      url: buildPublicUploadUrl(file.filename),
+      url: buildUploadUrl(file.filename),
       tipoArchivo: fileTypeFromName(file.originalname),
     }));
   }

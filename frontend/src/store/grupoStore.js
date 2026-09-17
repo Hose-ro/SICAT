@@ -148,7 +148,7 @@ export const useGrupoStore = create((set, get) => ({
     try {
       const res = await api.get(`/horarios/grupo/${grupoId}`)
       return res.data
-    } catch (e) {
+    } catch {
       return null
     }
   },

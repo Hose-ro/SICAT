@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useGrupoStore } from '../../../../store/grupoStore'
 
@@ -21,14 +22,14 @@ const HORAS = generarHoras(7, 22)
 const HORA_INICIO_GRID = 7 * 60
 
 const COLORES = [
-  'bg-blue-100 border-blue-300 text-blue-800',
-  'bg-emerald-100 border-emerald-300 text-emerald-800',
-  'bg-violet-100 border-violet-300 text-violet-800',
-  'bg-amber-100 border-amber-300 text-amber-800',
-  'bg-rose-100 border-rose-300 text-rose-800',
-  'bg-cyan-100 border-cyan-300 text-cyan-800',
-  'bg-orange-100 border-orange-300 text-orange-800',
-  'bg-teal-100 border-teal-300 text-teal-800',
+  "bg-accent border-border text-primary-ink",
+  "bg-success/10 border-success/30 text-success-foreground",
+  "bg-accent border-border text-foreground",
+  "bg-warning/10 border-warning/30 text-warning-foreground",
+  "bg-destructive/10 border-destructive/30 text-destructive-foreground",
+  "bg-accent border-border text-primary-ink",
+  "bg-warning/10 border-warning/30 text-warning-foreground",
+  "bg-accent border-border text-primary-ink",
 ]
 
 function etiquetaAula(aula) {
@@ -161,18 +162,18 @@ export default function TabHorario({ grupo }) {
   }, [horarios])
 
   if (loading) {
-    return <p className="text-sm text-gray-400 py-8 text-center">Cargando horario...</p>
+    return <p className="text-sm text-muted-foreground py-8 text-center">Cargando horario...</p>
   }
 
   if (error) {
-    return <p className="text-sm text-red-500 py-8 text-center">{error}</p>
+    return <p className="text-sm text-destructive-foreground py-8 text-center">{error}</p>
   }
 
   if (horarios.length === 0) {
     return (
       <div className="py-8 text-center">
-        <p className="text-sm text-gray-400">No hay bloques de horario asignados</p>
-        <p className="mt-1 text-xs text-gray-400">
+        <p className="text-sm text-muted-foreground">No hay bloques de horario asignados</p>
+        <p className="mt-1 text-xs text-muted-foreground">
           Programa el horario del grupo en Horarios para poder asignarle un aula.
         </p>
       </div>
@@ -181,20 +182,20 @@ export default function TabHorario({ grupo }) {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl border border-gray-200 p-4">
+      <section className="rounded-2xl border border-border p-4">
         <div className="flex flex-col gap-1">
-          <h2 className="text-sm font-semibold text-gray-800">Aula del grupo</h2>
-          <p className="text-xs text-gray-500">
+          <h2 className="text-sm font-semibold text-foreground">Aula del grupo</h2>
+          <p className="text-xs text-muted-foreground">
             Asigna una misma aula a todas las clases del horario, o define un aula distinta
             por clase en la lista de abajo.
           </p>
         </div>
 
         <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-          <select
+          <select aria-label="Aula para los bloques seleccionados"
             value={aulaMasiva}
             onChange={(e) => setAulaMasiva(e.target.value)}
-            className="flex-1 rounded-xl border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 rounded-xl border border-border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <option value="">Selecciona un aula</option>
             {aulas.map((aula) => (
@@ -204,7 +205,7 @@ export default function TabHorario({ grupo }) {
               </option>
             ))}
           </select>
-          <button
+          <Button variant="default"
             onClick={() =>
               aplicarAula(
                 Number(aulaMasiva),
@@ -213,22 +214,22 @@ export default function TabHorario({ grupo }) {
               )
             }
             disabled={!aulaMasiva || guardando !== null}
-            className="rounded-xl bg-blue-600 px-4 py-2 text-sm text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
           >
             {guardando === 'todas' ? 'Aplicando...' : 'Aplicar a todas las clases'}
-          </button>
-          <button
+          </Button>
+          <Button variant="outline"
             onClick={() =>
               aplicarAula(null, undefined, 'Se quitó el aula de todas las clases del grupo.')
             }
             disabled={guardando !== null || resumenAulas.nombres.length === 0}
-            className="rounded-xl border border-gray-300 px-4 py-2 text-sm text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+            className="border px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
           >
             Quitar aula
-          </button>
+          </Button>
         </div>
 
-        <p className="mt-3 text-xs text-gray-500">
+        <p className="mt-3 text-xs text-muted-foreground">
           {resumenAulas.nombres.length === 0
             ? 'Ninguna clase tiene aula asignada.'
             : resumenAulas.nombres.length === 1 && resumenAulas.sinAula === 0
@@ -240,31 +241,31 @@ export default function TabHorario({ grupo }) {
         </p>
 
         {aviso && (
-          <p className="mt-3 rounded-xl bg-green-50 px-3 py-2 text-xs text-green-700">{aviso}</p>
+          <p className="mt-3 rounded-xl bg-success/10 px-3 py-2 text-xs text-success-foreground">{aviso}</p>
         )}
         {errorAula && (
-          <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-xs text-red-700">{errorAula}</p>
+          <p className="mt-3 rounded-xl bg-destructive/10 px-3 py-2 text-xs text-destructive-foreground">{errorAula}</p>
         )}
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-sm font-semibold text-gray-800">Aula por clase</h2>
-        <ul className="divide-y divide-gray-100 rounded-2xl border border-gray-200">
+        <h2 className="text-sm font-semibold text-foreground">Aula por clase</h2>
+        <ul className="divide-y divide-border rounded-2xl border border-border">
           {horarios.map((horario) => (
             <li
               key={horario.id}
               className="flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:justify-between"
             >
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-gray-800">
+                <p className="truncate text-sm font-medium text-foreground">
                   {horario.materia?.nombre}
                 </p>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-muted-foreground">
                   {horario.dias} · {horario.horaInicio}–{horario.horaFin}
                   {horario.docente ? ` · ${horario.docente.nombre}` : ''}
                 </p>
               </div>
-              <select
+              <select aria-label={`Aula de ${horario.materia?.nombre ?? "la clase"}`}
                 value={horario.aulaId ?? ''}
                 onChange={(e) =>
                   aplicarAula(
@@ -274,7 +275,7 @@ export default function TabHorario({ grupo }) {
                   )
                 }
                 disabled={guardando !== null}
-                className="rounded-xl border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 sm:w-64"
+                className="rounded-xl border border-border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 sm:w-64"
               >
                 <option value="">Sin aula</option>
                 {aulas.map((aula) => (
@@ -288,14 +289,14 @@ export default function TabHorario({ grupo }) {
         </ul>
       </section>
 
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Horario del grupo">
         <div
           className="grid min-w-[720px]"
           style={{ gridTemplateColumns: `60px repeat(${DIAS.length}, 1fr)` }}
         >
           <div />
           {DIAS.map((d) => (
-            <div key={d} className="text-center text-xs font-semibold text-gray-500 uppercase tracking-wide py-2">
+            <div key={d} className="text-center text-xs font-semibold text-muted-foreground uppercase tracking-wide py-2">
               {d}
             </div>
           ))}
@@ -303,7 +304,7 @@ export default function TabHorario({ grupo }) {
           {HORAS.map((hora, rowIdx) => (
             <div key={`fila-${hora}`} className="contents">
               <div
-                className="text-right pr-2 text-xs text-gray-400"
+                className="text-right pr-2 text-xs text-muted-foreground"
                 style={{ gridRow: rowIdx + 1, gridColumn: 1 }}
               >
                 {hora}
@@ -312,7 +313,7 @@ export default function TabHorario({ grupo }) {
               {DIAS.map((dia) => (
                 <div
                   key={`${dia}-${hora}`}
-                  className="border-t border-l border-gray-100"
+                  className="border-t border-l border-border"
                   style={{ gridRow: rowIdx + 1, gridColumn: DIAS.indexOf(dia) + 2, minHeight: 48 }}
                 />
               ))}
@@ -331,9 +332,9 @@ export default function TabHorario({ grupo }) {
               >
                 <p className="font-semibold truncate">{horario.materia?.nombre}</p>
                 {horario.docente && (
-                  <p className="truncate opacity-80">{horario.docente.nombre}</p>
+                  <p className="truncate">{horario.docente.nombre}</p>
                 )}
-                <p className="truncate opacity-70">
+                <p className="truncate">
                   {horario.aula ? horario.aula.nombre : 'Sin aula'}
                 </p>
               </div>

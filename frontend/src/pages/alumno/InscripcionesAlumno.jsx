@@ -1,12 +1,14 @@
+import { Button } from '@/components/ui/button'
+import { notify } from '@/lib/feedback'
 import { useEffect, useMemo, useState } from 'react'
 import { useInscripcionStore } from '../../store/inscripcionStore'
 import api from '../../api/axios'
 import { getCurrentAcademicPeriod } from '../../lib/periodo'
 
 const ESTADO_STYLE = {
-  PENDIENTE: 'bg-yellow-100 text-yellow-700',
-  ACEPTADA: 'bg-green-100 text-green-700',
-  RECHAZADA: 'bg-red-100 text-red-700',
+  PENDIENTE: "bg-warning/10 text-warning-foreground",
+  ACEPTADA: "bg-success/10 text-success-foreground",
+  RECHAZADA: "bg-destructive/10 text-destructive-foreground",
 }
 
 export default function InscripcionesAlumno() {
@@ -36,9 +38,9 @@ export default function InscripcionesAlumno() {
     try {
       await solicitar(materiaId, periodo)
       obtenerMisSolicitudes()
-      alert('Solicitud enviada')
+      notify('Solicitud enviada', 'success')
     } catch (e) {
-      alert(e.response?.data?.message || 'Error')
+      notify(e.response?.data?.message || 'Error')
     } finally {
       setSolicitando(null)
     }
@@ -48,13 +50,13 @@ export default function InscripcionesAlumno() {
     <div className="px-4 py-4 sm:px-6 sm:py-6">
       <h1 className="mb-6 text-xl font-bold sm:text-2xl">Inscripciones</h1>
 
-      <div className="bg-white border rounded-lg p-4 mb-6">
+      <div className="bg-card border rounded-lg p-4 mb-6">
         <h2 className="font-semibold mb-3">Solicitar inscripción</h2>
         <div className="mb-3 flex flex-col gap-3 sm:flex-row">
-          <input value={busqueda} onChange={(e) => setBusqueda(e.target.value)}
+          <input aria-label="Buscar materia" value={busqueda} onChange={(e) => setBusqueda(e.target.value)}
             placeholder="Buscar materia..."
             className="flex-1 border rounded px-3 py-2 text-sm" />
-          <input value={periodo} onChange={(e) => setPeriodo(e.target.value)}
+          <input aria-label="Periodo escolar" value={periodo} onChange={(e) => setPeriodo(e.target.value)}
             placeholder="Periodo (ej. 2026-A)"
             className="w-full border rounded px-3 py-2 text-sm sm:w-36" />
         </div>
@@ -64,13 +66,13 @@ export default function InscripcionesAlumno() {
               <div key={m.id} className="flex flex-col gap-3 rounded border p-2 text-sm sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <span className="font-medium">{m.nombre}</span>
-                  <span className="text-gray-500 ml-2">({m.clave})</span>
-                  <span className="text-xs text-gray-400 ml-2">{m.docente?.nombre}</span>
+                  <span className="text-muted-foreground ml-2">({m.clave})</span>
+                  <span className="text-xs text-muted-foreground ml-2">{m.docente?.nombre}</span>
                 </div>
-                <button onClick={() => handleSolicitar(m.id)} disabled={solicitando === m.id}
-                  className="w-full rounded bg-blue-600 px-3 py-1 text-xs text-white hover:bg-blue-700 disabled:opacity-50 sm:w-auto">
+                <Button variant="default" onClick={() => handleSolicitar(m.id)} disabled={solicitando === m.id}
+                  className="w-full px-3 py-1 text-xs disabled:opacity-50 sm:w-auto">
                   Solicitar
-                </button>
+                </Button>
               </div>
             ))}
           </div>
@@ -79,16 +81,16 @@ export default function InscripcionesAlumno() {
 
       <h2 className="font-semibold mb-3">Mis solicitudes</h2>
       {loading ? (
-        <p className="text-gray-400 text-sm">Cargando...</p>
+        <p className="text-muted-foreground text-sm">Cargando...</p>
       ) : misSolicitudes.length === 0 ? (
-        <p className="text-gray-400 text-sm">Sin solicitudes</p>
+        <p className="text-muted-foreground text-sm">Sin solicitudes</p>
       ) : (
         <div className="space-y-2">
           {misSolicitudes.map((s) => (
-            <div key={s.id} className="flex flex-col gap-2 rounded-lg border bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
+            <div key={s.id} className="flex flex-col gap-2 rounded-lg border bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="font-medium text-sm">{s.materia?.nombre}</p>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-muted-foreground">
                   {s.materia?.docente?.nombre} · Periodo: {s.periodo}
                 </p>
               </div>

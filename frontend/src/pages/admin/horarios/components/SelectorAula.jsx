@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button'
 import { useState } from 'react'
 import { useHorarioStore } from '../../../../store/horarioStore'
 
@@ -35,36 +36,36 @@ export default function SelectorAula({ materia, onClose }) {
   return (
     <div className="space-y-2">
       {error && (
-        <p className="text-xs text-red-600 bg-red-50 rounded p-2">{error}</p>
+        <p className="text-xs text-destructive-foreground bg-destructive/10 rounded p-2">{error}</p>
       )}
       {materia.aula && (
-        <div className="flex items-center justify-between text-sm bg-slate-100 rounded p-2">
+        <div className="flex items-center justify-between text-sm bg-muted rounded p-2">
           <span>Aula actual: <strong>{materia.aula.nombre}</strong></span>
-          <button
+          <Button variant="destructive"
             onClick={handleQuitar}
             disabled={loading}
-            className="text-xs text-red-600 hover:underline"
+            className="text-xs hover:underline"
           >
             Quitar
-          </button>
+          </Button>
         </div>
       )}
-      <p className="text-xs text-slate-500">Seleccionar aula:</p>
+      <p className="text-xs text-muted-foreground">Seleccionar aula:</p>
       <div className="max-h-48 overflow-y-auto space-y-1">
         {aulas.map((aula) => (
-          <button
+          <Button variant="ghost"
             key={aula.id}
             onClick={() => handleAsignar(aula.id)}
             disabled={loading || materia.aulaId === aula.id}
-            className="w-full text-left text-sm px-3 py-2 rounded hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full text-left text-sm px-3 py-2  hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <span className="font-medium">{aula.nombre}</span>
-            {aula.edificio && <span className="text-slate-400 ml-1">— {aula.edificio}</span>}
-            {aula.capacidad && <span className="text-slate-400 ml-1">({aula.capacidad} lugares)</span>}
-          </button>
+            {aula.edificio && <span className="text-muted-foreground ml-1">— {aula.edificio}</span>}
+            {aula.capacidad && <span className="text-muted-foreground ml-1">({aula.capacidad} lugares)</span>}
+          </Button>
         ))}
         {aulas.length === 0 && (
-          <p className="text-xs text-slate-400 text-center py-2">No hay aulas disponibles</p>
+          <p className="text-xs text-muted-foreground text-center py-2">No hay aulas disponibles</p>
         )}
       </div>
     </div>

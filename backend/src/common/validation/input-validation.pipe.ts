@@ -78,7 +78,7 @@ export class InputValidationPipe extends ValidationPipe {
         } else if (key === 'seccion') {
           if (!/^[A-Z]$/.test(text)) this.invalid(key);
         } else if (key === 'formato') {
-          if (!['excel', 'pdf'].includes(text)) this.invalid(key);
+          if (!['excel', 'pdf', 'csv'].includes(text)) this.invalid(key);
         } else if (text.length > 200 || (key === 'clave' && !text.trim())) {
           this.invalid(key);
         }

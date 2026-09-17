@@ -1,3 +1,6 @@
+import useAsyncAction from '@/hooks/useAsyncAction'
+import { Button } from '@/components/ui/button'
+import { confirmAction } from '@/lib/feedback'
 import { useState } from 'react'
 import { useAcademiaStore } from '../../../../store/academiaStore'
 
@@ -5,38 +8,38 @@ export default function ListaMateriasAcademia({ academia, onAgregarClick }) {
   const { quitarMateria } = useAcademiaStore()
   const [error, setError] = useState('')
 
-  const handleQuitar = async (materia) => {
-    if (!confirm(`¿Quitar "${materia.nombre}" de esta academia?`)) return
+  const handleQuitar = useAsyncAction(async (materia) => {
+    if (!(await confirmAction(`¿Quitar "${materia.nombre}" de esta academia?`))) return
     setError('')
     try {
       await quitarMateria(academia.id, materia.id)
     } catch (e) {
       setError(e.message)
     }
-  }
+  })
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-gray-700">
+        <h2 className="text-sm font-semibold text-foreground">
           Materias asignadas ({academia.materias?.length ?? 0})
         </h2>
-        <button
+        <Button variant="default"
           onClick={onAgregarClick}
-          className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-blue-700 transition"
+          className="px-3 py-1.5 text-xs font-medium"
         >
           + Agregar materias
-        </button>
+        </Button>
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-sm text-red-700">
+        <div className="bg-destructive/10 border border-destructive/30 rounded-lg px-3 py-2 text-sm text-destructive-foreground">
           {error}
         </div>
       )}
 
       {academia.materias?.length === 0 ? (
-        <p className="text-sm text-gray-400 py-4 text-center">
+        <p className="text-sm text-muted-foreground py-4 text-center">
           No hay materias asignadas a esta academia.
         </p>
       ) : (
@@ -44,21 +47,21 @@ export default function ListaMateriasAcademia({ academia, onAgregarClick }) {
           {academia.materias?.map((m) => (
             <div
               key={m.id}
-              className="flex items-center justify-between bg-white border border-gray-100 rounded-xl p-3 shadow-sm"
+              className="flex items-center justify-between bg-card border border-border rounded-xl p-3 shadow-sm"
             >
               <div>
-                <p className="text-sm font-medium text-gray-800">{m.nombre}</p>
-                <div className="flex gap-2 text-xs text-gray-400 mt-0.5">
+                <p className="text-sm font-medium text-foreground">{m.nombre}</p>
+                <div className="flex gap-2 text-xs text-muted-foreground mt-0.5">
                   <span>{m.clave}</span>
                   {m.semestre && <span>• Semestre {m.semestre}</span>}
                 </div>
               </div>
-              <button
+              <Button variant="destructive"
                 onClick={() => handleQuitar(m)}
-                className="text-xs text-red-400 hover:text-red-600 hover:bg-red-50 px-2 py-1 rounded-lg transition"
+                className="text-xs px-2 py-1"
               >
                 Quitar
-              </button>
+              </Button>
             </div>
           ))}
         </div>

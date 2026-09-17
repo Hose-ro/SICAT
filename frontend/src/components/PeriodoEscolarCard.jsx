@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button'
 import { useEffect, useState } from 'react'
 import { CalendarRange } from 'lucide-react'
 import { usePeriodoStore } from '../store/periodoStore'
@@ -91,7 +92,7 @@ export default function PeriodoEscolarCard({ editable = false, compacto = false 
   if (compacto) {
     return (
       <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
-        <CalendarRange className="h-4 w-4 shrink-0 text-primary" />
+        <CalendarRange className="h-4 w-4 shrink-0 text-primary-ink" />
         <span className="text-foreground">
           Semestre del {formatearRango(periodo.fechaInicio, periodo.fechaFin)}
         </span>
@@ -105,7 +106,7 @@ export default function PeriodoEscolarCard({ editable = false, compacto = false 
     <section className="rounded-2xl border border-border bg-card p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary-ink">
             <CalendarRange className="h-5 w-5" />
           </div>
           <div className="min-w-0">
@@ -125,13 +126,13 @@ export default function PeriodoEscolarCard({ editable = false, compacto = false 
         </div>
 
         {editable && !editando && (
-          <button
+          <Button variant="outline"
             type="button"
             onClick={() => setEditando(true)}
-            className="rounded-xl border border-border px-3 py-2 text-sm font-medium text-muted-foreground transition hover:bg-muted/50"
+            className="border px-3 py-2 text-sm font-medium"
           >
             {periodo.configurado ? 'Editar fechas' : 'Establecer fechas'}
-          </button>
+          </Button>
         )}
       </div>
 
@@ -171,7 +172,7 @@ export default function PeriodoEscolarCard({ editable = false, compacto = false 
           </div>
 
           {error && (
-            <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground">
               {error}
             </p>
           )}
@@ -181,14 +182,14 @@ export default function PeriodoEscolarCard({ editable = false, compacto = false 
           </p>
 
           <div className="flex flex-wrap gap-2">
-            <button
+            <Button variant="default"
               type="submit"
               disabled={guardando}
-              className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+              className="px-4 py-2 text-sm font-semibold hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {guardando ? 'Guardando...' : 'Guardar fechas'}
-            </button>
-            <button
+            </Button>
+            <Button variant="outline"
               type="button"
               onClick={() => {
                 setEditando(false)
@@ -196,10 +197,10 @@ export default function PeriodoEscolarCard({ editable = false, compacto = false 
                 setForm({ fechaInicio: periodo.fechaInicio, fechaFin: periodo.fechaFin })
               }}
               disabled={guardando}
-              className="rounded-xl border border-border px-4 py-2 text-sm font-medium text-muted-foreground transition hover:bg-muted/50 disabled:opacity-60"
+              className="border px-4 py-2 text-sm font-medium disabled:opacity-60"
             >
               Cancelar
-            </button>
+            </Button>
           </div>
         </form>
       )}

@@ -6,14 +6,9 @@ import {
 } from './common/validation/input-validation.pipe';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import express, {
-  type NextFunction,
-  type Request,
-  type Response,
-} from 'express';
+import { type NextFunction, type Request, type Response } from 'express';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
-import { join } from 'path';
 import { ensureTareasUploadDir } from './tareas/tareas.storage';
 
 async function bootstrap() {
@@ -50,8 +45,9 @@ async function bootstrap() {
   app.use(validateQueryShape);
 
   app.setGlobalPrefix('api');
+  // Los archivos de tareas y entregas se sirven sólo desde
+  // GET /api/uploads/tareas/:filename, tras sesión y pertenencia.
   ensureTareasUploadDir();
-  app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
 
   const config = new DocumentBuilder()
     .setTitle('SICAT API')

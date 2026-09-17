@@ -1,15 +1,11 @@
+import { Button } from '@/components/ui/button'
 import { useMemo, useState } from 'react'
 import { FileBadge2, UploadCloud } from 'lucide-react'
 import api from '../../../api/axios'
 import { useTareaStore } from '../../../store/tareaStore'
 
 import TaskNotice from '../../../components/TaskNotice'
-import { mergeTaskFiles, taskError, deliveryHelp } from '../../../lib/tareas'
-
-function resolveApiUrl(url) {
-  if (!url) return '#'
-  return new URL(url, api.defaults.baseURL).toString()
-}
+import { mergeTaskFiles, taskError, deliveryHelp, taskFileUrl } from '../../../lib/tareas'
 
 function getAcceptByTaskType(tipoEntrega) {
   if (tipoEntrega === 'FIRMA') return '.png,.jpg,.jpeg,.webp'
@@ -93,7 +89,7 @@ export default function FormEntregaTarea({ tarea, miEntrega, puedeEditar, onSucc
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Archivos actuales</p>
           {existingFiles.map((file) => (
             <label key={file.id} className="flex items-center justify-between rounded-2xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
-              <a href={resolveApiUrl(file.url)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 font-medium text-foreground hover:text-primary">
+              <a href={taskFileUrl(file.url, api.defaults.baseURL)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 font-medium text-foreground hover:text-primary-ink">
                 <FileBadge2 className="h-4 w-4" />
                 {file.nombre}
               </a>
@@ -140,7 +136,7 @@ export default function FormEntregaTarea({ tarea, miEntrega, puedeEditar, onSucc
           {archivos.map((file, index) => (
             <div key={`${file.name}-${file.size}`} className="rounded-2xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
               {file.name} · {(file.size / 1024 / 1024).toFixed(2)} MB
-              <button type="button" disabled={saving} onClick={() => setArchivos((files) => files.filter((_, i) => i !== index))} className="ml-3 text-destructive" aria-label={`Quitar ${file.name}`}>Quitar</button>
+              <Button variant="destructive" type="button" disabled={saving} onClick={() => setArchivos((files) => files.filter((_, i) => i !== index))} className="ml-3" aria-label={`Quitar ${file.name}`}>Quitar</Button>
             </div>
           ))}
         </div>
@@ -160,13 +156,13 @@ export default function FormEntregaTarea({ tarea, miEntrega, puedeEditar, onSucc
         />
       </div>
 
-      <button
+      <Button variant="default"
         type="submit"
         disabled={!isEditable || saving}
-        className="w-full rounded-2xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary disabled:cursor-not-allowed disabled:opacity-60"
+        className="w-full px-4 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
       >
         {saving ? 'Guardando...' : buttonLabel}
-      </button>
+      </Button>
     </form>
   )
 }

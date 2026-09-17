@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { useId, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../../../../api/axios'
 import { useGrupoStore } from '../../../../store/grupoStore'
@@ -8,6 +9,7 @@ import { getCurrentAcademicPeriod } from '../../../../lib/periodo'
 const SEMESTRES = [1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 export default function FormCrearGrupo({ open, onClose }) {
+  const fieldId = useId()
   const navigate = useNavigate()
   const { crearGrupo } = useGrupoStore()
   const [carreras, setCarreras] = useState([])
@@ -72,25 +74,25 @@ export default function FormCrearGrupo({ open, onClose }) {
       {step === 'form' ? (
         <form onSubmit={handlePreview} className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Nombre del grupo *</label>
-            <input
+            <label htmlFor={fieldId + '-control-76'} className="block text-xs font-medium text-foreground mb-1">Nombre del grupo *</label>
+            <input id={fieldId + '-control-76'}
               required
               maxLength={20}
               placeholder="103A"
               value={form.nombre}
               onChange={(e) => setForm({ ...form, nombre: e.target.value.toUpperCase() })}
-              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-border rounded-xl px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
-            <p className="text-xs text-gray-400 mt-1">Como lo nombra la institución, por ejemplo 103A</p>
+            <p className="text-xs text-muted-foreground mt-1">Como lo nombra la institución, por ejemplo 103A</p>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Carrera *</label>
-            <select
+            <label htmlFor={fieldId + '-control-89'} className="block text-xs font-medium text-foreground mb-1">Carrera *</label>
+            <select id={fieldId + '-control-89'}
               required
               value={form.carreraId}
               onChange={(e) => setForm({ ...form, carreraId: e.target.value })}
-              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-border rounded-xl px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <option value="">Seleccionar carrera...</option>
               {carreras.map((c) => (
@@ -100,12 +102,12 @@ export default function FormCrearGrupo({ open, onClose }) {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Semestre *</label>
-            <select
+            <label htmlFor={fieldId + '-control-104'} className="block text-xs font-medium text-foreground mb-1">Semestre *</label>
+            <select id={fieldId + '-control-104'}
               required
               value={form.semestre}
               onChange={(e) => setForm({ ...form, semestre: e.target.value })}
-              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-border rounded-xl px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <option value="">Seleccionar semestre...</option>
               {SEMESTRES.map((s) => (
@@ -115,40 +117,40 @@ export default function FormCrearGrupo({ open, onClose }) {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Periodo *</label>
-            <input
+            <label htmlFor={fieldId + '-control-119'} className="block text-xs font-medium text-foreground mb-1">Periodo *</label>
+            <input id={fieldId + '-control-119'}
               required
               placeholder="2026-A"
               value={form.periodo}
               onChange={(e) => setForm({ ...form, periodo: e.target.value })}
-              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-border rounded-xl px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
           </div>
 
-          {error && <p className="text-sm text-red-500">{error}</p>}
+          {error && <p className="text-sm text-destructive-foreground">{error}</p>}
 
-          <button
+          <Button variant="default"
             type="submit"
-            className="w-full bg-blue-600 text-white py-2.5 rounded-xl font-medium hover:bg-blue-700 transition"
+            className="w-full py-2.5 font-medium"
           >
             Continuar
-          </button>
+          </Button>
         </form>
       ) : (
         <div className="space-y-4">
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-2">
-            <p className="text-xs font-semibold text-blue-500 uppercase tracking-wide">Resumen del grupo a crear</p>
-            <p className="text-3xl font-bold text-blue-700">{preview?.nombre}</p>
-            <p className="text-sm text-gray-600">
+          <div className="bg-accent border border-border rounded-xl p-4 space-y-2">
+            <p className="text-xs font-semibold text-primary-ink uppercase tracking-wide">Resumen del grupo a crear</p>
+            <p className="text-3xl font-bold text-primary-ink">{preview?.nombre}</p>
+            <p className="text-sm text-muted-foreground">
               <span className="font-medium">Carrera:</span> {preview?.carrera?.nombre}
             </p>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-muted-foreground">
               <span className="font-medium">Semestre:</span> {preview?.semestre}
             </p>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-muted-foreground">
               <span className="font-medium">Periodo:</span> {preview?.periodo}
             </p>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-muted-foreground">
               <span className="font-medium">Materias de retícula:</span>{' '}
               {preview?.materias?.length > 0
                 ? `Se asignarán automáticamente ${preview.materias.length} materias`
@@ -156,22 +158,22 @@ export default function FormCrearGrupo({ open, onClose }) {
             </p>
           </div>
 
-          {error && <p className="text-sm text-red-500">{error}</p>}
+          {error && <p className="text-sm text-destructive-foreground">{error}</p>}
 
           <div className="flex gap-2">
-            <button
+            <Button variant="outline"
               onClick={() => setStep('form')}
-              className="flex-1 border border-gray-300 text-gray-700 py-2.5 rounded-xl font-medium hover:bg-gray-50 transition"
+              className="flex-1 border py-2.5 font-medium"
             >
               Atrás
-            </button>
-            <button
+            </Button>
+            <Button variant="default"
               onClick={handleConfirmar}
               disabled={loading}
-              className="flex-1 bg-blue-600 text-white py-2.5 rounded-xl font-medium hover:bg-blue-700 transition disabled:opacity-50"
+              className="flex-1 py-2.5 font-medium disabled:opacity-50"
             >
               {loading ? 'Creando...' : 'Confirmar'}
-            </button>
+            </Button>
           </div>
         </div>
       )}

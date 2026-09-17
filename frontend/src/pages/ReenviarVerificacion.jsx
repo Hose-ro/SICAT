@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button'
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../api/axios";
@@ -56,7 +57,7 @@ export default function ReenviarVerificacion() {
         {error && (
           <div
             role="alert"
-            className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive"
+            className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive-foreground"
           >
             {error}
           </div>
@@ -64,22 +65,22 @@ export default function ReenviarVerificacion() {
         {result && (
           <div
             aria-live="polite"
-            className="rounded-lg bg-success/10 p-3 text-sm text-success"
+            className="rounded-lg bg-success/10 p-3 text-sm text-success-foreground"
           >
             <p>{result.message}</p>
           </div>
         )}
-        <button
+        <Button variant="default"
           type="submit"
           disabled={loading}
-          className="h-12 w-full rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+          className="h-12 w-full px-4 text-sm font-semibold disabled:opacity-60"
         >
           {loading ? "Enviando..." : "Enviar enlace"}
-        </button>
+        </Button>
       </form>
       <Link
         to="/login"
-        className="mt-5 inline-block text-sm text-primary hover:underline"
+        className="mt-5 inline-block text-sm text-primary-ink hover:underline"
       >
         Volver al inicio de sesión
       </Link>

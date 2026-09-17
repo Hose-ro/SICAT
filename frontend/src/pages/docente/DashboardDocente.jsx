@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
@@ -151,7 +152,7 @@ export default function DashboardDocente() {
 
   if (error) {
     return (
-      <div className="rounded-2xl border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+      <div className="rounded-2xl border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground">
         {error}
       </div>
     )
@@ -211,9 +212,9 @@ function Encabezado({ nombre, fecha, resumen, urgentes }) {
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0">
-        <h2 className="text-xl font-bold text-foreground sm:text-2xl">
+        <h1 className="text-xl font-bold text-foreground sm:text-2xl">
           Hola, {nombre}
-        </h2>
+        </h1>
         <p className="mt-1 text-sm text-muted-foreground">
           {fechaLarga(fecha)} · {clases} clase{clases === 1 ? '' : 's'} hoy
           {listas > 0 &&
@@ -222,7 +223,7 @@ function Encabezado({ nombre, fecha, resumen, urgentes }) {
       </div>
       <div className="flex flex-wrap gap-2">
         {urgentes > 0 && (
-          <span className="rounded-full bg-destructive/10 px-3 py-1 text-xs font-medium text-destructive">
+          <span className="rounded-full bg-destructive/10 px-3 py-1 text-xs font-medium text-destructive-foreground">
             {urgentes} urgente{urgentes === 1 ? '' : 's'}
           </span>
         )}
@@ -261,10 +262,10 @@ function ClaseDestacada({
   let tonoEtiqueta = 'bg-muted text-muted-foreground'
   if (iniciada) {
     etiqueta = 'Clase iniciada'
-    tonoEtiqueta = 'bg-success/15 text-emerald-700 dark:text-success'
+    tonoEtiqueta = "bg-success/15 text-success-foreground "
   } else if (clase.dentroDeHorario) {
     etiqueta = 'En curso'
-    tonoEtiqueta = 'bg-success/15 text-emerald-700 dark:text-success'
+    tonoEtiqueta = "bg-success/15 text-success-foreground "
   }
 
   let detalleTiempo = `${clase.horaInicio} – ${clase.horaFin}`
@@ -287,9 +288,9 @@ function ClaseDestacada({
 
       <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
-          <h3 className="truncate text-lg font-semibold text-foreground">
+          <h2 className="truncate text-lg font-semibold text-foreground">
             {clase.materia?.nombre}
-          </h3>
+          </h2>
           <p className="mt-1 text-sm text-muted-foreground">
             {clase.grupo?.nombre ?? 'Sin grupo'} ·{' '}
             {clase.aula?.nombre ?? 'Sin aula'}
@@ -301,15 +302,15 @@ function ClaseDestacada({
 
         <div className="flex shrink-0 flex-wrap gap-2">
           {puedeRegistrar && (
-            <button
+            <Button variant="default"
               type="button"
               onClick={() => onPasarLista(clase)}
               disabled={iniciando}
-              className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary-strong disabled:opacity-60"
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium disabled:opacity-60"
             >
               <ClipboardCheck className="h-4 w-4" />
               {iniciada ? 'Pasar lista' : 'Iniciar y pasar lista'}
-            </button>
+            </Button>
           )}
           <Link
             to={`/materias/${clase.materiaId}`}
@@ -321,7 +322,7 @@ function ClaseDestacada({
       </div>
 
       {error && (
-        <p className="mt-3 rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <p className="mt-3 rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground">
           {error}
         </p>
       )}
@@ -364,13 +365,13 @@ function AccesosRapidos({ claseActual, onPasarLista }) {
   return (
     <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {accesos.map((acceso) => (
-        <button
+        <Button variant="outline"
           key={acceso.titulo}
           type="button"
           onClick={acceso.onClick}
-          className="flex flex-col items-start gap-1.5 rounded-2xl border border-border bg-card p-4 text-left transition hover:border-primary/35 hover:bg-muted/40"
+          className="flex flex-col items-start gap-1.5 border p-4 text-left"
         >
-          <acceso.icono className="h-5 w-5 text-primary" />
+          <acceso.icono className="h-5 w-5 text-primary-ink" />
           <span className="text-sm font-medium text-foreground">
             {acceso.titulo}
           </span>
@@ -379,7 +380,7 @@ function AccesosRapidos({ claseActual, onPasarLista }) {
               {acceso.detalle}
             </span>
           )}
-        </button>
+        </Button>
       ))}
     </section>
   )
@@ -389,8 +390,8 @@ function AgendaHoy({ clases, iniciando, onPasarLista }) {
   return (
     <article className="rounded-2xl border border-border bg-card p-5">
       <div className="flex items-center justify-between gap-3">
-        <h3 className="text-sm font-semibold text-foreground">Agenda de hoy</h3>
-        <Link to="/docente/horario" className="text-xs text-primary">
+        <h2 className="text-sm font-semibold text-foreground">Agenda de hoy</h2>
+        <Link to="/docente/horario" className="text-xs text-primary-ink">
           Mi horario
         </Link>
       </div>
@@ -434,7 +435,7 @@ function AgendaHoy({ clases, iniciando, onPasarLista }) {
 function EstadoClase({ clase, iniciando, onPasarLista }) {
   if (clase.estado === 'FINALIZADA') {
     return (
-      <span className="inline-flex shrink-0 items-center gap-1 text-xs text-emerald-700 dark:text-success">
+      <span className="inline-flex shrink-0 items-center gap-1 text-xs text-success-foreground ">
         <Check className="h-3.5 w-3.5" />
         Registrada
       </span>
@@ -444,18 +445,18 @@ function EstadoClase({ clase, iniciando, onPasarLista }) {
   if (ESTADOS_ABIERTOS.includes(clase.estado) || clase.estado === 'PASADA') {
     const atrasada = clase.estado === 'PASADA'
     return (
-      <button
+      <Button variant="ghost"
         type="button"
         onClick={() => onPasarLista(clase)}
         disabled={iniciando}
         className={`shrink-0 rounded-lg px-2.5 py-1 text-xs font-medium transition disabled:opacity-60 ${
           atrasada
-            ? 'bg-destructive/10 text-destructive hover:bg-destructive/20'
-            : 'bg-primary/10 text-primary hover:bg-primary/20'
+            ? "bg-destructive/10 text-destructive-foreground hover:bg-destructive/20"
+            : "bg-primary/10 text-primary-ink hover:bg-primary/20"
         }`}
       >
         {atrasada ? 'Sin registrar' : 'Pasar lista'}
-      </button>
+      </Button>
     )
   }
 
@@ -468,19 +469,19 @@ function Pendientes({ pendientes }) {
   const filas = [
     {
       icono: AlertTriangle,
-      tono: 'text-destructive',
+      tono: "text-destructive-foreground",
       texto: `${pendientes.alumnosEnRiesgo ?? 0} alumno${pendientes.alumnosEnRiesgo === 1 ? '' : 's'} en riesgo por inasistencias`,
       to: '/asistencias',
     },
     {
       icono: FileText,
-      tono: 'text-warning-foreground dark:text-warning',
+      tono: "text-warning-foreground ",
       texto: `${pendientes.entregasSinCalificar ?? 0} entrega${pendientes.entregasSinCalificar === 1 ? '' : 's'} sin calificar`,
       to: '/tareas',
     },
     {
       icono: UserPlus,
-      tono: 'text-primary',
+      tono: "text-primary-ink",
       texto: `${pendientes.solicitudes ?? 0} solicitud${pendientes.solicitudes === 1 ? '' : 'es'} de inscripción`,
       to: '/docente/solicitudes',
     },
@@ -490,9 +491,9 @@ function Pendientes({ pendientes }) {
 
   return (
     <article className="rounded-2xl border border-border bg-card p-5">
-      <h3 className="text-sm font-semibold text-foreground">
+      <h2 className="text-sm font-semibold text-foreground">
         Requiere tu atención
-      </h3>
+      </h2>
 
       {sinPendientes ? (
         <p className="mt-4 text-sm text-muted-foreground">
@@ -524,18 +525,18 @@ function Materias({ materias, total, busqueda, onBuscar }) {
   return (
     <article className="rounded-2xl border border-border bg-card p-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h3 className="text-sm font-semibold text-foreground">
+        <h2 className="text-sm font-semibold text-foreground">
           Mis materias{' '}
           <span className="font-normal text-muted-foreground">· {total}</span>
-        </h3>
+        </h2>
         <div className="relative sm:w-64">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
+          <input aria-label="Buscar materia o grupo"
             type="search"
             value={busqueda}
             onChange={(event) => onBuscar(event.target.value)}
             placeholder="Buscar materia o grupo"
-            className="w-full rounded-xl border border-border bg-background py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+            className="w-full rounded-xl border border-border bg-background py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
           />
         </div>
       </div>
@@ -581,7 +582,7 @@ function Materias({ materias, total, busqueda, onBuscar }) {
 function EstadoMateria({ materia }) {
   if (materia.alumnosEnRiesgo > 0) {
     return (
-      <span className="shrink-0 rounded-full bg-destructive/10 px-2.5 py-0.5 text-xs font-medium text-destructive">
+      <span className="shrink-0 rounded-full bg-destructive/10 px-2.5 py-0.5 text-xs font-medium text-destructive-foreground">
         {materia.alumnosEnRiesgo} en riesgo
       </span>
     )
@@ -589,14 +590,14 @@ function EstadoMateria({ materia }) {
 
   if (materia.entregasSinCalificar > 0) {
     return (
-      <span className="shrink-0 rounded-full bg-warning/15 px-2.5 py-0.5 text-xs font-medium text-warning-foreground dark:text-warning">
+      <span className="shrink-0 rounded-full bg-warning/15 px-2.5 py-0.5 text-xs font-medium text-warning-foreground ">
         {materia.entregasSinCalificar} por calificar
       </span>
     )
   }
 
   return (
-    <span className="shrink-0 rounded-full bg-success/15 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:text-success">
+    <span className="shrink-0 rounded-full bg-success/15 px-2.5 py-0.5 text-xs font-medium text-success-foreground ">
       Al día
     </span>
   )

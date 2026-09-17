@@ -7,20 +7,15 @@ import { useTareaStore } from '../../store/tareaStore'
 
 import TaskCriteria from '../../components/TaskCriteria'
 import TaskNotice from '../../components/TaskNotice'
-import { DELIVERY_STATE_LABEL, deliveryHelp } from '../../lib/tareas'
+import { DELIVERY_STATE_LABEL, deliveryHelp, taskFileUrl } from '../../lib/tareas'
 
 const STATE_CLASS = {
   PENDIENTE: 'bg-muted text-foreground',
-  ENTREGADA: 'bg-primary/10 text-primary',
-  REVISADA: 'bg-primary/10 text-primary',
-  INCORRECTA: 'bg-destructive/10 text-destructive',
+  ENTREGADA: "bg-primary/10 text-primary-ink",
+  REVISADA: "bg-primary/10 text-primary-ink",
+  INCORRECTA: "bg-destructive/10 text-destructive-foreground",
   CALIFICADA: 'bg-success/10 text-foreground',
   NO_ENTREGADA: 'bg-warning/10 text-foreground',
-}
-
-function resolveApiUrl(url) {
-  if (!url) return '#'
-  return new URL(url, api.defaults.baseURL).toString()
 }
 
 function formatDateTime(date) {
@@ -112,7 +107,7 @@ export default function TareaDetalleAlumno() {
       {tareaActiva.archivos?.length > 0 && <section className="rounded-2xl border border-border bg-card p-5">
         <h2 className="font-semibold">Material de apoyo del docente</h2>
         <div className="mt-3 flex flex-wrap gap-3">{tareaActiva.archivos.map((file) => (
-          <a key={file.id} href={resolveApiUrl(file.url)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-sm underline underline-offset-4"><FileBadge2 className="h-4 w-4" />{file.nombre}</a>
+          <a key={file.id} href={taskFileUrl(file.url, api.defaults.baseURL)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-sm underline underline-offset-4"><FileBadge2 className="h-4 w-4" />{file.nombre}</a>
         ))}</div>
       </section>}
       <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
@@ -168,7 +163,7 @@ export default function TareaDetalleAlumno() {
                     {miEntrega.archivos.map((file) => (
                       <a
                         key={file.id}
-                        href={resolveApiUrl(file.url)}
+                        href={taskFileUrl(file.url, api.defaults.baseURL)}
                         target="_blank"
                         rel="noreferrer"
                         className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-muted/40"

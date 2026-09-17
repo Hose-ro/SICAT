@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button'
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import api from "../api/axios";
@@ -48,7 +49,7 @@ export default function RestablecerPassword() {
         <div className="space-y-5">
           <div
             aria-live="polite"
-            className="rounded-lg bg-success/10 p-4 text-sm text-success"
+            className="rounded-lg bg-success/10 p-4 text-sm text-success-foreground"
           >
             {message}
           </div>
@@ -102,18 +103,18 @@ export default function RestablecerPassword() {
           {error && (
             <div
               role="alert"
-              className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive"
+              className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive-foreground"
             >
               {error}
             </div>
           )}
-          <button
+          <Button variant="default"
             type="submit"
             disabled={loading || !token}
-            className="h-12 w-full rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+            className="h-12 w-full px-4 text-sm font-semibold disabled:opacity-60"
           >
             {loading ? "Guardando..." : "Guardar contraseña"}
-          </button>
+          </Button>
         </form>
       )}
     </AuthPageShell>

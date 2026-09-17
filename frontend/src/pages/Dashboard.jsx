@@ -80,7 +80,7 @@ export default function Dashboard() {
 
   if (error) {
     return (
-      <div className="rounded-2xl border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+      <div className="rounded-2xl border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground">
         {error}
       </div>
     )
@@ -146,9 +146,9 @@ function Encabezado({ nombre, periodo, totalPendiente }) {
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0">
-        <h2 className="text-xl font-bold text-foreground sm:text-2xl">
+        <h1 className="text-xl font-bold text-foreground sm:text-2xl">
           Bienvenido, {nombre}
-        </h2>
+        </h1>
         <p className="mt-1 text-sm text-muted-foreground">
           {fechaLarga(new Date())} — Sistema de Gestión de Asistencias y
           Calificaciones
@@ -156,12 +156,12 @@ function Encabezado({ nombre, periodo, totalPendiente }) {
       </div>
       <div className="flex flex-wrap gap-2">
         {totalPendiente > 0 && (
-          <span className="rounded-full bg-destructive/10 px-3 py-1 text-xs font-medium text-destructive">
+          <span className="rounded-full bg-destructive/10 px-3 py-1 text-xs font-medium text-destructive-foreground">
             {totalPendiente} pendiente{totalPendiente === 1 ? '' : 's'}
           </span>
         )}
         {periodo && (
-          <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+          <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary-ink">
             Periodo {periodo}
           </span>
         )}
@@ -189,7 +189,7 @@ function Colas({ colas, totalPendiente }) {
     <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
       {colas.map(({ clave, etiqueta, valor, detalle, to, icono, urgente }) => {
         const activo = valor > 0
-        const acento = activo && urgente ? 'text-destructive' : 'text-foreground'
+        const acento = activo && urgente ? "text-destructive-foreground" : 'text-foreground'
 
         return (
           <Link
@@ -231,7 +231,7 @@ function Actividad({ actividad }) {
 
   return (
     <section className="flex flex-col rounded-2xl border border-border bg-card p-5">
-      <h3 className="text-sm font-semibold text-foreground">Actividad de hoy</h3>
+      <h2 className="text-sm font-semibold text-foreground">Actividad de hoy</h2>
 
       <dl className="mt-4 space-y-3">
         <FilaDato
@@ -287,9 +287,9 @@ function Catalogo({ catalogo }) {
 
   return (
     <section className="rounded-2xl border border-border bg-card p-5">
-      <h3 className="text-sm font-semibold text-foreground">
+      <h2 className="text-sm font-semibold text-foreground">
         Catálogo del periodo
-      </h3>
+      </h2>
 
       <ul className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
         {entradas.map(({ etiqueta, valor, to, icono: marca }) => (
@@ -327,16 +327,16 @@ function MateriasPorConfigurar({ materias, total }) {
     <section className="overflow-hidden rounded-2xl border border-border bg-card">
       <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
         <div className="min-w-0">
-          <h3 className="text-sm font-semibold text-foreground">
+          <h2 className="text-sm font-semibold text-foreground">
             Materias por configurar
-          </h3>
+          </h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
             Sin docente asignado o sin horario activo
           </p>
         </div>
         <Link
           to="/materias"
-          className="shrink-0 text-sm font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          className="shrink-0 text-sm font-medium text-primary-ink hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
           Ver todas
         </Link>
@@ -387,7 +387,7 @@ function MateriasPorConfigurar({ materias, total }) {
 
 function Falta({ children }) {
   return (
-    <span className="rounded-full bg-warning/15 px-2.5 py-1 text-xs font-medium text-warning-foreground dark:text-warning">
+    <span className="rounded-full bg-warning/15 px-2.5 py-1 text-xs font-medium text-warning-foreground ">
       {children}
     </span>
   )

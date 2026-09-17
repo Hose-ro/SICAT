@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button'
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
@@ -65,7 +66,7 @@ const ERRORES_LECTOR = {
 const STATUS = {
   PENDIENTE_PROCESAMIENTO: {
     label: "Procesando",
-    className: "bg-primary/10 text-primary",
+    className: "bg-primary/10 text-primary-ink",
   },
   PENDIENTE_REVISION: {
     label: "Por revisar",
@@ -73,11 +74,11 @@ const STATUS = {
   },
   ERROR: {
     label: "Captura manual",
-    className: "bg-destructive/10 text-destructive",
+    className: "bg-destructive/10 text-destructive-foreground",
   },
   APROBADA: {
     label: "Aprobada",
-    className: "bg-success/10 text-success",
+    className: "bg-success/10 text-success-foreground",
   },
   RECHAZADA: {
     label: "Rechazada",
@@ -398,8 +399,8 @@ export default function HorarioImportacionesPage() {
           role={message.type === "error" ? "alert" : "status"}
           className={`rounded-2xl border px-4 py-3 text-sm ${
             message.type === "error"
-              ? "border-destructive/25 bg-destructive/10 text-destructive"
-              : "border-success/25 bg-success/10 text-success"
+              ? "border-destructive/25 bg-destructive/10 text-destructive-foreground"
+              : "border-success/25 bg-success/10 text-success-foreground"
           }`}
         >
           {message.text}
@@ -454,11 +455,11 @@ export default function HorarioImportacionesPage() {
             {items.map((item) => {
               const status = obtenerStatus(item);
               return (
-                <button
+                <Button variant="ghost"
                   type="button"
                   key={item.id}
                   onClick={() => setSelectedId(item.id)}
-                  className={`mb-1 w-full rounded-xl px-3 py-3 text-left transition-colors focus:outline-none focus-visible:ring-3 focus-visible:ring-ring/40 ${
+                  className={`mb-1 w-full rounded-xl px-3 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40 ${
                     selectedId === item.id ? "bg-accent" : "hover:bg-muted"
                   }`}
                 >
@@ -476,7 +477,7 @@ export default function HorarioImportacionesPage() {
                     {item.semestre}° {item.seccion} · {item.periodo} ·{" "}
                     {item.bloques.length} bloques
                   </p>
-                </button>
+                </Button>
               );
             })}
           </div>
@@ -562,15 +563,15 @@ export default function HorarioImportacionesPage() {
                     </div>
                   )}
                   {editable && detalle.fotoDisponible && (
-                    <button
+                    <Button variant="outline"
                       type="button"
                       disabled={saving || lector?.configurado === false}
                       onClick={reprocesar}
-                      className="inline-flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:border-primary/35 focus:outline-none focus-visible:ring-3 focus-visible:ring-ring/40 disabled:opacity-50"
+                      className="inline-flex items-center gap-2 border px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40 disabled:opacity-50"
                     >
                       <RefreshCw className="h-4 w-4" aria-hidden="true" />
                       Procesar nuevamente
-                    </button>
+                    </Button>
                   )}
                 </div>
 
@@ -585,16 +586,16 @@ export default function HorarioImportacionesPage() {
                       </p>
                     </div>
                     {editable && (
-                      <button
+                      <Button variant="outline"
                         type="button"
                         onClick={() =>
                           setBloques((current) => [...current, crearBloque()])
                         }
-                        className="inline-flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:border-primary/35 focus:outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
+                        className="inline-flex items-center gap-2 border px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
                       >
                         <Plus className="h-4 w-4" aria-hidden="true" />
                         Agregar bloque
-                      </button>
+                      </Button>
                     )}
                   </div>
 
@@ -667,7 +668,7 @@ export default function HorarioImportacionesPage() {
                                 docente no está registrado.{" "}
                                 <Link
                                   to="/usuarios"
-                                  className="font-semibold text-primary hover:underline"
+                                  className="font-semibold text-primary-ink hover:underline"
                                 >
                                   Ir a Usuarios
                                 </Link>
@@ -743,7 +744,7 @@ export default function HorarioImportacionesPage() {
                           </label>
                         </div>
                         {editable && (
-                          <button
+                          <Button variant="destructive"
                             type="button"
                             onClick={() =>
                               setBloques((current) =>
@@ -752,14 +753,14 @@ export default function HorarioImportacionesPage() {
                                 ),
                               )
                             }
-                            className="mt-3 inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10 focus:outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
+                            className="mt-3 inline-flex items-center gap-1.5 px-2 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
                           >
                             <Trash2
                               className="h-3.5 w-3.5"
                               aria-hidden="true"
                             />
                             Quitar bloque
-                          </button>
+                          </Button>
                         )}
                       </div>
                     ))}
@@ -779,34 +780,34 @@ export default function HorarioImportacionesPage() {
 
                   {editable && !rejecting && (
                     <div className="flex flex-col-reverse gap-2 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
-                      <button
+                      <Button variant="destructive"
                         type="button"
                         disabled={saving}
                         onClick={() => setRejecting(true)}
-                        className="inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 focus:outline-none focus-visible:ring-3 focus-visible:ring-ring/40 disabled:opacity-50"
+                        className="inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40 disabled:opacity-50"
                       >
                         <X className="h-4 w-4" aria-hidden="true" />
                         Rechazar
-                      </button>
+                      </Button>
                       <div className="flex flex-col gap-2 sm:flex-row">
-                        <button
+                        <Button variant="outline"
                           type="button"
                           disabled={saving || !completos}
                           onClick={() => guardar()}
-                          className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:border-primary/35 focus:outline-none focus-visible:ring-3 focus-visible:ring-ring/40 disabled:opacity-50"
+                          className="inline-flex items-center justify-center gap-2 border px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40 disabled:opacity-50"
                         >
                           <Save className="h-4 w-4" aria-hidden="true" />
                           Guardar borrador
-                        </button>
-                        <button
+                        </Button>
+                        <Button variant="default"
                           type="button"
                           disabled={saving || !completos}
                           onClick={aprobar}
-                          className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-strong focus:outline-none focus-visible:ring-3 focus-visible:ring-ring/40 disabled:opacity-50"
+                          className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40 disabled:opacity-50"
                         >
                           <Check className="h-4 w-4" aria-hidden="true" />
                           Aprobar y publicar
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   )}
@@ -816,7 +817,7 @@ export default function HorarioImportacionesPage() {
                       <label className="block space-y-1 text-sm font-medium text-foreground">
                         Motivo para el alumno
                         <textarea
-                          autoFocus
+                          ref={(element) => { element?.focus() }}
                           value={motivo}
                           onChange={(event) => setMotivo(event.target.value)}
                           maxLength={500}
@@ -826,21 +827,21 @@ export default function HorarioImportacionesPage() {
                         />
                       </label>
                       <div className="flex justify-end gap-2">
-                        <button
+                        <Button variant="ghost"
                           type="button"
                           onClick={() => setRejecting(false)}
-                          className="rounded-xl px-3 py-2 text-sm font-medium text-foreground hover:bg-background"
+                          className="px-3 py-2 text-sm font-medium text-foreground hover:bg-background"
                         >
                           Cancelar
-                        </button>
-                        <button
+                        </Button>
+                        <Button variant="destructive"
                           type="button"
                           disabled={saving}
                           onClick={rechazar}
-                          className="rounded-xl bg-destructive px-3 py-2 text-sm font-semibold text-destructive-foreground disabled:opacity-50"
+                          className="px-3 py-2 text-sm font-semibold disabled:opacity-50"
                         >
                           Confirmar rechazo
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   )}

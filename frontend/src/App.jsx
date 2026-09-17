@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { lazy, useEffect } from "react";
 import {
   BrowserRouter,
   Routes,
@@ -7,49 +7,50 @@ import {
   Outlet,
   useLocation,
 } from "react-router-dom";
-import { BaseLayout } from "@/components/layout/BaseLayout";
+const BaseLayout = lazy(() => import("@/components/layout/BaseLayout").then((module) => ({ default: module.BaseLayout })));
+import RouteBoundary, { RouteLoading } from "@/components/RouteBoundary";
 import { useAuthStore } from "./store/authStore";
 import { clearLegacyAuthStorage } from "./lib/auth";
 import api from "./api/axios";
-import Login from "./pages/Login";
-import Registro from "./pages/Registro";
-import VerificarCorreo from "./pages/VerificarCorreo";
-import ReenviarVerificacion from "./pages/ReenviarVerificacion";
-import RecuperarPassword from "./pages/RecuperarPassword";
-import RestablecerPassword from "./pages/RestablecerPassword";
-import Dashboard from "./pages/Dashboard";
-import Materias from "./pages/Materias";
-import MateriaDetalle from "./pages/MateriaDetalle";
-import Asistencias from "./pages/Asistencias";
-import Tareas from "./pages/Tareas";
-import Calificaciones from "./pages/Calificaciones";
-import NotificacionesHistorial from "./pages/NotificacionesHistorial";
-import Usuarios from "./pages/Usuarios";
-import Carreras from "./pages/Carreras";
-import HorariosPage from "./pages/admin/horarios/HorariosPage";
-import AcademiasPage from "./pages/admin/academias/AcademiasPage";
-import AcademiaDetalle from "./pages/admin/academias/AcademiaDetalle";
-import GruposPage from "./pages/admin/grupos/GruposPage";
-import AulasPage from "./pages/admin/aulas/AulasPage";
-import GrupoDetalle from "./pages/admin/grupos/GrupoDetalle";
-import HorarioImportacionesPage from "./pages/admin/horarios/HorarioImportacionesPage";
-import MateriaDetalleAlumno from "./pages/alumno/MateriaDetalleAlumno";
-import TareaDetalleAlumno from "./pages/alumno/TareaDetalleAlumno";
-import MiHorarioAlumno from "./pages/alumno/MiHorarioAlumno";
-import PasarLista from "./pages/docente/PasarLista";
-import TareaForm from "./pages/docente/TareaForm";
-import TareaDetalle from "./pages/docente/TareaDetalle";
-import MiHorario from "./pages/docente/MiHorario";
-import MisGrupos from "./pages/docente/MisGrupos";
-import DashboardDocente from "./pages/docente/DashboardDocente";
-import SolicitudesPendientes from "./pages/docente/SolicitudesPendientes";
-import JefeDashboard from "./pages/jefe-carrera/JefeDashboard";
-import JefeDocentes from "./pages/jefe-carrera/JefeDocentes";
-import JefeDocenteDetalle from "./pages/jefe-carrera/JefeDocenteDetalle";
-import JefeClasesHorarios from "./pages/jefe-carrera/JefeClasesHorarios";
-import JefeSeguimiento from "./pages/jefe-carrera/JefeSeguimiento";
-import JefeAlertas from "./pages/jefe-carrera/JefeAlertas";
-import JefeReportes from "./pages/jefe-carrera/JefeReportes";
+const Login = lazy(() => import("./pages/Login"));
+const Registro = lazy(() => import("./pages/Registro"));
+const VerificarCorreo = lazy(() => import("./pages/VerificarCorreo"));
+const ReenviarVerificacion = lazy(() => import("./pages/ReenviarVerificacion"));
+const RecuperarPassword = lazy(() => import("./pages/RecuperarPassword"));
+const RestablecerPassword = lazy(() => import("./pages/RestablecerPassword"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Materias = lazy(() => import("./pages/Materias"));
+const MateriaDetalle = lazy(() => import("./pages/MateriaDetalle"));
+const Asistencias = lazy(() => import("./pages/Asistencias"));
+const Tareas = lazy(() => import("./pages/Tareas"));
+const Calificaciones = lazy(() => import("./pages/Calificaciones"));
+const NotificacionesHistorial = lazy(() => import("./pages/NotificacionesHistorial"));
+const Usuarios = lazy(() => import("./pages/Usuarios"));
+const Carreras = lazy(() => import("./pages/Carreras"));
+const HorariosPage = lazy(() => import("./pages/admin/horarios/HorariosPage"));
+const AcademiasPage = lazy(() => import("./pages/admin/academias/AcademiasPage"));
+const AcademiaDetalle = lazy(() => import("./pages/admin/academias/AcademiaDetalle"));
+const GruposPage = lazy(() => import("./pages/admin/grupos/GruposPage"));
+const AulasPage = lazy(() => import("./pages/admin/aulas/AulasPage"));
+const GrupoDetalle = lazy(() => import("./pages/admin/grupos/GrupoDetalle"));
+const HorarioImportacionesPage = lazy(() => import("./pages/admin/horarios/HorarioImportacionesPage"));
+const MateriaDetalleAlumno = lazy(() => import("./pages/alumno/MateriaDetalleAlumno"));
+const TareaDetalleAlumno = lazy(() => import("./pages/alumno/TareaDetalleAlumno"));
+const MiHorarioAlumno = lazy(() => import("./pages/alumno/MiHorarioAlumno"));
+const PasarLista = lazy(() => import("./pages/docente/PasarLista"));
+const TareaForm = lazy(() => import("./pages/docente/TareaForm"));
+const TareaDetalle = lazy(() => import("./pages/docente/TareaDetalle"));
+const MiHorario = lazy(() => import("./pages/docente/MiHorario"));
+const MisGrupos = lazy(() => import("./pages/docente/MisGrupos"));
+const DashboardDocente = lazy(() => import("./pages/docente/DashboardDocente"));
+const SolicitudesPendientes = lazy(() => import("./pages/docente/SolicitudesPendientes"));
+const JefeDashboard = lazy(() => import("./pages/jefe-carrera/JefeDashboard"));
+const JefeDocentes = lazy(() => import("./pages/jefe-carrera/JefeDocentes"));
+const JefeDocenteDetalle = lazy(() => import("./pages/jefe-carrera/JefeDocenteDetalle"));
+const JefeClasesHorarios = lazy(() => import("./pages/jefe-carrera/JefeClasesHorarios"));
+const JefeSeguimiento = lazy(() => import("./pages/jefe-carrera/JefeSeguimiento"));
+const JefeAlertas = lazy(() => import("./pages/jefe-carrera/JefeAlertas"));
+const JefeReportes = lazy(() => import("./pages/jefe-carrera/JefeReportes"));
 import PwaInstallPrompt from "@/components/PwaInstallPrompt";
 import { EMAIL_AUTH_ENABLED } from "./lib/authFeatures";
 
@@ -63,7 +64,7 @@ function LayoutWrapper() {
 
   return (
     <BaseLayout>
-      <Outlet />
+      <RouteBoundary><Outlet /></RouteBoundary>
     </BaseLayout>
   );
 }
@@ -86,7 +87,7 @@ function SessionBootstrap({ children }) {
   if (!initialized) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        <RouteLoading />
       </div>
     );
   }
@@ -116,6 +117,7 @@ function App() {
   return (
     <BrowserRouter>
       <SessionBootstrap>
+      <RouteBoundary>
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" />} />
 
@@ -254,6 +256,7 @@ function App() {
             </Route>
           </Route>
         </Routes>
+      </RouteBoundary>
       </SessionBootstrap>
       <PwaInstallPrompt />
     </BrowserRouter>

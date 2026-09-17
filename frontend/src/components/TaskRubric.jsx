@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button'
 export default function TaskRubric({ value, onChange }) {
   let rows
   try { rows = value ? JSON.parse(value) : [] } catch { rows = null }
@@ -5,7 +6,7 @@ export default function TaskRubric({ value, onChange }) {
   if (!compatible) return (
     <div className="space-y-3 text-sm text-muted-foreground">
       <p>Esta tarea usa una rúbrica con un formato anterior. Se conservará al guardar los cambios.</p>
-      <button type="button" onClick={() => onChange('[]')} className="font-semibold text-primary underline">Reemplazar por una rúbrica de criterios y porcentajes</button>
+      <Button variant="ghost" type="button" onClick={() => onChange('[]')} className="font-semibold text-primary-ink underline">Reemplazar por una rúbrica de criterios y porcentajes</Button>
     </div>
   )
   const update = (index, patch) => onChange(JSON.stringify(rows.map((row, i) => i === index ? { ...row, ...patch } : row)))
@@ -22,12 +23,12 @@ export default function TaskRubric({ value, onChange }) {
             <label className="min-w-0 flex-1 text-sm">Porcentaje
               <input required type="number" min="1" max="100" value={row.peso} onChange={(event) => update(index, { peso: event.target.value === '' ? '' : Number(event.target.value) })} className="mt-1 w-full rounded-lg border border-input bg-background p-2" />
             </label>
-            <button type="button" aria-label={`Quitar criterio ${index + 1}`} onClick={() => onChange(JSON.stringify(rows.filter((_, i) => i !== index)))} className="p-2 text-sm text-destructive">Quitar</button>
+            <Button variant="destructive" type="button" aria-label={`Quitar criterio ${index + 1}`} onClick={() => onChange(JSON.stringify(rows.filter((_, i) => i !== index)))} className="p-2 text-sm">Quitar</Button>
           </div>
         </div>
       ))}
       <div className="flex items-center justify-between gap-3">
-        <button type="button" onClick={() => onChange(JSON.stringify([...rows, { criterio: '', peso: '' }]))} className="rounded-xl border border-border px-3 py-2 text-sm font-semibold">Agregar criterio</button>
+        <Button variant="outline" type="button" onClick={() => onChange(JSON.stringify([...rows, { criterio: '', peso: '' }]))} className="border px-3 py-2 text-sm font-semibold">Agregar criterio</Button>
         <span aria-live="polite" className="text-sm font-semibold">Total: {total}%</span>
       </div>
     </div>

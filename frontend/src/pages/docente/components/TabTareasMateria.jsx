@@ -34,7 +34,7 @@ export default function TabTareasMateria({ materiaId }) {
       ) : (
         Object.entries(byUnidad).map(([unidad, tasks]) => (
           <div key={unidad}>
-            <h3 className="font-semibold text-foreground mb-2">{unidad}</h3>
+            <h2 className="font-semibold text-foreground mb-2">{unidad}</h2>
             <div className="space-y-2">
               {tasks.map((t) => (
                 <div key={t.id} className="bg-card border rounded-xl p-4 flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
@@ -46,8 +46,8 @@ export default function TabTareasMateria({ materiaId }) {
                         ? `Límite: ${new Date(t.fechaLimite).toLocaleDateString('es-MX')}`
                         : 'Sin límite'} ·
                       <span className={`ml-1 px-2 py-0.5 rounded-full text-xs ${
-                        t.tipoEntrega === 'EN_LINEA' ? 'bg-primary/10 text-primary' :
-                        t.tipoEntrega === 'FIRMA' ? 'bg-primary/10 text-primary' :
+                        t.tipoEntrega === 'EN_LINEA' ? "bg-primary/10 text-primary-ink" :
+                        t.tipoEntrega === 'FIRMA' ? "bg-primary/10 text-primary-ink" :
                         t.tipoEntrega === 'REVISION_EN_LINEA' ? 'bg-success/10 text-foreground' :
                         'bg-muted text-foreground'
                       }`}>{TASK_TYPE_LABEL[t.tipoEntrega] || t.tipoEntrega}</span>
@@ -57,7 +57,7 @@ export default function TabTareasMateria({ materiaId }) {
                     <span className="text-xs text-muted-foreground">{t.entregadas ?? 0}/{t.totalAlumnos ?? 0} entregas</span>
                     <span className="text-xs text-muted-foreground">{TASK_STATE_LABEL[t.estado] || t.estado}</span>
                     <Link to={`/docente/tareas/${t.id}`}
-                      className="text-xs text-primary hover:underline">Ver entregas</Link>
+                      className="text-xs text-primary-ink hover:underline">Ver entregas</Link>
                   </div>
                 </div>
               ))}

@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button'
 import { useRef, useState } from 'react'
 
 const ACTION_WIDTH = 64
@@ -51,33 +52,36 @@ export default function SwipeableRow({ children, actions, onTap }) {
   }
 
   return (
-    <div className="relative overflow-hidden border-b border-gray-100 last:border-b-0">
+    <div className="relative overflow-hidden border-b border-border last:border-b-0">
       <div className="absolute inset-y-0 right-0 flex" style={{ width: revealWidth }}>
         {actions.map((action) => (
-          <button
+          <Button variant="ghost" aria-label={action.label}
             key={action.key}
             type="button"
             disabled={action.disabled}
+            onFocus={() => setTranslateX(-revealWidth)}
             onClick={() => {
               close()
               action.onClick()
             }}
             title={action.label}
-            className={`flex flex-1 flex-col items-center justify-center gap-1 text-[10px] font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-40 ${action.className}`}
+            className={`h-full flex flex-1 flex-col items-center justify-center gap-1 text-[10px] font-medium transition disabled:cursor-not-allowed disabled:opacity-40 ${action.className}`}
           >
             {action.icon}
             <span className="leading-none">{action.label}</span>
-          </button>
+          </Button>
         ))}
       </div>
       <div
+        role="button" tabIndex={0} aria-label="Ver detalles y acciones"
+        onKeyDown={(event) => { if (event.key === 'ArrowLeft') setTranslateX(-revealWidth); if (event.key === 'Escape' || event.key === 'ArrowRight') close(); if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); handleContentClick() } }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={finishDrag}
         onPointerCancel={finishDrag}
         onClick={handleContentClick}
         style={{ transform: `translateX(${translateX}px)`, touchAction: 'pan-y' }}
-        className={`relative bg-white ${dragging ? '' : 'transition-transform duration-200 ease-out'}`}
+        className={`relative bg-card ${dragging ? '' : 'transition-transform duration-200 ease-out'}`}
       >
         {children}
       </div>

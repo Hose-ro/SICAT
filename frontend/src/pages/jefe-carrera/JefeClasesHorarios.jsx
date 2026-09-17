@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { CalendarClock, Clock3, MapPin, Radio } from 'lucide-react'
 import api from '@/api/axios'
@@ -69,13 +70,13 @@ export default function JefeClasesHorarios() {
                 <StatusBadge value={clase.estado} />
                 {clase.sesion && <p className="mt-2 text-xs text-muted-foreground">{clase.sesion._count.asistencias} asistencias</p>}
                 {clase.estado === 'EN_CURSO' && clase.sesion?.id && (
-                  <button
+                  <Button variant="outline"
                     type="button"
                     onClick={() => setSesionSeleccionada(clase.sesion.id)}
-                    className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-success/25 bg-success/10 px-3 py-1 text-xs font-medium text-success transition-colors hover:bg-success/20"
+                    className="mt-2 inline-flex items-center gap-1.5 border border-success/25 px-3 py-1 text-xs font-medium text-success-foreground transition-colors"
                   >
                     <Radio className="h-3.5 w-3.5" /> Ver en vivo
-                  </button>
+                  </Button>
                 )}
               </div>
             </article>
@@ -84,7 +85,7 @@ export default function JefeClasesHorarios() {
       )}
 
       {!loading && !error && filtrados.length > 0 && tab === 'horarios' && (
-        <div className="overflow-hidden rounded-2xl border border-border bg-card"><div className="overflow-x-auto"><table className="w-full min-w-[850px] text-sm"><thead className="bg-muted/70"><tr className="border-b border-border text-left text-xs text-muted-foreground"><th className="px-4 py-3 font-medium">Días</th><th className="px-4 py-3 font-medium">Horario</th><th className="px-4 py-3 font-medium">Materia</th><th className="px-4 py-3 font-medium">Docente</th><th className="px-4 py-3 font-medium">Grupo</th><th className="px-4 py-3 font-medium">Aula</th></tr></thead><tbody className="divide-y divide-border">{filtrados.map((horario) => <tr key={horario.id} className="hover:bg-muted/50"><td className="px-4 py-3 font-medium text-foreground">{horario.dias}</td><td className="px-4 py-3 text-muted-foreground">{horario.horaInicio}-{horario.horaFin}</td><td className="px-4 py-3 text-muted-foreground">{horario.materia.nombre}</td><td className="px-4 py-3 text-muted-foreground">{horario.docente.nombre}</td><td className="px-4 py-3 text-muted-foreground">{horario.grupo?.nombre ?? 'Sin grupo'}</td><td className="px-4 py-3 text-muted-foreground">{horario.aula?.nombre ?? 'Sin aula'}</td></tr>)}</tbody></table></div></div>
+        <div className="overflow-hidden rounded-2xl border border-border bg-card"><div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Tabla de clases"><table className="w-full min-w-[850px] text-sm"><thead className="bg-muted/70"><tr className="border-b border-border text-left text-xs text-muted-foreground"><th className="px-4 py-3 font-medium">Días</th><th className="px-4 py-3 font-medium">Horario</th><th className="px-4 py-3 font-medium">Materia</th><th className="px-4 py-3 font-medium">Docente</th><th className="px-4 py-3 font-medium">Grupo</th><th className="px-4 py-3 font-medium">Aula</th></tr></thead><tbody className="divide-y divide-border">{filtrados.map((horario) => <tr key={horario.id} className="hover:bg-muted/50"><td className="px-4 py-3 font-medium text-foreground">{horario.dias}</td><td className="px-4 py-3 text-muted-foreground">{horario.horaInicio}-{horario.horaFin}</td><td className="px-4 py-3 text-muted-foreground">{horario.materia.nombre}</td><td className="px-4 py-3 text-muted-foreground">{horario.docente.nombre}</td><td className="px-4 py-3 text-muted-foreground">{horario.grupo?.nombre ?? 'Sin grupo'}</td><td className="px-4 py-3 text-muted-foreground">{horario.aula?.nombre ?? 'Sin aula'}</td></tr>)}</tbody></table></div></div>
       )}
 
       {sesionSeleccionada && (
@@ -95,5 +96,5 @@ export default function JefeClasesHorarios() {
 }
 
 function Tab({ active, onClick, children }) {
-  return <button type="button" role="tab" aria-selected={active} onClick={onClick} className={`rounded-lg px-4 py-2 text-sm font-medium transition ${active ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>{children}</button>
+  return <Button variant="ghost" type="button" role="tab" aria-selected={active} onClick={onClick} className={`rounded-lg px-4 py-2 text-sm font-medium transition ${active ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>{children}</Button>
 }

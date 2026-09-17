@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button'
 import { useEffect, useState } from 'react'
 import { FileSpreadsheet, FileText } from 'lucide-react'
 import api from '@/api/axios'
@@ -40,12 +41,12 @@ export default function JefeReportes() {
   return (
     <div className="space-y-6">
       <PageHeader title="Reportes" subtitle="Resumen institucional dentro de tus carreras asignadas" action={<CarreraSelector />} />
-      <div className="flex flex-wrap gap-2"><button type="button" disabled={downloading} onClick={() => descargar('excel')} className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60"><FileSpreadsheet className="h-4 w-4" /> Descargar Excel</button><button type="button" disabled={downloading} onClick={() => descargar('pdf')} className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-60"><FileText className="h-4 w-4" /> Descargar PDF</button></div>
+      <div className="flex flex-wrap gap-2"><Button variant="default" type="button" disabled={downloading} onClick={() => descargar('excel')} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium disabled:opacity-60"><FileSpreadsheet className="h-4 w-4" /> Descargar Excel</Button><Button variant="outline" type="button" disabled={downloading} onClick={() => descargar('pdf')} className="inline-flex items-center gap-2 border px-4 py-2 text-sm font-medium disabled:opacity-60"><FileText className="h-4 w-4" /> Descargar PDF</Button></div>
       <MetricRow items={[
         { label: 'Docentes', value: reporte.resumen.docentes },
         { label: 'Clases de hoy', value: reporte.resumen.clasesHoy },
         { label: 'Asistencia promedio', value: `${reporte.resumen.asistenciaPromedio}%` },
-        { label: 'Alumnos en riesgo', value: reporte.resumen.alumnosRiesgo, tone: reporte.resumen.alumnosRiesgo ? 'text-destructive' : 'text-success' },
+        { label: 'Alumnos en riesgo', value: reporte.resumen.alumnosRiesgo, tone: reporte.resumen.alumnosRiesgo ? "text-destructive-foreground" : "text-success-foreground" },
       ]} />
       <div className="grid gap-4 lg:grid-cols-2">
         <ReportTable title="Carga docente" columns={['Docente', 'Horarios', 'Materias']} rows={reporte.cargaDocente.map((item) => [item.docente, item.horarios, item.materias])} />
@@ -58,5 +59,5 @@ export default function JefeReportes() {
 }
 
 function ReportTable({ title, columns, rows, empty = 'Sin datos para mostrar.' }) {
-  return <section className="overflow-hidden rounded-2xl border border-border bg-card"><div className="border-b border-border px-4 py-3"><h2 className="font-semibold text-foreground">{title}</h2></div>{rows.length ? <div className="overflow-x-auto"><table className="w-full min-w-[520px] text-sm"><thead className="bg-muted/70"><tr>{columns.map((column) => <th key={column} className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{column}</th>)}</tr></thead><tbody className="divide-y divide-border">{rows.map((row, index) => <tr key={`${row[0]}-${index}`}>{row.map((value, cellIndex) => <td key={cellIndex} className={`px-4 py-3 ${cellIndex === 0 ? 'font-medium text-foreground' : 'text-muted-foreground'}`}>{value}</td>)}</tr>)}</tbody></table></div> : <p className="px-4 py-10 text-center text-sm text-muted-foreground">{empty}</p>}</section>
+  return <section aria-label={title} className="overflow-hidden rounded-2xl border border-border bg-card"><div className="border-b border-border px-4 py-3"><h2 className="font-semibold text-foreground">{title}</h2></div>{rows.length ? <div className="overflow-x-auto" tabIndex={0} role="region" aria-label={`Tabla: ${title}`}><table className="w-full min-w-[520px] text-sm"><thead className="bg-muted/70"><tr>{columns.map((column) => <th key={column} className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{column}</th>)}</tr></thead><tbody className="divide-y divide-border">{rows.map((row, index) => <tr key={`${row[0]}-${index}`}>{row.map((value, cellIndex) => <td key={cellIndex} className={`px-4 py-3 ${cellIndex === 0 ? 'font-medium text-foreground' : 'text-muted-foreground'}`}>{value}</td>)}</tr>)}</tbody></table></div> : <p className="px-4 py-10 text-center text-sm text-muted-foreground">{empty}</p>}</section>
 }

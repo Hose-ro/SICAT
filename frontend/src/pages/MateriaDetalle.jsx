@@ -76,11 +76,11 @@ export default function MateriaDetalle() {
   }), [historial.length, materia?.inscripciones?.length, materia?.unidades?.length, tareas.length])
 
   if (loading) {
-    return <div className="py-16 text-center text-sm text-gray-500">Cargando materia...</div>
+    return <div className="py-16 text-center text-sm text-muted-foreground">Cargando materia...</div>
   }
 
   if (error || !materia) {
-    return <div className="py-16 text-center text-sm text-red-500">{error || 'Materia no encontrada'}</div>
+    return <div className="py-16 text-center text-sm text-destructive-foreground">{error || 'Materia no encontrada'}</div>
   }
 
   return (
@@ -89,7 +89,7 @@ export default function MateriaDetalle() {
         title={materia.nombre}
         subtitle={
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-            <span className="font-semibold text-blue-600">{materia.clave}</span>
+            <span className="font-semibold text-primary-ink">{materia.clave}</span>
             <span>{materia.carrera?.nombre ?? 'Sin carrera'}</span>
             <span>{materia.semestre ? `Semestre ${materia.semestre}` : 'Semestre sin asignar'}</span>
             <span>{materia.docente?.nombre ? `Docente: ${materia.docente.nombre}` : 'Docente pendiente'}</span>
@@ -99,13 +99,13 @@ export default function MateriaDetalle() {
           <div className="flex flex-wrap gap-2">
             <Link
               to="/asistencias"
-              className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+              className="rounded-xl border border-border px-4 py-2 text-sm font-medium text-foreground transition hover:bg-background"
             >
               Ver asistencias
             </Link>
             <Link
               to="/tareas"
-              className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+              className="rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary-strong"
             >
               Ver tareas
             </Link>
@@ -120,22 +120,22 @@ export default function MateriaDetalle() {
           ['Clases registradas', resumen.clases],
           ['Tareas creadas', resumen.tareas],
         ].map(([label, value]) => (
-          <article key={label} className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-            <p className="text-sm text-gray-500">{label}</p>
-            <p className="mt-2 text-3xl font-semibold text-gray-900">{value}</p>
+          <article key={label} className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+            <p className="text-sm text-muted-foreground">{label}</p>
+            <p className="mt-2 text-3xl font-semibold text-foreground">{value}</p>
           </article>
         ))}
       </section>
 
       {estadisticas && (
-        <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Resumen de asistencias</h3>
+        <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Resumen de asistencias</h2>
           <div className="mt-4 flex flex-wrap gap-2">
-            <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">A: {estadisticas.asistencias ?? 0}</span>
-            <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-700">F: {estadisticas.faltas ?? 0}</span>
-            <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-700">R: {estadisticas.retardos ?? 0}</span>
-            <span className="rounded-full bg-sky-100 px-3 py-1 text-xs font-medium text-sky-700">J: {estadisticas.justificados ?? 0}</span>
-            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">%: {estadisticas.porcentaje ?? 0}</span>
+            <span className="rounded-full bg-success/10 px-3 py-1 text-xs font-medium text-success-foreground">A: {estadisticas.asistencias ?? 0}</span>
+            <span className="rounded-full bg-destructive/10 px-3 py-1 text-xs font-medium text-destructive-foreground">F: {estadisticas.faltas ?? 0}</span>
+            <span className="rounded-full bg-warning/10 px-3 py-1 text-xs font-medium text-warning-foreground">R: {estadisticas.retardos ?? 0}</span>
+            <span className="rounded-full bg-accent px-3 py-1 text-xs font-medium text-primary-ink">J: {estadisticas.justificados ?? 0}</span>
+            <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-foreground">%: {estadisticas.porcentaje ?? 0}</span>
           </div>
         </section>
       )}
@@ -154,51 +154,51 @@ export default function MateriaDetalle() {
       </section>
 
       <section className="grid gap-6 xl:grid-cols-2">
-        <article className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+        <article className="min-w-0 rounded-2xl border border-border bg-card p-5 shadow-sm">
           <div className="flex items-center justify-between gap-3">
-            <h3 className="text-lg font-semibold text-gray-900">Sesiones recientes</h3>
-            <span className="text-xs text-gray-400">{historial.length} registro(s)</span>
+            <h2 className="text-lg font-semibold text-foreground">Sesiones recientes</h2>
+            <span className="text-xs text-muted-foreground">{historial.length} registro(s)</span>
           </div>
           <div className="mt-4 space-y-3">
             {historial.slice(0, 8).map((sesion) => (
-              <div key={sesion.id} className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+              <div key={sesion.id} className="rounded-xl border border-border bg-background px-4 py-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <p className="font-medium text-gray-800">{sesion.grupo?.nombre ?? 'Sin grupo'} · {sesion.unidad?.nombre ?? 'Sin unidad'}</p>
-                    <p className="mt-1 text-xs text-gray-500">{formatDate(sesion.fecha)} · Semana {sesion.semanaClave}</p>
+                    <p className="font-medium text-foreground">{sesion.grupo?.nombre ?? 'Sin grupo'} · {sesion.unidad?.nombre ?? 'Sin unidad'}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{formatDate(sesion.fecha)} · Semana {sesion.semanaClave}</p>
                   </div>
                   <div className="flex flex-wrap gap-2 text-xs">
-                    <span className="rounded-full bg-green-100 px-2 py-1 font-medium text-green-700">A {sesion.resumen?.asistencias ?? 0}</span>
-                    <span className="rounded-full bg-red-100 px-2 py-1 font-medium text-red-700">F {sesion.resumen?.faltas ?? 0}</span>
-                    <span className="rounded-full bg-amber-100 px-2 py-1 font-medium text-amber-700">R {sesion.resumen?.retardos ?? 0}</span>
+                    <span className="rounded-full bg-success/10 px-2 py-1 font-medium text-success-foreground">A {sesion.resumen?.asistencias ?? 0}</span>
+                    <span className="rounded-full bg-destructive/10 px-2 py-1 font-medium text-destructive-foreground">F {sesion.resumen?.faltas ?? 0}</span>
+                    <span className="rounded-full bg-warning/10 px-2 py-1 font-medium text-warning-foreground">R {sesion.resumen?.retardos ?? 0}</span>
                   </div>
                 </div>
               </div>
             ))}
             {historial.length === 0 && (
-              <p className="text-sm text-gray-400">No hay sesiones registradas todavía.</p>
+              <p className="text-sm text-muted-foreground">No hay sesiones registradas todavía.</p>
             )}
           </div>
         </article>
 
-        <article className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+        <article className="min-w-0 rounded-2xl border border-border bg-card p-5 shadow-sm">
           <div className="flex items-center justify-between gap-3">
-            <h3 className="text-lg font-semibold text-gray-900">Tareas recientes</h3>
-            <span className="text-xs text-gray-400">{tareas.length} tarea(s)</span>
+            <h2 className="text-lg font-semibold text-foreground">Tareas recientes</h2>
+            <span className="text-xs text-muted-foreground">{tareas.length} tarea(s)</span>
           </div>
           <div className="mt-4 space-y-3">
             {tareas.slice(0, 8).map((item) => (
-              <div key={item.id} className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+              <div key={item.id} className="rounded-xl border border-border bg-background px-4 py-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <p className="font-medium text-gray-800">{item.titulo}</p>
-                    <p className="mt-1 text-xs text-gray-500">
+                    <p className="font-medium text-foreground">{item.titulo}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
                       {item.unidadRef?.nombre ?? 'Sin unidad'} · {item.tieneFechaLimite ? `Límite ${formatDate(item.fechaLimite)}` : 'Sin límite'}
                     </p>
                   </div>
                   <Link
                     to={`/docente/tareas/${item.id}`}
-                    className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-white"
+                    className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-card"
                   >
                     Ver tarea
                   </Link>
@@ -206,7 +206,7 @@ export default function MateriaDetalle() {
               </div>
             ))}
             {tareas.length === 0 && (
-              <p className="text-sm text-gray-400">No hay tareas publicadas para esta materia.</p>
+              <p className="text-sm text-muted-foreground">No hay tareas publicadas para esta materia.</p>
             )}
           </div>
         </article>

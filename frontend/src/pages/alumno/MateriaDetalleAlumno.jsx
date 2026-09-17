@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button'
 import { useState, useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import TablaAsistenciasAlumno from './components/TablaAsistenciasAlumno'
@@ -8,13 +9,13 @@ import { DELIVERY_STATE_LABEL } from '../../lib/tareas'
 import TaskNotice from '../../components/TaskNotice'
 
 const ESTADO_TAREA = {
-  null:         { label: 'Pendiente',    bg: 'bg-slate-50',   text: 'text-slate-600',  ring: 'ring-slate-200'  },
-  PENDIENTE:    { label: 'Pendiente',    bg: 'bg-slate-50',   text: 'text-slate-600',  ring: 'ring-slate-200'  },
-  ENTREGADA:    { label: 'Entregada',    bg: 'bg-blue-50',    text: 'text-blue-700',   ring: 'ring-blue-200'   },
-  REVISADA:     { label: 'Revisada',     bg: 'bg-amber-50',   text: 'text-amber-700',  ring: 'ring-amber-200'  },
-  CALIFICADA:   { label: 'Calificada',   bg: 'bg-emerald-50', text: 'text-emerald-700',ring: 'ring-emerald-200'},
-  INCORRECTA:   { label: 'Incorrecta',   bg: 'bg-rose-50',    text: 'text-rose-700',   ring: 'ring-rose-200'   },
-  NO_ENTREGADA: { label: 'No entregada', bg: 'bg-amber-50',   text: 'text-amber-700',  ring: 'ring-amber-200'  },
+  null:         { label: 'Pendiente',    bg: "bg-background",   text: "text-muted-foreground",  ring: "ring-ring"  },
+  PENDIENTE:    { label: 'Pendiente',    bg: "bg-background",   text: "text-muted-foreground",  ring: "ring-ring"  },
+  ENTREGADA:    { label: 'Entregada',    bg: "bg-accent",    text: "text-primary-ink",   ring: "ring-ring"   },
+  REVISADA:     { label: 'Revisada',     bg: "bg-warning/10",   text: "text-warning-foreground",  ring: "ring-ring"  },
+  CALIFICADA:   { label: 'Calificada',   bg: "bg-success/10", text: "text-success-foreground",ring: "ring-ring"},
+  INCORRECTA:   { label: 'Incorrecta',   bg: "bg-destructive/10",    text: "text-destructive-foreground",   ring: "ring-ring"   },
+  NO_ENTREGADA: { label: 'No entregada', bg: "bg-warning/10",   text: "text-warning-foreground",  ring: "ring-ring"  },
 }
 
 function EstadoTareaBadge({ estado }) {
@@ -66,39 +67,40 @@ export default function MateriaDetalleAlumno() {
 
   return (
     <div className="space-y-5 px-4 py-5 sm:px-6">
+      <h1 className="text-xl font-bold text-foreground">Asistencias y tareas de la materia</h1>
       {claseActiva && (
-        <div className="flex flex-col gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 rounded-2xl border border-success/30 bg-success/10 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2.5">
-            <span className="h-2 w-2 rounded-full bg-emerald-500" />
+            <span className="h-2 w-2 rounded-full bg-success" />
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">Clase en curso</p>
-              <p className="text-sm text-emerald-800">
+              <p className="text-xs font-semibold uppercase tracking-wide text-success-foreground">Clase en curso</p>
+              <p className="text-sm text-success-foreground">
                 {claseActiva.materia?.nombre} · {claseActiva.grupo?.nombre ?? 'Grupo'} · {claseActiva.horarioMateria?.aula?.nombre ?? 'Aula pendiente'}
               </p>
             </div>
           </div>
-          <span className="self-start rounded-xl bg-white px-3 py-1.5 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200 sm:self-auto">
+          <span className="self-start rounded-xl bg-card px-3 py-1.5 text-xs font-semibold text-success-foreground ring-1 ring-ring sm:self-auto">
             {claseActiva.unidadRef?.nombre ?? `Unidad ${claseActiva.unidad}`}
           </span>
         </div>
       )}
 
-      <div className="flex gap-1 border-b border-slate-200">
+      <div className="flex gap-1 border-b border-border">
         {TABS.map((t) => (
-          <button
+          <Button variant="ghost"
             key={t.key}
             onClick={() => setTab(t.key)}
             className={`relative px-4 py-2.5 text-sm font-medium transition-colors ${
               tab === t.key
-                ? 'text-slate-900 dark:text-white'
-                : 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300'
+                ? "text-foreground dark:text-on-accent"
+                : "text-muted-foreground hover:text-muted-foreground dark:text-muted-foreground dark:hover:text-muted-foreground"
             }`}
           >
             {t.label}
             {tab === t.key && (
-              <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-slate-900 dark:bg-white/70" />
+              <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-primary dark:bg-card/70" />
             )}
-          </button>
+          </Button>
         ))}
       </div>
 
@@ -110,49 +112,49 @@ export default function MateriaDetalleAlumno() {
           {loading ? (
             <div className="space-y-2">
               {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="h-16 animate-pulse rounded-xl bg-slate-100" />
+                <div key={i} className="h-16 animate-pulse rounded-xl bg-muted" />
               ))}
             </div>
           ) : misEntregas.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-slate-200 bg-white py-12 text-center">
-              <p className="text-sm font-medium text-slate-500">Sin tareas</p>
-              <p className="mt-1 text-xs text-slate-400">No hay tareas publicadas para esta materia.</p>
+            <div className="rounded-2xl border border-dashed border-border bg-card py-12 text-center">
+              <p className="text-sm font-medium text-muted-foreground">Sin tareas</p>
+              <p className="mt-1 text-xs text-muted-foreground">No hay tareas publicadas para esta materia.</p>
             </div>
           ) : (
             Object.entries(byUnidad).map(([unidad, items]) => (
               <div key={unidad} className="space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{unidad}</p>
-                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white divide-y divide-slate-50">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{unidad}</p>
+                <div className="overflow-hidden rounded-2xl border border-border bg-card divide-y divide-border">
                   {items.map(({ tarea, miEntrega, estadoAlumno }) => {
                     const estado = miEntrega?.estadoRevision ?? estadoAlumno ?? null
                     const fechaLimite = formatDate(tarea.fechaLimite)
                     return (
                       <div key={tarea.id} className="flex items-center gap-3 px-4 py-3.5">
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-slate-800">{tarea.titulo}</p>
-                          <p className="mt-0.5 text-xs text-slate-400">
+                          <p className="truncate text-sm font-medium text-foreground">{tarea.titulo}</p>
+                          <p className="mt-0.5 text-xs text-muted-foreground">
                             {tarea.unidadRef?.nombre || unidad}
                             {fechaLimite ? ` · Límite: ${fechaLimite}` : ' · Sin límite'}
                           </p>
                           {miEntrega?.observacion && (
-                            <p className="mt-1.5 text-xs text-slate-500 line-clamp-1">{miEntrega.observacion}</p>
+                            <p className="mt-1.5 text-xs text-muted-foreground line-clamp-1">{miEntrega.observacion}</p>
                           )}
                         </div>
                         <div className="flex shrink-0 items-center gap-2">
                           {miEntrega?.fueTardia && (
-                            <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-600 ring-1 ring-amber-200">
+                            <span className="rounded-full bg-warning/10 px-2 py-0.5 text-[11px] font-medium text-warning-foreground ring-1 ring-ring">
                               Tardía
                             </span>
                           )}
                           {miEntrega?.calificacion != null && (
-                            <span className="text-sm font-bold text-emerald-700">
+                            <span className="text-sm font-bold text-success-foreground">
                               {miEntrega.calificacion}/100
                             </span>
                           )}
                           <EstadoTareaBadge estado={estado} />
                           <Link
                             to={`/alumno/tareas/${tarea.id}`}
-                            className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
+                            className="rounded-xl border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-background"
                           >
                             Ver →
                           </Link>

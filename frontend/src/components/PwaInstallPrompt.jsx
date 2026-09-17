@@ -1,5 +1,6 @@
+import { Button } from '@/components/ui/button'
 import { useMemo, useState } from 'react'
-import { CiCircleRemove, CiMobile3 } from 'react-icons/ci'
+import { CircleX as CiCircleRemove, Smartphone as CiMobile3 } from 'lucide-react'
 import { usePwaInstall } from '@/hooks/usePwaInstall'
 
 const DISMISS_KEY = 'sicat-pwa-dismissed-at'
@@ -61,33 +62,33 @@ export default function PwaInstallPrompt() {
 
             <div className="mt-3 flex flex-wrap gap-2">
               {canInstall && (
-                <button
+                <Button variant="default"
                   type="button"
                   onClick={() => void promptInstall()}
-                  className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary-strong"
+                  className="px-4 py-2 text-sm font-semibold"
                 >
                   Instalar app
-                </button>
+                </Button>
               )}
 
-              <button
+              <Button variant="outline"
                 type="button"
                 onClick={dismiss}
-                className="rounded-xl border border-border px-4 py-2 text-sm font-medium text-muted-foreground transition hover:bg-muted"
+                className="border px-4 py-2 text-sm font-medium"
               >
                 Luego
-              </button>
+              </Button>
             </div>
           </div>
 
-          <button
+          <Button variant="ghost"
             type="button"
             onClick={dismiss}
-            className="rounded-full p-1 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+            className="p-1 text-muted-foreground  hover:bg-muted hover:text-foreground"
             aria-label="Cerrar aviso de instalacion"
           >
             <CiCircleRemove className="text-lg" />
-          </button>
+          </Button>
         </div>
       </div>
     </div>

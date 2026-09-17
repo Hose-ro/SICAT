@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
@@ -15,13 +16,13 @@ import { useTareaStore } from '../../store/tareaStore'
 
 import TaskCriteria from '../../components/TaskCriteria'
 import TaskNotice from '../../components/TaskNotice'
-import { TASK_STATE_LABEL, DELIVERY_STATE_LABEL, taskError } from '../../lib/tareas'
+import { TASK_STATE_LABEL, DELIVERY_STATE_LABEL, taskError, taskFileUrl } from '../../lib/tareas'
 
 const STATE_CLASS = {
   PENDIENTE: 'bg-muted text-foreground',
-  ENTREGADA: 'bg-primary/10 text-primary',
-  REVISADA: 'bg-primary/10 text-primary',
-  INCORRECTA: 'bg-destructive/10 text-destructive',
+  ENTREGADA: "bg-primary/10 text-primary-ink",
+  REVISADA: "bg-primary/10 text-primary-ink",
+  INCORRECTA: "bg-destructive/10 text-destructive-foreground",
   CALIFICADA: 'bg-success/10 text-foreground',
   NO_ENTREGADA: 'bg-warning/10 text-foreground',
 }
@@ -31,11 +32,6 @@ const CALIFICATION_TYPES = [
   { value: 'REVISADO', label: 'Revisado' },
   { value: 'FIRMA', label: 'Firma' },
 ]
-
-function resolveApiUrl(url) {
-  if (!url) return '#'
-  return new URL(url, api.defaults.baseURL).toString()
-}
 
 function formatDateTime(date) {
   if (!date) return 'Sin fecha'
@@ -247,24 +243,24 @@ export default function TareaDetalle() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <button
+            <Button variant="outline"
               type="button"
               disabled={selectedDeliveries.length === 0 || Boolean(running) || loading}
               onClick={() => perform('bulk-review', () => revisarMasivo(tareaId, selectedDeliveries.map((item) => item.id), undefined))}
-              className="inline-flex items-center gap-2 rounded-2xl border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground transition hover:bg-muted/40 disabled:opacity-60"
+              className="inline-flex items-center gap-2 border px-4 py-2.5 text-sm font-semibold disabled:opacity-60"
             >
               <SquareCheckBig className="h-4 w-4" />
               Marcar como revisadas
-            </button>
-            <button
+            </Button>
+            <Button variant="outline"
               type="button"
               disabled={selectedDeliveries.length === 0 || Boolean(running) || loading}
               onClick={() => perform('bulk-download', () => descargarEntregas(tareaId, selectedDeliveries.map((item) => item.id)))}
-              className="inline-flex items-center gap-2 rounded-2xl border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground transition hover:bg-muted/40 disabled:opacity-60"
+              className="inline-flex items-center gap-2 border px-4 py-2.5 text-sm font-semibold disabled:opacity-60"
             >
               <Download className="h-4 w-4" />
               Descargar seleccionadas
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -322,7 +318,7 @@ export default function TareaDetalle() {
                     </div>
 
                     <div>
-                      <h3 className="text-xl font-semibold text-foreground">{delivery.alumno.nombre}</h3>
+                      <h2 className="text-xl font-semibold text-foreground">{delivery.alumno.nombre}</h2>
                       <p className="mt-1 text-sm text-muted-foreground">No. control: {delivery.alumno.numeroControl || 'Sin registro'}</p>
                     </div>
 
@@ -351,7 +347,7 @@ export default function TareaDetalle() {
                           {delivery.archivos.map((file) => (
                             <a
                               key={file.id}
-                              href={resolveApiUrl(file.url)}
+                              href={taskFileUrl(file.url, api.defaults.baseURL)}
                               target="_blank"
                               rel="noreferrer"
                               className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-muted/40"
@@ -410,14 +406,14 @@ export default function TareaDetalle() {
                     <div className="grid gap-2 sm:grid-cols-2">
                       {delivery.esSintetica ? (
                         tareaActiva?.tipoEntrega === 'PRESENCIAL' ? (
-                          <button
+                          <Button variant="default"
                             type="button"
                             disabled={Boolean(running) || loading}
                             onClick={() => perform(`presence-${delivery.alumno.id}`, () => marcarPresencial(tareaId, delivery.alumno.id))}
-                            className="col-span-full rounded-2xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary"
+                            className="col-span-full px-4 py-2.5 text-sm font-semibold"
                           >
                             Registrar entrega presencial
-                          </button>
+                          </Button>
                         ) : (
                           <div className="col-span-full inline-flex items-center gap-2 rounded-2xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-foreground">
                             <AlertTriangle className="h-4 w-4" />
@@ -426,38 +422,38 @@ export default function TareaDetalle() {
                         )
                       ) : (
                         <>
-                          <button
+                          <Button variant="outline"
                             type="button"
                             disabled={Boolean(running) || loading}
                             onClick={() => perform(`review-${delivery.id}`, () => revisar(delivery.id, draft.observacion))}
-                            className="rounded-2xl border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground transition hover:bg-muted/40"
+                            className="border px-4 py-2.5 text-sm font-semibold"
                           >
                             Marcar revisada
-                          </button>
-                          <button
+                          </Button>
+                          <Button variant="destructive"
                             type="button"
                             disabled={Boolean(running) || loading}
                             onClick={() => perform(`wrong-${delivery.id}`, () => marcarIncorrecta(delivery.id, draft.observacion))}
-                            className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-2.5 text-sm font-semibold text-destructive transition hover:bg-destructive/10"
+                            className="border px-4 py-2.5 text-sm font-semibold"
                           >
                             Marcar incorrecta
-                          </button>
-                          <button
+                          </Button>
+                          <Button variant="outline"
                             type="button"
                             disabled={Boolean(running) || loading}
                             onClick={() => requestCorrection(delivery, draft)}
-                            className="rounded-2xl border border-warning/30 bg-warning/10 px-4 py-2.5 text-sm font-semibold text-foreground transition hover:bg-warning/10"
+                            className="border border-warning/30 px-4 py-2.5 text-sm font-semibold"
                           >
                             Pedir corrección
-                          </button>
-                          <button
+                          </Button>
+                          <Button variant="default"
                             type="button"
                             disabled={Boolean(running) || loading}
                             onClick={() => saveGrade(delivery, draft)}
-                            className="rounded-2xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary"
+                            className="px-4 py-2.5 text-sm font-semibold"
                           >
                             Calificar
-                          </button>
+                          </Button>
                         </>
                       )}
                     </div>

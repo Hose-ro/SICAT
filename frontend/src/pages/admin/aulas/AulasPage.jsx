@@ -1,4 +1,6 @@
-import { useEffect, useState } from 'react'
+import { Button } from '@/components/ui/button'
+import Modal from '@/components/Modal'
+import { useId, useEffect, useState } from 'react'
 import api from '../../../api/axios'
 
 const FORM_VACIO = { nombre: '', edificio: '', capacidad: '' }
@@ -11,6 +13,7 @@ function mensajeError(error, fallback) {
 }
 
 export default function AulasPage() {
+  const fieldId = useId()
   const [aulas, setAulas] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -91,106 +94,106 @@ export default function AulasPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-blue-600 sm:text-3xl">Aulas</h1>
-        <p className="text-sm text-gray-500">
+        <h1 className="text-2xl font-bold text-primary-ink sm:text-3xl">Aulas</h1>
+        <p className="text-sm text-muted-foreground">
           Catálogo de aulas disponibles para asignar a los horarios de cada grupo.
         </p>
       </div>
 
       {error && (
-        <div className="flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="flex items-center justify-between rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground">
           <span>{error}</span>
-          <button onClick={() => setError('')} className="ml-4 text-red-400 hover:text-red-600">
+          <Button variant="destructive" onClick={() => setError('')} className="ml-4">
             ✕
-          </button>
+          </Button>
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-3 rounded-2xl border border-gray-200 p-4">
-        <h2 className="text-sm font-semibold text-gray-800">
+      <form onSubmit={handleSubmit} className="space-y-3 rounded-2xl border border-border p-4">
+        <h2 className="text-sm font-semibold text-foreground">
           {editandoId ? 'Editar aula' : 'Nueva aula'}
         </h2>
 
         <div className="grid gap-3 sm:grid-cols-3">
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+            <label htmlFor={fieldId + '-control-120'} className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Nombre
             </label>
-            <input
+            <input id={fieldId + '-control-120'}
               value={form.nombre}
               onChange={(e) => setForm((prev) => ({ ...prev, nombre: e.target.value }))}
               placeholder="Aula 101"
-              className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-xl border border-border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+            <label htmlFor={fieldId + '-control-131'} className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Edificio
             </label>
-            <input
+            <input id={fieldId + '-control-131'}
               value={form.edificio}
               onChange={(e) => setForm((prev) => ({ ...prev, edificio: e.target.value }))}
               placeholder="Opcional"
-              className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-xl border border-border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+            <label htmlFor={fieldId + '-control-142'} className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Capacidad
             </label>
-            <input
+            <input id={fieldId + '-control-142'}
               type="number"
               min="1"
               value={form.capacidad}
               onChange={(e) => setForm((prev) => ({ ...prev, capacidad: e.target.value }))}
               placeholder="Opcional"
-              className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-xl border border-border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
           </div>
         </div>
 
         <div className="flex flex-col gap-2 sm:flex-row">
-          <button
+          <Button variant="default"
             type="submit"
             disabled={guardando}
-            className="rounded-xl bg-blue-600 px-4 py-2 text-sm text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
           >
             {guardando ? 'Guardando...' : editandoId ? 'Guardar cambios' : 'Crear aula'}
-          </button>
+          </Button>
           {editandoId && (
-            <button
+            <Button variant="outline"
               type="button"
               onClick={cancelarEdicion}
-              className="rounded-xl border border-gray-300 px-4 py-2 text-sm text-gray-700 transition hover:bg-gray-50"
+              className="border px-4 py-2 text-sm"
             >
               Cancelar
-            </button>
+            </Button>
           )}
         </div>
       </form>
 
       {loading ? (
-        <p className="py-8 text-center text-sm text-gray-400">Cargando aulas...</p>
+        <p className="py-8 text-center text-sm text-muted-foreground">Cargando aulas...</p>
       ) : aulas.length === 0 ? (
-        <p className="py-8 text-center text-sm text-gray-400">
+        <p className="py-8 text-center text-sm text-muted-foreground">
           No hay aulas registradas. Crea la primera para poder asignarla a un grupo.
         </p>
       ) : (
-        <ul className="divide-y divide-gray-100 rounded-2xl border border-gray-200">
+        <ul className="divide-y divide-border rounded-2xl border border-border">
           {aulas.map((aula) => (
             <li
               key={aula.id}
               className="flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:justify-between"
             >
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-gray-800">{aula.nombre}</p>
-                <p className="text-xs text-gray-500">
+                <p className="truncate text-sm font-medium text-foreground">{aula.nombre}</p>
+                <p className="text-xs text-muted-foreground">
                   {aula.edificio || 'Sin edificio'}
                   {aula.capacidad ? ` · ${aula.capacidad} lugares` : ''}
                 </p>
               </div>
               <div className="flex gap-2">
-                <button
+                <Button variant="outline"
                   onClick={() => {
                     setEditandoId(aula.id)
                     setForm({
@@ -200,16 +203,16 @@ export default function AulasPage() {
                     })
                     setError('')
                   }}
-                  className="rounded-xl border border-gray-300 px-3 py-1.5 text-xs text-gray-700 transition hover:bg-gray-50"
+                  className="border px-3 py-1.5 text-xs"
                 >
                   Editar
-                </button>
-                <button
+                </Button>
+                <Button variant="destructive"
                   onClick={() => setConfirmId(aula.id)}
-                  className="rounded-xl border border-red-200 px-3 py-1.5 text-xs text-red-600 transition hover:border-red-400 hover:bg-red-50"
+                  className="border px-3 py-1.5 text-xs"
                 >
                   Eliminar
-                </button>
+                </Button>
               </div>
             </li>
           ))}
@@ -217,30 +220,28 @@ export default function AulasPage() {
       )}
 
       {confirmId && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40">
-          <div className="mx-4 w-full max-w-sm space-y-4 rounded-2xl bg-white p-4 shadow-xl sm:p-6">
-            <h3 className="text-lg font-semibold text-gray-800">¿Eliminar aula?</h3>
-            <p className="text-sm text-gray-500">
+        <Modal open onClose={() => setConfirmId(null)} title="¿Eliminar aula?" busy={guardando}>
+            
+            <p className="text-sm text-muted-foreground">
               El aula se borrará definitivamente. Las materias y los bloques de horario que la
               tenían asignada se conservan, pero quedan sin aula.
             </p>
             <div className="flex flex-col gap-2 sm:flex-row">
-              <button
+              <Button variant="outline"
                 onClick={() => setConfirmId(null)}
-                className="flex-1 rounded-xl border border-gray-300 py-2 text-sm text-gray-700 transition hover:bg-gray-50"
+                className="flex-1 border py-2 text-sm"
               >
                 Cancelar
-              </button>
-              <button
+              </Button>
+              <Button variant="destructive"
                 onClick={() => handleEliminar(confirmId)}
                 disabled={guardando}
-                className="flex-1 rounded-xl bg-red-600 py-2 text-sm text-white transition hover:bg-red-700 disabled:opacity-50"
+                className="flex-1 py-2 text-sm disabled:opacity-50"
               >
                 {guardando ? 'Eliminando...' : 'Eliminar'}
-              </button>
+              </Button>
             </div>
-          </div>
-        </div>
+          </Modal>
       )}
     </div>
   )

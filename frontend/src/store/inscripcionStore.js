@@ -34,10 +34,14 @@ export const useInscripcionStore = create((set) => ({
   },
 
   obtenerPendientes: async () => {
-    set({ loading: true })
+    set({ loading: true, error: null })
     try {
       const res = await api.get('/inscripciones/pendientes')
       set({ pendientesDocente: res.data })
+    } catch (err) {
+      // Sin esto la página mostraba "No hay solicitudes" aunque el servidor fallara.
+      set({ error: err.response?.data?.message || 'No se pudieron cargar las solicitudes.' })
+      throw err
     } finally {
       set({ loading: false })
     }

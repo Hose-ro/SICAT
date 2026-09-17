@@ -59,8 +59,60 @@ export async function asegurarAccesoMateria(
   const materia = await prisma.materia.count({ where: { id: materiaId } });
   if (!materia) throw new NotFoundException('Materia no encontrada');
 
-  const imparte = await esDocenteDeMateria(prisma, materiaId, actor.id, grupoId);
+  const imparte = await esDocenteDeMateria(
+    prisma,
+    materiaId,
+    actor.id,
+    grupoId,
+  );
   if (!imparte) {
     throw new ForbiddenException('No impartes esta materia');
   }
+}
+
+/**
+ * Fragmentos `{ materiaId, grupoId? }` para filtrar filas con materia y grupo
+ * (tareas, calificaciones) con la misma regla que `esDocenteDeMateria`: la
+ * asignación directa cubre todos los grupos y cada horario activo sólo el
+ * suyo. Evita repetir la consulta por cada fila.
+ */
+export async function clasesDelDocenteWhere(
+  prisma: PrismaLike,
+  docenteId: number,
+): Promise<Array<{ materiaId: number; grupoId?: number | null }>> {
+  const [directas, horarios] = await Promise.all([
+    prisma.materia.findMany({ where: { docenteId }, select: { id: true } }),
+    prisma.horarioMateria.findMany({
+      where: { docenteId, activo: true },
+      select: { materiaId: true, grupoId: true },
+      distinct: ['materiaId', 'grupoId'],
+    }),
+  ]);
+  return [
+    ...directas.map((materia) => ({ materiaId: materia.id })),
+    ...horarios,
+  ];
+}
+
+/**
+ * Docente responsable de una materia en un grupo: la asignación directa y, si
+ * no la hay, el docente del horario activo de ese grupo. Se usa cuando un ADMIN
+ * crea recursos "a nombre" del docente que imparte la clase.
+ */
+export async function docenteResponsableDeMateria(
+  prisma: PrismaLike,
+  materiaId: number,
+  grupoId?: number | null,
+): Promise<number | null> {
+  const materia = await prisma.materia.findUnique({
+    where: { id: materiaId },
+    select: { docenteId: true },
+  });
+  if (materia?.docenteId) return materia.docenteId;
+  const horario = await prisma.horarioMateria.findFirst({
+    where: { materiaId, activo: true, ...(grupoId ? { grupoId } : {}) },
+    select: { docenteId: true },
+    orderBy: { id: 'asc' },
+  });
+  return horario?.docenteId ?? null;
 }
