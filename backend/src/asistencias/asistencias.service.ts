@@ -160,7 +160,7 @@ export class AsistenciasService {
     // grupo de la sesión y los que el docente agregó a esta clase en concreto
     // (inscripción con ese grupo, o sin grupo cuando la sesión tampoco lo
     // tiene). Así una materia compartida por dos grupos no mezcla sus listas.
-    const alumnosFormales = await this.prisma.inscripcion.findMany({
+    const inscripcionesFormales = await this.prisma.inscripcion.findMany({
       where: {
         materiaId: sesion.materiaId,
         estado: 'ACEPTADA',
@@ -182,7 +182,14 @@ export class AsistenciasService {
       orderBy: { alumno: { nombre: 'asc' } },
     });
 
-    const idsFormales = new Set(alumnosFormales.map((item) => item.alumno.id));
+    // Un alumno puede tener inscripción en más de un periodo (recursa la
+    // materia): en la lista va una sola vez.
+    const alumnosFormales = Array.from(
+      new Map(
+        inscripcionesFormales.map((item) => [item.alumno.id, item.alumno]),
+      ).values(),
+    );
+    const idsFormales = new Set(alumnosFormales.map((alumno) => alumno.id));
     const idsRegistrados = new Set(
       sesion.asistencias.map((item) => item.alumnoId),
     );
@@ -214,13 +221,13 @@ export class AsistenciasService {
     );
 
     const alumnos = [
-      ...alumnosFormales.map((item) => ({
-        alumnoId: item.alumno.id,
-        nombre: item.alumno.nombre,
-        numeroControl: item.alumno.numeroControl,
-        estado: mapaAsistencias.get(item.alumno.id)?.estado ?? null,
-        observacion: mapaAsistencias.get(item.alumno.id)?.observacion ?? null,
-        asistenciaId: mapaAsistencias.get(item.alumno.id)?.id ?? null,
+      ...alumnosFormales.map((alumno) => ({
+        alumnoId: alumno.id,
+        nombre: alumno.nombre,
+        numeroControl: alumno.numeroControl,
+        estado: mapaAsistencias.get(alumno.id)?.estado ?? null,
+        observacion: mapaAsistencias.get(alumno.id)?.observacion ?? null,
+        asistenciaId: mapaAsistencias.get(alumno.id)?.id ?? null,
         manual: false,
       })),
       ...manualesGuardados.map((item) => ({

@@ -11,6 +11,7 @@ import * as bcrypt from 'bcrypt';
 import { RegisterDto } from '../auth/dto/register.dto';
 import { UpdateOwnProfileDto } from './dto/update-own-profile.dto';
 import { AdminUpdateUserDto } from './dto/admin-update-user.dto';
+import { inscribirAlumnosDelGrupo } from '../common/inscripciones-grupo';
 import {
   normalizeControlNumber,
   normalizeEmail,
@@ -750,6 +751,9 @@ export class UsuariosService {
     await tx.usuario.update({
       where: { id: user.id },
       data: { grupoId: candidatos[0].id },
+    });
+    await inscribirAlumnosDelGrupo(tx, candidatos[0].id, {
+      alumnoIds: [user.id],
     });
     return candidatos[0];
   }
