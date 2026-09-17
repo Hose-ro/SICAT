@@ -59,7 +59,7 @@ test('finalizar clase: cancelar o confirmar una vez',async({page})=>{
  await expect(page.getByText('La clase se cerró. Puedes descargar el reporte del día.').first()).toBeVisible();await axe(page)
 })
 test('exportaciones: el reporte filtrado descarga Excel y PDF del backend',async({page})=>{
- const requests=await mockApi(page,'DOCENTE');await page.goto('/asistencias');await page.getByRole('combobox',{name:'Materia',exact:true}).selectOption('1')
+ const requests=await mockApi(page,'DOCENTE');await page.goto('/asistencias');await page.getByRole('combobox',{name:'Materia',exact:true}).last().selectOption('1')
  const excel=page.waitForEvent('download');await page.getByRole('button',{name:'Exportar Excel',exact:true}).last().click();expect((await excel).suggestedFilename()).toBe('asistencias-1.xlsx')
  const pdf=page.waitForEvent('download');await page.getByRole('button',{name:'Exportar PDF',exact:true}).last().click();expect((await pdf).suggestedFilename()).toBe('asistencias-1.pdf')
  expect(requests.filter(r=>r.path==='/asistencias/exportar/1').length).toBe(2)

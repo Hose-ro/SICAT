@@ -300,6 +300,11 @@ export default function Usuarios() {
   })
   const [authAudit, setAuthAudit] = useState({ loading: false, items: [], error: '' })
 
+  // Selección múltiple para eliminar varios usuarios de una vez.
+  const [modoSeleccion, setModoSeleccion] = useState(false)
+  const [seleccionados, setSeleccionados] = useState([])
+  const [loteState, setLoteState] = useState({ open: false, loading: false, error: '' })
+
   const usuariosFiltrados = usuarios.filter((u) => {
     const matchNombre = u.nombre.toLowerCase().includes(filtroNombre.toLowerCase())
     const matchCarrera = filtroCarrera === ''
@@ -495,6 +500,44 @@ export default function Usuarios() {
     { key: 'eliminar', label: 'Eliminar', icon: <Trash2 className="h-4 w-4" />, className: "bg-destructive text-destructive-on-fill", onClick: () => solicitarConfirmacion(u, 'delete') },
   ].filter(Boolean)
 
+  const salirDeSeleccion = () => {
+    setModoSeleccion(false)
+    setSeleccionados([])
+  }
+
+  const alternarSeleccion = (id) => {
+    setSeleccionados((current) => (
+      current.includes(id) ? current.filter((item) => item !== id) : [...current, id]
+    ))
+  }
+
+  const todosSeleccionados = usuariosFiltrados.length > 0
+    && seleccionados.length === usuariosFiltrados.length
+
+  const alternarTodos = () => {
+    setSeleccionados(todosSeleccionados ? [] : usuariosFiltrados.map((u) => u.id))
+  }
+
+  const ejecutarEliminacionLote = async () => {
+    setLoteState((current) => ({ ...current, loading: true, error: '' }))
+    try {
+      const { data } = await api.delete('/usuarios/lote', { data: { usuarioIds: seleccionados } })
+      setLoteState({ open: false, loading: false, error: '' })
+      salirDeSeleccion()
+      const detalleErrores = data.errores?.length
+        ? ` ${data.errores.length} no se pudieron eliminar: ${data.errores.map((e) => e.motivo).join('; ')}.`
+        : ''
+      setAviso(`Se eliminaron ${data.eliminados} de ${data.eliminados + data.errores.length} usuario(s).${detalleErrores}`)
+      fetchUsuarios()
+    } catch (err) {
+      setLoteState((current) => ({
+        ...current,
+        loading: false,
+        error: getApiError(err, 'No se pudo eliminar la selección'),
+      }))
+    }
+  }
+
   return (
     <>
       <PageHeader
@@ -555,30 +598,82 @@ export default function Usuarios() {
         )}
       </div>
 
-      {/* Lista móvil: desliza una fila hacia la izquierda para ver sus acciones */}
+      <div className="mb-3 flex flex-wrap items-center gap-3">
+        {modoSeleccion ? (
+          <>
+            <span className="text-sm text-muted-foreground">
+              {seleccionados.length} de {usuariosFiltrados.length} seleccionado(s)
+            </span>
+            <Button variant="link" type="button" onClick={alternarTodos} className="px-0 text-sm">
+              {todosSeleccionados ? 'Quitar selección' : 'Seleccionar todos'}
+            </Button>
+            <Button
+              variant="destructive"
+              type="button"
+              onClick={() => setLoteState({ open: true, loading: false, error: '' })}
+              disabled={seleccionados.length === 0}
+              className="ml-auto px-3 py-1.5 text-sm disabled:cursor-not-allowed"
+            >
+              Eliminar {seleccionados.length > 0 ? `(${seleccionados.length})` : ''}
+            </Button>
+            <Button variant="outline" type="button" onClick={salirDeSeleccion} className="border px-3 py-1.5 text-sm">
+              Cancelar
+            </Button>
+          </>
+        ) : (
+          <Button variant="ghost" type="button" onClick={() => setModoSeleccion(true)} className="px-3 py-1.5 text-sm text-muted-foreground">
+            Seleccionar
+          </Button>
+        )}
+      </div>
+
+      {/* Lista móvil: desliza una fila hacia la izquierda para ver sus acciones
+          (o, en modo selección, marca varios usuarios con checkbox) */}
       <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm sm:hidden">
         {usuariosFiltrados.map((u) => (
-          <SwipeableRow key={u.id} actions={accionesMovil(u)} onTap={() => abrirDetalle(u)}>
-            <div className="flex items-center justify-between gap-3 px-4 py-3">
-              <div className="min-w-0">
+          modoSeleccion ? (
+            <label
+              key={u.id}
+              className="flex cursor-pointer items-center gap-3 border-b border-border px-4 py-3 last:border-b-0"
+            >
+              <input
+                type="checkbox"
+                checked={seleccionados.includes(u.id)}
+                onChange={() => alternarSeleccion(u.id)}
+                aria-label={`Seleccionar a ${u.nombre}`}
+                className="h-4 w-4 shrink-0"
+              />
+              <div className="min-w-0 flex-1">
                 <p className="truncate font-medium text-foreground">{u.nombre}</p>
                 <p className="truncate text-xs text-muted-foreground">
                   {u.numeroControl || u.username || u.email || '—'}
                 </p>
               </div>
-              <div className="flex shrink-0 flex-col items-end gap-1">
-                <span className={`text-xs px-2 py-1 rounded-full font-medium ${ROL_COLORS[u.rol]}`}>{u.rol}</span>
-                <span className={`text-xs px-2 py-1 rounded-full font-medium ${getAccountStatus(u).className}`}>
-                  {getAccountStatus(u).label}
-                </span>
+              <span className={`shrink-0 text-xs px-2 py-1 rounded-full font-medium ${ROL_COLORS[u.rol]}`}>{u.rol}</span>
+            </label>
+          ) : (
+            <SwipeableRow key={u.id} actions={accionesMovil(u)} onTap={() => abrirDetalle(u)}>
+              <div className="flex items-center justify-between gap-3 px-4 py-3">
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-foreground">{u.nombre}</p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {u.numeroControl || u.username || u.email || '—'}
+                  </p>
+                </div>
+                <div className="flex shrink-0 flex-col items-end gap-1">
+                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${ROL_COLORS[u.rol]}`}>{u.rol}</span>
+                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${getAccountStatus(u).className}`}>
+                    {getAccountStatus(u).label}
+                  </span>
+                </div>
               </div>
-            </div>
-          </SwipeableRow>
+            </SwipeableRow>
+          )
         ))}
         {usuariosFiltrados.length === 0 && (
           <p className="text-center text-muted-foreground py-10">No hay usuarios</p>
         )}
-        {usuariosFiltrados.length > 0 && (
+        {usuariosFiltrados.length > 0 && !modoSeleccion && (
           <p className="border-t border-border px-4 py-2 text-center text-[11px] text-muted-foreground">
             Desliza un usuario hacia la izquierda para ver sus acciones
           </p>
@@ -589,6 +684,17 @@ export default function Usuarios() {
         <table className="w-full min-w-[760px] text-sm">
           <thead className="bg-background border-b border-border">
             <tr>
+              {modoSeleccion && (
+                <th className="w-10 px-4 py-3">
+                  <input
+                    type="checkbox"
+                    checked={todosSeleccionados}
+                    onChange={alternarTodos}
+                    aria-label="Seleccionar todos los usuarios"
+                    className="h-4 w-4"
+                  />
+                </th>
+              )}
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">Nombre</th>
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">Identificador</th>
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">Rol</th>
@@ -599,6 +705,17 @@ export default function Usuarios() {
           <tbody>
             {usuariosFiltrados.map((u) => (
               <tr key={u.id} className="group border-b border-border transition hover:bg-background">
+                {modoSeleccion && (
+                  <td className="px-4 py-3">
+                    <input
+                      type="checkbox"
+                      checked={seleccionados.includes(u.id)}
+                      onChange={() => alternarSeleccion(u.id)}
+                      aria-label={`Seleccionar a ${u.nombre}`}
+                      className="h-4 w-4"
+                    />
+                  </td>
+                )}
                 <td className="px-4 py-3 font-medium text-foreground">{u.nombre}</td>
                 <td className="px-4 py-3 text-muted-foreground">{u.numeroControl || u.username || u.email || '—'}</td>
                 <td className="px-4 py-3">
@@ -919,6 +1036,45 @@ export default function Usuarios() {
                 : confirmation.action === 'delete'
                   ? 'Eliminar'
                   : 'Confirmar'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={loteState.open}
+        onClose={() => { if (!loteState.loading) setLoteState({ open: false, loading: false, error: '' }) }}
+        title="Eliminar usuarios seleccionados"
+        busy={loteState.loading}
+      >
+        <div className="space-y-5">
+          <div className="space-y-2">
+            <p className="text-sm text-foreground">
+              Se eliminarán definitivamente {seleccionados.length} cuenta{seleccionados.length === 1 ? '' : 's'}. Esta acción no se puede deshacer.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Se borrará también todo su historial académico: inscripciones, asistencias, calificaciones y entregas; si alguno es docente, además sus tareas, sesiones de clase y horarios. Las materias, los grupos y las aulas se conservan.
+            </p>
+          </div>
+          {loteState.error && (
+            <p role="alert" className="text-sm text-destructive-foreground">{loteState.error}</p>
+          )}
+          <div className="flex justify-end gap-3">
+            <Button variant="outline"
+              type="button"
+              disabled={loteState.loading}
+              onClick={() => setLoteState({ open: false, loading: false, error: '' })}
+              className="border px-4 py-2 text-sm disabled:opacity-50"
+            >
+              Cancelar
+            </Button>
+            <Button variant="destructive"
+              type="button"
+              disabled={loteState.loading}
+              onClick={ejecutarEliminacionLote}
+              className="px-4 py-2 text-sm disabled:opacity-50"
+            >
+              {loteState.loading ? 'Eliminando...' : `Eliminar ${seleccionados.length}`}
             </Button>
           </div>
         </div>

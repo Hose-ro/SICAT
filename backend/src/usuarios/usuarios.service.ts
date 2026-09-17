@@ -875,6 +875,31 @@ export class UsuariosService {
   }
 
   /**
+   * Borrado definitivo en lote: reusa removePermanently por cada id, uno por
+   * uno (no en una sola transacción), para que un id problemático (ej. el
+   * último admin activo) no tumbe a los demás. Devuelve cuántos se
+   * eliminaron y el motivo de los que fallaron.
+   */
+  async removeManyPermanently(ids: number[], adminUserId: number) {
+    const unicos = [...new Set(ids)];
+    const errores: { id: number; motivo: string }[] = [];
+    let eliminados = 0;
+    for (const id of unicos) {
+      try {
+        await this.removePermanently(id, adminUserId);
+        eliminados += 1;
+      } catch (error) {
+        errores.push({
+          id,
+          motivo:
+            error instanceof Error ? error.message : 'No se pudo eliminar',
+        });
+      }
+    }
+    return { eliminados, errores };
+  }
+
+  /**
    * Borra todo lo que cuelga de la cuenta para que pueda eliminarse: primero
    * las filas hijas (asistencias y entregas) y luego las que apuntan directo
    * al usuario. Devuelve el resumen para dejarlo en la bitácora.

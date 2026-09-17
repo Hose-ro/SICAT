@@ -21,6 +21,7 @@ import { GruposService } from './grupos.service';
 import { CreateGrupoDto } from './dto/create-grupo.dto';
 import { UpdateGrupoDto } from './dto/update-grupo.dto';
 import { AsignarAlumnosDto } from './dto/asignar-alumnos.dto';
+import { EliminarGruposDto } from './dto/eliminar-grupos.dto';
 import { ModificarMateriasDto } from './dto/modificar-materias.dto';
 import { AsignarAulaGrupoDto } from './dto/asignar-aula-grupo.dto';
 import { AgregarGrupoDocenteDto } from './dto/agregar-grupo-docente.dto';
@@ -195,6 +196,12 @@ export class GruposController {
     @Request() req: any,
   ) {
     return this.grupos.actualizarAlumnoDeMiGrupo(id, req.user.id, alumnoId, dto);
+  }
+
+  @Delete('lote')
+  @ApiOperation({ summary: 'Eliminar varios grupos definitivamente' })
+  eliminarVariosDefinitivo(@Body() dto: EliminarGruposDto) {
+    return this.grupos.eliminarGruposDefinitivo(dto.grupoIds);
   }
 
   @Get(':id')

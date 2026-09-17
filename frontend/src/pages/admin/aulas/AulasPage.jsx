@@ -23,6 +23,12 @@ export default function AulasPage() {
   const [editandoId, setEditandoId] = useState(null)
   const [confirmId, setConfirmId] = useState(null)
 
+  const [modoSeleccion, setModoSeleccion] = useState(false)
+  const [seleccionados, setSeleccionados] = useState([])
+  const [confirmLote, setConfirmLote] = useState(false)
+  const [eliminandoLote, setEliminandoLote] = useState(false)
+  const [avisoLote, setAvisoLote] = useState('')
+
   async function cargar() {
     setLoading(true)
     try {
@@ -91,6 +97,42 @@ export default function AulasPage() {
     }
   }
 
+  function salirDeSeleccion() {
+    setModoSeleccion(false)
+    setSeleccionados([])
+  }
+
+  function alternarSeleccion(id) {
+    setSeleccionados((current) => (
+      current.includes(id) ? current.filter((item) => item !== id) : [...current, id]
+    ))
+  }
+
+  const todosSeleccionados = aulas.length > 0 && seleccionados.length === aulas.length
+
+  function alternarTodos() {
+    setSeleccionados(todosSeleccionados ? [] : aulas.map((a) => a.id))
+  }
+
+  async function handleEliminarLote() {
+    setEliminandoLote(true)
+    setError('')
+    try {
+      const { data } = await api.delete('/aulas/lote', { data: { aulaIds: seleccionados } })
+      setConfirmLote(false)
+      salirDeSeleccion()
+      const detalleErrores = data.errores?.length
+        ? ` ${data.errores.length} no se pudieron eliminar: ${data.errores.map((e) => e.motivo).join('; ')}.`
+        : ''
+      setAvisoLote(`Se eliminaron ${data.eliminados} de ${data.eliminados + data.errores.length} aula(s).${detalleErrores}`)
+      await cargar()
+    } catch (e) {
+      setError(mensajeError(e, 'Error al eliminar las aulas seleccionadas'))
+    } finally {
+      setEliminandoLote(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -104,6 +146,15 @@ export default function AulasPage() {
         <div className="flex items-center justify-between rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground">
           <span>{error}</span>
           <Button variant="destructive" onClick={() => setError('')} className="ml-4">
+            ✕
+          </Button>
+        </div>
+      )}
+
+      {avisoLote && (
+        <div role="status" className="flex items-start justify-between gap-3 rounded-lg border border-success/30 bg-success/10 px-4 py-3 text-sm text-success-foreground">
+          <span>{avisoLote}</span>
+          <Button variant="ghost" size="icon-sm" onClick={() => setAvisoLote('')} aria-label="Cerrar aviso">
             ✕
           </Button>
         </div>
@@ -172,6 +223,37 @@ export default function AulasPage() {
         </div>
       </form>
 
+      {aulas.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3">
+          {modoSeleccion ? (
+            <>
+              <span className="text-sm text-muted-foreground">
+                {seleccionados.length} de {aulas.length} seleccionada(s)
+              </span>
+              <Button variant="link" type="button" onClick={alternarTodos} className="px-0 text-sm">
+                {todosSeleccionados ? 'Quitar selección' : 'Seleccionar todas'}
+              </Button>
+              <Button
+                variant="destructive"
+                type="button"
+                onClick={() => setConfirmLote(true)}
+                disabled={seleccionados.length === 0}
+                className="ml-auto px-3 py-1.5 text-sm disabled:cursor-not-allowed"
+              >
+                Eliminar {seleccionados.length > 0 ? `(${seleccionados.length})` : ''}
+              </Button>
+              <Button variant="outline" type="button" onClick={salirDeSeleccion} className="border px-3 py-1.5 text-sm">
+                Cancelar
+              </Button>
+            </>
+          ) : (
+            <Button variant="ghost" type="button" onClick={() => setModoSeleccion(true)} className="px-3 py-1.5 text-sm text-muted-foreground">
+              Seleccionar
+            </Button>
+          )}
+        </div>
+      )}
+
       {loading ? (
         <p className="py-8 text-center text-sm text-muted-foreground">Cargando aulas...</p>
       ) : aulas.length === 0 ? (
@@ -185,35 +267,48 @@ export default function AulasPage() {
               key={aula.id}
               className="flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:justify-between"
             >
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-foreground">{aula.nombre}</p>
-                <p className="text-xs text-muted-foreground">
-                  {aula.edificio || 'Sin edificio'}
-                  {aula.capacidad ? ` · ${aula.capacidad} lugares` : ''}
-                </p>
+              <div className="flex min-w-0 items-center gap-3">
+                {modoSeleccion && (
+                  <input
+                    type="checkbox"
+                    checked={seleccionados.includes(aula.id)}
+                    onChange={() => alternarSeleccion(aula.id)}
+                    aria-label={`Seleccionar ${aula.nombre}`}
+                    className="h-4 w-4 shrink-0"
+                  />
+                )}
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-foreground">{aula.nombre}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {aula.edificio || 'Sin edificio'}
+                    {aula.capacidad ? ` · ${aula.capacidad} lugares` : ''}
+                  </p>
+                </div>
               </div>
-              <div className="flex gap-2">
-                <Button variant="outline"
-                  onClick={() => {
-                    setEditandoId(aula.id)
-                    setForm({
-                      nombre: aula.nombre,
-                      edificio: aula.edificio ?? '',
-                      capacidad: aula.capacidad ? String(aula.capacidad) : '',
-                    })
-                    setError('')
-                  }}
-                  className="border px-3 py-1.5 text-xs"
-                >
-                  Editar
-                </Button>
-                <Button variant="destructive"
-                  onClick={() => setConfirmId(aula.id)}
-                  className="border px-3 py-1.5 text-xs"
-                >
-                  Eliminar
-                </Button>
-              </div>
+              {!modoSeleccion && (
+                <div className="flex gap-2">
+                  <Button variant="outline"
+                    onClick={() => {
+                      setEditandoId(aula.id)
+                      setForm({
+                        nombre: aula.nombre,
+                        edificio: aula.edificio ?? '',
+                        capacidad: aula.capacidad ? String(aula.capacidad) : '',
+                      })
+                      setError('')
+                    }}
+                    className="border px-3 py-1.5 text-xs"
+                  >
+                    Editar
+                  </Button>
+                  <Button variant="destructive"
+                    onClick={() => setConfirmId(aula.id)}
+                    className="border px-3 py-1.5 text-xs"
+                  >
+                    Eliminar
+                  </Button>
+                </div>
+              )}
             </li>
           ))}
         </ul>
@@ -242,6 +337,30 @@ export default function AulasPage() {
               </Button>
             </div>
           </Modal>
+      )}
+
+      {confirmLote && (
+        <Modal open onClose={() => setConfirmLote(false)} title="¿Eliminar aulas seleccionadas?" busy={eliminandoLote}>
+          <p className="text-sm text-muted-foreground">
+            Se eliminarán definitivamente {seleccionados.length} aula{seleccionados.length === 1 ? '' : 's'}. Las materias y los bloques de horario que las tenían asignadas se conservan, pero quedan sin aula.
+          </p>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button variant="outline"
+              onClick={() => setConfirmLote(false)}
+              disabled={eliminandoLote}
+              className="flex-1 border py-2 text-sm disabled:opacity-50"
+            >
+              Cancelar
+            </Button>
+            <Button variant="destructive"
+              onClick={handleEliminarLote}
+              disabled={eliminandoLote}
+              className="flex-1 py-2 text-sm disabled:opacity-50"
+            >
+              {eliminandoLote ? 'Eliminando...' : `Eliminar ${seleccionados.length}`}
+            </Button>
+          </div>
+        </Modal>
       )}
     </div>
   )

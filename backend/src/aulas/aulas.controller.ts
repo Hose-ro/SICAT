@@ -13,6 +13,7 @@ import { ApiBearerAuth, ApiTags, ApiOperation } from '@nestjs/swagger';
 import { AulasService } from './aulas.service';
 import { CreateAulaDto } from './dto/create-aula.dto';
 import { UpdateAulaDto } from './dto/update-aula.dto';
+import { EliminarAulasDto } from './dto/eliminar-aulas.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -35,6 +36,13 @@ export class AulasController {
   @ApiOperation({ summary: 'Listar todas las aulas activas' })
   findAll() {
     return this.aulas.findAll();
+  }
+
+  @Delete('lote')
+  @Roles('ADMIN')
+  @ApiOperation({ summary: 'Eliminar varias aulas definitivamente (admin)' })
+  removeManyPermanently(@Body() dto: EliminarAulasDto) {
+    return this.aulas.removeManyPermanently(dto.aulaIds);
   }
 
   @Get(':id')
