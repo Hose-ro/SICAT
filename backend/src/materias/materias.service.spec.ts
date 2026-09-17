@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   NotFoundException,
@@ -108,6 +109,88 @@ describe('MateriasService', () => {
       NotFoundException,
     );
     expect(materiaUpdate).not.toHaveBeenCalled();
+  });
+
+  describe('permisos del docente sobre la materia', () => {
+    it('deja editar al docente que la imparte', async () => {
+      materiaCount.mockResolvedValue(1);
+
+      await service.update(7, { semestre: 2 }, { id: 5, rol: 'DOCENTE' });
+
+      expect(materiaUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 7 } }),
+      );
+    });
+
+    it('rechaza editar a un docente que no la imparte', async () => {
+      // Existe la materia, pero no es suya ni por asignación ni por horario.
+      materiaCount.mockResolvedValueOnce(1).mockResolvedValue(0);
+      horarioCount.mockResolvedValue(0);
+
+      await expect(
+        service.update(7, { semestre: 2 }, { id: 99, rol: 'DOCENTE' }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(materiaUpdate).not.toHaveBeenCalled();
+    });
+
+    it('rechaza eliminar a un docente que no la imparte', async () => {
+      materiaCount.mockResolvedValueOnce(1).mockResolvedValue(0);
+      horarioCount.mockResolvedValue(0);
+
+      await expect(
+        service.remove(7, { id: 99, rol: 'DOCENTE' }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(transaction).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('operaciones por lote', () => {
+    it('exige al menos un cambio al editar en lote', async () => {
+      await expect(service.updateMany([7], {})).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+      expect(materiaUpdate).not.toHaveBeenCalled();
+    });
+
+    it('edita cada materia y reporta las que fallan', async () => {
+      materiaFindUnique.mockImplementation(
+        ({ where }: { where: { id: number } }) =>
+          Promise.resolve(where.id === 7 ? materia : null),
+      );
+
+      const resultado = await service.updateMany([7, 8, 7], { semestre: 3 });
+
+      expect(materiaUpdate).toHaveBeenCalledTimes(1);
+      expect(materiaUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 7 },
+          data: expect.objectContaining({ semestre: 3 }) as Record<
+            string,
+            unknown
+          >,
+        }),
+      );
+      expect(resultado).toEqual({
+        actualizadas: 1,
+        errores: [{ id: 8, motivo: 'Materia no encontrada' }],
+      });
+    });
+
+    it('elimina cada materia y reporta las que fallan', async () => {
+      materiaFindUnique.mockImplementation(
+        ({ where }: { where: { id: number } }) =>
+          Promise.resolve(where.id === 7 ? materia : null),
+      );
+      transaction.mockResolvedValue({ id: 7 });
+
+      const resultado = await service.removeMany([7, 8]);
+
+      expect(transaction).toHaveBeenCalledTimes(1);
+      expect(resultado).toEqual({
+        eliminadas: 1,
+        errores: [{ id: 8, motivo: 'Materia no encontrada' }],
+      });
+    });
   });
 
   describe('materias por grupo', () => {

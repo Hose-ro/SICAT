@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  HttpException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -313,7 +314,10 @@ export class MateriasService {
     return materia;
   }
 
-  async update(id: number, dto: UpdateMateriaDto) {
+  async update(id: number, dto: UpdateMateriaDto, actor?: ActorMateria) {
+    // Un docente sólo edita las materias que imparte; el admin, cualquiera.
+    await asegurarAccesoMateria(this.prisma, actor, id);
+
     const materia = await this.prisma.materia.findUnique({ where: { id } });
     if (!materia) throw new NotFoundException('Materia no encontrada');
 
@@ -365,6 +369,37 @@ export class MateriasService {
 
     await this.prisma.materia.update({ where: { id }, data });
     return this.findOne(id);
+  }
+
+  /**
+   * Aplica el mismo cambio de carrera y/o semestre a varias materias. Cada una
+   * se procesa por separado para que un fallo (clave duplicada en la carrera
+   * destino, materia ajena) no frene a las demás; se devuelve el detalle.
+   */
+  async updateMany(
+    ids: number[],
+    cambios: Pick<UpdateMateriaDto, 'carreraId' | 'semestre'>,
+    actor?: ActorMateria,
+  ) {
+    if (cambios.carreraId === undefined && cambios.semestre === undefined) {
+      throw new BadRequestException(
+        'Indica la carrera o el semestre a cambiar',
+      );
+    }
+    const errores: { id: number; motivo: string }[] = [];
+    let actualizadas = 0;
+    for (const id of [...new Set(ids)]) {
+      try {
+        await this.update(id, cambios, actor);
+        actualizadas += 1;
+      } catch (error) {
+        errores.push({
+          id,
+          motivo: describirError(error, 'No se pudo editar'),
+        });
+      }
+    }
+    return { actualizadas, errores };
   }
 
   /**
@@ -513,7 +548,8 @@ export class MateriasService {
    * inscripciones, calificaciones y unidades. Los grupos y las academias
    * conservan sus registros, sólo dejan de tenerla asignada.
    */
-  async remove(id: number) {
+  async remove(id: number, actor?: ActorMateria) {
+    await asegurarAccesoMateria(this.prisma, actor, id);
     await this.findOne(id);
 
     return this.prisma.$transaction(
@@ -563,4 +599,34 @@ export class MateriasService {
       { maxWait: 10_000, timeout: 30_000 },
     );
   }
+
+  /** Borra varias materias una por una y reporta cuáles no se pudieron. */
+  async removeMany(ids: number[], actor?: ActorMateria) {
+    const errores: { id: number; motivo: string }[] = [];
+    let eliminadas = 0;
+    for (const id of [...new Set(ids)]) {
+      try {
+        await this.remove(id, actor);
+        eliminadas += 1;
+      } catch (error) {
+        errores.push({
+          id,
+          motivo: describirError(error, 'No se pudo eliminar'),
+        });
+      }
+    }
+    return { eliminadas, errores };
+  }
+}
+
+/** Mensaje legible de un error de Nest o de Prisma para el resumen por lote. */
+function describirError(error: unknown, fallback: string): string {
+  if (error instanceof HttpException) {
+    const respuesta = error.getResponse();
+    if (typeof respuesta === 'string') return respuesta;
+    const message = (respuesta as { message?: string | string[] }).message;
+    if (Array.isArray(message)) return message.join('. ');
+    if (typeof message === 'string') return message;
+  }
+  return error instanceof Error ? error.message : fallback;
 }

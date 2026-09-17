@@ -16,6 +16,8 @@ import { MateriasService } from './materias.service';
 import { CreateMateriaDto } from './dto/create-materia.dto';
 import { UpdateMateriaDto } from './dto/update-materia.dto';
 import { ActualizarUnidadesDto } from './dto/actualizar-unidades.dto';
+import { EliminarMateriasDto } from './dto/eliminar-materias.dto';
+import { UpdateMateriasLoteDto } from './dto/update-materias-lote.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -99,11 +101,31 @@ export class MateriasController {
     return this.materias.findOne(id, req.user);
   }
 
+  @Patch('lote')
+  @Roles('ADMIN', 'DOCENTE')
+  @ApiOperation({
+    summary: 'Cambiar carrera y/o semestre de varias materias a la vez',
+  })
+  updateMany(
+    @Body() dto: UpdateMateriasLoteDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const { materiaIds, ...cambios } = dto;
+    return this.materias.updateMany(materiaIds, cambios, req.user);
+  }
+
   @Patch(':id')
-  @Roles('ADMIN')
-  @ApiOperation({ summary: 'Editar los datos generales de una materia' })
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateMateriaDto) {
-    return this.materias.update(id, dto);
+  @Roles('ADMIN', 'DOCENTE')
+  @ApiOperation({
+    summary:
+      'Editar los datos generales de una materia (docente sólo las que imparte)',
+  })
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateMateriaDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.materias.update(id, dto, req.user);
   }
 
   @Patch(':id/unidades')
@@ -117,10 +139,27 @@ export class MateriasController {
     return this.materias.actualizarUnidades(id, dto, req.user);
   }
 
+  @Delete('lote')
+  @Roles('ADMIN', 'DOCENTE')
+  @ApiOperation({
+    summary: 'Eliminar varias materias (docente sólo las que imparte)',
+  })
+  removeMany(
+    @Body() dto: EliminarMateriasDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.materias.removeMany(dto.materiaIds, req.user);
+  }
+
   @Delete(':id')
-  @Roles('ADMIN')
-  @ApiOperation({ summary: 'Eliminar materia (admin)' })
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.materias.remove(id);
+  @Roles('ADMIN', 'DOCENTE')
+  @ApiOperation({
+    summary: 'Eliminar materia (docente sólo las que imparte)',
+  })
+  remove(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.materias.remove(id, req.user);
   }
 }
