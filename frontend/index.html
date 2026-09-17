@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es" class="dark">
+<html lang="es">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/app-icon.png?v=20260901" />
@@ -24,7 +24,7 @@
             ? true
             : storedTheme === "light"
               ? false
-              : document.documentElement.classList.contains("dark");
+              : window.matchMedia("(prefers-color-scheme: dark)").matches;
 
         document.documentElement.classList.toggle("dark", isDark);
         window.addEventListener(

@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button'
 import { useEffect, useState } from 'react'
 import api from '../../../../api/axios'
 import { useAcademiaStore } from '../../../../store/academiaStore'
@@ -61,18 +62,18 @@ export default function ModalAsignarMaterias({ open, onClose, academia }) {
     <Modal open={open} onClose={onClose} title="Agregar materias a la academia">
       <div className="space-y-3">
         <div className="flex gap-2">
-          <input
+          <input aria-label="Buscar por nombre o clave"
             type="text"
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
             placeholder="Buscar por nombre o clave..."
-            className="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 border border-border rounded-xl px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
           {semestres.length > 0 && (
-            <select
+            <select aria-label="Semestre"
               value={filtroSemestre}
               onChange={(e) => setFiltroSemestre(e.target.value)}
-              className="border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="border border-border rounded-xl px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <option value="">Todos</option>
               {semestres.map((s) => (
@@ -84,26 +85,26 @@ export default function ModalAsignarMaterias({ open, onClose, academia }) {
           )}
         </div>
 
-        <div className="max-h-64 overflow-y-auto space-y-1 border border-gray-100 rounded-xl p-2">
+        <div className="max-h-64 overflow-y-auto space-y-1 border border-border rounded-xl p-2">
           {disponibles.length === 0 && (
-            <p className="text-sm text-gray-400 text-center py-4">
+            <p className="text-sm text-muted-foreground text-center py-4">
               {todasMaterias.length === 0 ? 'Cargando...' : 'No hay materias disponibles'}
             </p>
           )}
           {disponibles.map((m) => (
             <label
               key={m.id}
-              className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-gray-50 cursor-pointer"
+              className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-background cursor-pointer"
             >
               <input
                 type="checkbox"
                 checked={seleccionadas.includes(m.id)}
                 onChange={() => toggleSeleccion(m.id)}
-                className="accent-blue-600"
+                className="accent-primary"
               />
               <div>
-                <p className="text-sm font-medium text-gray-800">{m.nombre}</p>
-                <p className="text-xs text-gray-400">
+                <p className="text-sm font-medium text-foreground">{m.nombre}</p>
+                <p className="text-xs text-muted-foreground">
                   {m.clave}
                   {m.semestre ? ` • Semestre ${m.semestre}` : ''}
                 </p>
@@ -112,17 +113,17 @@ export default function ModalAsignarMaterias({ open, onClose, academia }) {
           ))}
         </div>
 
-        {error && <p className="text-sm text-red-500">{error}</p>}
+        {error && <p className="text-sm text-destructive-foreground">{error}</p>}
 
-        <button
+        <Button variant="default"
           onClick={handleAsignar}
           disabled={seleccionadas.length === 0 || loading}
-          className="w-full bg-blue-600 text-white py-2.5 rounded-xl font-medium hover:bg-blue-700 transition disabled:opacity-50"
+          className="w-full py-2.5 font-medium disabled:opacity-50"
         >
           {loading
             ? 'Asignando...'
             : `Asignar ${seleccionadas.length > 0 ? `(${seleccionadas.length})` : 'seleccionadas'}`}
-        </button>
+        </Button>
       </div>
     </Modal>
   )

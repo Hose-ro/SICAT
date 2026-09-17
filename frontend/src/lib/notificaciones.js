@@ -1,56 +1,60 @@
 import {
-  CiAlarmOn,
-  CiBellOn,
-  CiCalendar,
-  CiCalendarDate,
-  CiCircleCheck,
-  CiCircleRemove,
-  CiInboxIn,
-  CiRead,
-  CiStickyNote,
-  CiSun,
-  CiUser,
-  CiViewList,
-} from 'react-icons/ci'
+  AlarmClock, Bell, BookOpen, CalendarCheck, CalendarClock, CalendarRange, CalendarX, ChartColumn,
+  CircleCheck, CircleX, ClipboardCheck, Clock, Inbox, ListChecks, MessageSquareText, StickyNote,
+  Sun, Upload, UserRound,
+} from 'lucide-react'
 
+// `tone` maps the event to the status tokens (DESIGN.md: status is semantic):
+// success = accepted/graded, warning = pending/late/soon, destructive = rejected.
 export const NOTIFICATION_META = {
-  INSCRIPCION_NUEVA: { icon: CiStickyNote, label: 'Solicitud' },
-  INSCRIPCION_ACEPTADA: { icon: CiCircleCheck, label: 'Solicitud aceptada' },
-  INSCRIPCION_RECHAZADA: { icon: CiCircleRemove, label: 'Solicitud rechazada' },
-  SOLICITUD_MATERIA: { icon: CiStickyNote, label: 'Solicitud' },
-  SOLICITUD_ACEPTADA: { icon: CiCircleCheck, label: 'Solicitud aceptada' },
-  SOLICITUD_RECHAZADA: { icon: CiCircleRemove, label: 'Solicitud rechazada' },
-  CLASE_POR_INICIAR: { icon: CiAlarmOn, label: 'Clase por iniciar' },
-  CLASE_INICIADA: { icon: CiSun, label: 'Clase' },
-  CLASE_FINALIZADA: { icon: CiCalendar, label: 'Clase' },
-  TAREA_NUEVA: { icon: CiRead, label: 'Tarea' },
-  NUEVA_TAREA: { icon: CiRead, label: 'Tarea' },
-  TAREA_REVISADA: { icon: CiViewList, label: 'Revisión' },
-  TAREA_CALIFICADA: { icon: CiCalendarDate, label: 'Calificación' },
-  CALIFICACION_DISPONIBLE: { icon: CiCalendarDate, label: 'Calificación' },
-  OBSERVACION_DOCENTE: { icon: CiStickyNote, label: 'Observación' },
-  ENTREGA_RECIBIDA: { icon: CiInboxIn, label: 'Entrega' },
-  ENTREGA_TAREA: { icon: CiInboxIn, label: 'Entrega' },
-  ENTREGA_TARDIA: { icon: CiCalendar, label: 'Entrega tardía' },
-  ENTREGA_TARDIA_DOCENTE: { icon: CiCalendar, label: 'Entrega tardía' },
-  ENTREGA_CORREGIDA: { icon: CiCircleCheck, label: 'Corrección' },
-  ENTREGA_INCORRECTA: { icon: CiCircleRemove, label: 'Entrega incorrecta' },
-  RECORDATORIO_FECHA_LIMITE: { icon: CiCalendarDate, label: 'Recordatorio' },
-  TAREAS_PENDIENTES_REVISION: { icon: CiViewList, label: 'Pendientes' },
-  ASISTENCIA_FUERA_HORARIO: { icon: CiCalendar, label: 'Asistencia' },
-  NUEVO_USUARIO: { icon: CiUser, label: 'Usuario' },
-  MATERIA_CREADA: { icon: CiRead, label: 'Materia' },
-  REPORTE_DISPONIBLE: { icon: CiCalendarDate, label: 'Reporte' },
-  ALERTA_ADMIN: { icon: CiBellOn, label: 'Alerta' },
+  INSCRIPCION_NUEVA: { icon: StickyNote, label: 'Solicitud', tone: 'neutral' },
+  INSCRIPCION_ACEPTADA: { icon: CircleCheck, label: 'Solicitud aceptada', tone: 'success' },
+  INSCRIPCION_RECHAZADA: { icon: CircleX, label: 'Solicitud rechazada', tone: 'destructive' },
+  SOLICITUD_MATERIA: { icon: StickyNote, label: 'Solicitud', tone: 'neutral' },
+  SOLICITUD_ACEPTADA: { icon: CircleCheck, label: 'Solicitud aceptada', tone: 'success' },
+  SOLICITUD_RECHAZADA: { icon: CircleX, label: 'Solicitud rechazada', tone: 'destructive' },
+  CLASE_POR_INICIAR: { icon: AlarmClock, label: 'Clase por iniciar', tone: 'warning' },
+  CLASE_INICIADA: { icon: Sun, label: 'Clase iniciada', tone: 'neutral' },
+  CLASE_FINALIZADA: { icon: CalendarCheck, label: 'Clase finalizada', tone: 'neutral' },
+  TAREA_NUEVA: { icon: BookOpen, label: 'Tarea nueva', tone: 'neutral' },
+  NUEVA_TAREA: { icon: BookOpen, label: 'Tarea nueva', tone: 'neutral' },
+  TAREA_REVISADA: { icon: ListChecks, label: 'Revisión', tone: 'neutral' },
+  TAREA_CALIFICADA: { icon: ClipboardCheck, label: 'Calificación', tone: 'success' },
+  CALIFICACION_DISPONIBLE: { icon: ClipboardCheck, label: 'Calificación', tone: 'success' },
+  OBSERVACION_DOCENTE: { icon: MessageSquareText, label: 'Observación', tone: 'neutral' },
+  ENTREGA_RECIBIDA: { icon: Inbox, label: 'Entrega', tone: 'neutral' },
+  ENTREGA_TAREA: { icon: Upload, label: 'Entrega', tone: 'neutral' },
+  ENTREGA_TARDIA: { icon: Clock, label: 'Entrega tardía', tone: 'warning' },
+  ENTREGA_TARDIA_DOCENTE: { icon: Clock, label: 'Entrega tardía', tone: 'warning' },
+  ENTREGA_CORREGIDA: { icon: CircleCheck, label: 'Corrección', tone: 'success' },
+  ENTREGA_INCORRECTA: { icon: CircleX, label: 'Entrega incorrecta', tone: 'destructive' },
+  RECORDATORIO_FECHA_LIMITE: { icon: AlarmClock, label: 'Recordatorio', tone: 'warning' },
+  TAREAS_PENDIENTES_REVISION: { icon: ListChecks, label: 'Pendientes', tone: 'warning' },
+  ASISTENCIA_FUERA_HORARIO: { icon: CalendarX, label: 'Asistencia', tone: 'warning' },
+  NUEVO_USUARIO: { icon: UserRound, label: 'Usuario', tone: 'neutral' },
+  MATERIA_CREADA: { icon: BookOpen, label: 'Materia', tone: 'neutral' },
+  REPORTE_DISPONIBLE: { icon: ChartColumn, label: 'Reporte', tone: 'neutral' },
+  ALERTA_ADMIN: { icon: Bell, label: 'Alerta', tone: 'warning' },
+  HORARIO_IMPORTADO: { icon: CalendarRange, label: 'Horario recibido', tone: 'neutral' },
+  HORARIO_APROBADO: { icon: CalendarCheck, label: 'Horario aprobado', tone: 'success' },
+  HORARIO_RECHAZADO: { icon: CalendarX, label: 'Horario rechazado', tone: 'destructive' },
+}
+
+export const NOTIFICATION_TONE_CLASS = {
+  neutral: 'bg-muted text-muted-foreground',
+  success: 'bg-success/10 text-success-foreground',
+  warning: 'bg-warning/15 text-warning-foreground',
+  destructive: 'bg-destructive/10 text-destructive-foreground',
 }
 
 export function getNotificationMeta(tipo) {
-  return NOTIFICATION_META[tipo] || { icon: CiBellOn, label: 'Notificación' }
+  return NOTIFICATION_META[tipo] || { icon: CalendarClock, label: 'Aviso', tone: 'neutral' }
 }
 
-export function formatNotificationTime(fecha) {
+export function formatNotificationTime(fecha, ahora = Date.now()) {
   if (!fecha) return ''
-  const diff = Date.now() - new Date(fecha).getTime()
+  const date = new Date(fecha)
+  const diff = ahora - date.getTime()
   const mins = Math.floor(diff / 60000)
   if (mins < 1) return 'ahora'
   if (mins < 60) return `hace ${mins} min`
@@ -58,7 +62,14 @@ export function formatNotificationTime(fecha) {
   if (hrs < 24) return `hace ${hrs} h`
   const days = Math.floor(hrs / 24)
   if (days < 7) return `hace ${days} d`
-  return new Date(fecha).toLocaleString('es-MX')
+  const opciones = { day: 'numeric', month: 'short' }
+  if (date.getFullYear() !== new Date(ahora).getFullYear()) opciones.year = 'numeric'
+  return date.toLocaleDateString('es-MX', opciones)
+}
+
+export function formatNotificationDateTime(fecha) {
+  if (!fecha) return ''
+  return new Date(fecha).toLocaleString('es-MX', { dateStyle: 'long', timeStyle: 'short' })
 }
 
 export function resolveNotificationRoute(notificacion, rol) {
@@ -85,6 +96,8 @@ export function resolveNotificationRoute(notificacion, rol) {
     case 'Solicitud':
     case 'Inscripcion':
       return '/materias'
+    case 'Unidad':
+      return '/materias'
     case 'Materia':
       if (!referenciaId) return '/materias'
       return rol === 'ALUMNO'
@@ -94,6 +107,8 @@ export function resolveNotificationRoute(notificacion, rol) {
     case 'ClaseSesion':
     case 'HorarioMateria':
       return '/asistencias'
+    case 'ImportacionHorario':
+      return rol === 'ADMIN' ? '/admin/horarios-importados' : '/alumno/horario'
     case 'TareasPendientes':
     case 'ReporteTareas':
       return '/tareas'

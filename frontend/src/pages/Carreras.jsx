@@ -1,6 +1,9 @@
+import useAsyncAction from '@/hooks/useAsyncAction'
+import { Button } from '@/components/ui/button'
+import { confirmAction } from '@/lib/feedback'
 import { useCallback, useEffect, useState } from 'react'
 import { FileSpreadsheet, UploadCloud } from 'lucide-react'
-import { CiRead } from 'react-icons/ci'
+import { BookOpen as CiRead } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import Modal from '../components/Modal'
 import api from '../api/axios'
@@ -84,8 +87,8 @@ export default function Carreras() {
     }
   }
 
-  const eliminar = async (carrera) => {
-    if (!window.confirm(`¿Eliminar la carrera "${carrera.nombre}"?`)) return
+  const eliminar = useAsyncAction(async (carrera) => {
+    if (!(await confirmAction(`¿Eliminar la carrera "${carrera.nombre}"?`))) return
     setPageError('')
     try {
       await api.delete(`/carreras/${carrera.id}`)
@@ -93,7 +96,7 @@ export default function Carreras() {
     } catch (requestError) {
       setPageError(apiError(requestError, 'No se pudo eliminar la carrera'))
     }
-  }
+  })
 
   return (
     <div className="space-y-5">
@@ -101,18 +104,18 @@ export default function Carreras() {
         title="Carreras"
         subtitle="Gestiona carreras y sus retículas académicas"
         action={
-          <button
+          <Button variant="default"
             type="button"
             onClick={openCreate}
-            className="w-full rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40 sm:w-auto"
+            className="w-full px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40 sm:w-auto"
           >
             + Nueva carrera
-          </button>
+          </Button>
         }
       />
 
       {pageError && (
-        <div role="alert" className="rounded-xl border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        <div role="alert" className="rounded-xl border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground">
           {pageError}
         </div>
       )}
@@ -129,7 +132,7 @@ export default function Carreras() {
           {carreras.map((carrera) => (
             <article key={carrera.id} className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-card p-4">
               <div className="flex min-w-0 items-center gap-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent text-primary">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent text-primary-ink">
                   <CiRead className="h-5 w-5" />
                 </span>
                 <div className="min-w-0">
@@ -142,13 +145,13 @@ export default function Carreras() {
                   )}
                 </div>
               </div>
-              <button
+              <Button variant="destructive"
                 type="button"
                 onClick={() => eliminar(carrera)}
-                className="shrink-0 rounded-lg px-2.5 py-1.5 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
+                className="shrink-0 px-2.5 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
               >
                 Eliminar
-              </button>
+              </Button>
             </article>
           ))}
         </div>
@@ -212,9 +215,9 @@ export default function Carreras() {
               className="flex min-h-32 cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-input bg-background px-5 py-6 text-center transition-colors hover:border-primary/50 focus-within:ring-3 focus-within:ring-ring/40"
             >
               {reticula ? (
-                <FileSpreadsheet className="h-7 w-7 text-success" aria-hidden="true" />
+                <FileSpreadsheet className="h-7 w-7 text-success-foreground" aria-hidden="true" />
               ) : (
-                <UploadCloud className="h-7 w-7 text-primary" aria-hidden="true" />
+                <UploadCloud className="h-7 w-7 text-primary-ink" aria-hidden="true" />
               )}
               <span className="mt-3 text-sm font-medium text-foreground">
                 {reticula?.name || 'Seleccionar archivo de retícula'}
@@ -235,18 +238,18 @@ export default function Carreras() {
           </div>
 
           {error && (
-            <div role="alert" className="rounded-xl border border-destructive/25 bg-destructive/10 px-3 py-2.5 text-sm text-destructive">
+            <div role="alert" className="rounded-xl border border-destructive/25 bg-destructive/10 px-3 py-2.5 text-sm text-destructive-foreground">
               {error}
             </div>
           )}
 
-          <button
+          <Button variant="default"
             type="submit"
             disabled={saving}
-            className="w-full rounded-xl bg-primary py-2.5 font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40 disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full py-2.5 font-medium transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {saving ? 'Creando carrera...' : 'Crear carrera y cargar retícula'}
-          </button>
+          </Button>
         </form>
       </Modal>
     </div>

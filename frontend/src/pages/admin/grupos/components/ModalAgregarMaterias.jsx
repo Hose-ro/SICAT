@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button'
 import { useEffect, useState } from 'react'
 import api from '../../../../api/axios'
 import { useGrupoStore } from '../../../../store/grupoStore'
@@ -76,17 +77,17 @@ export default function ModalAgregarMaterias({ open, onClose, grupo }) {
     <Modal open={open} onClose={onClose} title="Agregar materias al grupo">
       <div className="space-y-3">
         <div className="flex gap-2">
-          <input
+          <input aria-label="Buscar por nombre o clave"
             type="text"
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
             placeholder="Buscar por nombre o clave..."
-            className="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 border border-border rounded-xl px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
-          <select
+          <select aria-label="Semestre"
             value={filtroSemestre}
             onChange={(e) => setFiltroSemestre(e.target.value)}
-            className="border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="border border-border rounded-xl px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <option value="">Todos</option>
             {SEMESTRES.map((s) => (
@@ -95,36 +96,36 @@ export default function ModalAgregarMaterias({ open, onClose, grupo }) {
           </select>
         </div>
 
-        <div className="max-h-64 overflow-y-auto space-y-1 border border-gray-100 rounded-xl p-2">
+        <div className="max-h-64 overflow-y-auto space-y-1 border border-border rounded-xl p-2">
           {todasMaterias.length === 0 && (
-            <p className="text-sm text-gray-400 text-center py-4">Cargando...</p>
+            <p className="text-sm text-muted-foreground text-center py-4">Cargando...</p>
           )}
           {todasMaterias.length > 0 && disponibles.length === 0 && (
-            <p className="text-sm text-gray-400 text-center py-4">No hay materias disponibles</p>
+            <p className="text-sm text-muted-foreground text-center py-4">No hay materias disponibles</p>
           )}
           {disponibles.map((m) => {
             const conflicto = tieneConflicto(m)
             return (
               <label
                 key={m.id}
-                className="flex items-start gap-3 px-2 py-2 rounded-lg hover:bg-gray-50 cursor-pointer"
+                className="flex items-start gap-3 px-2 py-2 rounded-lg hover:bg-background cursor-pointer"
               >
                 <input
                   type="checkbox"
                   checked={seleccionados.includes(m.id)}
                   onChange={() => toggleSeleccion(m.id)}
-                  className="accent-blue-600 mt-0.5"
+                  className="accent-primary mt-0.5"
                 />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium text-gray-800 truncate">{m.nombre}</p>
+                    <p className="text-sm font-medium text-foreground truncate">{m.nombre}</p>
                     {conflicto && (
-                      <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full shrink-0">
+                      <span className="text-xs bg-warning/10 text-warning-foreground px-1.5 py-0.5 rounded-full shrink-0">
                         Conflicto
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-gray-400">
+                  <p className="text-xs text-muted-foreground">
                     {m.clave} · Sem {m.semestre} · {m.dias} {m.horaInicio}-{m.horaFin}
                   </p>
                 </div>
@@ -133,17 +134,17 @@ export default function ModalAgregarMaterias({ open, onClose, grupo }) {
           })}
         </div>
 
-        {error && <p className="text-sm text-red-500">{error}</p>}
+        {error && <p className="text-sm text-destructive-foreground">{error}</p>}
 
-        <button
+        <Button variant="default"
           onClick={handleAgregar}
           disabled={seleccionados.length === 0 || loading}
-          className="w-full bg-blue-600 text-white py-2.5 rounded-xl font-medium hover:bg-blue-700 transition disabled:opacity-50"
+          className="w-full py-2.5 font-medium disabled:opacity-50"
         >
           {loading
             ? 'Agregando...'
             : `Agregar${seleccionados.length > 0 ? ` (${seleccionados.length})` : ''}`}
-        </button>
+        </Button>
       </div>
     </Modal>
   )

@@ -19,6 +19,17 @@ export const TASK_TYPE_HELP = {
   REVISION_EN_LINEA: 'El alumno puede enviar un comentario, archivos o ambos.',
 }
 
+/**
+ * Los archivos de tareas y entregas se sirven tras sesión desde la propia API
+ * (`/api/uploads/tareas/...`), no desde la raíz del servidor; la cookie sólo
+ * viaja bajo `/api`.
+ */
+export function taskFileUrl(url, apiBaseUrl) {
+  if (!url) return '#'
+  if (/^https?:\/\//i.test(url)) return url
+  return `${String(apiBaseUrl || '').replace(/\/+$/, '')}/${url.replace(/^\/+/, '')}`
+}
+
 export function taskError(error, fallback = 'No se pudo completar la acción. Intenta de nuevo.') {
   const message = error?.response?.data?.message
   return Array.isArray(message) ? message.join('. ') : typeof message === 'string' ? message : fallback

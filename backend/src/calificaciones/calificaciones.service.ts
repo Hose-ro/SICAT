@@ -1,13 +1,14 @@
 import {
   BadRequestException,
-  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { EstadoAsistencia, EstadoRevision, EstadoTarea } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { getCurrentAcademicPeriod } from '../common/periodo.util';
+import { asegurarAccesoMateria } from '../common/materia-ownership';
 import { GuardarCalificacionManualDto } from './dto/guardar-calificacion-manual.dto';
+import { GuardarPonderacionDto } from './dto/guardar-ponderacion.dto';
 
 type Actor = {
   id: number;
@@ -19,8 +20,6 @@ type CalificacionesFiltros = {
   grupoId?: number;
   unidadId?: number;
   docenteId?: number;
-  pesoTareas?: number;
-  pesoAsistencia?: number;
 };
 
 type PonderacionCalificacion = {
@@ -93,8 +92,6 @@ export class CalificacionesService {
             materiaId,
             grupoId: alumno.grupoId ?? undefined,
             unidadId: filtros.unidadId,
-            pesoTareas: filtros.pesoTareas,
-            pesoAsistencia: filtros.pesoAsistencia,
           },
           {
             alumnoId,
@@ -113,19 +110,35 @@ export class CalificacionesService {
     };
   }
 
+  /**
+   * La ponderación vive en la materia: así el reporte del docente, la
+   * exportación y la vista del alumno calculan la misma nota.
+   */
+  async guardarPonderacion(actor: Actor, dto: GuardarPonderacionDto) {
+    if (dto.pesoTareas + dto.pesoAsistencia !== 100) {
+      throw new BadRequestException(
+        'La ponderación de tareas y asistencia debe sumar 100',
+      );
+    }
+    await asegurarAccesoMateria(this.prisma, actor, dto.materiaId);
+    await this.prisma.materia.update({
+      where: { id: dto.materiaId },
+      data: { pesoTareas: dto.pesoTareas, pesoAsistencia: dto.pesoAsistencia },
+      select: { id: true },
+    });
+    return { tareas: dto.pesoTareas, asistencia: dto.pesoAsistencia };
+  }
+
   async guardarManual(
     actor: Actor,
     dto: GuardarCalificacionManualDto,
-    filtros: Pick<
-      CalificacionesFiltros,
-      'grupoId' | 'unidadId' | 'pesoTareas' | 'pesoAsistencia'
-    > = {},
+    filtros: Pick<CalificacionesFiltros, 'grupoId' | 'unidadId'> = {},
   ) {
     const materia = await this.obtenerMateria({
       materiaId: dto.materiaId,
       unidadId: dto.unidadId,
     });
-    this.validarAccesoDocente(actor, materia.docenteId);
+    await asegurarAccesoMateria(this.prisma, actor, dto.materiaId, dto.grupoId);
 
     if (
       dto.grupoId &&
@@ -155,9 +168,7 @@ export class CalificacionesService {
         calificacionManual < 1 ||
         calificacionManual > 100)
     ) {
-      throw new BadRequestException(
-        'La calificacion debe estar entre 1 y 100',
-      );
+      throw new BadRequestException('La calificacion debe estar entre 1 y 100');
     }
 
     const periodo = getCurrentAcademicPeriod();
@@ -197,8 +208,6 @@ export class CalificacionesService {
             ? { grupoId: dto.grupoId }
             : {}),
         ...(filtros.unidadId ? { unidadId: filtros.unidadId } : {}),
-        pesoTareas: filtros.pesoTareas,
-        pesoAsistencia: filtros.pesoAsistencia,
       },
       {
         actor,
@@ -217,10 +226,15 @@ export class CalificacionesService {
     },
   ) {
     const materia = await this.obtenerMateria(filtros);
-    if (options.validarDocente && options.actor) {
-      this.validarAccesoDocente(options.actor, materia.docenteId);
+    if (options.validarDocente) {
+      await asegurarAccesoMateria(
+        this.prisma,
+        options.actor,
+        filtros.materiaId,
+        filtros.grupoId,
+      );
     }
-    const ponderacion = this.resolverPonderacion(filtros);
+    const ponderacion = this.resolverPonderacion(materia);
 
     const unidades = this.obtenerUnidadesReporte(materia, filtros.unidadId);
     const grupoSeleccionado = filtros.grupoId
@@ -320,10 +334,13 @@ export class CalificacionesService {
     ]);
 
     const calificacionesPorAlumnoUnidad = new Map(
-      calificacionesGuardadas.map((calificacion) => [
-        `${calificacion.alumnoId}:${calificacion.unidadId}`,
-        calificacion,
-      ] as const),
+      calificacionesGuardadas.map(
+        (calificacion) =>
+          [
+            `${calificacion.alumnoId}:${calificacion.unidadId}`,
+            calificacion,
+          ] as const,
+      ),
     );
 
     const asistencias = sesiones.length
@@ -358,7 +375,11 @@ export class CalificacionesService {
 
       for (const alumno of alumnos) {
         const tareasAlumno = tareasUnidad.filter((tarea) =>
-          this.aplicaAGrupoAlumno(tarea.grupoId, alumno.grupoId, filtros.grupoId),
+          this.aplicaAGrupoAlumno(
+            tarea.grupoId,
+            alumno.grupoId,
+            filtros.grupoId,
+          ),
         );
         const sesionesAlumno = sesionesUnidad.filter((sesion) =>
           this.aplicaAGrupoAlumno(
@@ -371,8 +392,9 @@ export class CalificacionesService {
           .map((tarea) => ({
             tarea,
             entrega:
-              tarea.entregas.find((entrega) => entrega.alumnoId === alumno.id) ??
-              null,
+              tarea.entregas.find(
+                (entrega) => entrega.alumnoId === alumno.id,
+              ) ?? null,
           }))
           .filter((item) => item.tarea);
 
@@ -561,9 +583,7 @@ export class CalificacionesService {
         activo: true,
       },
       // Del grupo, o inscritos por el docente en la clase de ese grupo.
-      ...(grupoId
-        ? { OR: [{ alumno: { grupoId } }, { grupoId }] }
-        : {}),
+      ...(grupoId ? { OR: [{ alumno: { grupoId } }, { grupoId }] } : {}),
     };
 
     let inscripciones = await this.prisma.inscripcion.findMany({
@@ -631,7 +651,9 @@ export class CalificacionesService {
       });
     }
 
-    const materiaIds = inscripciones.map((inscripcion) => inscripcion.materiaId);
+    const materiaIds = inscripciones.map(
+      (inscripcion) => inscripcion.materiaId,
+    );
     if (materiaIds.length) return [...new Set(materiaIds)];
 
     if (!grupoId) return [];
@@ -647,7 +669,10 @@ export class CalificacionesService {
     return grupo?.materias.map((materia) => materia.id) ?? [];
   }
 
-  private perteneceAUnidad(item: any, unidad: { id: number | null; orden: number }) {
+  private perteneceAUnidad(
+    item: any,
+    unidad: { id: number | null; orden: number },
+  ) {
     if (unidad.id != null && item.unidadId === unidad.id) return true;
     return item.unidad === unidad.orden;
   }
@@ -731,22 +756,11 @@ export class CalificacionesService {
     return resumen;
   }
 
-  private resolverPonderacion(
-    filtros: Pick<CalificacionesFiltros, 'pesoTareas' | 'pesoAsistencia'>,
-  ): PonderacionCalificacion {
-    const tareas = this.validarPeso(filtros.pesoTareas, 80);
-    const asistencia = this.validarPeso(filtros.pesoAsistencia, 20);
-    return { tareas, asistencia };
-  }
-
-  private validarPeso(value: number | undefined, defaultValue: number) {
-    const peso = value == null || Number.isNaN(value) ? defaultValue : value;
-    if (!Number.isFinite(peso) || peso < 0 || peso > 100) {
-      throw new BadRequestException(
-        'Cada ponderacion debe estar entre 0 y 100',
-      );
-    }
-    return peso;
+  private resolverPonderacion(materia: {
+    pesoTareas: number;
+    pesoAsistencia: number;
+  }): PonderacionCalificacion {
+    return { tareas: materia.pesoTareas, asistencia: materia.pesoAsistencia };
   }
 
   private calcularCalificacionCalculada(
@@ -786,9 +800,8 @@ export class CalificacionesService {
         ? Math.round(rows.length / Math.max(unidadesCount, 1))
         : rows.length,
       aprobadas: rows.filter((row) => row.estado === 'APROBADO').length,
-      requiereAtencion: rows.filter(
-        (row) => row.estado === 'REQUIERE_ATENCION',
-      ).length,
+      requiereAtencion: rows.filter((row) => row.estado === 'REQUIERE_ATENCION')
+        .length,
       pendientes: rows.filter((row) => row.estado === 'PENDIENTE').length,
       promedioGeneral: calificaciones.length
         ? Number(
@@ -799,12 +812,5 @@ export class CalificacionesService {
           )
         : null,
     };
-  }
-
-  private validarAccesoDocente(actor: Actor, docenteId?: number | null) {
-    if (actor.rol === 'ADMIN') return;
-    if (!docenteId || docenteId !== actor.id) {
-      throw new ForbiddenException('No tienes permisos sobre esta materia');
-    }
   }
 }

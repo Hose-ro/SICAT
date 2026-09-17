@@ -12,6 +12,7 @@ import { CreateHorarioDto } from './dto/create-horario.dto';
 import { UpdateHorarioDto } from './dto/update-horario.dto';
 import { ValidarConflictoHorarioDto } from './dto/validar-conflicto-horario.dto';
 import { hayConflictoHorario } from './utils/conflicto-horario.util';
+import { inscribirAlumnosDelGrupo } from '../common/inscripciones-grupo';
 
 const ORDEN_DIAS: Record<string, number> = {
   lunes: 1,
@@ -1385,5 +1386,10 @@ export class HorariosService {
         },
       },
     });
+
+    // Al programar la materia para un grupo nuevo, sus alumnos ya la cursan.
+    for (const grupoId of conectar) {
+      await inscribirAlumnosDelGrupo(tx, grupoId, { materiaIds: [materiaId] });
+    }
   }
 }

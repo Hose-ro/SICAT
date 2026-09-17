@@ -1,3 +1,5 @@
+import { Button } from '@/components/ui/button'
+import Modal from '@/components/Modal'
 import { useEffect, useState } from 'react'
 import { useGrupoStore } from '../../../store/grupoStore'
 import GrupoCard from './components/GrupoCard'
@@ -13,7 +15,7 @@ export default function GruposPage() {
   const [eliminando, setEliminando] = useState(false)
   const [avisoLote, setAvisoLote] = useState('')
 
-  useEffect(() => { cargarGrupos() }, [])
+  useEffect(() => { cargarGrupos() }, [cargarGrupos])
 
   const salirDeSeleccion = () => {
     setModoSeleccion(false)
@@ -54,15 +56,15 @@ export default function GruposPage() {
       {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Grupos</h1>
-          <p className="text-sm text-gray-500">Gestiona los grupos de alumnos por carrera y semestre</p>
+          <h1 className="text-2xl font-bold text-foreground">Grupos</h1>
+          <p className="text-sm text-muted-foreground">Gestiona los grupos de alumnos por carrera y semestre</p>
         </div>
-        <button
+        <Button variant="default"
           onClick={() => setModalCrear(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-blue-700 transition"
+          className="px-4 py-2 text-sm font-medium"
         >
           + Crear grupo
-        </button>
+        </Button>
       </div>
 
       {/* Filtros */}
@@ -70,16 +72,18 @@ export default function GruposPage() {
 
       {/* Error */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700 flex items-center justify-between">
+        <div className="bg-destructive/10 border border-destructive/30 rounded-lg px-4 py-3 text-sm text-destructive-foreground flex items-center justify-between">
           <span>{error}</span>
-          <button onClick={clearError} className="text-red-400 hover:text-red-600 ml-4">✕</button>
+          <Button variant="destructive" onClick={clearError} className="ml-4">✕</Button>
         </div>
       )}
 
       {avisoLote && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 text-sm text-emerald-800 flex items-start justify-between gap-3">
+        <div role="status" className="flex items-start justify-between gap-3 rounded-lg border border-success/30 bg-success/10 px-4 py-3 text-sm text-success-foreground">
           <span>{avisoLote}</span>
-          <button onClick={() => setAvisoLote('')} className="text-emerald-500 hover:text-emerald-700">✕</button>
+          <Button variant="ghost" size="icon-sm" onClick={() => setAvisoLote('')} aria-label="Cerrar aviso">
+            ✕
+          </Button>
         </div>
       )}
 
@@ -88,45 +92,38 @@ export default function GruposPage() {
         <div className="flex flex-wrap items-center gap-3">
           {modoSeleccion ? (
             <>
-              <span className="text-sm text-gray-500">
+              <span className="text-sm text-muted-foreground">
                 {seleccionados.length} de {grupos.length} seleccionado(s)
               </span>
-              <button
-                onClick={alternarTodos}
-                className="text-sm font-medium text-blue-600 hover:text-blue-700 transition"
-              >
+              <Button variant="link" type="button" onClick={alternarTodos} className="px-0 text-sm">
                 {todosSeleccionados ? 'Quitar selección' : 'Seleccionar todos'}
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="destructive"
+                type="button"
                 onClick={() => setConfirmEliminar(true)}
                 disabled={seleccionados.length === 0}
-                className="ml-auto rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-45"
+                className="ml-auto px-3 py-1.5 text-sm disabled:cursor-not-allowed"
               >
                 Eliminar {seleccionados.length > 0 ? `(${seleccionados.length})` : ''}
-              </button>
-              <button
-                onClick={salirDeSeleccion}
-                className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-50"
-              >
+              </Button>
+              <Button variant="outline" type="button" onClick={salirDeSeleccion} className="border px-3 py-1.5 text-sm">
                 Cancelar
-              </button>
+              </Button>
             </>
           ) : (
-            <button
-              onClick={() => setModoSeleccion(true)}
-              className="text-sm font-medium text-gray-500 hover:text-gray-700 transition"
-            >
+            <Button variant="ghost" type="button" onClick={() => setModoSeleccion(true)} className="px-3 py-1.5 text-sm text-muted-foreground">
               Seleccionar
-            </button>
+            </Button>
           )}
         </div>
       )}
 
       {/* Lista */}
       {loading && grupos.length === 0 ? (
-        <p className="text-sm text-gray-400">Cargando grupos...</p>
+        <p className="text-sm text-muted-foreground">Cargando grupos...</p>
       ) : grupos.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">
+        <div className="text-center py-16 text-muted-foreground">
           <p className="text-lg font-medium">No hay grupos registrados</p>
           <p className="text-sm mt-1">Crea el primer grupo con el botón de arriba</p>
         </div>
@@ -149,33 +146,30 @@ export default function GruposPage() {
 
       {/* Confirm eliminar en lote */}
       {confirmEliminar && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40">
-          <div className="mx-4 w-full max-w-sm space-y-4 rounded-2xl bg-white p-4 shadow-xl sm:p-6">
-            <h3 className="text-lg font-semibold text-gray-800">¿Eliminar grupos seleccionados?</h3>
-            <p className="text-sm text-gray-500">
-              Se eliminarán definitivamente {seleccionados.length} grupo{seleccionados.length === 1 ? '' : 's'} junto con su horario. Esta acción no se puede deshacer.
-            </p>
-            <p className="text-sm text-gray-500">
-              Sus alumnos quedan sin grupo y el historial académico se conserva: las clases, tareas y calificaciones siguen registradas en cada materia.
-            </p>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <button
-                onClick={() => setConfirmEliminar(false)}
-                disabled={eliminando}
-                className="flex-1 border border-gray-300 text-gray-700 py-2 rounded-xl text-sm hover:bg-gray-50 transition disabled:opacity-50"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleEliminarLote}
-                disabled={eliminando}
-                className="flex-1 bg-red-600 text-white py-2 rounded-xl text-sm hover:bg-red-700 transition disabled:opacity-50"
-              >
-                {eliminando ? 'Eliminando...' : `Eliminar ${seleccionados.length}`}
-              </button>
-            </div>
+        <Modal open onClose={() => setConfirmEliminar(false)} title="¿Eliminar grupos seleccionados?" busy={eliminando}>
+          <p className="text-sm text-muted-foreground">
+            Se eliminarán definitivamente {seleccionados.length} grupo{seleccionados.length === 1 ? '' : 's'} junto con su horario. Esta acción no se puede deshacer.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Sus alumnos quedan sin grupo y el historial académico se conserva: las clases, tareas y calificaciones siguen registradas en cada materia.
+          </p>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button variant="outline"
+              onClick={() => setConfirmEliminar(false)}
+              disabled={eliminando}
+              className="flex-1 border py-2 text-sm disabled:opacity-50"
+            >
+              Cancelar
+            </Button>
+            <Button variant="destructive"
+              onClick={handleEliminarLote}
+              disabled={eliminando}
+              className="flex-1 py-2 text-sm disabled:opacity-50"
+            >
+              {eliminando ? 'Eliminando...' : `Eliminar ${seleccionados.length}`}
+            </Button>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   )

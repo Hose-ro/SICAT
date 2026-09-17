@@ -1,3 +1,6 @@
+import useAsyncAction from '@/hooks/useAsyncAction'
+import { Button } from '@/components/ui/button'
+import { confirmAction } from '@/lib/feedback'
 import { useEffect, useRef, useState } from 'react'
 import Modal from '../../components/Modal'
 import api from '../../api/axios'
@@ -226,8 +229,8 @@ export default function AlumnosMateriaCard({ materia, puedeEditar, onActualizado
     }
   }
 
-  const darDeBaja = async (alumno) => {
-    if (!window.confirm(`¿Dar de baja a ${alumno.nombre} de esta materia?`)) return
+  const darDeBaja = useAsyncAction(async (alumno) => {
+    if (!(await confirmAction(`¿Dar de baja a ${alumno.nombre} de esta materia?`))) return
     try {
       await api.delete(`/inscripciones/materias/${materia.id}/alumnos/${alumno.id}`)
       setAviso(`${alumno.nombre} salió del padrón de la materia.`)
@@ -235,7 +238,7 @@ export default function AlumnosMateriaCard({ materia, puedeEditar, onActualizado
     } catch (err) {
       setAviso(mensajeError(err, 'No se pudo dar de baja al alumno'))
     }
-  }
+  })
 
   const abrirCompletar = (alumno) => {
     setAlumnoCompletar(alumno)
@@ -285,34 +288,34 @@ export default function AlumnosMateriaCard({ materia, puedeEditar, onActualizado
   }
 
   return (
-    <article className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+    <article className="min-w-0 rounded-2xl border border-border bg-card p-5 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">Alumnos inscritos</h3>
-          <p className="mt-0.5 text-xs text-gray-500">
+          <h2 className="text-lg font-semibold text-foreground">Alumnos inscritos</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">
             Busca a un alumno que ya tenga cuenta, da de alta a uno nuevo o importa la lista completa del grupo desde un Excel.
           </p>
         </div>
         {puedeEditar && (
-          <button
+          <Button variant="default"
             type="button"
             onClick={abrir}
-            className="rounded-xl bg-blue-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+            className="px-3 py-2 text-sm font-medium"
           >
             Agregar alumnos
-          </button>
+          </Button>
         )}
       </div>
 
       {aviso && (
-        <p className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+        <p className="mt-3 rounded-xl border border-success/30 bg-success/10 px-3 py-2 text-sm text-success-foreground">
           {aviso}
         </p>
       )}
 
-      <div className="mt-4 overflow-x-auto">
+      <div className="mt-4 overflow-x-auto" tabIndex={0} role="region" aria-label="Tabla de alumnos inscritos">
         <table className="w-full min-w-[560px] text-sm">
-          <thead className="border-b border-gray-100 text-left text-xs uppercase tracking-wide text-gray-500">
+          <thead className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
               <th className="px-2 py-3">Nombre</th>
               <th className="px-2 py-3">Control</th>
@@ -326,35 +329,35 @@ export default function AlumnosMateriaCard({ materia, puedeEditar, onActualizado
               const alumno = inscripcion.alumno
               const datosIncompletos = !alumno.numeroControl
               return (
-                <tr key={inscripcion.id} className="border-b border-gray-50">
-                  <td className="px-2 py-3 font-medium text-gray-800">
+                <tr key={inscripcion.id} className="border-b border-border">
+                  <td className="px-2 py-3 font-medium text-foreground">
                     {alumno.nombre}
                     {datosIncompletos && (
-                      <span className="ml-2 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700">
+                      <span className="ml-2 inline-flex items-center rounded-full bg-warning/10 px-2 py-0.5 text-[11px] font-medium text-warning-foreground">
                         Datos incompletos
                       </span>
                     )}
                   </td>
-                  <td className="px-2 py-3 text-gray-500">{alumno.numeroControl ?? '—'}</td>
-                  <td className="px-2 py-3 text-gray-500">{alumno.email ?? '—'}</td>
-                  <td className="px-2 py-3 text-gray-500">{alumno.telefono ?? '—'}</td>
+                  <td className="px-2 py-3 text-muted-foreground">{alumno.numeroControl ?? '—'}</td>
+                  <td className="px-2 py-3 text-muted-foreground">{alumno.email ?? '—'}</td>
+                  <td className="px-2 py-3 text-muted-foreground">{alumno.telefono ?? '—'}</td>
                   {puedeEditar && (
                     <td className="px-2 py-3">
                       <div className="flex justify-end gap-2">
-                        <button
+                        <Button variant="outline"
                           type="button"
                           onClick={() => abrirCompletar(alumno)}
-                          className="rounded-lg border border-blue-200 px-3 py-1.5 text-xs font-medium text-blue-600 transition hover:bg-blue-50"
+                          className="border px-3 py-1.5 text-xs font-medium"
                         >
                           {datosIncompletos ? 'Completar datos' : 'Editar'}
-                        </button>
-                        <button
+                        </Button>
+                        <Button variant="destructive"
                           type="button"
                           onClick={() => darDeBaja(alumno)}
-                          className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50"
+                          className="border px-3 py-1.5 text-xs font-medium"
                         >
                           Dar de baja
-                        </button>
+                        </Button>
                       </div>
                     </td>
                   )}
@@ -364,7 +367,7 @@ export default function AlumnosMateriaCard({ materia, puedeEditar, onActualizado
           </tbody>
         </table>
         {inscripciones.length === 0 && (
-          <p className="py-6 text-center text-sm text-gray-400">No hay alumnos aceptados en esta materia.</p>
+          <p className="py-6 text-center text-sm text-muted-foreground">No hay alumnos aceptados en esta materia.</p>
         )}
       </div>
 
@@ -376,31 +379,31 @@ export default function AlumnosMateriaCard({ materia, puedeEditar, onActualizado
               { clave: 'nuevo', etiqueta: 'Crear uno nuevo' },
               { clave: 'importar', etiqueta: 'Importar lista (Excel)' },
             ].map((opcion) => (
-              <button
+              <Button variant="ghost"
                 key={opcion.clave}
                 type="button"
                 onClick={() => { setPestana(opcion.clave); setError('') }}
                 className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
                   pestana === opcion.clave
-                    ? 'bg-blue-600 text-white'
-                    : 'border border-gray-200 text-gray-600 hover:border-blue-300'
+                    ? "bg-primary text-primary-foreground"
+                    : "border border-border text-muted-foreground hover:border-border"
                 }`}
               >
                 {opcion.etiqueta}
-              </button>
+              </Button>
             ))}
           </div>
 
           {grupos.length > 1 && (
             <div>
-              <label htmlFor="inscripcion-grupo" className="mb-1 block text-xs font-medium text-gray-700">
+              <label htmlFor="inscripcion-grupo" className="mb-1 block text-xs font-medium text-foreground">
                 Grupo de la clase
               </label>
               <select
                 id="inscripcion-grupo"
                 value={grupoId}
                 onChange={(event) => setGrupoId(event.target.value)}
-                className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-xl border border-border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <option value="">Sin grupo</option>
                 {grupos.map((grupo) => (
@@ -412,43 +415,43 @@ export default function AlumnosMateriaCard({ materia, puedeEditar, onActualizado
 
           {pestana === 'existente' && (
             <div className="space-y-3">
-              <input
+              <input aria-label="Buscar por nombre o número de control"
                 value={busqueda}
                 onChange={(event) => setBusqueda(event.target.value)}
                 placeholder="Buscar por nombre o número de control"
-                className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-xl border border-border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
-              <div className="max-h-64 space-y-1 overflow-y-auto rounded-xl border border-gray-100 p-2">
+              <div className="max-h-64 space-y-1 overflow-y-auto rounded-xl border border-border p-2">
                 {disponibles.map((alumno) => (
-                  <label key={alumno.id} className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2 hover:bg-gray-50">
+                  <label key={alumno.id} className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2 hover:bg-background">
                     <input
                       type="checkbox"
                       checked={seleccion.includes(alumno.id)}
                       onChange={() => alternar(alumno.id)}
                     />
-                    <span className="text-sm text-gray-800">
+                    <span className="text-sm text-foreground">
                       {alumno.nombre}
-                      <span className="ml-2 text-xs text-gray-400">
+                      <span className="ml-2 text-xs text-muted-foreground">
                         {alumno.numeroControl ?? 'sin control'} · {alumno.grupo?.nombre ?? 'sin grupo'}
                       </span>
                     </span>
                   </label>
                 ))}
                 {disponibles.length === 0 && (
-                  <p className="px-2 py-6 text-center text-sm text-gray-400">
+                  <p className="px-2 py-6 text-center text-sm text-muted-foreground">
                     No hay alumnos disponibles con esa búsqueda.
                   </p>
                 )}
               </div>
-              {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
-              <button
+              {error && <p role="alert" className="text-sm text-destructive-foreground">{error}</p>}
+              <Button variant="default"
                 type="button"
                 onClick={inscribirExistentes}
                 disabled={guardando || seleccion.length === 0}
-                className="w-full rounded-xl bg-blue-600 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-50"
+                className="w-full py-2.5 text-sm font-medium disabled:opacity-50"
               >
                 {guardando ? 'Inscribiendo...' : `Inscribir ${seleccion.length || ''}`.trim()}
-              </button>
+              </Button>
             </div>
           )}
 
@@ -462,7 +465,7 @@ export default function AlumnosMateriaCard({ materia, puedeEditar, onActualizado
                 { campo: 'telefono', etiqueta: 'Teléfono', tipo: 'text', requerido: false, placeholder: '9611234567' },
               ].map((campo) => (
                 <div key={campo.campo}>
-                  <label htmlFor={`alumno-${campo.campo}`} className="mb-1 block text-xs font-medium text-gray-700">
+                  <label htmlFor={`alumno-${campo.campo}`} className="mb-1 block text-xs font-medium text-foreground">
                     {campo.etiqueta}
                   </label>
                   <input
@@ -473,28 +476,28 @@ export default function AlumnosMateriaCard({ materia, puedeEditar, onActualizado
                     placeholder={campo.placeholder}
                     value={form[campo.campo]}
                     onChange={(event) => setForm({ ...form, [campo.campo]: event.target.value })}
-                    className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded-xl border border-border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   />
                 </div>
               ))}
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-muted-foreground">
                 Entrega la contraseña al alumno: podrá cambiarla desde su perfil.
               </p>
-              {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
-              <button
+              {error && <p role="alert" className="text-sm text-destructive-foreground">{error}</p>}
+              <Button variant="default"
                 type="submit"
                 disabled={guardando}
-                className="w-full rounded-xl bg-blue-600 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-50"
+                className="w-full py-2.5 text-sm font-medium disabled:opacity-50"
               >
                 {guardando ? 'Creando...' : 'Crear e inscribir'}
-              </button>
+              </Button>
             </form>
           )}
 
           {pestana === 'importar' && (
             <div className="space-y-3">
               {resumenImportacion ? (
-                <div className="space-y-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+                <div className="space-y-3 rounded-xl border border-success/30 bg-success/10 p-4 text-sm text-success-foreground">
                   <p className="font-medium">Importación terminada</p>
                   <ul className="list-inside list-disc space-y-1">
                     <li>Alumnos nuevos dados de alta: {resumenImportacion.creados}</li>
@@ -503,62 +506,62 @@ export default function AlumnosMateriaCard({ materia, puedeEditar, onActualizado
                   </ul>
                   {resumenImportacion.errores.length > 0 && (
                     <div>
-                      <p className="font-medium text-amber-700">No se pudieron importar {resumenImportacion.errores.length}:</p>
-                      <ul className="list-inside list-disc text-amber-700">
+                      <p className="font-medium text-warning-foreground">No se pudieron importar {resumenImportacion.errores.length}:</p>
+                      <ul className="list-inside list-disc text-warning-foreground">
                         {resumenImportacion.errores.map((err, i) => (
                           <li key={i}>{err.nombre}: {err.motivo}</li>
                         ))}
                       </ul>
                     </div>
                   )}
-                  <p className="text-emerald-700">
+                  <p className="text-success-foreground">
                     Los alumnos que quedaron sólo con nombre aparecen marcados como "Datos incompletos" en la lista; usa "Completar datos" para agregarles número de control, correo o contraseña cuando los tengas.
                   </p>
-                  <button
+                  <Button variant="default"
                     type="button"
                     onClick={() => setModal(false)}
-                    className="w-full rounded-xl bg-blue-600 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700"
+                    className="w-full py-2.5 text-sm font-medium"
                   >
                     Listo
-                  </button>
+                  </Button>
                 </div>
               ) : (
                 <>
-                  <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-4">
-                    <p className="text-sm text-gray-600">
+                  <div className="rounded-xl border border-dashed border-border bg-background p-4">
+                    <p className="text-sm text-muted-foreground">
                       Sube el documento con la lista del grupo (Excel .xlsx/.xls o CSV). No importa el orden de las columnas ni
                       que traiga encabezado: el número de control, el correo y el teléfono se reconocen solos. Sólo el nombre es
                       obligatorio; lo demás podrás completarlo después desde esta misma lista.
                     </p>
-                    <input
+                    <input aria-label="Archivo de alumnos (Excel o CSV)"
                       ref={fileInputRef}
                       type="file"
                       accept=".xlsx,.xls,.csv"
                       onChange={manejarArchivo}
-                      className="mt-3 block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-600 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-blue-700"
+                      className="mt-3 block w-full text-sm text-muted-foreground file:mr-3 file:rounded-lg file:border-0 file:bg-primary file:px-3 file:py-2 file:text-sm file:font-medium file:text-primary-foreground hover:file:bg-primary-strong"
                     />
                     {archivoNombre && (
-                      <p className="mt-2 text-xs text-gray-500">Archivo cargado: {archivoNombre}</p>
+                      <p className="mt-2 text-xs text-muted-foreground">Archivo cargado: {archivoNombre}</p>
                     )}
                   </div>
 
                   {filasImportar.length > 0 && (
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <p className="text-sm font-medium text-gray-700">
+                        <p className="text-sm font-medium text-foreground">
                           Revisa la lista antes de importar ({filasImportar.length} alumno{filasImportar.length === 1 ? '' : 's'})
                         </p>
-                        <button
+                        <Button variant="ghost"
                           type="button"
                           onClick={agregarFilaImportar}
-                          className="text-xs font-medium text-blue-600 hover:underline"
+                          className="text-xs font-medium text-primary-ink hover:underline"
                         >
                           + Agregar fila
-                        </button>
+                        </Button>
                       </div>
-                      <div className="max-h-72 overflow-auto rounded-xl border border-gray-100">
+                      <div className="max-h-72 overflow-auto rounded-xl border border-border">
                         <table className="w-full min-w-[620px] text-sm">
-                          <thead className="sticky top-0 bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+                          <thead className="sticky top-0 bg-background text-left text-xs uppercase tracking-wide text-muted-foreground">
                             <tr>
                               <th className="px-2 py-2">Nombre *</th>
                               <th className="px-2 py-2">Núm. control</th>
@@ -569,7 +572,7 @@ export default function AlumnosMateriaCard({ materia, puedeEditar, onActualizado
                           </thead>
                           <tbody>
                             {filasImportar.map((fila, indice) => (
-                              <tr key={indice} className="border-t border-gray-100">
+                              <tr key={indice} className="border-t border-border">
                                 {['nombre', 'numeroControl', 'email', 'telefono'].map((campo) => {
                                   const invalido =
                                     campo === 'numeroControl' &&
@@ -577,25 +580,25 @@ export default function AlumnosMateriaCard({ materia, puedeEditar, onActualizado
                                     !esNumeroControlValido(fila.numeroControl)
                                   return (
                                     <td key={campo} className="px-2 py-1.5">
-                                      <input
+                                      <input aria-label={`${campo} del alumno ${indice + 1}`}
                                         value={fila[campo]}
                                         onChange={(event) => actualizarFilaImportar(indice, campo, event.target.value)}
                                         title={invalido ? 'Debe tener el formato 225Q0103' : undefined}
-                                        className={`w-full rounded-lg border px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                                          invalido ? 'border-red-500' : 'border-gray-200'
+                                        className={`w-full rounded-lg border px-2 py-1.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                                          invalido ? "border-destructive/30" : "border-border"
                                         }`}
                                       />
                                     </td>
                                   )
                                 })}
                                 <td className="px-2 py-1.5 text-right">
-                                  <button
+                                  <Button variant="destructive"
                                     type="button"
                                     onClick={() => quitarFilaImportar(indice)}
-                                    className="text-xs font-medium text-red-500 hover:underline"
+                                    className="text-xs font-medium hover:underline"
                                   >
                                     Quitar
-                                  </button>
+                                  </Button>
                                 </td>
                               </tr>
                             ))}
@@ -605,16 +608,16 @@ export default function AlumnosMateriaCard({ materia, puedeEditar, onActualizado
                     </div>
                   )}
 
-                  {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
+                  {error && <p role="alert" className="text-sm text-destructive-foreground">{error}</p>}
 
-                  <button
+                  <Button variant="default"
                     type="button"
                     onClick={confirmarImportacion}
                     disabled={guardando || filasImportar.length === 0}
-                    className="w-full rounded-xl bg-blue-600 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-50"
+                    className="w-full py-2.5 text-sm font-medium disabled:opacity-50"
                   >
                     {guardando ? 'Importando...' : `Importar ${filasImportar.length || ''}`.trim()}
-                  </button>
+                  </Button>
                 </>
               )}
             </div>
@@ -624,7 +627,7 @@ export default function AlumnosMateriaCard({ materia, puedeEditar, onActualizado
 
       <Modal open={completarModal} onClose={cerrarCompletar} title={`Editar alumno — ${alumnoCompletar?.nombre ?? ''}`}>
         <form onSubmit={guardarCompletar} className="space-y-3">
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-muted-foreground">
             {alumnoCompletar && !alumnoCompletar.numeroControl
               ? 'Este alumno se dio de alta sólo con su nombre. Agrega lo que tengas a la mano; puedes completar el resto más tarde.'
               : 'Corrige los datos del alumno. Deja la contraseña vacía si no quieres cambiarla.'}
@@ -637,7 +640,7 @@ export default function AlumnosMateriaCard({ materia, puedeEditar, onActualizado
             { campo: 'password', etiqueta: 'Contraseña (déjalo vacío para no cambiarla)', tipo: 'password' },
           ].map((campo) => (
             <div key={campo.campo}>
-              <label htmlFor={`completar-${campo.campo}`} className="mb-1 block text-xs font-medium text-gray-700">
+              <label htmlFor={`completar-${campo.campo}`} className="mb-1 block text-xs font-medium text-foreground">
                 {campo.etiqueta}
               </label>
               <input
@@ -647,23 +650,23 @@ export default function AlumnosMateriaCard({ materia, puedeEditar, onActualizado
                 placeholder={campo.placeholder}
                 value={formCompletar[campo.campo]}
                 onChange={(event) => setFormCompletar({ ...formCompletar, [campo.campo]: event.target.value })}
-                className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-xl border border-border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
             </div>
           ))}
           {!formCompletar.numeroControl && (
-            <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+            <p className="rounded-lg bg-warning/10 px-3 py-2 text-xs text-warning-foreground">
               Sin número de control, correo o contraseña real el alumno no podrá iniciar sesión todavía.
             </p>
           )}
-          {errorCompletar && <p role="alert" className="text-sm text-red-500">{errorCompletar}</p>}
-          <button
+          {errorCompletar && <p role="alert" className="text-sm text-destructive-foreground">{errorCompletar}</p>}
+          <Button variant="default"
             type="submit"
             disabled={guardandoCompletar}
-            className="w-full rounded-xl bg-blue-600 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-50"
+            className="w-full py-2.5 text-sm font-medium disabled:opacity-50"
           >
             {guardandoCompletar ? 'Guardando...' : 'Guardar datos'}
-          </button>
+          </Button>
         </form>
       </Modal>
     </article>

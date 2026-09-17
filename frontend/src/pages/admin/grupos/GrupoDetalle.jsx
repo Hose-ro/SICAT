@@ -1,3 +1,5 @@
+import { Button } from '@/components/ui/button'
+import Modal from '@/components/Modal'
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useGrupoStore } from '../../../store/grupoStore'
@@ -17,7 +19,7 @@ export default function GrupoDetalle() {
   const [modalMaterias, setModalMaterias] = useState(false)
   const [confirmEliminar, setConfirmEliminar] = useState(false)
 
-  useEffect(() => { seleccionarGrupo(Number(id)) }, [id])
+  useEffect(() => { seleccionarGrupo(Number(id)) }, [id, seleccionarGrupo])
 
   const [eliminando, setEliminando] = useState(false)
 
@@ -35,11 +37,11 @@ export default function GrupoDetalle() {
   }
 
   if (loading && !grupoActivo) {
-    return <p className="text-sm text-gray-400 p-6">Cargando...</p>
+    return <p className="text-sm text-muted-foreground p-6">Cargando...</p>
   }
 
   if (!grupoActivo) {
-    return <p className="text-sm text-gray-400 p-6">Grupo no encontrado.</p>
+    return <p className="text-sm text-muted-foreground p-6">Grupo no encontrado.</p>
   }
 
   const tabs = [
@@ -52,52 +54,52 @@ export default function GrupoDetalle() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-wrap items-start gap-4">
-        <button
+        <Button variant="ghost"
           onClick={() => navigate('/admin/grupos')}
-          className="text-gray-400 hover:text-gray-600 text-xl mt-1"
+          className="text-muted-foreground hover:text-muted-foreground text-xl mt-1"
         >
           ←
-        </button>
+        </Button>
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl font-bold text-blue-600 sm:text-3xl">{grupoActivo.nombre}</h1>
-            <span className="text-sm bg-blue-50 text-blue-600 px-2.5 py-1 rounded-full font-medium">
+            <h1 className="text-2xl font-bold text-primary-ink sm:text-3xl">{grupoActivo.nombre}</h1>
+            <span className="text-sm bg-accent text-primary-ink px-2.5 py-1 rounded-full font-medium">
               Sem. {grupoActivo.semestre}
             </span>
-            <span className="text-xs text-gray-400">{grupoActivo.periodo}</span>
+            <span className="text-xs text-muted-foreground">{grupoActivo.periodo}</span>
           </div>
-          <p className="text-sm text-gray-500 mt-0.5">{grupoActivo.carrera?.nombre}</p>
+          <p className="text-sm text-muted-foreground mt-0.5">{grupoActivo.carrera?.nombre}</p>
         </div>
-        <button
+        <Button variant="destructive"
           onClick={() => setConfirmEliminar(true)}
-          className="text-xs text-red-500 hover:text-red-700 border border-red-200 hover:border-red-400 px-3 py-1.5 rounded-xl transition"
+          className="text-xs border px-3 py-1.5"
         >
           Eliminar
-        </button>
+        </Button>
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700 flex items-center justify-between">
+        <div className="bg-destructive/10 border border-destructive/30 rounded-lg px-4 py-3 text-sm text-destructive-foreground flex items-center justify-between">
           <span>{error}</span>
-          <button onClick={clearError} className="text-red-400 hover:text-red-600 ml-4">✕</button>
+          <Button variant="destructive" onClick={clearError} className="ml-4">✕</Button>
         </div>
       )}
 
       {/* Tabs */}
       <div className="overflow-x-auto pb-1">
-        <div className="flex w-max gap-1 rounded-xl bg-gray-100 p-1">
+        <div className="flex w-max gap-1 rounded-xl bg-muted p-1">
           {tabs.map((t) => (
-            <button
+            <Button variant="ghost"
               key={t.key}
               onClick={() => setTab(t.key)}
               className={`shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition ${
                 tab === t.key
-                  ? 'bg-white text-blue-600 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
+                  ? "bg-card text-primary-ink shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               {t.label}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
@@ -127,32 +129,30 @@ export default function GrupoDetalle() {
 
       {/* Confirm eliminar */}
       {confirmEliminar && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40">
-          <div className="mx-4 w-full max-w-sm space-y-4 rounded-2xl bg-white p-4 shadow-xl sm:p-6">
-            <h3 className="text-lg font-semibold text-gray-800">¿Eliminar grupo?</h3>
-            <p className="text-sm text-gray-500">
+        <Modal open onClose={() => setConfirmEliminar(false)} title="¿Eliminar grupo?" busy={eliminando}>
+            
+            <p className="text-sm text-muted-foreground">
               El grupo <strong>{grupoActivo.nombre}</strong> se borrará definitivamente junto con su horario. Esta acción no se puede deshacer.
             </p>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-muted-foreground">
               Sus alumnos quedan sin grupo y el historial académico se conserva: las clases, tareas y calificaciones siguen registradas en cada materia.
             </p>
             <div className="flex flex-col gap-2 sm:flex-row">
-              <button
+              <Button variant="outline"
                 onClick={() => setConfirmEliminar(false)}
-                className="flex-1 border border-gray-300 text-gray-700 py-2 rounded-xl text-sm hover:bg-gray-50 transition"
+                className="flex-1 border py-2 text-sm"
               >
                 Cancelar
-              </button>
-              <button
+              </Button>
+              <Button variant="destructive"
                 onClick={handleEliminar}
                 disabled={eliminando}
-                className="flex-1 bg-red-600 text-white py-2 rounded-xl text-sm hover:bg-red-700 transition disabled:opacity-50"
+                className="flex-1 py-2 text-sm disabled:opacity-50"
               >
                 {eliminando ? 'Eliminando...' : 'Eliminar'}
-              </button>
+              </Button>
             </div>
-          </div>
-        </div>
+          </Modal>
       )}
     </div>
   )

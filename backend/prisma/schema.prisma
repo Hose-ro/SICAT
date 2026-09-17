@@ -338,22 +338,26 @@ model Aula {
 }
 
 model Materia {
-  id          Int      @id @default(autoincrement())
-  nombre      String
-  clave       String
-  descripcion String?
-  horaInicio  String   @default("")
-  horaFin     String   @default("")
-  dias        String   @default("")
-  numUnidades Int      @default(3)
-  docenteId   Int?
-  docente     Usuario? @relation("DocenteMateria", fields: [docenteId], references: [id])
-  aulaId      Int?
-  aula        Aula?    @relation(fields: [aulaId], references: [id])
-  carreraId   Int?
-  carrera     Carrera? @relation(fields: [carreraId], references: [id])
-  semestre    Int?
-  createdAt   DateTime @default(now())
+  id             Int      @id @default(autoincrement())
+  nombre         String
+  clave          String
+  descripcion    String?
+  horaInicio     String   @default("")
+  horaFin        String   @default("")
+  dias           String   @default("")
+  numUnidades    Int      @default(3)
+  /// Ponderación de la calificación por unidad (tareas / asistencia). Se guarda
+  /// aquí para que reportes, exportaciones y la vista del alumno coincidan.
+  pesoTareas     Int      @default(80)
+  pesoAsistencia Int      @default(20)
+  docenteId      Int?
+  docente        Usuario? @relation("DocenteMateria", fields: [docenteId], references: [id])
+  aulaId         Int?
+  aula           Aula?    @relation(fields: [aulaId], references: [id])
+  carreraId      Int?
+  carrera        Carrera? @relation(fields: [carreraId], references: [id])
+  semestre       Int?
+  createdAt      DateTime @default(now())
 
   unidades       Unidad[]
   academias      Academia[]           @relation("MateriaAcademia")

@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
+import Modal from '@/components/Modal'
+import { useEffect, useState } from 'react'
 import { CalendarClock, MapPin, UserRound, UsersRound, X } from 'lucide-react'
 import api from '@/api/axios'
 
@@ -10,10 +11,10 @@ const ESTADO_LABELS = {
 }
 
 const ESTADO_STYLES = {
-  ASISTENCIA: 'border-emerald-200 bg-emerald-100 text-emerald-800',
-  RETARDO: 'border-amber-200 bg-amber-100 text-amber-800',
-  FALTA: 'border-rose-200 bg-rose-100 text-rose-800',
-  JUSTIFICADA: 'border-sky-200 bg-sky-100 text-sky-800',
+  ASISTENCIA: "border-success/30 bg-success/10 text-success-foreground",
+  RETARDO: "border-warning/30 bg-warning/10 text-warning-foreground",
+  FALTA: "border-destructive/30 bg-destructive/10 text-destructive-foreground",
+  JUSTIFICADA: "border-border bg-accent text-primary-ink",
 }
 
 function formatHora(value) {
@@ -31,55 +32,24 @@ export default function AsistenciaSesionModal({ sesionId, onClose }) {
   // evitando los renders en cascada de actualizar loading/error/data por separado.
   const [{ data, loading, error }, setState] = useState({ data: null, loading: true, error: '' })
 
-  const cargar = useCallback(async () => {
-    setState({ data: null, loading: true, error: '' })
-    try {
-      const { data: response } = await api.get(`/jefe-carrera/sesiones/${sesionId}/asistencia`)
-      setState({ data: response, loading: false, error: '' })
-    } catch (requestError) {
-      setState({
-        data: null,
-        loading: false,
-        error: requestError.response?.data?.message ?? 'No se pudo cargar la asistencia de la sesión',
-      })
-    }
+  useEffect(() => {
+    let cancelled = false
+    api.get(`/jefe-carrera/sesiones/${sesionId}/asistencia`)
+      .then(({ data: response }) => { if (!cancelled) setState({ data: response, loading: false, error: '' }) })
+      .catch((requestError) => { if (!cancelled) setState({ data: null, loading: false, error: requestError.response?.data?.message ?? 'No se pudo cargar la asistencia de la sesión' }) })
+    return () => { cancelled = true }
   }, [sesionId])
 
-  useEffect(() => { cargar() }, [cargar])
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div
-        className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-card shadow-xl"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="sticky top-0 flex items-start justify-between gap-3 border-b border-border bg-card p-5">
-          <div className="min-w-0">
-            <p className="flex items-center gap-1.5 text-xs font-medium text-success">
-              <span className="h-2 w-2 animate-pulse rounded-full bg-success" aria-hidden="true" /> En vivo
-            </p>
-            <h3 className="mt-1 truncate text-lg font-semibold text-foreground">
-              {data?.sesion?.materia?.nombre ?? 'Clase en curso'}
-            </h3>
-            <p className="truncate text-sm text-muted-foreground">
-              {data?.sesion?.docente?.nombre} · {data?.sesion?.grupo?.nombre ?? 'Sin grupo'}
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            aria-label="Cerrar"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
+    <Modal open onClose={onClose} title={data?.sesion?.materia?.nombre ?? 'Clase en curso'} wide><p className="text-sm text-muted-foreground">{data?.sesion?.docente?.nombre} · {data?.sesion?.grupo?.nombre ?? 'Sin grupo'}</p>
+        
 
         <div className="p-5">
           {loading && (
             <p className="py-10 text-center text-sm text-muted-foreground">Cargando información de la sesión…</p>
           )}
           {error && (
-            <p className="rounded-xl border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            <p className="rounded-xl border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground">
               {error}
             </p>
           )}
@@ -129,8 +99,7 @@ export default function AsistenciaSesionModal({ sesionId, onClose }) {
             </div>
           )}
         </div>
-      </div>
-    </div>
+      </Modal>
   )
 }
 
@@ -145,10 +114,10 @@ function InfoTile({ icon, label, value }) {
 
 function Pill({ label, value, tone }) {
   const tones = {
-    emerald: 'bg-emerald-100 text-emerald-800',
-    amber: 'bg-amber-100 text-amber-800',
-    rose: 'bg-rose-100 text-rose-800',
-    sky: 'bg-sky-100 text-sky-800',
+    emerald: "bg-success/10 text-success-foreground",
+    amber: "bg-warning/10 text-warning-foreground",
+    rose: "bg-destructive/10 text-destructive-foreground",
+    sky: "bg-accent text-primary-ink",
   }
   return (
     <span className={`rounded-full px-3 py-1 font-semibold ${tones[tone]}`}>

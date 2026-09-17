@@ -1,6 +1,7 @@
+import { Button } from '@/components/ui/button'
 import { useCallback, useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { CiCalendarDate, CiClock2, CiEdit, CiRead, CiTrash, CiUser } from 'react-icons/ci'
+import { Link } from 'react-router-dom'
+import { CalendarDays as CiCalendarDate, Clock as CiClock2, Pencil as CiEdit, BookOpen as CiRead, Trash2 as CiTrash, UserRound as CiUser } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import Modal from '../components/Modal'
 import api from '../api/axios'
@@ -18,7 +19,6 @@ function mensajeError(error, fallback) {
 
 export default function Materias() {
   const { user } = useAuthStore()
-  const navigate = useNavigate()
   const [materias, setMaterias] = useState([])
   const [busqueda, setBusqueda] = useState('')
   const [filtroCarrera, setFiltroCarrera] = useState('')
@@ -139,47 +139,46 @@ export default function Materias() {
 
   const MateriaCard = ({ m }) => (
     <div
-      className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex cursor-pointer flex-col gap-3 transition hover:shadow-md"
-      onClick={() => navigate(esAlumno ? `/alumno/materias/${m.id}` : `/materias/${m.id}`)}
+      className="bg-card rounded-2xl border border-border shadow-sm p-5 flex cursor-pointer flex-col gap-3 transition hover:shadow-md"
     >
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
-          <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg">{m.clave}</span>
-          <h3 className="font-semibold text-gray-800 mt-1">{m.nombre}</h3>
+          <span className="text-xs font-bold text-primary-ink bg-accent px-2 py-0.5 rounded-lg">{m.clave}</span>
+          <h2 className="font-semibold text-foreground mt-1"><Link className="hover:underline" to={esAlumno ? `/alumno/materias/${m.id}` : `/materias/${m.id}`}>{m.nombre}</Link></h2>
         </div>
         <div className="ml-2 flex shrink-0 flex-col items-end gap-2">
-          <span className="text-xs text-gray-400">{m._count?.inscripciones ?? 0} alumnos</span>
+          <span className="text-xs text-muted-foreground">{m._count?.inscripciones ?? 0} alumnos</span>
           {esAdmin && (
-            <button
+            <Button variant="outline"
               type="button"
               onClick={(event) => {
                 event.stopPropagation()
                 abrirEdicion(m)
               }}
-              className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-input bg-background px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
+              className="inline-flex min-h-9 items-center gap-1.5 border border-input px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
               aria-label={`Editar ${m.nombre}`}
             >
               <CiEdit className="h-4 w-4" aria-hidden="true" />
               Editar
-            </button>
+            </Button>
           )}
           {esAdmin && (
-            <button
+            <Button variant="destructive"
               type="button"
               onClick={(event) => {
                 event.stopPropagation()
                 pedirEliminar(m)
               }}
-              className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-red-200 bg-background px-3 text-xs font-medium text-red-600 transition-colors hover:bg-red-50 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-red-400/40"
+              className="inline-flex min-h-9 items-center gap-1.5 border px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
               aria-label={`Eliminar ${m.nombre}`}
             >
               <CiTrash className="h-4 w-4" aria-hidden="true" />
               Eliminar
-            </button>
+            </Button>
           )}
         </div>
       </div>
-      <div className="text-xs text-gray-500 space-y-1">
+      <div className="text-xs text-muted-foreground space-y-1">
         <p className="flex items-center gap-2">
           <CiUser className="shrink-0" />
           <span>{m.docente?.nombre ? m.docente.nombre : 'Por asignar desde horarios'}</span>
@@ -210,12 +209,12 @@ export default function Materias() {
         action={
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
             {canCreate && (
-              <button
+              <Button variant="default"
                 onClick={abrirCreacion}
-                className="w-full rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 sm:w-auto"
+                className="w-full px-4 py-2 text-sm font-medium sm:w-auto"
               >
                 + Nueva materia
-              </button>
+              </Button>
             )}
           </div>
         }
@@ -224,25 +223,25 @@ export default function Materias() {
       {/* Filtros — solo para admin/docente */}
       {!esAlumno && (
         <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-          <input
+          <input aria-label="Buscar por nombre o clave"
             type="text"
             placeholder="Buscar por nombre o clave..."
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
-            className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-60"
+            className="w-full rounded-xl border border-border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-60"
           />
-          <select
+          <select aria-label="Semestre"
             value={filtroCarrera}
             onChange={(e) => { setFiltroCarrera(e.target.value); setFiltroSemestre('') }}
-            className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-60"
+            className="w-full rounded-xl border border-border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-60"
           >
             <option value="">Todas las carreras</option>
             {carreras.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
           </select>
-          <select
+          <select aria-label="Semestre"
             value={filtroSemestre}
             onChange={(e) => setFiltroSemestre(e.target.value)}
-            className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-36"
+            className="w-full rounded-xl border border-border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-36"
           >
             <option value="">Todos los semestres</option>
             {[1,2,3,4,5,6,7,8].map((s) => (
@@ -250,15 +249,15 @@ export default function Materias() {
             ))}
           </select>
           {hayFiltros && (
-            <button
+            <Button variant="ghost"
               onClick={() => { setBusqueda(''); setFiltroCarrera(''); setFiltroSemestre('') }}
-              className="text-sm text-gray-400 hover:text-gray-600 px-2 transition"
+              className="text-sm text-muted-foreground hover:text-muted-foreground px-2"
             >
               Limpiar
-            </button>
+            </Button>
           )}
           {hayFiltros && (
-            <span className="text-sm text-gray-400 self-center">
+            <span className="text-sm text-muted-foreground self-center">
               {materiasFiltradas.length} resultado{materiasFiltradas.length !== 1 ? 's' : ''}
             </span>
           )}
@@ -268,7 +267,7 @@ export default function Materias() {
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {materiasFiltradas.map((m) => <MateriaCard key={m.id} m={m} />)}
         {materiasFiltradas.length === 0 && (
-          <div className="col-span-full text-center py-16 text-gray-400">
+          <div className="col-span-full text-center py-16 text-muted-foreground">
             {esAlumno
               ? 'No hay materias disponibles para tu grupo, carrera o semestre.'
               : hayFiltros ? 'No hay materias que coincidan con los filtros.'
@@ -280,39 +279,39 @@ export default function Materias() {
       <Modal open={modal} onClose={cerrarModal} title={editandoId ? 'Editar materia' : 'Nueva materia'}>
         <form onSubmit={guardar} className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
           <div>
-            <label htmlFor="materia-nombre" className="block text-xs font-medium text-gray-700 mb-1">Nombre *</label>
+            <label htmlFor="materia-nombre" className="block text-xs font-medium text-foreground mb-1">Nombre *</label>
             <input id="materia-nombre" required value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })}
               placeholder="Ej: Cálculo Diferencial"
-              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              className="w-full border border-border rounded-xl px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
           </div>
           <div>
-            <label htmlFor="materia-clave" className="block text-xs font-medium text-gray-700 mb-1">Clave *</label>
+            <label htmlFor="materia-clave" className="block text-xs font-medium text-foreground mb-1">Clave *</label>
             <input id="materia-clave" required value={form.clave} onChange={(e) => setForm({ ...form, clave: e.target.value.toUpperCase() })}
               placeholder="RSB-2403"
-              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              className="w-full border border-border rounded-xl px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
           </div>
 
           <div>
-            <label htmlFor="materia-descripcion" className="block text-xs font-medium text-gray-700 mb-1">Descripción</label>
+            <label htmlFor="materia-descripcion" className="block text-xs font-medium text-foreground mb-1">Descripción</label>
             <textarea id="materia-descripcion" rows={3} value={form.descripcion} onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
               placeholder="Opcional"
-              className="w-full resize-y border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              className="w-full resize-y border border-border rounded-xl px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
           </div>
 
           {/* Carrera y semestre */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
-              <label htmlFor="materia-carrera" className="block text-xs font-medium text-gray-700 mb-1">Carrera</label>
+              <label htmlFor="materia-carrera" className="block text-xs font-medium text-foreground mb-1">Carrera</label>
               <select id="materia-carrera" value={form.carreraId} onChange={(e) => setForm({ ...form, carreraId: e.target.value })}
-                className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                className="w-full border border-border rounded-xl px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                 <option value="">Todas</option>
                 {carreras.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
               </select>
             </div>
             <div>
-              <label htmlFor="materia-semestre" className="block text-xs font-medium text-gray-700 mb-1">Semestre</label>
+              <label htmlFor="materia-semestre" className="block text-xs font-medium text-foreground mb-1">Semestre</label>
               <select id="materia-semestre" value={form.semestre} onChange={(e) => setForm({ ...form, semestre: e.target.value })}
-                className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                className="w-full border border-border rounded-xl px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                 <option value="">Todos</option>
                 {[1,2,3,4,5,6,7,8,9,10,11,12].map((s) => (
                   <option key={s} value={s}>{s}°</option>
@@ -323,24 +322,24 @@ export default function Materias() {
 
           {!editandoId && (
             <div>
-              <label htmlFor="materia-unidades" className="block text-xs font-medium text-gray-700 mb-1">Número de unidades</label>
+              <label htmlFor="materia-unidades" className="block text-xs font-medium text-foreground mb-1">Número de unidades</label>
               <input id="materia-unidades" type="number" min={1} max={10} required value={form.numUnidades}
                 onChange={(e) => setForm({ ...form, numUnidades: e.target.value })}
-                className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                className="w-full border border-border rounded-xl px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
             </div>
           )}
-          <div className="rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-700">
+          <div className="rounded-xl border border-border bg-accent px-3 py-2 text-xs text-primary-ink">
             El horario, docente, aula y grupo se asignan después desde el módulo <strong>Gestión de Horarios</strong>.
           </div>
-          {error && <p role="alert" className="text-red-500 text-xs">{error}</p>}
+          {error && <p role="alert" className="text-destructive-foreground text-xs">{error}</p>}
           <div className="flex flex-col gap-2 sm:flex-row">
-            <button type="submit" disabled={guardando} className="flex-1 bg-blue-600 text-white py-2.5 rounded-xl font-medium hover:bg-blue-700 transition disabled:cursor-not-allowed disabled:opacity-50">
+            <Button variant="default" type="submit" disabled={guardando} className="flex-1 py-2.5 font-medium disabled:cursor-not-allowed disabled:opacity-50">
               {guardando ? 'Guardando...' : editandoId ? 'Guardar cambios' : 'Crear materia'}
-            </button>
+            </Button>
             {editandoId && (
-              <button type="button" onClick={cerrarModal} disabled={guardando} className="rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50">
+              <Button variant="outline" type="button" onClick={cerrarModal} disabled={guardando} className="border px-4 py-2.5 text-sm font-medium disabled:opacity-50">
                 Cancelar
-              </button>
+              </Button>
             )}
           </div>
         </form>
@@ -348,30 +347,30 @@ export default function Materias() {
 
       <Modal open={confirmacion.open} onClose={cerrarConfirmacion} title="Eliminar materia">
         <div className="space-y-4">
-          <p className="text-sm text-gray-700">
+          <p className="text-sm text-foreground">
             Se eliminará definitivamente <strong>{confirmacion.materia?.nombre}</strong> ({confirmacion.materia?.clave}). Esta acción no se puede deshacer.
           </p>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-muted-foreground">
             Se borran también sus unidades, horarios, sesiones de clase con sus asistencias, tareas con sus entregas, inscripciones y calificaciones. Los grupos y las academias se conservan, sólo dejan de tenerla asignada.
           </p>
-          {confirmacion.error && <p role="alert" className="text-sm text-red-500">{confirmacion.error}</p>}
+          {confirmacion.error && <p role="alert" className="text-sm text-destructive-foreground">{confirmacion.error}</p>}
           <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-            <button
+            <Button variant="outline"
               type="button"
               onClick={cerrarConfirmacion}
               disabled={confirmacion.loading}
-              className="rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
+              className="border px-4 py-2.5 text-sm font-medium disabled:opacity-50"
             >
               Cancelar
-            </button>
-            <button
+            </Button>
+            <Button variant="destructive"
               type="button"
               onClick={eliminarMateria}
               disabled={confirmacion.loading}
-              className="rounded-xl bg-red-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-red-700 disabled:opacity-50"
+              className="px-4 py-2.5 text-sm font-medium disabled:opacity-50"
             >
               {confirmacion.loading ? 'Eliminando...' : 'Eliminar'}
-            </button>
+            </Button>
           </div>
         </div>
       </Modal>

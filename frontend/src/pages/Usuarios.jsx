@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { useId, useCallback, useEffect, useState } from 'react'
 import { CheckCircle2, Eye, GraduationCap, KeyRound, Pencil, Power, Trash2 } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import Modal from '../components/Modal'
@@ -7,10 +8,10 @@ import api from '../api/axios'
 import { EMAIL_AUTH_ENABLED } from '../lib/authFeatures'
 
 const ROL_COLORS = {
-  ADMIN: 'bg-purple-100 text-purple-700',
-  JEFE_CARRERA: 'bg-amber-100 text-amber-700',
-  DOCENTE: 'bg-blue-100 text-blue-700',
-  ALUMNO: 'bg-green-100 text-green-700',
+  ADMIN: 'bg-muted text-foreground',
+  JEFE_CARRERA: 'bg-muted text-foreground',
+  DOCENTE: 'bg-muted text-foreground',
+  ALUMNO: 'bg-muted text-foreground',
 }
 
 const AUTH_EVENT_LABELS = {
@@ -41,14 +42,14 @@ const puedeAprobar = (user) => !EMAIL_AUTH_ENABLED || Boolean(user.emailVerifica
 
 const getAccountStatus = (user) => {
   if (!user.activo) {
-    return { label: 'Inactivo', className: 'bg-gray-100 text-gray-500' }
+    return { label: 'Inactivo', className: "bg-muted text-muted-foreground" }
   }
   if (user.rol === 'ALUMNO' && !user.registroAprobado) {
     return puedeAprobar(user)
-      ? { label: 'Pendiente de aprobación', className: 'bg-blue-100 text-blue-700' }
-      : { label: 'Pendiente de correo', className: 'bg-amber-100 text-amber-700' }
+      ? { label: 'Pendiente de aprobación', className: "bg-accent text-primary-ink" }
+      : { label: 'Pendiente de correo', className: "bg-warning/10 text-warning-foreground" }
   }
-  return { label: 'Activo', className: 'bg-green-100 text-green-700' }
+  return { label: 'Activo', className: "bg-success/10 text-success-foreground" }
 }
 
 const EMPTY_FORM = {
@@ -124,12 +125,13 @@ const buildEditPayload = (user, form) => {
 }
 
 function UsuarioFormFields({ form, setForm, carreras, academias, mode }) {
+  const fieldId = useId()
   const isEdit = mode === 'edit'
   return (
     <>
       <div>
-        <label className="block text-xs font-medium text-gray-700 mb-1">Rol *</label>
-        <select
+        <label htmlFor={fieldId + '-control-132'} className="block text-xs font-medium text-foreground mb-1">Rol *</label>
+        <select id={fieldId + '-control-132'}
           value={form.rol}
           onChange={(e) => setForm({
             ...form,
@@ -141,7 +143,7 @@ function UsuarioFormFields({ form, setForm, carreras, academias, mode }) {
             numeroControl: e.target.value === 'ALUMNO' ? form.numeroControl : '',
             username: e.target.value === 'ALUMNO' ? '' : form.username,
           })}
-          className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full border border-border rounded-xl px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <option value="DOCENTE">Docente</option>
           <option value="JEFE_CARRERA">Jefe de carrera</option>
@@ -150,49 +152,49 @@ function UsuarioFormFields({ form, setForm, carreras, academias, mode }) {
         </select>
       </div>
       <div>
-        <label className="block text-xs font-medium text-gray-700 mb-1">Nombre completo *</label>
-        <input required value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })}
-          className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        <label htmlFor={fieldId + '-control-154'} className="block text-xs font-medium text-foreground mb-1">Nombre completo *</label>
+        <input id={fieldId + '-control-154'} required value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })}
+          className="w-full border border-border rounded-xl px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
       </div>
       <div>
-        <label className="block text-xs font-medium text-gray-700 mb-1">
+        <p className="block text-xs font-medium text-foreground mb-1">
           {form.rol === 'ALUMNO' ? 'Número de control' : 'Usuario (username)'}
-        </label>
+        </p>
         {form.rol === 'ALUMNO' ? (
-          <input required value={form.numeroControl} onChange={(e) => setForm({ ...form, numeroControl: e.target.value })}
+          <input aria-label="225Q0103" required value={form.numeroControl} onChange={(e) => setForm({ ...form, numeroControl: e.target.value })}
             placeholder="225Q0103"
             pattern="\d{3}[A-Za-z]\d{4}"
-            className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            className="w-full border border-border rounded-xl px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
         ) : (
-          <input required value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })}
+          <input aria-label="prof.garcia" required value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })}
             placeholder="prof.garcia"
-            className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            className="w-full border border-border rounded-xl px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
         )}
       </div>
       <div>
-        <label className="block text-xs font-medium text-gray-700 mb-1">Correo electrónico</label>
-        <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
-          className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        <label htmlFor={fieldId + '-control-174'} className="block text-xs font-medium text-foreground mb-1">Correo electrónico</label>
+        <input id={fieldId + '-control-174'} type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
+          className="w-full border border-border rounded-xl px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
         {isEdit && (
-          <p className="mt-1 text-xs text-gray-400">
+          <p className="mt-1 text-xs text-muted-foreground">
             Cambiar el correo cierra las sesiones activas y exige verificarlo de nuevo.
           </p>
         )}
       </div>
       {!isEdit && (
         <div>
-          <label className="block text-xs font-medium text-gray-700 mb-1">Contraseña *</label>
-          <input required type="password" minLength={8} maxLength={72} autoComplete="new-password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })}
-            className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <label htmlFor={fieldId + '-control-185'} className="block text-xs font-medium text-foreground mb-1">Contraseña *</label>
+          <input id={fieldId + '-control-185'} required type="password" minLength={8} maxLength={72} autoComplete="new-password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })}
+            className="w-full border border-border rounded-xl px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
         </div>
       )}
       {form.rol === 'DOCENTE' && (
         <div>
-          <label className="block text-xs font-medium text-gray-700 mb-1">Academia</label>
-          <select
+          <label htmlFor={fieldId + '-control-192'} className="block text-xs font-medium text-foreground mb-1">Academia</label>
+          <select id={fieldId + '-control-192'}
             value={form.academiaId}
             onChange={(e) => setForm({ ...form, academiaId: e.target.value })}
-            className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full border border-border rounded-xl px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <option value="">Selecciona academia</option>
             {academias.map((academia) => (
@@ -202,7 +204,7 @@ function UsuarioFormFields({ form, setForm, carreras, academias, mode }) {
             ))}
           </select>
           {academias.length === 0 && (
-            <p className="mt-1 text-xs text-amber-600">
+            <p className="mt-1 text-xs text-warning-foreground">
               No hay academias activas registradas.
             </p>
           )}
@@ -211,25 +213,25 @@ function UsuarioFormFields({ form, setForm, carreras, academias, mode }) {
       {form.rol === 'ALUMNO' && (
         <>
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Carrera</label>
-            <select required value={form.carreraId} onChange={(e) => setForm({ ...form, carreraId: e.target.value })}
-              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <label htmlFor={fieldId + '-control-215'} className="block text-xs font-medium text-foreground mb-1">Carrera</label>
+            <select id={fieldId + '-control-215'} required value={form.carreraId} onChange={(e) => setForm({ ...form, carreraId: e.target.value })}
+              className="w-full border border-border rounded-xl px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
               <option value="">Selecciona carrera</option>
               {carreras.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Semestre</label>
-            <input required type="number" min={1} max={12} value={form.semestre} onChange={(e) => setForm({ ...form, semestre: e.target.value })}
-              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <label htmlFor={fieldId + '-control-223'} className="block text-xs font-medium text-foreground mb-1">Semestre</label>
+            <input id={fieldId + '-control-223'} required type="number" min={1} max={12} value={form.semestre} onChange={(e) => setForm({ ...form, semestre: e.target.value })}
+              className="w-full border border-border rounded-xl px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
           </div>
         </>
       )}
       {form.rol === 'JEFE_CARRERA' && (
-        <fieldset className="space-y-2 rounded-xl border border-gray-200 p-3">
-          <legend className="px-1 text-xs font-medium text-gray-700">Carreras asignadas *</legend>
+        <fieldset className="space-y-2 rounded-xl border border-border p-3">
+          <legend className="px-1 text-xs font-medium text-foreground">Carreras asignadas *</legend>
           {carreras.map((carrera) => (
-            <label key={carrera.id} className="flex items-center gap-3 rounded-lg px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-50">
+            <label key={carrera.id} className="flex items-center gap-3 rounded-lg px-2 py-1.5 text-sm text-foreground hover:bg-background">
               <input
                 type="checkbox"
                 checked={form.carreraIds.includes(carrera.id)}
@@ -243,16 +245,16 @@ function UsuarioFormFields({ form, setForm, carreras, academias, mode }) {
               <span>{carrera.codigo} · {carrera.nombre}</span>
             </label>
           ))}
-          {!carreras.length && <p className="text-xs text-amber-600">No hay carreras registradas.</p>}
+          {!carreras.length && <p className="text-xs text-warning-foreground">No hay carreras registradas.</p>}
         </fieldset>
       )}
       <div>
-        <label className="block text-xs font-medium text-gray-700 mb-1">Teléfono</label>
-        <input type="tel" pattern="\d{10}" value={form.telefono} onChange={(e) => setForm({ ...form, telefono: e.target.value })}
-          className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        <label htmlFor={fieldId + '-control-251'} className="block text-xs font-medium text-foreground mb-1">Teléfono</label>
+        <input id={fieldId + '-control-251'} type="tel" pattern="\d{10}" value={form.telefono} onChange={(e) => setForm({ ...form, telefono: e.target.value })}
+          className="w-full border border-border rounded-xl px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
       </div>
       {isEdit && (
-        <label className="flex items-center gap-3 rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-700">
+        <label className="flex items-center gap-3 rounded-xl border border-border px-3 py-2.5 text-sm text-foreground">
           <input
             type="checkbox"
             checked={form.activo}
@@ -266,6 +268,7 @@ function UsuarioFormFields({ form, setForm, carreras, academias, mode }) {
 }
 
 export default function Usuarios() {
+  const fieldId = useId()
   const [usuarios, setUsuarios] = useState([])
   const [filtroRol, setFiltroRol] = useState('')
   const [filtroNombre, setFiltroNombre] = useState('')
@@ -480,21 +483,21 @@ export default function Usuarios() {
 
   /** Acciones reveladas al deslizar una fila en la lista móvil (mismas que los botones de escritorio). */
   const accionesMovil = (u) => [
-    { key: 'ver', label: 'Ver', icon: <Eye className="h-4 w-4" />, className: 'bg-gray-500', onClick: () => abrirDetalle(u) },
-    { key: 'editar', label: 'Editar', icon: <Pencil className="h-4 w-4" />, className: 'bg-indigo-600', onClick: () => abrirEdicion(u) },
+    { key: 'ver', label: 'Ver', icon: <Eye className="h-4 w-4" />, className: "bg-muted", onClick: () => abrirDetalle(u) },
+    { key: 'editar', label: 'Editar', icon: <Pencil className="h-4 w-4" />, className: "bg-primary text-primary-foreground", onClick: () => abrirEdicion(u) },
     u.rol === 'JEFE_CARRERA' && {
-      key: 'carreras', label: 'Carreras', icon: <GraduationCap className="h-4 w-4" />, className: 'bg-amber-500', onClick: () => abrirCarreras(u),
+      key: 'carreras', label: 'Carreras', icon: <GraduationCap className="h-4 w-4" />, className: "bg-warning", onClick: () => abrirCarreras(u),
     },
     u.rol === 'ALUMNO' && u.activo && !u.registroAprobado && {
-      key: 'aprobar', label: 'Aprobar', icon: <CheckCircle2 className="h-4 w-4" />, className: 'bg-emerald-600',
+      key: 'aprobar', label: 'Aprobar', icon: <CheckCircle2 className="h-4 w-4" />, className: "bg-success text-success-on-fill",
       disabled: !puedeAprobar(u), onClick: () => solicitarConfirmacion(u, 'approve'),
     },
     {
       key: 'toggle', label: u.activo ? 'Desactivar' : 'Activar', icon: <Power className="h-4 w-4" />,
-      className: u.activo ? 'bg-orange-500' : 'bg-green-600', onClick: () => solicitarConfirmacion(u, 'toggle'),
+      className: u.activo ? "bg-warning text-warning-on-fill" : "bg-success text-success-on-fill", onClick: () => solicitarConfirmacion(u, 'toggle'),
     },
-    { key: 'password', label: 'Clave', icon: <KeyRound className="h-4 w-4" />, className: 'bg-blue-500', onClick: () => abrirPassword(u) },
-    { key: 'eliminar', label: 'Eliminar', icon: <Trash2 className="h-4 w-4" />, className: 'bg-red-600', onClick: () => solicitarConfirmacion(u, 'delete') },
+    { key: 'password', label: 'Clave', icon: <KeyRound className="h-4 w-4" />, className: "bg-primary text-primary-foreground", onClick: () => abrirPassword(u) },
+    { key: 'eliminar', label: 'Eliminar', icon: <Trash2 className="h-4 w-4" />, className: "bg-destructive text-destructive-on-fill", onClick: () => solicitarConfirmacion(u, 'delete') },
   ].filter(Boolean)
 
   const salirDeSeleccion = () => {
@@ -541,127 +544,119 @@ export default function Usuarios() {
         title="Usuarios"
         subtitle="Gestión de administradores, jefaturas, docentes y alumnos"
         action={
-          <button
+          <Button variant="default"
             onClick={() => setModal(true)}
-            className="w-full rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 sm:w-auto"
+            className="w-full px-4 py-2 text-sm font-medium sm:w-auto"
           >
             + Nuevo usuario
-          </button>
+          </Button>
         }
       />
 
       {aviso && (
-        <div className="mb-3 flex items-start justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+        <div className="mb-3 flex items-start justify-between gap-3 rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm text-success-foreground">
           <span>{aviso}</span>
-          <button onClick={() => setAviso('')} className="text-emerald-500 hover:text-emerald-700" aria-label="Cerrar aviso">✕</button>
+          <Button variant="ghost" onClick={() => setAviso('')} className="text-success-foreground hover:text-success-foreground" aria-label="Cerrar aviso">✕</Button>
         </div>
       )}
 
       <div className="flex flex-wrap gap-2 mb-3">
         {['', 'ADMIN', 'JEFE_CARRERA', 'DOCENTE', 'ALUMNO'].map((r) => (
-          <button
+          <Button variant="ghost"
             key={r}
             onClick={() => setFiltroRol(r)}
-            className={`px-4 py-1.5 rounded-full text-sm font-medium transition ${filtroRol === r ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:border-blue-300'}`}
+            className={`px-4 py-1.5 rounded-full text-sm font-medium transition ${filtroRol === r ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground border border-border hover:border-border"}`}
           >
             {r === 'JEFE_CARRERA' ? 'Jefes de carrera' : (r || 'Todos')}
-          </button>
+          </Button>
         ))}
       </div>
 
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-        <input
+        <input aria-label="Buscar por nombre"
           type="text"
           placeholder="Buscar por nombre..."
           value={filtroNombre}
           onChange={(e) => setFiltroNombre(e.target.value)}
-          className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-56"
+          className="w-full rounded-xl border border-border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-56"
         />
-        <select
+        <select aria-label="Carrera"
           value={filtroCarrera}
           onChange={(e) => setFiltroCarrera(e.target.value)}
-          className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-56"
+          className="w-full rounded-xl border border-border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-56"
         >
           <option value="">Todas las carreras</option>
           {carreras.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
         </select>
         {(filtroNombre || filtroCarrera) && (
-          <button
+          <Button variant="ghost"
             onClick={() => { setFiltroNombre(''); setFiltroCarrera('') }}
-            className="text-sm text-gray-400 hover:text-gray-600 px-2 transition"
+            className="text-sm text-muted-foreground hover:text-muted-foreground px-2"
           >
             Limpiar filtros
-          </button>
+          </Button>
         )}
       </div>
 
       <div className="mb-3 flex flex-wrap items-center gap-3">
         {modoSeleccion ? (
           <>
-            <span className="text-sm text-gray-500">
+            <span className="text-sm text-muted-foreground">
               {seleccionados.length} de {usuariosFiltrados.length} seleccionado(s)
             </span>
-            <button
-              onClick={alternarTodos}
-              className="text-sm font-medium text-blue-600 hover:text-blue-700 transition"
-            >
+            <Button variant="link" type="button" onClick={alternarTodos} className="px-0 text-sm">
               {todosSeleccionados ? 'Quitar selección' : 'Seleccionar todos'}
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="destructive"
+              type="button"
               onClick={() => setLoteState({ open: true, loading: false, error: '' })}
               disabled={seleccionados.length === 0}
-              className="ml-auto rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-45"
+              className="ml-auto px-3 py-1.5 text-sm disabled:cursor-not-allowed"
             >
               Eliminar {seleccionados.length > 0 ? `(${seleccionados.length})` : ''}
-            </button>
-            <button
-              onClick={salirDeSeleccion}
-              className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-50"
-            >
+            </Button>
+            <Button variant="outline" type="button" onClick={salirDeSeleccion} className="border px-3 py-1.5 text-sm">
               Cancelar
-            </button>
+            </Button>
           </>
         ) : (
-          <button
-            onClick={() => setModoSeleccion(true)}
-            className="text-sm font-medium text-gray-500 hover:text-gray-700 transition"
-          >
+          <Button variant="ghost" type="button" onClick={() => setModoSeleccion(true)} className="px-3 py-1.5 text-sm text-muted-foreground">
             Seleccionar
-          </button>
+          </Button>
         )}
       </div>
 
       {/* Lista móvil: desliza una fila hacia la izquierda para ver sus acciones
           (o, en modo selección, marca varios usuarios con checkbox) */}
-      <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm sm:hidden">
+      <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm sm:hidden">
         {usuariosFiltrados.map((u) => (
           modoSeleccion ? (
-            <div
+            <label
               key={u.id}
-              onClick={() => alternarSeleccion(u.id)}
-              className="flex items-center gap-3 border-b border-gray-100 px-4 py-3 last:border-b-0"
+              className="flex cursor-pointer items-center gap-3 border-b border-border px-4 py-3 last:border-b-0"
             >
               <input
                 type="checkbox"
                 checked={seleccionados.includes(u.id)}
                 onChange={() => alternarSeleccion(u.id)}
-                onClick={(e) => e.stopPropagation()}
+                aria-label={`Seleccionar a ${u.nombre}`}
                 className="h-4 w-4 shrink-0"
               />
               <div className="min-w-0 flex-1">
-                <p className="truncate font-medium text-gray-800">{u.nombre}</p>
-                <p className="truncate text-xs text-gray-500">
+                <p className="truncate font-medium text-foreground">{u.nombre}</p>
+                <p className="truncate text-xs text-muted-foreground">
                   {u.numeroControl || u.username || u.email || '—'}
                 </p>
               </div>
               <span className={`shrink-0 text-xs px-2 py-1 rounded-full font-medium ${ROL_COLORS[u.rol]}`}>{u.rol}</span>
-            </div>
+            </label>
           ) : (
             <SwipeableRow key={u.id} actions={accionesMovil(u)} onTap={() => abrirDetalle(u)}>
               <div className="flex items-center justify-between gap-3 px-4 py-3">
                 <div className="min-w-0">
-                  <p className="truncate font-medium text-gray-800">{u.nombre}</p>
-                  <p className="truncate text-xs text-gray-500">
+                  <p className="truncate font-medium text-foreground">{u.nombre}</p>
+                  <p className="truncate text-xs text-muted-foreground">
                     {u.numeroControl || u.username || u.email || '—'}
                   </p>
                 </div>
@@ -676,18 +671,18 @@ export default function Usuarios() {
           )
         ))}
         {usuariosFiltrados.length === 0 && (
-          <p className="text-center text-gray-400 py-10">No hay usuarios</p>
+          <p className="text-center text-muted-foreground py-10">No hay usuarios</p>
         )}
         {usuariosFiltrados.length > 0 && !modoSeleccion && (
-          <p className="border-t border-gray-100 px-4 py-2 text-center text-[11px] text-gray-400">
+          <p className="border-t border-border px-4 py-2 text-center text-[11px] text-muted-foreground">
             Desliza un usuario hacia la izquierda para ver sus acciones
           </p>
         )}
       </div>
 
-      <div className="hidden overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-sm sm:block">
+      <div className="hidden overflow-x-auto rounded-2xl border border-border bg-card shadow-sm sm:block" tabIndex={0} role="region" aria-label="Tabla de usuarios">
         <table className="w-full min-w-[760px] text-sm">
-          <thead className="bg-gray-50 border-b border-gray-100">
+          <thead className="bg-background border-b border-border">
             <tr>
               {modoSeleccion && (
                 <th className="w-10 px-4 py-3">
@@ -695,32 +690,34 @@ export default function Usuarios() {
                     type="checkbox"
                     checked={todosSeleccionados}
                     onChange={alternarTodos}
+                    aria-label="Seleccionar todos los usuarios"
                     className="h-4 w-4"
                   />
                 </th>
               )}
-              <th className="text-left px-4 py-3 font-medium text-gray-500">Nombre</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">Identificador</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">Rol</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">Estado</th>
-              <th className="text-right px-4 py-3 font-medium text-gray-500">Acciones</th>
+              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Nombre</th>
+              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Identificador</th>
+              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Rol</th>
+              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Estado</th>
+              <th className="text-right px-4 py-3 font-medium text-muted-foreground">Acciones</th>
             </tr>
           </thead>
           <tbody>
             {usuariosFiltrados.map((u) => (
-              <tr key={u.id} className="group border-b border-gray-50 transition hover:bg-gray-50">
+              <tr key={u.id} className="group border-b border-border transition hover:bg-background">
                 {modoSeleccion && (
                   <td className="px-4 py-3">
                     <input
                       type="checkbox"
                       checked={seleccionados.includes(u.id)}
                       onChange={() => alternarSeleccion(u.id)}
+                      aria-label={`Seleccionar a ${u.nombre}`}
                       className="h-4 w-4"
                     />
                   </td>
                 )}
-                <td className="px-4 py-3 font-medium text-gray-800">{u.nombre}</td>
-                <td className="px-4 py-3 text-gray-500">{u.numeroControl || u.username || u.email || '—'}</td>
+                <td className="px-4 py-3 font-medium text-foreground">{u.nombre}</td>
+                <td className="px-4 py-3 text-muted-foreground">{u.numeroControl || u.username || u.email || '—'}</td>
                 <td className="px-4 py-3">
                   <span className={`text-xs px-2 py-1 rounded-full font-medium ${ROL_COLORS[u.rol]}`}>{u.rol}</span>
                 </td>
@@ -732,66 +729,66 @@ export default function Usuarios() {
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap items-center justify-end gap-2">
                     {/* Ver detalle */}
-                    <button
+                    <Button variant="outline"
                       onClick={() => abrirDetalle(u)}
-                      className="text-xs px-3 py-1.5 rounded-lg font-medium text-gray-600 hover:bg-gray-100 border border-gray-200 transition"
+                      className="text-xs px-3 py-1.5 font-medium border"
                     >
                       Ver
-                    </button>
+                    </Button>
 
-                    <button
+                    <Button variant="outline"
                       onClick={() => abrirEdicion(u)}
-                      className="text-xs px-3 py-1.5 rounded-lg font-medium text-indigo-600 hover:bg-indigo-50 border border-indigo-200 transition"
+                      className="text-xs px-3 py-1.5 font-medium border"
                     >
                       Editar
-                    </button>
+                    </Button>
 
                       {u.rol === 'JEFE_CARRERA' && (
-                      <button
+                      <Button variant="outline"
                         onClick={() => abrirCarreras(u)}
-                        className="text-xs px-3 py-1.5 rounded-lg font-medium text-amber-700 hover:bg-amber-50 border border-amber-200 transition"
+                        className="text-xs px-3 py-1.5 font-medium text-warning-foreground border border-warning/30"
                       >
                         Carreras
-                      </button>
+                      </Button>
                       )}
 
                       {u.rol === 'ALUMNO' && u.activo && !u.registroAprobado && (
-                        <button
+                        <Button variant="outline" aria-label={puedeAprobar(u) ? 'Aprobar registro' : 'El correo aún no está verificado'}
                           onClick={() => solicitarConfirmacion(u, 'approve')}
                           disabled={!puedeAprobar(u)}
                           title={puedeAprobar(u) ? 'Aprobar registro' : 'El correo aún no está verificado'}
-                          className="text-xs px-3 py-1.5 rounded-lg font-medium text-emerald-700 hover:bg-emerald-50 border border-emerald-200 transition disabled:cursor-not-allowed disabled:opacity-45"
+                          className="text-xs px-3 py-1.5 font-medium text-success-foreground border border-success/30 disabled:cursor-not-allowed disabled:opacity-45"
                         >
                           Aprobar
-                        </button>
+                        </Button>
                       )}
 
                     {/* Desactivar/Contraseña/Eliminar: sólo aparecen con el mouse encima de la fila. */}
                     <div className="hidden items-center gap-2 group-hover:flex">
-                      <button
+                      <Button variant="ghost"
                         onClick={() => solicitarConfirmacion(u, 'toggle')}
                         className={`text-xs px-3 py-1.5 rounded-lg font-medium transition ${
                           u.activo
-                            ? 'text-orange-600 hover:bg-orange-50 border border-orange-200'
-                            : 'text-green-600 hover:bg-green-50 border border-green-200'
+                            ? "text-warning-foreground hover:bg-warning/10 border border-warning/30"
+                            : "text-success-foreground hover:bg-success/10 border border-success/30"
                         }`}
                       >
                         {u.activo ? 'Desactivar' : 'Activar'}
-                      </button>
+                      </Button>
 
-                      <button
+                      <Button variant="outline"
                         onClick={() => abrirPassword(u)}
-                        className="text-xs px-3 py-1.5 rounded-lg font-medium text-blue-500 hover:bg-blue-50 border border-blue-200 transition"
+                        className="text-xs px-3 py-1.5 font-medium border"
                       >
                         Contraseña
-                      </button>
+                      </Button>
 
-                      <button
+                      <Button variant="destructive"
                         onClick={() => solicitarConfirmacion(u, 'delete')}
-                        className="text-xs px-3 py-1.5 rounded-lg font-medium text-red-600 hover:bg-red-50 border border-red-200 transition"
+                        className="text-xs px-3 py-1.5 font-medium border"
                       >
                         Eliminar
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 </td>
@@ -800,7 +797,7 @@ export default function Usuarios() {
           </tbody>
         </table>
         {usuariosFiltrados.length === 0 && (
-          <p className="text-center text-gray-400 py-10">No hay usuarios</p>
+          <p className="text-center text-muted-foreground py-10">No hay usuarios</p>
         )}
       </div>
 
@@ -813,10 +810,10 @@ export default function Usuarios() {
             academias={academias}
             mode="create"
           />
-          {formError && <p className="text-sm text-red-500">{formError}</p>}
-          <button type="submit" className="w-full bg-blue-600 text-white py-2.5 rounded-xl font-medium hover:bg-blue-700 transition mt-2">
+          {formError && <p className="text-sm text-destructive-foreground">{formError}</p>}
+          <Button variant="default" type="submit" className="w-full py-2.5 font-medium mt-2">
             Crear usuario
-          </button>
+          </Button>
         </form>
       </Modal>
 
@@ -834,23 +831,23 @@ export default function Usuarios() {
             academias={academias}
             mode="edit"
           />
-          {editModal.error && <p role="alert" className="text-sm text-red-500">{editModal.error}</p>}
+          {editModal.error && <p role="alert" className="text-sm text-destructive-foreground">{editModal.error}</p>}
           <div className="flex justify-end gap-3 pt-2">
-            <button
+            <Button variant="outline"
               type="button"
               disabled={editModal.loading}
               onClick={cerrarEdicion}
-              className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 disabled:opacity-50"
+              className="border px-4 py-2 text-sm font-medium disabled:opacity-50"
             >
               Cancelar
-            </button>
-            <button
+            </Button>
+            <Button variant="default"
               type="submit"
               disabled={editModal.loading}
-              className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-50"
+              className="px-4 py-2 text-sm font-medium disabled:opacity-50"
             >
               {editModal.loading ? 'Guardando...' : 'Guardar cambios'}
-            </button>
+            </Button>
           </div>
         </form>
       </Modal>
@@ -861,7 +858,7 @@ export default function Usuarios() {
           const rows = [
             { label: 'Nombre', value: u.nombre },
             { label: 'Rol', value: <span className={`text-xs px-2 py-1 rounded-full font-medium ${ROL_COLORS[u.rol]}`}>{u.rol}</span> },
-            { label: 'Estado', value: <span className={`text-xs px-2 py-1 rounded-full font-medium ${u.activo ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{u.activo ? 'Activo' : 'Inactivo'}</span> },
+            { label: 'Estado', value: <span className={`text-xs px-2 py-1 rounded-full font-medium ${u.activo ? "bg-success/10 text-success-foreground" : "bg-muted text-muted-foreground"}`}>{u.activo ? 'Activo' : 'Inactivo'}</span> },
             { label: 'Correo', value: u.email || '—' },
             {
               label: 'Correo verificado',
@@ -896,26 +893,26 @@ export default function Usuarios() {
           ].filter(Boolean)
 
           return (
-            <div className="space-y-0 divide-y divide-gray-100">
+            <div className="space-y-0 divide-y divide-border">
               {rows.map(({ label, value }) => (
                 <div key={label} className="flex flex-col gap-1 py-2.5 text-sm sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-                  <span className="text-gray-500 font-medium">{label}</span>
-                  <span className="text-gray-800 text-right">{value}</span>
+                  <span className="text-muted-foreground font-medium">{label}</span>
+                  <span className="text-foreground text-right">{value}</span>
                 </div>
               ))}
               <div className="space-y-3 py-4">
-                <h4 className="text-sm font-semibold text-gray-800">Actividad de acceso</h4>
-                {authAudit.loading && <p className="text-sm text-gray-500">Cargando actividad...</p>}
-                {authAudit.error && <p role="alert" className="text-sm text-red-500">{authAudit.error}</p>}
+                <h3 className="text-sm font-semibold text-foreground">Actividad de acceso</h3>
+                {authAudit.loading && <p className="text-sm text-muted-foreground">Cargando actividad...</p>}
+                {authAudit.error && <p role="alert" className="text-sm text-destructive-foreground">{authAudit.error}</p>}
                 {!authAudit.loading && !authAudit.error && authAudit.items.length === 0 && (
-                  <p className="text-sm text-gray-500">Sin eventos registrados.</p>
+                  <p className="text-sm text-muted-foreground">Sin eventos registrados.</p>
                 )}
                 {authAudit.items.slice(0, 10).map((event) => (
                   <div key={event.id} className="flex flex-col gap-1 text-xs sm:flex-row sm:justify-between">
-                    <span className="font-medium text-gray-700">
+                    <span className="font-medium text-foreground">
                       {AUTH_EVENT_LABELS[event.tipo] ?? event.tipo}
                     </span>
-                    <span className="text-gray-500">
+                    <span className="text-muted-foreground">
                       {new Date(event.createdAt).toLocaleString('es-MX')}
                       {event.ip ? ` · ${event.ip}` : ''}
                     </span>
@@ -930,9 +927,9 @@ export default function Usuarios() {
       <Modal open={careerModal.open} onClose={() => setCareerModal({ open: false, user: null, carreraIds: [] })} title={`Carreras de ${careerModal.user?.nombre ?? ''}`}>
         <form onSubmit={guardarCarrerasJefe} className="space-y-4">
           <fieldset className="space-y-2">
-            <legend className="mb-2 text-sm font-medium text-gray-700">Selecciona una o varias carreras</legend>
+            <legend className="mb-2 text-sm font-medium text-foreground">Selecciona una o varias carreras</legend>
             {carreras.map((carrera) => (
-              <label key={carrera.id} className="flex items-center gap-3 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">
+              <label key={carrera.id} className="flex items-center gap-3 rounded-xl border border-border px-3 py-2 text-sm text-foreground hover:bg-background">
                 <input
                   type="checkbox"
                   checked={careerModal.carreraIds.includes(carrera.id)}
@@ -947,10 +944,10 @@ export default function Usuarios() {
               </label>
             ))}
           </fieldset>
-          {formError && <p className="text-sm text-red-500">{formError}</p>}
-          <button type="submit" disabled={!careerModal.carreraIds.length} className="w-full rounded-xl bg-blue-600 py-2.5 font-medium text-white hover:bg-blue-700 disabled:opacity-50">
+          {formError && <p className="text-sm text-destructive-foreground">{formError}</p>}
+          <Button variant="default" type="submit" disabled={!careerModal.carreraIds.length} className="w-full py-2.5 font-medium disabled:opacity-50">
             Guardar asignación
-          </button>
+          </Button>
         </form>
       </Modal>
 
@@ -958,22 +955,22 @@ export default function Usuarios() {
       <Modal open={pwModal.open} onClose={() => setPwModal({ open: false, user: null })} title={`Cambiar contraseña — ${pwModal.user?.nombre ?? ''}`}>
         <form onSubmit={cambiarPassword} className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Nueva contraseña</label>
-            <input
+            <label htmlFor={fieldId + '-control-839'} className="block text-xs font-medium text-foreground mb-1">Nueva contraseña</label>
+            <input id={fieldId + '-control-839'}
               type="password" required minLength={8} maxLength={72}
               autoComplete="new-password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder="Mínimo 8 caracteres"
-              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-border rounded-xl px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
           </div>
           {pwMsg && (
-            <p className={`text-sm font-medium ${pwMsg.startsWith('¡') ? 'text-green-600' : 'text-red-500'}`}>{pwMsg}</p>
+            <p className={`text-sm font-medium ${pwMsg.startsWith('¡') ? "text-success-foreground" : "text-destructive-foreground"}`}>{pwMsg}</p>
           )}
-          <button type="submit" className="w-full bg-blue-600 text-white py-2.5 rounded-xl font-medium hover:bg-blue-700 transition">
+          <Button variant="default" type="submit" className="w-full py-2.5 font-medium">
             Guardar nueva contraseña
-          </button>
+          </Button>
         </form>
       </Modal>
 
@@ -995,43 +992,43 @@ export default function Usuarios() {
         <div className="space-y-5">
           {confirmation.action === 'delete' ? (
             <div className="space-y-2">
-              <p className="text-sm text-gray-700">
+              <p className="text-sm text-foreground">
                 Se eliminará definitivamente la cuenta de {confirmation.user?.nombre ?? 'este usuario'}. Esta acción no se puede deshacer.
               </p>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-muted-foreground">
                 Se borrará también todo su historial académico: inscripciones, asistencias, calificaciones y entregas; si es docente, además sus tareas, sesiones de clase y horarios. Las materias, los grupos y las aulas se conservan.
               </p>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-muted-foreground">
                 Si sólo quieres impedirle el acceso, usa <strong>Desactivar</strong> en su lugar.
               </p>
             </div>
           ) : (
-            <p className="text-sm text-gray-700">
+            <p className="text-sm text-foreground">
               {confirmation.action === 'approve'
                 ? `Se permitirá que ${confirmation.user?.nombre ?? 'el alumno'} inicie sesión.`
                 : `${confirmation.user?.activo ? 'Se desactivará' : 'Se activará'} la cuenta de ${confirmation.user?.nombre ?? 'este usuario'}.`}
             </p>
           )}
           {confirmation.error && (
-            <p role="alert" className="text-sm text-red-500">{confirmation.error}</p>
+            <p role="alert" className="text-sm text-destructive-foreground">{confirmation.error}</p>
           )}
           <div className="flex justify-end gap-3">
-            <button
+            <Button variant="outline"
               type="button"
               disabled={confirmation.loading}
               onClick={() => setConfirmation({ open: false, user: null, action: null, loading: false, error: '' })}
-              className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 disabled:opacity-50"
+              className="border px-4 py-2 text-sm font-medium disabled:opacity-50"
             >
               Cancelar
-            </button>
-            <button
+            </Button>
+            <Button variant="ghost"
               type="button"
               disabled={confirmation.loading}
               onClick={ejecutarAccion}
-              className={`rounded-lg px-4 py-2 text-sm font-medium text-white disabled:opacity-50 ${
+              className={`rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50 ${
                 confirmation.action === 'delete'
-                  ? 'bg-red-600 hover:bg-red-700'
-                  : 'bg-blue-600 hover:bg-blue-700'
+                  ? "bg-destructive/10 text-destructive-foreground hover:bg-destructive/20"
+                  : "bg-primary text-primary-foreground hover:bg-primary-strong"
               }`}
             >
               {confirmation.loading
@@ -1039,7 +1036,7 @@ export default function Usuarios() {
                 : confirmation.action === 'delete'
                   ? 'Eliminar'
                   : 'Confirmar'}
-            </button>
+            </Button>
           </div>
         </div>
       </Modal>
@@ -1048,36 +1045,37 @@ export default function Usuarios() {
         open={loteState.open}
         onClose={() => { if (!loteState.loading) setLoteState({ open: false, loading: false, error: '' }) }}
         title="Eliminar usuarios seleccionados"
+        busy={loteState.loading}
       >
         <div className="space-y-5">
           <div className="space-y-2">
-            <p className="text-sm text-gray-700">
+            <p className="text-sm text-foreground">
               Se eliminarán definitivamente {seleccionados.length} cuenta{seleccionados.length === 1 ? '' : 's'}. Esta acción no se puede deshacer.
             </p>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-muted-foreground">
               Se borrará también todo su historial académico: inscripciones, asistencias, calificaciones y entregas; si alguno es docente, además sus tareas, sesiones de clase y horarios. Las materias, los grupos y las aulas se conservan.
             </p>
           </div>
           {loteState.error && (
-            <p role="alert" className="text-sm text-red-500">{loteState.error}</p>
+            <p role="alert" className="text-sm text-destructive-foreground">{loteState.error}</p>
           )}
           <div className="flex justify-end gap-3">
-            <button
+            <Button variant="outline"
               type="button"
               disabled={loteState.loading}
               onClick={() => setLoteState({ open: false, loading: false, error: '' })}
-              className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 disabled:opacity-50"
+              className="border px-4 py-2 text-sm disabled:opacity-50"
             >
               Cancelar
-            </button>
-            <button
+            </Button>
+            <Button variant="destructive"
               type="button"
               disabled={loteState.loading}
               onClick={ejecutarEliminacionLote}
-              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700 disabled:opacity-50"
+              className="px-4 py-2 text-sm disabled:opacity-50"
             >
               {loteState.loading ? 'Eliminando...' : `Eliminar ${seleccionados.length}`}
-            </button>
+            </Button>
           </div>
         </div>
       </Modal>

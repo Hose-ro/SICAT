@@ -46,8 +46,21 @@ export const tareasUploadOptions: Options = {
   },
 };
 
-export function buildPublicUploadUrl(filename: string) {
+/**
+ * Ruta lógica con la que se guarda un archivo en la BD. No se sirve como
+ * estático: `TareasArchivosController` la resuelve tras verificar sesión y
+ * pertenencia, así que sólo el nombre de archivo es público.
+ */
+export function buildUploadUrl(filename: string) {
   return `/uploads/tareas/${filename}`;
+}
+
+/** Nombres generados por `validatedUploadStorage`: UUID + extensión permitida. */
+const UPLOAD_FILENAME =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(pdf|docx?|png|jpe?g|webp)$/;
+
+export function isUploadFilename(filename: string) {
+  return UPLOAD_FILENAME.test(filename);
 }
 
 export function fileTypeFromName(name: string) {

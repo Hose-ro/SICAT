@@ -1,3 +1,6 @@
+import useAsyncAction from '@/hooks/useAsyncAction'
+import { Button } from '@/components/ui/button'
+import { confirmAction } from '@/lib/feedback'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
@@ -25,14 +28,14 @@ const TASK_STATE_CLASS = {
   BORRADOR: 'bg-muted text-foreground',
   PUBLICADA: 'bg-success/10 text-foreground',
   VENCIDA: 'bg-warning/10 text-foreground',
-  CERRADA: 'bg-destructive/10 text-destructive',
+  CERRADA: "bg-destructive/10 text-destructive-foreground",
 }
 
 const DELIVERY_STATE_CLASS = {
   PENDIENTE: 'bg-muted text-foreground',
-  ENTREGADA: 'bg-primary/10 text-primary',
-  REVISADA: 'bg-primary/10 text-primary',
-  INCORRECTA: 'bg-destructive/10 text-destructive',
+  ENTREGADA: "bg-primary/10 text-primary-ink",
+  REVISADA: "bg-primary/10 text-primary-ink",
+  INCORRECTA: "bg-destructive/10 text-destructive-foreground",
   CALIFICADA: 'bg-success/10 text-foreground',
   NO_ENTREGADA: 'bg-warning/10 text-foreground',
 }
@@ -61,7 +64,7 @@ function SummaryCard({ icon, label, value, tone = 'blue' }) {
     <div className={`rounded-3xl border p-4 shadow-sm ${tones[tone] || tones.blue}`}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <p className="text-sm font-medium opacity-80">{label}</p>
+          <p className="text-sm font-medium">{label}</p>
           <p className="mt-2 text-3xl font-semibold">{value ?? 0}</p>
         </div>
         <div className="rounded-2xl bg-card p-3">
@@ -177,9 +180,9 @@ function DocenteTareasModule() {
     }
   }
 
-  const handleCloseUnit = useCallback(async () => {
+  const handleCloseUnit = useAsyncAction(async () => {
     if (!selectedUnit) return
-    if (selectedUnit.status !== 'FINALIZADA' && !window.confirm(`Cerrar «${selectedUnit.nombre}» finalizará la unidad. ¿Deseas continuar?`)) return
+    if (selectedUnit.status !== 'FINALIZADA' && !(await confirmAction(`Cerrar «${selectedUnit.nombre}» finalizará la unidad. ¿Deseas continuar?`))) return
     setActionError('')
     setClosingUnit(true)
     try {
@@ -201,7 +204,7 @@ function DocenteTareasModule() {
     } finally {
       setClosingUnit(false)
     }
-  }, [cargarMaterias, descargarCierreUnidad, filters.estado, filters.fecha, filters.grupoId, filters.materiaId, filters.unidadId, obtenerDocente, selectedUnit])
+  })
 
   return (
     <div className="space-y-6">
@@ -220,11 +223,11 @@ function DocenteTareasModule() {
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
             {selectedUnit && (
-              <button
+              <Button variant="ghost"
                 type="button"
                 onClick={handleCloseUnit}
                 disabled={closingUnit}
-                className="task-hero-button inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+                className="task-hero-button inline-flex items-center justify-center gap-2  px-5 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <FileDown className="h-4 w-4" />
                 {closingUnit
@@ -232,7 +235,7 @@ function DocenteTareasModule() {
                   : selectedUnit.status === 'FINALIZADA'
                     ? 'Descargar cierre de unidad'
                     : 'Cerrar unidad y descargar'}
-              </button>
+              </Button>
             )}
             <Link
               to={`/docente/tareas/crear${filters.materiaId ? `?materiaId=${filters.materiaId}${filters.grupoId ? `&grupoId=${filters.grupoId}` : ''}${filters.unidadId ? `&unidadId=${filters.unidadId}` : ''}` : ''}`}
@@ -321,14 +324,14 @@ function DocenteTareasModule() {
             />
           </label>
 
-          <button
+          <Button variant="outline"
             type="button"
             onClick={() => { setFilters({ materiaId: '', grupoId: '', unidadId: '', estado: '', fecha: '' }); setQuery('') }}
-            className="mt-auto inline-flex items-center justify-center gap-2 rounded-2xl border border-border px-4 py-3 text-sm font-semibold text-muted-foreground transition hover:bg-muted/40"
+            className="mt-auto inline-flex items-center justify-center gap-2 border px-4 py-3 text-sm font-semibold"
           >
             <RefreshCcw className="h-4 w-4" />
             Limpiar
-          </button>
+          </Button>
         </div>
       </section>
 
@@ -339,7 +342,7 @@ function DocenteTareasModule() {
             <p className="text-sm text-muted-foreground">Publica los borradores y entra a Ver entregas para revisar o calificar el trabajo del grupo.</p>
           </div>
           <div className="flex gap-2">
-            <button
+            <Button variant="outline"
               type="button"
               onClick={() => download(() => useTareaStore.getState().exportarReporte({
                 materiaId: filters.materiaId || undefined,
@@ -348,12 +351,12 @@ function DocenteTareasModule() {
                 estado: filters.estado || undefined,
                 fecha: filters.fecha || undefined,
               }, 'excel'))}
-              className="inline-flex items-center gap-2 rounded-2xl border border-border px-4 py-2.5 text-sm font-semibold text-muted-foreground transition hover:bg-muted/40"
+              className="inline-flex items-center gap-2 border px-4 py-2.5 text-sm font-semibold"
             >
               <Download className="h-4 w-4" />
               Excel
-            </button>
-            <button
+            </Button>
+            <Button variant="outline"
               type="button"
               onClick={() => download(() => useTareaStore.getState().exportarReporte({
                 materiaId: filters.materiaId || undefined,
@@ -362,11 +365,11 @@ function DocenteTareasModule() {
                 estado: filters.estado || undefined,
                 fecha: filters.fecha || undefined,
               }, 'pdf'))}
-              className="inline-flex items-center gap-2 rounded-2xl border border-border px-4 py-2.5 text-sm font-semibold text-muted-foreground transition hover:bg-muted/40"
+              className="inline-flex items-center gap-2 border px-4 py-2.5 text-sm font-semibold"
             >
               <FileDown className="h-4 w-4" />
               PDF
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -451,11 +454,11 @@ function DocenteTareasModule() {
                       <PenSquare className="h-4 w-4" />
                       Editar
                     </Link>
-                    <button
+                    <Button variant="outline"
                       type="button"
                       onClick={() => handleStateAction(task)}
                       disabled={busyId !== null}
-                      className="rounded-2xl border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground transition hover:bg-muted/40 disabled:opacity-60"
+                      className="border px-4 py-2.5 text-sm font-semibold disabled:opacity-60"
                     >
                       {busyId === task.id
                         ? 'Procesando...'
@@ -464,21 +467,21 @@ function DocenteTareasModule() {
                           : task.estado === 'CERRADA'
                             ? 'Reabrir'
                             : 'Cerrar'}
-                    </button>
-                    <button
+                    </Button>
+                    <Button variant="outline"
                       type="button"
                       onClick={() => download(() => exportarTarea(task.id, 'pdf'))}
-                      className="rounded-2xl border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground transition hover:bg-muted/40"
+                      className="border px-4 py-2.5 text-sm font-semibold"
                     >
                       PDF
-                    </button>
-                    <button
+                    </Button>
+                    <Button variant="outline"
                       type="button"
                       onClick={() => download(() => exportarTarea(task.id, 'excel'))}
-                      className="rounded-2xl border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground transition hover:bg-muted/40"
+                      className="border px-4 py-2.5 text-sm font-semibold"
                     >
                       Excel
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </article>
@@ -577,7 +580,7 @@ function AlumnoTareasModule() {
         </div>
 
         <TaskSearch query={query} setQuery={setQuery} order={order} setOrder={setOrder} />
-        <div className="mb-4 flex items-center justify-between gap-3 text-sm text-muted-foreground"><span aria-live="polite">{filteredTasks.length} {filteredTasks.length === 1 ? 'tarea encontrada' : 'tareas encontradas'}</span><button type="button" onClick={() => { setFilters({ materiaId: '', estado: '' }); setQuery('') }} className="font-semibold underline">Limpiar filtros</button></div>
+        <div className="mb-4 flex items-center justify-between gap-3 text-sm text-muted-foreground"><span aria-live="polite">{filteredTasks.length} {filteredTasks.length === 1 ? 'tarea encontrada' : 'tareas encontradas'}</span><Button variant="ghost" type="button" onClick={() => { setFilters({ materiaId: '', estado: '' }); setQuery('') }} className="font-semibold underline">Limpiar filtros</Button></div>
         {loading ? (
           <div className="rounded-3xl border border-dashed border-border bg-muted/40 px-6 py-16 text-center text-sm text-muted-foreground">
             Cargando tareas...

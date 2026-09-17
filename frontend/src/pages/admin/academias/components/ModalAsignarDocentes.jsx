@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button'
 import { useEffect, useState } from 'react'
 import api from '../../../../api/axios'
 import { useAcademiaStore } from '../../../../store/academiaStore'
@@ -53,17 +54,17 @@ export default function ModalAsignarDocentes({ open, onClose, academia }) {
   return (
     <Modal open={open} onClose={onClose} title="Agregar docentes a la academia">
       <div className="space-y-3">
-        <input
+        <input aria-label="Buscar docente por nombre"
           type="text"
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
           placeholder="Buscar docente por nombre..."
-          className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full border border-border rounded-xl px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
 
-        <div className="max-h-64 overflow-y-auto space-y-1 border border-gray-100 rounded-xl p-2">
+        <div className="max-h-64 overflow-y-auto space-y-1 border border-border rounded-xl p-2">
           {disponibles.length === 0 && (
-            <p className="text-sm text-gray-400 text-center py-4">
+            <p className="text-sm text-muted-foreground text-center py-4">
               {todosDocentes.length === 0
                 ? 'Cargando...'
                 : 'No hay docentes disponibles para agregar'}
@@ -72,33 +73,33 @@ export default function ModalAsignarDocentes({ open, onClose, academia }) {
           {disponibles.map((d) => (
             <label
               key={d.id}
-              className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-gray-50 cursor-pointer"
+              className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-background cursor-pointer"
             >
               <input
                 type="checkbox"
                 checked={seleccionados.includes(d.id)}
                 onChange={() => toggleSeleccion(d.id)}
-                className="accent-blue-600"
+                className="accent-primary"
               />
               <div>
-                <p className="text-sm font-medium text-gray-800">{d.nombre}</p>
-                {d.email && <p className="text-xs text-gray-400">{d.email}</p>}
+                <p className="text-sm font-medium text-foreground">{d.nombre}</p>
+                {d.email && <p className="text-xs text-muted-foreground">{d.email}</p>}
               </div>
             </label>
           ))}
         </div>
 
-        {error && <p className="text-sm text-red-500">{error}</p>}
+        {error && <p className="text-sm text-destructive-foreground">{error}</p>}
 
-        <button
+        <Button variant="default"
           onClick={handleAsignar}
           disabled={seleccionados.length === 0 || loading}
-          className="w-full bg-blue-600 text-white py-2.5 rounded-xl font-medium hover:bg-blue-700 transition disabled:opacity-50"
+          className="w-full py-2.5 font-medium disabled:opacity-50"
         >
           {loading
             ? 'Asignando...'
             : `Asignar ${seleccionados.length > 0 ? `(${seleccionados.length})` : 'seleccionados'}`}
-        </button>
+        </Button>
       </div>
     </Modal>
   )

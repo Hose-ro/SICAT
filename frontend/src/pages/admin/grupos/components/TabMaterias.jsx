@@ -1,15 +1,17 @@
+import { Button } from '@/components/ui/button'
+import { notify } from '@/lib/feedback'
 import { useEffect, useState } from 'react'
 import api from '../../../../api/axios'
 import { useGrupoStore } from '../../../../store/grupoStore'
 
 const ESTADO_CONFIG = {
-  ASIGNADA:   { label: 'Asignada',    cls: 'bg-green-100 text-green-700' },
-  DISPONIBLE: { label: 'Disponible',  cls: 'bg-blue-100 text-blue-700' },
-  FALTANTE:   { label: 'Sin materia', cls: 'bg-amber-100 text-amber-700' },
+  ASIGNADA:   { label: 'Asignada',    cls: "bg-success/10 text-success-foreground" },
+  DISPONIBLE: { label: 'Disponible',  cls: "bg-accent text-primary-ink" },
+  FALTANTE:   { label: 'Sin materia', cls: "bg-warning/10 text-warning-foreground" },
 }
 
 export default function TabMaterias({ grupo, onAgregarClick }) {
-  const { quitarMateria, agregarMaterias, seleccionarGrupo } = useGrupoStore()
+  const { quitarMateria, agregarMaterias } = useGrupoStore()
   const [confirmId, setConfirmId] = useState(null)
   const [loadingId, setLoadingId] = useState(null)
 
@@ -37,7 +39,7 @@ export default function TabMaterias({ grupo, onAgregarClick }) {
     try {
       await agregarMaterias(grupo.id, [materiaId])
     } catch (e) {
-      alert(e.message)
+      notify(e.message)
     } finally {
       setLoadingId(null)
     }
@@ -54,46 +56,46 @@ export default function TabMaterias({ grupo, onAgregarClick }) {
     <div className="space-y-4">
       {/* Header con toggle de vista */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex w-max gap-1 rounded-xl bg-gray-100 p-1">
-          <button
+        <div className="flex w-max gap-1 rounded-xl bg-muted p-1">
+          <Button variant="ghost"
             onClick={() => setVistaReticula(true)}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
-              vistaReticula ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              vistaReticula ? "bg-card text-primary-ink shadow-sm" : "text-muted-foreground hover:text-foreground"
             }`}
           >
             Retícula ({totalReticula})
-          </button>
-          <button
+          </Button>
+          <Button variant="ghost"
             onClick={() => setVistaReticula(false)}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
-              !vistaReticula ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              !vistaReticula ? "bg-card text-primary-ink shadow-sm" : "text-muted-foreground hover:text-foreground"
             }`}
           >
             Asignadas ({materias.length})
-          </button>
+          </Button>
         </div>
-        <button
+        <Button variant="default"
           onClick={onAgregarClick}
-          className="w-full rounded-xl bg-blue-600 px-4 py-2 text-sm text-white transition hover:bg-blue-700 sm:w-auto"
+          className="w-full px-4 py-2 text-sm sm:w-auto"
         >
           + Agregar materias
-        </button>
+        </Button>
       </div>
 
       {/* Resumen de estado */}
       {vistaReticula && totalReticula > 0 && (
         <div className="flex gap-3 flex-wrap">
           <div className="flex items-center gap-1.5 text-xs">
-            <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
-            <span className="text-gray-600">{asignadas} asignadas</span>
+            <span className="w-2 h-2 rounded-full bg-success inline-block" />
+            <span className="text-muted-foreground">{asignadas} asignadas</span>
           </div>
           <div className="flex items-center gap-1.5 text-xs">
-            <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />
-            <span className="text-gray-600">{disponibles} disponibles</span>
+            <span className="w-2 h-2 rounded-full bg-primary inline-block" />
+            <span className="text-muted-foreground">{disponibles} disponibles</span>
           </div>
           <div className="flex items-center gap-1.5 text-xs">
-            <span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />
-            <span className="text-gray-600">{faltantes} sin materia creada</span>
+            <span className="w-2 h-2 rounded-full bg-warning/15 inline-block" />
+            <span className="text-muted-foreground">{faltantes} sin materia creada</span>
           </div>
         </div>
       )}
@@ -101,15 +103,15 @@ export default function TabMaterias({ grupo, onAgregarClick }) {
       {/* Vista Retícula */}
       {vistaReticula && (
         loadingReticula ? (
-          <p className="text-sm text-gray-400 py-6 text-center">Cargando retícula...</p>
+          <p className="text-sm text-muted-foreground py-6 text-center">Cargando retícula...</p>
         ) : reticula.length === 0 ? (
-          <p className="text-sm text-gray-400 py-6 text-center">
+          <p className="text-sm text-muted-foreground py-6 text-center">
             No hay materias en la retícula para semestre {grupo.semestre} de esta carrera
           </p>
         ) : (
-          <div className="overflow-x-auto rounded-xl border border-gray-200">
+          <div className="overflow-x-auto rounded-xl border border-border" tabIndex={0} role="region" aria-label="Materias del grupo">
             <table className="w-full min-w-[760px] text-sm">
-              <thead className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
+              <thead className="bg-background text-xs text-muted-foreground uppercase tracking-wide">
                 <tr>
                   <th className="px-4 py-3 text-left">Materia</th>
                   <th className="px-4 py-3 text-left">Clave</th>
@@ -118,14 +120,14 @@ export default function TabMaterias({ grupo, onAgregarClick }) {
                   <th className="px-4 py-3 text-right"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-border">
                 {reticula.map((rm) => {
                   const cfg = ESTADO_CONFIG[rm.estado]
                   return (
-                    <tr key={rm.reticulaId} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 font-medium text-gray-800">{rm.nombre}</td>
-                      <td className="px-4 py-3 font-mono text-xs text-gray-500">{rm.clave}</td>
-                      <td className="px-4 py-3 text-center text-xs text-gray-500">
+                    <tr key={rm.reticulaId} className="hover:bg-background">
+                      <td className="px-4 py-3 font-medium text-foreground">{rm.nombre}</td>
+                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{rm.clave}</td>
+                      <td className="px-4 py-3 text-center text-xs text-muted-foreground">
                         {rm.horasTeoria}-{rm.horasPractica}-{rm.creditos}
                       </td>
                       <td className="px-4 py-3 text-center">
@@ -135,38 +137,38 @@ export default function TabMaterias({ grupo, onAgregarClick }) {
                       </td>
                       <td className="px-4 py-3 text-right">
                         {rm.estado === 'DISPONIBLE' && (
-                          <button
+                          <Button variant="outline"
                             onClick={() => handleAsignar(rm.materiaId)}
                             disabled={loadingId === rm.materiaId}
-                            className="text-xs text-blue-600 hover:text-blue-800 border border-blue-200 px-2.5 py-1 rounded-lg disabled:opacity-50"
+                            className="text-xs border px-2.5 py-1 disabled:opacity-50"
                           >
                             {loadingId === rm.materiaId ? '...' : 'Asignar'}
-                          </button>
+                          </Button>
                         )}
                         {rm.estado === 'ASIGNADA' && (
                           confirmId === rm.materiaId ? (
                             <span className="flex flex-wrap justify-end gap-1">
-                              <button
+                              <Button variant="destructive"
                                 onClick={() => handleQuitar(rm.materiaId)}
                                 disabled={loadingId === rm.materiaId}
-                                className="text-xs bg-red-600 text-white px-2.5 py-1 rounded-lg hover:bg-red-700 disabled:opacity-50"
+                                className="text-xs px-2.5 py-1 disabled:opacity-50"
                               >
                                 Confirmar
-                              </button>
-                              <button
+                              </Button>
+                              <Button variant="ghost"
                                 onClick={() => setConfirmId(null)}
-                                className="text-xs text-gray-500 hover:text-gray-700 px-2"
+                                className="text-xs text-muted-foreground hover:text-foreground px-2"
                               >
                                 Cancelar
-                              </button>
+                              </Button>
                             </span>
                           ) : (
-                            <button
+                            <Button variant="destructive"
                               onClick={() => setConfirmId(rm.materiaId)}
-                              className="text-xs text-red-400 hover:text-red-600"
+                              className="text-xs"
                             >
                               Quitar
-                            </button>
+                            </Button>
                           )
                         )}
                       </td>
@@ -182,11 +184,11 @@ export default function TabMaterias({ grupo, onAgregarClick }) {
       {/* Vista Asignadas */}
       {!vistaReticula && (
         materias.length === 0 ? (
-          <p className="text-sm text-gray-400 py-8 text-center">No hay materias asignadas</p>
+          <p className="text-sm text-muted-foreground py-8 text-center">No hay materias asignadas</p>
         ) : (
-          <div className="overflow-x-auto rounded-xl border border-gray-200">
+          <div className="overflow-x-auto rounded-xl border border-border" tabIndex={0} role="region" aria-label="Materias disponibles">
             <table className="w-full min-w-[820px] text-sm">
-              <thead className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
+              <thead className="bg-background text-xs text-muted-foreground uppercase tracking-wide">
                 <tr>
                   <th className="px-4 py-3 text-left">Materia</th>
                   <th className="px-4 py-3 text-left">Clave</th>
@@ -196,56 +198,56 @@ export default function TabMaterias({ grupo, onAgregarClick }) {
                   <th className="px-4 py-3 text-right"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-border">
                 {materias.map((m) => (
-                  <tr key={m.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium text-gray-800">{m.nombre}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-gray-500">{m.clave}</td>
-                    <td className="px-4 py-3 text-gray-600">
+                  <tr key={m.id} className="hover:bg-background">
+                    <td className="px-4 py-3 font-medium text-foreground">{m.nombre}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{m.clave}</td>
+                    <td className="px-4 py-3 text-muted-foreground">
                       {m.dias ? (
                         <>
                           <span>{m.dias}</span>
                           <br />
-                          <span className="text-xs text-gray-400">{m.horaInicio} – {m.horaFin}</span>
+                          <span className="text-xs text-muted-foreground">{m.horaInicio} – {m.horaFin}</span>
                         </>
                       ) : (
-                        <span className="text-xs text-gray-400 italic">Sin horario</span>
+                        <span className="text-xs text-muted-foreground italic">Sin horario</span>
                       )}
                     </td>
                     <td className="px-4 py-3">
                       {m.docente
-                        ? <span className="text-gray-700">{m.docente.nombre}</span>
-                        : <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full">Sin docente</span>}
+                        ? <span className="text-foreground">{m.docente.nombre}</span>
+                        : <span className="text-xs bg-destructive/10 text-destructive-foreground px-2 py-0.5 rounded-full">Sin docente</span>}
                     </td>
                     <td className="px-4 py-3">
                       {m.aula
-                        ? <span className="text-gray-700">{m.aula.nombre}</span>
-                        : <span className="text-xs bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full">Sin aula</span>}
+                        ? <span className="text-foreground">{m.aula.nombre}</span>
+                        : <span className="text-xs bg-warning/10 text-warning-foreground px-2 py-0.5 rounded-full">Sin aula</span>}
                     </td>
                     <td className="px-4 py-3 text-right">
                       {confirmId === m.id ? (
                         <span className="flex flex-wrap justify-end gap-2">
-                          <button
+                          <Button variant="destructive"
                             onClick={() => handleQuitar(m.id)}
                             disabled={loadingId === m.id}
-                            className="text-xs bg-red-600 text-white px-3 py-1 rounded-lg hover:bg-red-700 disabled:opacity-50"
+                            className="text-xs px-3 py-1 disabled:opacity-50"
                           >
                             Confirmar
-                          </button>
-                          <button
+                          </Button>
+                          <Button variant="ghost"
                             onClick={() => setConfirmId(null)}
-                            className="text-xs text-gray-500 hover:text-gray-700 px-2"
+                            className="text-xs text-muted-foreground hover:text-foreground px-2"
                           >
                             Cancelar
-                          </button>
+                          </Button>
                         </span>
                       ) : (
-                        <button
+                        <Button variant="destructive"
                           onClick={() => setConfirmId(m.id)}
-                          className="text-xs text-red-500 hover:text-red-700"
+                          className="text-xs"
                         >
                           Quitar
-                        </button>
+                        </Button>
                       )}
                     </td>
                   </tr>

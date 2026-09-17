@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { useId, useEffect, useMemo, useState } from 'react'
 import { useHorarioStore } from '../../../../store/horarioStore'
 
 const DIAS = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado']
@@ -43,7 +44,7 @@ function crearEstadoInicial({ clase, preset, modo, docenteSeleccionado, grupoSel
   }
 }
 
-export default function HorarioForm({
+function HorarioFormFields({
   modo,
   clase,
   preset,
@@ -52,6 +53,7 @@ export default function HorarioForm({
   onEliminar,
   soloPropias = false,
 }) {
+  const fieldId = useId()
   const {
     materiasCatalogo,
     materiasGrupo,
@@ -78,12 +80,7 @@ export default function HorarioForm({
   const [submitError, setSubmitError] = useState('')
   const [confirmEliminar, setConfirmEliminar] = useState(false)
 
-  useEffect(() => {
-    setForm(crearEstadoInicial({ clase, preset, modo, docenteSeleccionado, grupoSeleccionado }))
-    setSubmitError('')
-    setConfirmEliminar(false)
-    clearValidation()
-  }, [clase, preset, modo, docenteSeleccionado?.id, grupoSeleccionado?.id, clearValidation])
+  useEffect(() => { clearValidation() }, [clearValidation])
 
   const bloquesOrdenados = useMemo(() => ordenarBloques(form.bloques), [form.bloques])
 
@@ -108,13 +105,10 @@ export default function HorarioForm({
     return materiasDelGrupoListas ? materiasGrupo : []
   }, [form.grupoId, requiereGrupo, materiasCatalogo, materiasDelGrupoListas, materiasGrupo])
 
-  // Si la materia elegida no pertenece al semestre del grupo, se descarta.
-  useEffect(() => {
-    if (!materiasDelGrupoListas || !form.materiaId) return
-    if (materiasDisponibles.some((materia) => String(materia.id) === String(form.materiaId))) return
-    setForm((prev) => ({ ...prev, materiaId: '' }))
-    clearValidation()
-  }, [materiasDelGrupoListas, materiasDisponibles, form.materiaId, clearValidation])
+  // Reconcile a removed catalog option before rendering/validating the form.
+  if (materiasDelGrupoListas && form.materiaId && !materiasDisponibles.some((materia) => String(materia.id) === String(form.materiaId))) {
+    setForm({ ...form, materiaId: '' })
+  }
 
   const payload = useMemo(() => ({
     materiaId: Number(form.materiaId),
@@ -258,26 +252,26 @@ export default function HorarioForm({
   const validacionLista = estaCompleto && bloquesInvalidos.length === 0 && !validating && Boolean(validation.message)
 
   const clasesEstado = {
-    green: 'border-green-200 bg-green-50 text-green-700',
-    red: 'border-red-200 bg-red-50 text-red-700',
-    amber: 'border-amber-200 bg-amber-50 text-amber-700',
-    slate: 'border-slate-200 bg-slate-50 text-slate-600',
+    green: "border-success/30 bg-success/10 text-success-foreground",
+    red: "border-destructive/30 bg-destructive/10 text-destructive-foreground",
+    amber: "border-warning/30 bg-warning/10 text-warning-foreground",
+    slate: "border-border bg-background text-muted-foreground",
   }[estadoValidacion.tone]
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 rounded-xl border border-slate-200 bg-white p-4">
+    <form onSubmit={handleSubmit} className="space-y-4 rounded-xl border border-border bg-card p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-sm font-semibold text-slate-800">
+          <h2 className="text-sm font-semibold text-foreground">
             {clase ? 'Editar clase' : 'Nueva clase'}
           </h2>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-muted-foreground">
             {clase
               ? 'Los cambios se aplican a todos los días de la clase. Quita un día para retirarlo del horario.'
               : 'Elige el grupo, la materia de su semestre y un bloque independiente por cada día.'}
           </p>
         </div>
-        <button
+        <Button variant="ghost"
           type="button"
           onClick={() => {
             setForm(crearEstadoInicial({ clase: null, modo, docenteSeleccionado, grupoSeleccionado }))
@@ -285,20 +279,20 @@ export default function HorarioForm({
             clearValidation()
             onCancelEdit?.()
           }}
-          className="shrink-0 text-xs font-medium text-slate-500 hover:text-slate-700"
+          className="shrink-0 text-xs font-medium text-muted-foreground hover:text-foreground"
         >
           Cerrar
-        </button>
+        </Button>
       </div>
 
       <div className="space-y-3">
         <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Grupo</label>
-          <select
+          <label htmlFor={fieldId + '-control-297'} className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Grupo</label>
+          <select id={fieldId + '-control-297'}
             value={form.grupoId}
             onChange={(e) => updateGrupo(e.target.value)}
             disabled={modo === 'grupo' && Boolean(grupoSeleccionado?.id)}
-            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-50"
+            className="w-full rounded-lg border border-border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:bg-background"
           >
             <option value="">{requiereGrupo ? 'Selecciona un grupo' : 'Sin grupo específico'}</option>
             {grupos.map((grupo) => (
@@ -307,7 +301,7 @@ export default function HorarioForm({
               </option>
             ))}
           </select>
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-muted-foreground">
             {grupoElegido
               ? `Verás las materias de ${grupoElegido.semestre}° semestre de la retícula${grupoElegido.carrera?.nombre ? ` de ${grupoElegido.carrera.nombre}` : ''}.`
               : 'El semestre del grupo determina las materias que puedes programar.'}
@@ -315,12 +309,12 @@ export default function HorarioForm({
         </div>
 
         <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Materia</label>
-          <select
+          <label htmlFor={fieldId + '-control-319'} className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Materia</label>
+          <select id={fieldId + '-control-319'}
             value={form.materiaId}
             onChange={(e) => updateField('materiaId', e.target.value)}
             disabled={(requiereGrupo && !form.grupoId) || (Boolean(form.grupoId) && !materiasDelGrupoListas)}
-            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-400"
+            className="w-full rounded-lg border border-border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:bg-background disabled:text-muted-foreground"
           >
             <option value="">
               {requiereGrupo && !form.grupoId
@@ -336,7 +330,7 @@ export default function HorarioForm({
             ))}
           </select>
           {materiasDelGrupoListas && materiasDisponibles.length === 0 && (
-            <p className="mt-1 text-xs text-amber-600">
+            <p className="mt-1 text-xs text-warning-foreground">
               La retícula no tiene materias de {grupoElegido?.semestre}° semestre registradas para este grupo.
             </p>
           )}
@@ -345,19 +339,19 @@ export default function HorarioForm({
         {soloPropias ? (
           // El docente sólo programa para sí: el servidor ignora cualquier otro.
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Docente</label>
-            <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+            <p className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Docente</p>
+            <p className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground">
               {docenteSeleccionado?.nombre ?? 'Tú'}
             </p>
           </div>
         ) : (
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Docente</label>
-            <select
+            <label htmlFor={fieldId + '-control-356'} className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Docente</label>
+            <select id={fieldId + '-control-356'}
               value={form.docenteId}
               onChange={(e) => updateField('docenteId', e.target.value)}
               disabled={modo === 'docente' && Boolean(docenteSeleccionado?.id)}
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-50"
+              className="w-full rounded-lg border border-border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:bg-background"
             >
               <option value="">Selecciona un docente</option>
               {docentesCatalogo.map((docente) => (
@@ -370,11 +364,11 @@ export default function HorarioForm({
         )}
 
         <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Aula</label>
-          <select
+          <label htmlFor={fieldId + '-control-374'} className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Aula</label>
+          <select id={fieldId + '-control-374'}
             value={form.aulaId}
             onChange={(e) => updateField('aulaId', e.target.value)}
-            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-lg border border-border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <option value="">Sin aula asignada</option>
             {aulasCatalogo.map((aula) => (
@@ -385,34 +379,34 @@ export default function HorarioForm({
               </option>
             ))}
           </select>
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-muted-foreground">
             Se valida que el aula esté libre en los días y horas seleccionados.
           </p>
         </div>
 
         <div>
-          <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">Días</label>
+          <p className="mb-2 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Días</p>
           <div className="flex flex-wrap gap-2">
             {DIAS.map((dia) => {
               const activo = bloquesOrdenados.some((bloque) => bloque.dia === dia)
 
               return (
-                <button
+                <Button variant="ghost"
                   key={dia}
                   type="button"
                   onClick={() => toggleDia(dia)}
                   className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
                     activo
-                      ? 'border-blue-600 bg-blue-600 text-white'
-                      : 'border-slate-300 bg-white text-slate-600 hover:border-blue-400'
+                      ? "border-border bg-primary text-primary-foreground"
+                      : "border-border bg-card text-muted-foreground hover:border-border"
                   }`}
                 >
                   {dia}
-                </button>
+                </Button>
               )
             })}
           </div>
-          <p className="mt-2 text-xs text-slate-500">
+          <p className="mt-2 text-xs text-muted-foreground">
             Cada día seleccionado puede tener un horario diferente.
           </p>
         </div>
@@ -420,35 +414,35 @@ export default function HorarioForm({
         {bloquesOrdenados.length > 0 && (
           <div className="space-y-3">
             {bloquesOrdenados.map((bloque) => (
-              <div key={bloque.dia} className="rounded-lg border border-slate-200 p-3">
+              <div key={bloque.dia} className="rounded-lg border border-border p-3">
                 <div className="mb-3 flex items-center justify-between gap-3">
-                  <span className="text-sm font-semibold text-slate-700">{bloque.dia}</span>
-                  <button
+                  <span className="text-sm font-semibold text-foreground">{bloque.dia}</span>
+                  <Button variant="ghost"
                     type="button"
                     onClick={() => toggleDia(bloque.dia)}
-                    className="text-xs font-medium text-slate-400 hover:text-slate-600"
+                    className="text-xs font-medium text-muted-foreground hover:text-muted-foreground"
                   >
                     Quitar
-                  </button>
+                  </Button>
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div>
-                    <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Hora de inicio</label>
-                    <input
+                    <label htmlFor={fieldId + '-control-438' + '-' + (bloque.dia)} className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Hora de inicio</label>
+                    <input id={fieldId + '-control-438' + '-' + (bloque.dia)}
                       type="time"
                       value={bloque.horaInicio}
                       onChange={(e) => updateBloque(bloque.dia, 'horaInicio', e.target.value)}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded-lg border border-border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Hora de fin</label>
-                    <input
+                    <label htmlFor={fieldId + '-control-447' + '-' + (bloque.dia)} className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Hora de fin</label>
+                    <input id={fieldId + '-control-447' + '-' + (bloque.dia)}
                       type="time"
                       value={bloque.horaFin}
                       onChange={(e) => updateBloque(bloque.dia, 'horaFin', e.target.value)}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded-lg border border-border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     />
                   </div>
                 </div>
@@ -463,39 +457,39 @@ export default function HorarioForm({
       </div>
 
       {submitError && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground">
           {submitError}
         </div>
       )}
 
-      <button
+      <Button variant="default"
         type="submit"
         disabled={!validacionLista || saving || !validation.ok}
-        className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+        className="w-full px-4 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
       >
         {saving
           ? 'Guardando...'
           : clase
             ? 'Guardar cambios'
             : 'Crear clase'}
-      </button>
+      </Button>
 
       {clase && (
         confirmEliminar ? (
-          <div className="space-y-2 rounded-lg border border-red-200 bg-red-50 p-3">
-            <p className="text-xs text-red-700">
+          <div className="space-y-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3">
+            <p className="text-xs text-destructive-foreground">
               Se retirarán del horario los {clase.bloques.length} día
               {clase.bloques.length === 1 ? '' : 's'} de esta clase.
             </p>
             <div className="flex gap-2">
-              <button
+              <Button variant="outline"
                 type="button"
                 onClick={() => setConfirmEliminar(false)}
-                className="flex-1 rounded-lg border border-slate-300 px-3 py-1.5 text-xs text-slate-700 hover:bg-white"
+                className="flex-1 border px-3 py-1.5 text-xs"
               >
                 Cancelar
-              </button>
-              <button
+              </Button>
+              <Button variant="destructive"
                 type="button"
                 onClick={async () => {
                   try {
@@ -506,22 +500,29 @@ export default function HorarioForm({
                   }
                 }}
                 disabled={saving}
-                className="flex-1 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                className="flex-1 px-3 py-1.5 text-xs font-medium disabled:opacity-50"
               >
                 Eliminar clase
-              </button>
+              </Button>
             </div>
           </div>
         ) : (
-          <button
+          <Button variant="destructive"
             type="button"
             onClick={() => setConfirmEliminar(true)}
-            className="w-full rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50"
+            className="w-full border px-4 py-2 text-sm font-medium"
           >
             Eliminar clase del horario
-          </button>
+          </Button>
         )
       )}
     </form>
   )
+}
+
+export default function HorarioForm(props) {
+  const docenteId = useHorarioStore((state) => state.docenteSeleccionado?.id)
+  const grupoId = useHorarioStore((state) => state.grupoSeleccionado?.id)
+  const formKey = JSON.stringify([props.clase, props.preset, props.modo, docenteId, grupoId])
+  return <HorarioFormFields key={formKey} {...props} />
 }

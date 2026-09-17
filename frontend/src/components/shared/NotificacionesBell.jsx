@@ -1,106 +1,85 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { Popover } from '@base-ui/react/popover'
+import { Bell } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import NotificacionItem, { NotificacionItemSkeleton } from './NotificacionItem'
 import { useNotificacionStore } from '../../store/notificacionStore'
-import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../store/authStore'
-import { CiBellOn } from 'react-icons/ci'
-import {
-  formatNotificationTime,
-  getNotificationMeta,
-  resolveNotificationRoute,
-} from '../../lib/notificaciones'
+import { notify } from '@/lib/feedback'
+import { resolveNotificationRoute } from '../../lib/notificaciones'
 
+// Polling lives in BaseLayout (useNotificacionesPolling) so the two bells
+// (mobile top bar and desktop bar) share one timer.
 export default function NotificacionesBell() {
-  const { notificaciones, noLeidas, obtener, contarNoLeidas, marcarLeida, marcarTodasLeidas } = useNotificacionStore()
-  const [open, setOpen] = useState(false)
-  const ref = useRef(null)
-  const navigate = useNavigate()
+  const recientes = useNotificacionStore((s) => s.recientes)
+  const loading = useNotificacionStore((s) => s.loadingRecientes)
+  const noLeidas = useNotificacionStore((s) => s.noLeidas)
+  const obtenerRecientes = useNotificacionStore((s) => s.obtenerRecientes)
+  const marcarLeida = useNotificacionStore((s) => s.marcarLeida)
+  const marcarTodasLeidas = useNotificacionStore((s) => s.marcarTodasLeidas)
   const user = useAuthStore((state) => state.user)
+  const navigate = useNavigate()
+  const [open, setOpen] = useState(false)
 
   useEffect(() => {
-    contarNoLeidas()
-    const interval = setInterval(contarNoLeidas, 30000)
-    return () => clearInterval(interval)
-  }, [contarNoLeidas])
+    if (open) obtenerRecientes().catch(() => notify('No se pudieron cargar las notificaciones'))
+  }, [open, obtenerRecientes])
 
-  useEffect(() => {
-    if (open) obtener({ take: 10 })
-  }, [open, obtener])
-
-  useEffect(() => {
-    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [])
-
-  const handleClick = async (notif) => {
-    if (!notif.leida) await marcarLeida(notif.id)
+  const abrir = (notificacion) => {
     setOpen(false)
-    const route = resolveNotificationRoute(notif, user?.rol)
+    const route = resolveNotificationRoute(notificacion, user?.rol)
     if (route) navigate(route)
+    // Navigation must not wait on the read receipt.
+    if (!notificacion.leida) marcarLeida(notificacion.id).catch(() => notify('No se pudo marcar como leída'))
   }
 
+  const etiqueta = noLeidas > 0 ? `Notificaciones, ${noLeidas} sin leer` : 'Notificaciones'
+  const mostrarSkeleton = loading && recientes.length === 0
+
   return (
-    <div ref={ref} className="relative">
-      <button onClick={() => setOpen(!open)}
-        className="relative p-2 rounded-full hover:bg-gray-100 transition-colors">
-        <CiBellOn className="w-6 h-6 text-gray-600" />
+    <Popover.Root open={open} onOpenChange={setOpen}>
+      <Popover.Trigger
+        render={<Button variant="ghost" size="icon" aria-label={etiqueta} className="relative size-10 text-muted-foreground hover:text-foreground" />}
+      >
+        <Bell className="size-5" aria-hidden="true" />
         {noLeidas > 0 && (
-          <span className="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+          <span aria-hidden="true" className="absolute right-0.5 top-0.5 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-primary px-1 text-[0.6875rem] font-bold leading-none text-primary-foreground">
             {noLeidas > 9 ? '9+' : noLeidas}
           </span>
         )}
-      </button>
-
-      {open && (
-        <div className="absolute right-0 top-10 z-50 w-[min(20rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)] overflow-hidden rounded-xl border bg-white shadow-lg">
-          <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50">
-            <h3 className="font-semibold text-sm">Notificaciones</h3>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => {
-                  setOpen(false)
-                  navigate('/notificaciones')
-                }}
-                className="text-xs text-slate-600 hover:underline"
-              >
-                Ver historial
-              </button>
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Positioner side="bottom" align="end" sideOffset={8} collisionPadding={8} className="z-[150]">
+          <Popover.Popup aria-label="Notificaciones" aria-busy={mostrarSkeleton || undefined}
+            className="w-[min(22rem,calc(100vw-1rem))] overflow-hidden rounded-2xl border border-border bg-card text-foreground shadow-lg outline-none">
+            <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-2">
+              <h2 className="text-sm font-semibold">Notificaciones</h2>
               {noLeidas > 0 && (
-                <button onClick={() => marcarTodasLeidas()}
-                  className="text-xs text-blue-600 hover:underline">
+                <Button variant="ghost" size="sm"
+                  onClick={() => marcarTodasLeidas().catch(() => notify('No se pudieron marcar como leídas'))}>
                   Marcar todas leídas
-                </button>
+                </Button>
               )}
             </div>
-          </div>
-          <div className="max-h-80 overflow-y-auto">
-            {notificaciones.length === 0 ? (
-              <p className="text-gray-400 text-sm text-center py-6">Sin notificaciones</p>
-            ) : (
-              notificaciones.slice(0, 10).map((n) => {
-                const { icon: TypeIcon, label } = getNotificationMeta(n.tipo)
-
-                return (
-                  <button key={n.id} onClick={() => handleClick(n)}
-                    className={`w-full text-left px-4 py-3 hover:bg-gray-50 border-b transition-colors ${!n.leida ? 'bg-blue-50' : ''}`}>
-                    <div className="flex gap-2">
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600">
-                        <TypeIcon className="h-[18px] w-[18px]" />
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[11px] uppercase tracking-wide text-slate-400">{label}</p>
-                        <p className={`text-sm truncate ${!n.leida ? 'font-semibold' : ''}`}>{n.titulo}</p>
-                        <p className="text-xs text-gray-500 truncate">{n.mensaje}</p>
-                        <p className="text-xs text-gray-400 mt-0.5">{formatNotificationTime(n.createdAt)}</p>
-                      </div>
-                    </div>
-                  </button>
-                )
-              })
-            )}
-          </div>
-        </div>
-      )}
-    </div>
+            <ul aria-label="Notificaciones recientes" className="max-h-[min(24rem,60dvh)] divide-y divide-border overflow-y-auto overscroll-contain py-1">
+              {mostrarSkeleton ? (
+                <NotificacionItemSkeleton compact />
+              ) : recientes.length === 0 ? (
+                <li className="px-5 py-8 text-center text-sm text-muted-foreground">
+                  Sin avisos por ahora. Aquí verás tareas, solicitudes y recordatorios de clase.
+                </li>
+              ) : (
+                recientes.map((n) => <NotificacionItem key={n.id} notificacion={n} compact onOpen={abrir} />)
+              )}
+            </ul>
+            <Link to="/notificaciones" onClick={() => setOpen(false)}
+              className="block border-t border-border px-4 py-2.5 text-center text-sm font-medium text-primary-ink hover:bg-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring">
+              Ver historial
+            </Link>
+          </Popover.Popup>
+        </Popover.Positioner>
+      </Popover.Portal>
+    </Popover.Root>
   )
 }

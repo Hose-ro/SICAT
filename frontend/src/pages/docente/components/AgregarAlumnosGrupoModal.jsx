@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button'
 import { useEffect, useRef, useState } from 'react'
 import Modal from '../../../components/Modal'
 import api from '../../../api/axios'
@@ -211,7 +212,7 @@ export default function AgregarAlumnosGrupoModal({ grupo, onClose, onListo }) {
       <div className="space-y-4">
         <div className="flex flex-wrap gap-2">
           {PESTANAS.map((opcion) => (
-            <button
+            <Button variant="ghost"
               key={opcion.clave}
               type="button"
               onClick={() => {
@@ -225,7 +226,7 @@ export default function AgregarAlumnosGrupoModal({ grupo, onClose, onListo }) {
               }`}
             >
               {opcion.etiqueta}
-            </button>
+            </Button>
           ))}
         </div>
 
@@ -236,11 +237,11 @@ export default function AgregarAlumnosGrupoModal({ grupo, onClose, onListo }) {
 
         {pestana === 'existente' && (
           <div className="space-y-3">
-            <input
+            <input aria-label="Buscar por nombre o número de control"
               value={busqueda}
               onChange={(event) => setBusqueda(event.target.value)}
               placeholder="Buscar por nombre o número de control"
-              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
             />
             <div className="max-h-64 space-y-1 overflow-y-auto rounded-xl border border-border p-2">
               {disponibles.map((alumno) => {
@@ -280,18 +281,18 @@ export default function AgregarAlumnosGrupoModal({ grupo, onClose, onListo }) {
               A quien ya está en otro grupo lo mueve el administrador.
             </p>
             {error && (
-              <p role="alert" className="text-sm text-destructive">
+              <p role="alert" className="text-sm text-destructive-foreground">
                 {error}
               </p>
             )}
-            <button
+            <Button variant="default"
               type="button"
               onClick={agregarExistentes}
               disabled={guardando || seleccion.length === 0}
-              className="w-full rounded-xl bg-primary py-2.5 text-sm font-medium text-primary-foreground transition hover:bg-primary-strong disabled:opacity-50"
+              className="w-full py-2.5 text-sm font-medium disabled:opacity-50"
             >
               {guardando ? 'Agregando...' : `Agregar ${seleccion.length || ''}`.trim()}
-            </button>
+            </Button>
           </div>
         )}
 
@@ -321,7 +322,7 @@ export default function AgregarAlumnosGrupoModal({ grupo, onClose, onListo }) {
                   onChange={(event) =>
                     setForm({ ...form, [campo.campo]: event.target.value })
                   }
-                  className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/40"
+                  className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
                 />
               </div>
             ))}
@@ -330,17 +331,17 @@ export default function AgregarAlumnosGrupoModal({ grupo, onClose, onListo }) {
               alumno: podrá cambiarla desde su perfil.
             </p>
             {error && (
-              <p role="alert" className="text-sm text-destructive">
+              <p role="alert" className="text-sm text-destructive-foreground">
                 {error}
               </p>
             )}
-            <button
+            <Button variant="default"
               type="submit"
               disabled={guardando}
-              className="w-full rounded-xl bg-primary py-2.5 text-sm font-medium text-primary-foreground transition hover:bg-primary-strong disabled:opacity-50"
+              className="w-full py-2.5 text-sm font-medium disabled:opacity-50"
             >
               {guardando ? 'Creando...' : 'Crear y agregar al grupo'}
-            </button>
+            </Button>
           </form>
         )}
 
@@ -359,10 +360,10 @@ export default function AgregarAlumnosGrupoModal({ grupo, onClose, onListo }) {
                 </ul>
                 {resumenImportacion.errores.length > 0 && (
                   <div>
-                    <p className="font-medium text-destructive">
+                    <p className="font-medium text-destructive-foreground">
                       No se pudieron importar {resumenImportacion.errores.length}:
                     </p>
-                    <ul className="list-inside list-disc text-destructive">
+                    <ul className="list-inside list-disc text-destructive-foreground">
                       {resumenImportacion.errores.map((err, i) => (
                         <li key={i}>
                           {err.nombre}: {err.motivo}
@@ -371,13 +372,13 @@ export default function AgregarAlumnosGrupoModal({ grupo, onClose, onListo }) {
                     </ul>
                   </div>
                 )}
-                <button
+                <Button variant="default"
                   type="button"
                   onClick={() => onListo('Lista importada.')}
-                  className="w-full rounded-xl bg-primary py-2.5 text-sm font-medium text-primary-foreground transition hover:bg-primary-strong"
+                  className="w-full py-2.5 text-sm font-medium"
                 >
                   Listo
-                </button>
+                </Button>
               </div>
             ) : (
               <>
@@ -389,7 +390,7 @@ export default function AgregarAlumnosGrupoModal({ grupo, onClose, onListo }) {
                     reconocen solos. Sólo el nombre es obligatorio; si el archivo
                     no trae lo demás, el alumno queda dado de alta sin esos datos.
                   </p>
-                  <input
+                  <input aria-label="Archivo de alumnos (Excel o CSV)"
                     ref={fileInputRef}
                     type="file"
                     accept=".xlsx,.xls,.csv"
@@ -410,13 +411,13 @@ export default function AgregarAlumnosGrupoModal({ grupo, onClose, onListo }) {
                         Revisa la lista antes de importar ({filasImportar.length}{' '}
                         alumno{filasImportar.length === 1 ? '' : 's'})
                       </p>
-                      <button
+                      <Button variant="ghost"
                         type="button"
                         onClick={agregarFilaImportar}
-                        className="text-xs font-medium text-primary hover:underline"
+                        className="text-xs font-medium text-primary-ink hover:underline"
                       >
                         + Agregar fila
-                      </button>
+                      </Button>
                     </div>
                     <div className="max-h-72 overflow-auto rounded-xl border border-border">
                       <table className="w-full min-w-[620px] text-sm">
@@ -440,7 +441,7 @@ export default function AgregarAlumnosGrupoModal({ grupo, onClose, onListo }) {
                                     !esNumeroControlValido(fila.numeroControl)
                                   return (
                                     <td key={campo} className="px-2 py-1.5">
-                                      <input
+                                      <input aria-label={`${campo} del alumno ${indice + 1}`}
                                         value={fila[campo]}
                                         onChange={(event) =>
                                           actualizarFilaImportar(
@@ -454,7 +455,7 @@ export default function AgregarAlumnosGrupoModal({ grupo, onClose, onListo }) {
                                             ? 'Debe tener el formato 225Q0103'
                                             : undefined
                                         }
-                                        className={`w-full rounded-lg border bg-background px-2 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/40 ${
+                                        className={`w-full rounded-lg border bg-background px-2 py-1.5 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 ${
                                           invalido ? 'border-destructive' : 'border-border'
                                         }`}
                                       />
@@ -463,13 +464,13 @@ export default function AgregarAlumnosGrupoModal({ grupo, onClose, onListo }) {
                                 },
                               )}
                               <td className="px-2 py-1.5 text-right">
-                                <button
+                                <Button variant="destructive"
                                   type="button"
                                   onClick={() => quitarFilaImportar(indice)}
-                                  className="text-xs font-medium text-destructive hover:underline"
+                                  className="text-xs font-medium hover:underline"
                                 >
                                   Quitar
-                                </button>
+                                </Button>
                               </td>
                             </tr>
                           ))}
@@ -480,21 +481,21 @@ export default function AgregarAlumnosGrupoModal({ grupo, onClose, onListo }) {
                 )}
 
                 {error && (
-                  <p role="alert" className="text-sm text-destructive">
+                  <p role="alert" className="text-sm text-destructive-foreground">
                     {error}
                   </p>
                 )}
 
-                <button
+                <Button variant="default"
                   type="button"
                   onClick={confirmarImportacion}
                   disabled={guardando || filasImportar.length === 0}
-                  className="w-full rounded-xl bg-primary py-2.5 text-sm font-medium text-primary-foreground transition hover:bg-primary-strong disabled:opacity-50"
+                  className="w-full py-2.5 text-sm font-medium disabled:opacity-50"
                 >
                   {guardando
                     ? 'Importando...'
                     : `Importar ${filasImportar.length || ''}`.trim()}
-                </button>
+                </Button>
               </>
             )}
           </div>

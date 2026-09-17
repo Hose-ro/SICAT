@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button'
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import {
@@ -150,23 +151,19 @@ export default function Registro() {
 
   const labelClass = "block text-sm font-medium text-foreground";
   const inputClass =
-    "h-14 w-full rounded-2xl border border-input bg-background px-12 pr-4 text-sm text-foreground outline-none transition-all duration-200 placeholder:text-muted-foreground hover:border-primary/45 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40";
+    "h-14 w-full rounded-2xl border border-input bg-background px-12 pr-4 text-sm text-foreground outline-none transition-[color,background-color,border-color,opacity,transform] duration-200 placeholder:text-muted-foreground hover:border-primary/45 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40";
   const iconClass =
-    "pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary";
+    "pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary-ink";
   const selectClass = `${inputClass} appearance-none`;
 
   return (
     <div className="relative isolate min-h-screen overflow-hidden bg-background transition-colors duration-300">
-      {/* Decorative ambient blobs */}
-      <div className="pointer-events-none absolute left-[-8rem] top-[-6rem] h-72 w-72 rounded-full bg-primary/10 blur-3xl sm:left-8 sm:top-8 sm:h-[28rem] sm:w-[28rem]" />
-      <div className="pointer-events-none absolute bottom-[-7rem] right-[-5rem] h-72 w-72 rounded-full bg-primary/5 blur-3xl sm:bottom-8 sm:right-8 sm:h-96 sm:w-96" />
-      <div className="pointer-events-none absolute left-1/2 top-1/2 h-80 w-80 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/5 blur-3xl sm:h-[34rem] sm:w-[34rem]" />
 
       <div className="absolute right-4 top-4 z-20 sm:right-6 sm:top-6">
-        <button
+        <Button variant="outline"
           type="button"
           onClick={toggleDark}
-          className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm font-medium text-foreground shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/35 focus:outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
+          className="inline-flex items-center gap-2 border px-4 py-2 text-sm font-medium shadow-sm duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
           aria-label={dark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
           aria-pressed={dark}
         >
@@ -176,7 +173,7 @@ export default function Registro() {
             <MoonStar className="h-4 w-4" />
           )}
           <span>{dark ? "Modo claro" : "Modo oscuro"}</span>
-        </button>
+        </Button>
       </div>
 
       <div className="relative mx-auto grid min-h-screen w-full max-w-7xl items-center gap-10 px-4 py-8 sm:px-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.15fr)] lg:gap-14 lg:px-8">
@@ -227,7 +224,7 @@ export default function Registro() {
                       Crear cuenta
                     </h1>
                   </div>
-                  <span className="inline-flex rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-primary">
+                  <span className="inline-flex rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-primary-ink">
                     * Campos obligatorios
                   </span>
                 </div>
@@ -379,7 +376,7 @@ export default function Registro() {
                           placeholder="Mínimo 8 caracteres"
                           className={`${inputClass} pr-12`}
                         />
-                        <button
+                        <Button variant="ghost"
                           type="button"
                           aria-label={
                             showPassword
@@ -387,14 +384,14 @@ export default function Registro() {
                               : "Mostrar contraseña"
                           }
                           onClick={() => setShowPassword((value) => !value)}
-                          className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-primary focus:outline-none"
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-primary-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
                         >
                           {showPassword ? (
                             <EyeOff className="h-5 w-5" />
                           ) : (
                             <Eye className="h-5 w-5" />
                           )}
-                        </button>
+                        </Button>
                       </div>
                     </div>
 
@@ -416,7 +413,7 @@ export default function Registro() {
                           placeholder="Repite tu contraseña"
                           className={`${inputClass} pr-12`}
                         />
-                        <button
+                        <Button variant="ghost"
                           type="button"
                           aria-label={
                             showConfirm
@@ -424,14 +421,14 @@ export default function Registro() {
                               : "Mostrar confirmación"
                           }
                           onClick={() => setShowConfirm((value) => !value)}
-                          className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-primary focus:outline-none"
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-primary-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
                         >
                           {showConfirm ? (
                             <EyeOff className="h-5 w-5" />
                           ) : (
                             <Eye className="h-5 w-5" />
                           )}
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   </div>
@@ -454,7 +451,7 @@ export default function Registro() {
                         <div className="flex flex-col gap-4 rounded-2xl border border-success/25 bg-success/10 p-4 sm:flex-row sm:items-center sm:justify-between">
                           <div className="flex items-start gap-3">
                             <CheckCircle2
-                              className="mt-0.5 h-5 w-5 shrink-0 text-success"
+                              className="mt-0.5 h-5 w-5 shrink-0 text-success-foreground"
                               aria-hidden="true"
                             />
                             <div>
@@ -470,13 +467,13 @@ export default function Registro() {
                               </p>
                             </div>
                           </div>
-                          <button
+                          <Button variant="outline"
                             type="button"
                             onClick={() => setUsarHorarioExistente(false)}
-                            className="shrink-0 rounded-xl border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:border-primary/35 focus:outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
+                            className="shrink-0 border px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
                           >
                             No es mi horario
-                          </button>
+                          </Button>
                         </div>
                       )}
 
@@ -491,13 +488,13 @@ export default function Registro() {
                           </p>
                           {horarioDisponible.disponible &&
                             !usarHorarioExistente && (
-                              <button
+                              <Button variant="ghost"
                                 type="button"
                                 onClick={() => setUsarHorarioExistente(true)}
-                                className="text-sm font-medium text-primary hover:underline focus:outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
+                                className="text-sm font-medium text-primary-ink hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
                               >
                                 Usar el horario encontrado
-                              </button>
+                              </Button>
                             )}
                         </div>
                       )}
@@ -505,7 +502,7 @@ export default function Registro() {
 
                   <div className="rounded-2xl border border-primary/20 bg-primary/10 p-4">
                     <div className="flex items-start gap-3">
-                      <GraduationCap className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                      <GraduationCap className="mt-0.5 h-5 w-5 shrink-0 text-primary-ink" />
                       <div className="space-y-1 text-sm">
                         <p className="text-foreground">
                           Usa tu{" "}
@@ -522,21 +519,21 @@ export default function Registro() {
                   {error && (
                     <div
                       role="alert"
-                      className="rounded-2xl border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+                      className="rounded-2xl border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground"
                     >
                       {error}
                     </div>
                   )}
 
-                  <button
+                  <Button variant="default"
                     type="submit"
                     disabled={loading}
-                    className="group relative flex h-14 w-full items-center justify-center overflow-hidden rounded-2xl bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-[0_8px_24px_var(--primary-glow)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary-strong focus:outline-none focus-visible:ring-3 focus-visible:ring-ring/40 disabled:cursor-not-allowed disabled:opacity-70"
+                    className="group relative flex h-14 w-full items-center justify-center overflow-hidden px-4 text-sm font-semibold shadow-[0_8px_24px_var(--primary-glow)] duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40 disabled:cursor-not-allowed disabled:opacity-70"
                   >
                     <span className="relative z-10">
                       {loading ? "Registrando..." : "Crear cuenta"}
                     </span>
-                  </button>
+                  </Button>
                 </form>
 
                 <div className="mt-6 space-y-3 text-center">
@@ -544,7 +541,7 @@ export default function Registro() {
                     ¿Ya tienes cuenta?{" "}
                     <Link
                       to="/login"
-                      className="font-medium text-primary transition-colors hover:text-primary-strong hover:underline"
+                      className="font-medium text-primary-ink transition-colors hover:text-primary-strong hover:underline"
                     >
                       Inicia sesión
                     </Link>

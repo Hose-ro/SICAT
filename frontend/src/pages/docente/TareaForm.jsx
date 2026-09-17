@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, FileText, Save, Send, UploadCloud } from 'lucide-react'
@@ -167,14 +168,14 @@ export default function TareaForm() {
   return (
     <div className="space-y-6">
       <section className="task-hero px-6 py-7">
-        <button
+        <Button variant="ghost"
           type="button"
           onClick={() => navigate(-1)}
-          className="task-hero-button inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold"
+          className="task-hero-button inline-flex items-center gap-2  px-4 py-2 text-sm font-semibold"
         >
           <ArrowLeft className="h-4 w-4" />
           Volver
-        </button>
+        </Button>
 
         <div className="mt-5 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-2xl space-y-3">
@@ -229,7 +230,7 @@ export default function TareaForm() {
                   required name="materiaId"
                   value={form.materiaId}
                   onChange={handleChange}
-                  className="rounded-2xl border border-border px-4 py-3 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
+                  className="w-full min-w-0 rounded-2xl border border-border px-4 py-3 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <option value="">Selecciona una materia</option>
                   {materias.map((materia) => (
@@ -245,7 +246,7 @@ export default function TareaForm() {
                   value={form.grupoId}
                   onChange={handleChange}
                   disabled={!selectedMateria}
-                  className="rounded-2xl border border-border px-4 py-3 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring disabled:bg-muted/40"
+                  className="w-full min-w-0 rounded-2xl border border-border px-4 py-3 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring disabled:bg-muted/40"
                 >
                   <option value="">Selecciona un grupo</option>
                   {(selectedMateria?.grupos || []).map((grupo) => (
@@ -261,7 +262,7 @@ export default function TareaForm() {
                   value={form.unidadId}
                   onChange={handleChange}
                   disabled={!selectedMateria}
-                  className="rounded-2xl border border-border px-4 py-3 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring disabled:bg-muted/40"
+                  className="w-full min-w-0 rounded-2xl border border-border px-4 py-3 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring disabled:bg-muted/40"
                 >
                   <option value="">Sin unidad</option>
                   {(selectedMateria?.unidades || []).map((unidad) => (
@@ -278,7 +279,7 @@ export default function TareaForm() {
                   name="tipoEntrega"
                   value={form.tipoEntrega}
                   onChange={handleChange}
-                  className="rounded-2xl border border-border px-4 py-3 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
+                  className="w-full min-w-0 rounded-2xl border border-border px-4 py-3 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <option value="PRESENCIAL">Presencial</option>
                   <option value="EN_LINEA">Entrega con archivo</option>
@@ -293,7 +294,7 @@ export default function TareaForm() {
                   name="tipoEvaluacion"
                   value={form.tipoEvaluacion}
                   onChange={handleChange}
-                  className="rounded-2xl border border-border px-4 py-3 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
+                  className="w-full min-w-0 rounded-2xl border border-border px-4 py-3 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <option value="DIRECTA">Calificación directa</option>
                   <option value="RUBRICA">Rúbrica</option>
@@ -308,10 +309,10 @@ export default function TareaForm() {
                   <h2 className="text-sm font-semibold text-foreground">Archivos adjuntos</h2>
                   <p className="mt-1 text-sm text-muted-foreground">Material de referencia o plantilla para el alumnado.</p>
                 </div>
-                <label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground transition hover:bg-muted/40">
+                <label className="inline-flex max-w-full cursor-pointer flex-wrap items-center gap-2 rounded-2xl border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground transition hover:bg-muted/40">
                   <UploadCloud className="h-4 w-4" />
                   Agregar archivos
-                  <input type="file" multiple accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.webp" onChange={handleFileSelect} className="block max-w-full text-xs" />
+                  <input type="file" multiple accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.webp" onChange={handleFileSelect} className="block w-full min-w-0 text-xs" />
                 </label>
               </div>
 
@@ -340,7 +341,7 @@ export default function TareaForm() {
                   {newFiles.map((file, index) => (
                     <div key={`${file.name}-${file.size}`} className="rounded-2xl border border-dashed border-border bg-card px-4 py-3 text-sm text-muted-foreground">
                       {file.name}
-                      <button type="button" onClick={() => setNewFiles((files) => files.filter((_, i) => i !== index))} className="ml-3 text-destructive" aria-label={`Quitar ${file.name}`}>Quitar</button>
+                      <Button variant="destructive" type="button" onClick={() => setNewFiles((files) => files.filter((_, i) => i !== index))} className="ml-3" aria-label={`Quitar ${file.name}`}>Quitar</Button>
                     </div>
                   ))}
                 </div>
@@ -380,7 +381,7 @@ export default function TareaForm() {
                       required name="fechaLimite"
                       value={form.fechaLimite}
                       onChange={handleChange}
-                      className="rounded-2xl border border-border px-4 py-3 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
+                      className="w-full min-w-0 rounded-2xl border border-border px-4 py-3 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
                     />
                   </label>
 
@@ -391,7 +392,7 @@ export default function TareaForm() {
                       name="horaLimite"
                       value={form.horaLimite}
                       onChange={handleChange}
-                      className="rounded-2xl border border-border px-4 py-3 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
+                      className="w-full min-w-0 rounded-2xl border border-border px-4 py-3 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
                     />
                   </label>
                 </div>
@@ -421,24 +422,24 @@ export default function TareaForm() {
           <section className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
             <div className="flex flex-col gap-3">
               <p className="text-sm text-muted-foreground">{isEditing ? 'Guardar cambios conserva el estado actual de la tarea.' : 'El borrador solo es visible para ti. Al publicar, el grupo podrá ver la actividad.'}</p>
-              <button
+              <Button variant="outline"
                 type="button"
                 onClick={() => submitWithState(isEditing ? originalState : 'BORRADOR')}
                 disabled={saving || !loaded}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-border bg-card px-4 py-3 text-sm font-semibold text-foreground transition hover:bg-muted/40 disabled:opacity-60"
+                className="inline-flex items-center justify-center gap-2 border px-4 py-3 text-sm font-semibold disabled:opacity-60"
               >
                 <Save className="h-4 w-4" />
                 {saving ? 'Guardando...' : isEditing ? 'Guardar cambios' : 'Guardar borrador'}
-              </button>
-              {(!isEditing || originalState === 'BORRADOR') && <button
+              </Button>
+              {(!isEditing || originalState === 'BORRADOR') && <Button variant="default"
                 type="button"
                 onClick={() => submitWithState('PUBLICADA')}
                 disabled={saving || !loaded}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary disabled:opacity-60"
+                className="inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold disabled:opacity-60"
               >
                 <Send className="h-4 w-4" />
                 {saving ? 'Publicando...' : 'Publicar tarea'}
-              </button>}
+              </Button>}
             </div>
           </section>
         </aside>

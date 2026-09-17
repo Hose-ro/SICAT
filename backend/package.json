@@ -18,6 +18,8 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
+    "e2e:serve": "ts-node --transpile-only src/main.ts",
+    "e2e:fixture": "ts-node --transpile-only test/e2e-fixture.ts",
     "seed:reticula": "ts-node prisma/seed-reticulas-from-md.ts",
     "seed:reticula-full": "ts-node prisma/seeds/reticula.seed.ts",
     "prisma:generate": "prisma generate",
@@ -43,8 +45,8 @@
     "exceljs": "^4.4.0",
     "helmet": "^8.3.0",
     "jszip": "^3.10.1",
-    "multer": "^2.1.1",
-    "nodemailer": "^9.0.5",
+    "multer": "^2.4.0",
+    "nodemailer": "^9.1.1",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "pdf-lib": "^1.17.1",
@@ -87,6 +89,15 @@
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.20.0"
+  },
+  "overrides": {
+    "multer": "$multer",
+    "exceljs": {
+      "uuid": "^11.1.1"
+    },
+    "@prisma/config": {
+      "deepmerge-ts": "^8.0.2"
+    }
   },
   "jest": {
     "moduleFileExtensions": [

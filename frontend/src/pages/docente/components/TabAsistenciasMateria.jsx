@@ -1,43 +1,42 @@
+import { Button } from '@/components/ui/button'
 import { useEffect, useState } from 'react'
 import { useAsistenciaStore } from '../../../store/asistenciaStore'
 
-const estadoColor = { ASISTENCIA: 'bg-green-100 text-green-800', FALTA: 'bg-red-100 text-red-800', RETARDO: 'bg-yellow-100 text-yellow-800', JUSTIFICADA: 'bg-blue-100 text-blue-800' }
-const estadoLetra = { ASISTENCIA: 'A', FALTA: 'F', RETARDO: 'R', JUSTIFICADA: 'J' }
 
 export default function TabAsistenciasMateria({ materiaId }) {
   const { resumen, obtenerResumen, exportar, loading } = useAsistenciaStore()
   const [unidad, setUnidad] = useState('')
 
-  useEffect(() => { obtenerResumen(materiaId, unidad || undefined) }, [materiaId, unidad])
+  useEffect(() => { obtenerResumen(materiaId, unidad || undefined) }, [materiaId, unidad, obtenerResumen])
 
   const handleExportar = (formato) => exportar(materiaId, formato, unidad || undefined)
 
   return (
     <div className="space-y-4">
       <div className="flex gap-3 items-center flex-wrap">
-        <select value={unidad} onChange={(e) => setUnidad(e.target.value)}
+        <select aria-label="Unidad" value={unidad} onChange={(e) => setUnidad(e.target.value)}
           className="border rounded px-3 py-2 text-sm">
           <option value="">Todas las unidades</option>
           {[1,2,3,4,5].map((u) => <option key={u} value={u}>Unidad {u}</option>)}
         </select>
-        <button onClick={() => handleExportar('excel')}
-          className="px-3 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700">
+        <Button variant="ghost" onClick={() => handleExportar('excel')}
+          className="px-3 py-2 bg-success text-success-on-fill  text-sm hover:bg-success">
           Exportar Excel
-        </button>
-        <button onClick={() => handleExportar('pdf')}
-          className="px-3 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700">
+        </Button>
+        <Button variant="destructive" onClick={() => handleExportar('pdf')}
+          className="px-3 py-2 text-sm">
           Exportar PDF
-        </button>
+        </Button>
       </div>
 
       {loading ? (
-        <p className="text-gray-400 text-sm">Cargando...</p>
+        <p className="text-muted-foreground text-sm">Cargando...</p>
       ) : resumen.length === 0 ? (
-        <p className="text-gray-400 text-sm">Sin datos de asistencia</p>
+        <p className="text-muted-foreground text-sm">Sin datos de asistencia</p>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Tabla de asistencias">
           <table className="min-w-full text-sm border">
-            <thead className="bg-gray-50">
+            <thead className="bg-background">
               <tr>
                 <th className="border px-3 py-2 text-left">Alumno</th>
                 <th className="border px-3 py-2">Asistencias</th>
@@ -49,17 +48,17 @@ export default function TabAsistenciasMateria({ materiaId }) {
             </thead>
             <tbody>
               {resumen.map((r) => (
-                <tr key={r.alumnoId} className="hover:bg-gray-50">
+                <tr key={r.alumnoId} className="hover:bg-background">
                   <td className="border px-3 py-2">
                     <p className="font-medium">{r.nombre}</p>
-                    <p className="text-xs text-gray-500">{r.numControl}</p>
+                    <p className="text-xs text-muted-foreground">{r.numControl}</p>
                   </td>
-                  <td className="border px-3 py-2 text-center text-green-700">{r.asistencias}</td>
-                  <td className="border px-3 py-2 text-center text-red-700">{r.faltas}</td>
-                  <td className="border px-3 py-2 text-center text-yellow-700">{r.retardos}</td>
-                  <td className="border px-3 py-2 text-center text-blue-700">{r.justificadas}</td>
+                  <td className="border px-3 py-2 text-center text-success-foreground">{r.asistencias}</td>
+                  <td className="border px-3 py-2 text-center text-destructive-foreground">{r.faltas}</td>
+                  <td className="border px-3 py-2 text-center text-warning-foreground">{r.retardos}</td>
+                  <td className="border px-3 py-2 text-center text-primary-ink">{r.justificadas}</td>
                   <td className="border px-3 py-2 text-center">
-                    <span className={`font-semibold ${r.porcentaje >= 70 ? 'text-green-700' : 'text-red-700'}`}>
+                    <span className={`font-semibold ${r.porcentaje >= 70 ? "text-success-foreground" : "text-destructive-foreground"}`}>
                       {r.porcentaje}%
                     </span>
                   </td>

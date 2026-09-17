@@ -1,0 +1,762 @@
+[
+  {
+    "rol": "ADMIN",
+    "path": "/dashboard",
+    "theme": "light",
+    "width": 1280,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "ADMIN",
+    "path": "/dashboard",
+    "theme": "dark",
+    "width": 390,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "ADMIN",
+    "path": "/materias",
+    "theme": "light",
+    "width": 1280,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "ADMIN",
+    "path": "/materias",
+    "theme": "dark",
+    "width": 390,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "ADMIN",
+    "path": "/materias/1",
+    "theme": "light",
+    "width": 1280,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "ADMIN",
+    "path": "/materias/1",
+    "theme": "dark",
+    "width": 390,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "ADMIN",
+    "path": "/asistencias",
+    "theme": "light",
+    "width": 1280,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "ADMIN",
+    "path": "/asistencias",
+    "theme": "dark",
+    "width": 390,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "ADMIN",
+    "path": "/tareas",
+    "theme": "light",
+    "width": 1280,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "ADMIN",
+    "path": "/tareas",
+    "theme": "dark",
+    "width": 390,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "ADMIN",
+    "path": "/calificaciones",
+    "theme": "light",
+    "width": 1280,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "ADMIN",
+    "path": "/calificaciones",
+    "theme": "dark",
+    "width": 390,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "ADMIN",
+    "path": "/usuarios",
+    "theme": "light",
+    "width": 1280,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "ADMIN",
+    "path": "/usuarios",
+    "theme": "dark",
+    "width": 390,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "ADMIN",
+    "path": "/carreras",
+    "theme": "light",
+    "width": 1280,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "ADMIN",
+    "path": "/carreras",
+    "theme": "dark",
+    "width": 390,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "ADMIN",
+    "path": "/admin/horarios",
+    "theme": "light",
+    "width": 1280,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "ADMIN",
+    "path": "/admin/horarios",
+    "theme": "dark",
+    "width": 390,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "ADMIN",
+    "path": "/admin/horarios-importados",
+    "theme": "light",
+    "width": 1280,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "ADMIN",
+    "path": "/admin/horarios-importados",
+    "theme": "dark",
+    "width": 390,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "ADMIN",
+    "path": "/admin/academias",
+    "theme": "light",
+    "width": 1280,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "ADMIN",
+    "path": "/admin/academias",
+    "theme": "dark",
+    "width": 390,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "ADMIN",
+    "path": "/admin/academias/1",
+    "theme": "light",
+    "width": 1280,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "ADMIN",
+    "path": "/admin/academias/1",
+    "theme": "dark",
+    "width": 390,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "ADMIN",
+    "path": "/admin/aulas",
+    "theme": "light",
+    "width": 1280,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "ADMIN",
+    "path": "/admin/aulas",
+    "theme": "dark",
+    "width": 390,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "ADMIN",
+    "path": "/admin/grupos",
+    "theme": "light",
+    "width": 1280,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "ADMIN",
+    "path": "/admin/grupos",
+    "theme": "dark",
+    "width": 390,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "ADMIN",
+    "path": "/admin/grupos/1",
+    "theme": "light",
+    "width": 1280,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "ADMIN",
+    "path": "/admin/grupos/1",
+    "theme": "dark",
+    "width": 390,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "ADMIN",
+    "path": "/notificaciones",
+    "theme": "light",
+    "width": 1280,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "ADMIN",
+    "path": "/notificaciones",
+    "theme": "dark",
+    "width": 390,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "DOCENTE",
+    "path": "/dashboard",
+    "theme": "light",
+    "width": 1280,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "DOCENTE",
+    "path": "/dashboard",
+    "theme": "dark",
+    "width": 390,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "DOCENTE",
+    "path": "/asistencias",
+    "theme": "light",
+    "width": 1280,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "DOCENTE",
+    "path": "/asistencias",
+    "theme": "dark",
+    "width": 390,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "DOCENTE",
+    "path": "/tareas",
+    "theme": "light",
+    "width": 1280,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "DOCENTE",
+    "path": "/tareas",
+    "theme": "dark",
+    "width": 390,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "DOCENTE",
+    "path": "/calificaciones",
+    "theme": "light",
+    "width": 1280,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "DOCENTE",
+    "path": "/calificaciones",
+    "theme": "dark",
+    "width": 390,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "DOCENTE",
+    "path": "/docente/grupos",
+    "theme": "light",
+    "width": 1280,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "DOCENTE",
+    "path": "/docente/grupos",
+    "theme": "dark",
+    "width": 390,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "DOCENTE",
+    "path": "/docente/horario",
+    "theme": "light",
+    "width": 1280,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "DOCENTE",
+    "path": "/docente/horario",
+    "theme": "dark",
+    "width": 390,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "DOCENTE",
+    "path": "/docente/solicitudes",
+    "theme": "light",
+    "width": 1280,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "DOCENTE",
+    "path": "/docente/solicitudes",
+    "theme": "dark",
+    "width": 390,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "DOCENTE",
+    "path": "/docente/horario/editar",
+    "theme": "light",
+    "width": 1280,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "DOCENTE",
+    "path": "/docente/horario/editar",
+    "theme": "dark",
+    "width": 390,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "DOCENTE",
+    "path": "/docente/tareas/crear",
+    "theme": "light",
+    "width": 1280,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "DOCENTE",
+    "path": "/docente/tareas/crear",
+    "theme": "dark",
+    "width": 390,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "ALUMNO",
+    "path": "/materias",
+    "theme": "light",
+    "width": 1280,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "ALUMNO",
+    "path": "/materias",
+    "theme": "dark",
+    "width": 390,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "ALUMNO",
+    "path": "/asistencias",
+    "theme": "light",
+    "width": 1280,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "ALUMNO",
+    "path": "/asistencias",
+    "theme": "dark",
+    "width": 390,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "ALUMNO",
+    "path": "/tareas",
+    "theme": "light",
+    "width": 1280,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "ALUMNO",
+    "path": "/tareas",
+    "theme": "dark",
+    "width": 390,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "ALUMNO",
+    "path": "/calificaciones",
+    "theme": "light",
+    "width": 1280,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "ALUMNO",
+    "path": "/calificaciones",
+    "theme": "dark",
+    "width": 390,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "ALUMNO",
+    "path": "/alumno/horario",
+    "theme": "light",
+    "width": 1280,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "ALUMNO",
+    "path": "/alumno/horario",
+    "theme": "dark",
+    "width": 390,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "ALUMNO",
+    "path": "/alumno/materias/1",
+    "theme": "light",
+    "width": 1280,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "ALUMNO",
+    "path": "/alumno/materias/1",
+    "theme": "dark",
+    "width": 390,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "ALUMNO",
+    "path": "/notificaciones",
+    "theme": "light",
+    "width": 1280,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "ALUMNO",
+    "path": "/notificaciones",
+    "theme": "dark",
+    "width": 390,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "JEFE_CARRERA",
+    "path": "/dashboard",
+    "theme": "light",
+    "width": 1280,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "JEFE_CARRERA",
+    "path": "/dashboard",
+    "theme": "dark",
+    "width": 390,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "JEFE_CARRERA",
+    "path": "/jefe-carrera/docentes",
+    "theme": "light",
+    "width": 1280,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "JEFE_CARRERA",
+    "path": "/jefe-carrera/docentes",
+    "theme": "dark",
+    "width": 390,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "JEFE_CARRERA",
+    "path": "/jefe-carrera/clases",
+    "theme": "light",
+    "width": 1280,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "JEFE_CARRERA",
+    "path": "/jefe-carrera/clases",
+    "theme": "dark",
+    "width": 390,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "JEFE_CARRERA",
+    "path": "/jefe-carrera/seguimiento",
+    "theme": "light",
+    "width": 1280,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "JEFE_CARRERA",
+    "path": "/jefe-carrera/seguimiento",
+    "theme": "dark",
+    "width": 390,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "JEFE_CARRERA",
+    "path": "/jefe-carrera/alertas",
+    "theme": "light",
+    "width": 1280,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "JEFE_CARRERA",
+    "path": "/jefe-carrera/alertas",
+    "theme": "dark",
+    "width": 390,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "JEFE_CARRERA",
+    "path": "/jefe-carrera/reportes",
+    "theme": "light",
+    "width": 1280,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "JEFE_CARRERA",
+    "path": "/jefe-carrera/reportes",
+    "theme": "dark",
+    "width": 390,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  }
+]

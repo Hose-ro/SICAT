@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   AlertTriangle,
@@ -14,23 +15,18 @@ import api from '../api/axios'
 import { useAuthStore } from '../store/authStore'
 import { useCalificacionStore } from '../store/calificacionStore'
 
-const DEFAULT_WEIGHTS = {
-  pesoTareas: '80',
-  pesoAsistencia: '20',
-}
-
 const STATUS_META = {
   APROBADO: {
     label: 'Aprobado',
-    className: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+    className: "bg-success/10 text-success-foreground ring-ring",
   },
   REQUIERE_ATENCION: {
     label: 'Requiere atención',
-    className: 'bg-amber-50 text-amber-700 ring-amber-200',
+    className: "bg-warning/10 text-warning-foreground ring-ring",
   },
   PENDIENTE: {
     label: 'Pendiente',
-    className: 'bg-slate-50 text-slate-600 ring-slate-200',
+    className: "bg-background text-muted-foreground ring-ring",
   },
 }
 
@@ -64,12 +60,12 @@ function StatusBadge({ estado }) {
 function SelectField({ label, value, onChange, children, disabled = false }) {
   return (
     <label className="flex min-w-[12rem] flex-col gap-1">
-      <span className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{label}</span>
+      <span className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{label}</span>
       <select
         value={value}
         onChange={onChange}
         disabled={disabled}
-        className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-sky-400 disabled:cursor-not-allowed disabled:bg-slate-50"
+        className="rounded-2xl border border-border bg-card px-4 py-3 text-sm text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40 disabled:cursor-not-allowed disabled:bg-background"
       >
         {children}
       </select>
@@ -80,7 +76,7 @@ function SelectField({ label, value, onChange, children, disabled = false }) {
 function NumberField({ label, value, onChange, min = 0, max = 100, disabled = false }) {
   return (
     <label className="flex min-w-[8rem] flex-col gap-1">
-      <span className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{label}</span>
+      <span className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{label}</span>
       <input
         type="number"
         min={min}
@@ -88,7 +84,7 @@ function NumberField({ label, value, onChange, min = 0, max = 100, disabled = fa
         value={value}
         onChange={onChange}
         disabled={disabled}
-        className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-sky-400 disabled:cursor-not-allowed disabled:bg-slate-50"
+        className="rounded-2xl border border-border bg-card px-4 py-3 text-sm text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40 disabled:cursor-not-allowed disabled:bg-background"
       />
     </label>
   )
@@ -97,20 +93,20 @@ function NumberField({ label, value, onChange, min = 0, max = 100, disabled = fa
 function MetricCard({ icon, label, value, tone = 'slate' }) {
   const Icon = icon
   const tones = {
-    blue: 'border-sky-200 bg-sky-50 text-sky-700',
-    green: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-    amber: 'border-amber-200 bg-amber-50 text-amber-700',
-    slate: 'border-slate-200 bg-slate-50 text-slate-700',
+    blue: "border-border bg-accent text-primary-ink",
+    green: "border-success/30 bg-success/10 text-success-foreground",
+    amber: "border-warning/30 bg-warning/10 text-warning-foreground",
+    slate: "border-border bg-background text-foreground",
   }
 
   return (
     <div className={`rounded-3xl border p-5 ${tones[tone] || tones.slate}`}>
       <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="text-sm font-medium opacity-80">{label}</p>
+          <p className="text-sm font-medium">{label}</p>
           <p className="mt-2 text-3xl font-semibold">{value ?? '-'}</p>
         </div>
-        <div className="rounded-2xl bg-white/80 p-3">
+        <div className="rounded-2xl bg-card/80 p-3">
           <Icon className="h-5 w-5" />
         </div>
       </div>
@@ -129,17 +125,17 @@ function CalificacionesTable({
 }) {
   if (!rows.length) {
     return (
-      <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 px-6 py-14 text-center text-sm text-slate-500">
+      <div className="rounded-3xl border border-dashed border-border bg-background px-6 py-14 text-center text-sm text-muted-foreground">
         Sin calificaciones disponibles.
       </div>
     )
   }
 
   return (
-    <div className="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white">
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-slate-100 text-sm">
-          <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+    <div className="overflow-hidden rounded-[1.75rem] border border-border bg-card">
+      <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Tabla de calificaciones">
+        <table className="min-w-full divide-y divide-border text-sm">
+          <thead className="bg-background text-left text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
             <tr>
               <th className="px-4 py-3">No. control</th>
               <th className="px-4 py-3">Alumno</th>
@@ -164,7 +160,7 @@ function CalificacionesTable({
               <th className="px-4 py-3">Asistencia</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 text-slate-700">
+          <tbody className="divide-y divide-border text-foreground">
             {rows.map((row) => {
               const rowKey = getRowKey(row)
               const draft = drafts[rowKey] ?? {}
@@ -174,67 +170,67 @@ function CalificacionesTable({
 
               return (
                 <tr key={rowKey}>
-                  <td className="whitespace-nowrap px-4 py-3 text-slate-500">{row.alumno?.numeroControl || '-'}</td>
-                  <td className="min-w-[14rem] px-4 py-3 font-medium text-slate-900">{row.alumno?.nombre}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">{row.alumno?.numeroControl || '-'}</td>
+                  <td className="min-w-[14rem] px-4 py-3 font-medium text-foreground">{row.alumno?.nombre}</td>
                   {showMateria && (
                     <td className="min-w-[14rem] px-4 py-3">
-                      <p className="font-medium text-slate-800">{row.materia?.nombre}</p>
-                      <p className="text-xs text-slate-400">{row.materia?.clave}</p>
+                      <p className="font-medium text-foreground">{row.materia?.nombre}</p>
+                      <p className="text-xs text-muted-foreground">{row.materia?.clave}</p>
                     </td>
                   )}
                   <td className="whitespace-nowrap px-4 py-3">{row.grupo?.nombre || '-'}</td>
                   <td className="whitespace-nowrap px-4 py-3">{row.unidad?.nombre || '-'}</td>
                   <td className="whitespace-nowrap px-4 py-3">
-                    <span className="text-lg font-semibold text-slate-900">{formatGrade(final)}</span>
-                    <span className="ml-2 text-xs text-slate-400">{getFuenteLabel(row.fuenteCalificacion)}</span>
+                    <span className="text-lg font-semibold text-foreground">{formatGrade(final)}</span>
+                    <span className="ml-2 text-xs text-muted-foreground">{getFuenteLabel(row.fuenteCalificacion)}</span>
                   </td>
                   <td className="whitespace-nowrap px-4 py-3">
-                    <span className="font-medium text-slate-700">{formatGrade(row.calificacionCalculada)}</span>
+                    <span className="font-medium text-foreground">{formatGrade(row.calificacionCalculada)}</span>
                     {typeof row.promedioTareas === 'number' && (
-                      <p className="text-xs text-slate-400">Tareas {row.promedioTareas}</p>
+                      <p className="text-xs text-muted-foreground">Tareas {row.promedioTareas}</p>
                     )}
                   </td>
                   {editable ? (
                     <>
                       <td className="px-4 py-3">
-                        <input
+                        <input aria-label={`Calificación de ${row.alumno?.nombre ?? row.nombre ?? "alumno"}`}
                           type="number"
                           min="1"
                           max="100"
                           value={draft.calificacionManual ?? ''}
                           onChange={(event) => onDraftChange?.(row, 'calificacionManual', event.target.value)}
-                          className="w-24 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-sky-400"
+                          className="w-24 rounded-2xl border border-border bg-card px-3 py-2 text-sm text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
                           placeholder="-"
                         />
                       </td>
                       <td className="min-w-[18rem] px-4 py-3">
                         <div className="flex items-center gap-2">
-                          <input
+                          <input aria-label={`Observación de ${row.alumno?.nombre ?? row.nombre ?? "alumno"}`}
                             type="text"
                             value={draft.observacion ?? ''}
                             onChange={(event) => onDraftChange?.(row, 'observacion', event.target.value)}
-                            className="min-w-[14rem] flex-1 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-sky-400"
+                            className="min-w-[14rem] flex-1 rounded-2xl border border-border bg-card px-3 py-2 text-sm text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
                             placeholder="Observación opcional"
                             maxLength={180}
                           />
-                          <button
+                          <Button variant="default"
                             type="button"
                             disabled={!canSave || saving}
                             onClick={() => onSaveManual?.(row)}
-                            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="inline-flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             <Save className="h-4 w-4" />
                             {saving ? 'Guardando' : 'Guardar'}
-                          </button>
+                          </Button>
                         </div>
                       </td>
                     </>
                   ) : (
                     <>
-                      <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+                      <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
                         {getFuenteLabel(row.fuenteCalificacion)}
                       </td>
-                      <td className="min-w-[16rem] px-4 py-3 text-slate-500">
+                      <td className="min-w-[16rem] px-4 py-3 text-muted-foreground">
                         {row.observacionManual || row.observaciones?.[0] || '-'}
                       </td>
                     </>
@@ -242,10 +238,10 @@ function CalificacionesTable({
                   <td className="whitespace-nowrap px-4 py-3">
                     <StatusBadge estado={row.estado} />
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+                  <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
                     {row.tareas?.calificadas ?? 0}/{row.tareas?.total ?? 0} calificadas
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+                  <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
                     {row.asistencia?.porcentaje ?? 0}%
                   </td>
                 </tr>
@@ -266,17 +262,21 @@ function DocenteCalificaciones() {
     obtenerDocente,
     exportarCaptura,
     guardarManual,
+    guardarPonderacion,
   } = useCalificacionStore()
   const [materias, setMaterias] = useState([])
   const [filters, setFilters] = useState({
     materiaId: '',
     grupoId: '',
     unidadId: '',
-    ...DEFAULT_WEIGHTS,
   })
   const [downloading, setDownloading] = useState(null)
   const [drafts, setDrafts] = useState({})
   const [savingKey, setSavingKey] = useState(null)
+  // La ponderación se guarda en la materia (servidor); aquí sólo el borrador.
+  const [weights, setWeights] = useState({ pesoTareas: '', pesoAsistencia: '' })
+  const [savingWeights, setSavingWeights] = useState(false)
+  const [weightsNotice, setWeightsNotice] = useState('')
 
   const cargarMaterias = useCallback(() => {
     api.get('/materias/mis-materias')
@@ -294,10 +294,49 @@ function DocenteCalificaciones() {
       materiaId: filters.materiaId,
       grupoId: filters.grupoId || undefined,
       unidadId: filters.unidadId || undefined,
-      pesoTareas: filters.pesoTareas,
-      pesoAsistencia: filters.pesoAsistencia,
     }).catch(() => {})
   }, [filters, obtenerDocente])
+
+  const ponderacion = filters.materiaId ? reporteDocente?.ponderacion : null
+  useEffect(() => {
+    setWeights({
+      pesoTareas: ponderacion ? String(ponderacion.tareas) : '',
+      pesoAsistencia: ponderacion ? String(ponderacion.asistencia) : '',
+    })
+  }, [ponderacion])
+  useEffect(() => { setWeightsNotice('') }, [filters.materiaId])
+  const handleWeightChange = (field) => (event) => {
+    setWeightsNotice('')
+    setWeights((prev) => ({ ...prev, [field]: event.target.value }))
+  }
+
+  const weightsDirty = Boolean(ponderacion) && (
+    weights.pesoTareas !== String(ponderacion.tareas) || weights.pesoAsistencia !== String(ponderacion.asistencia)
+  )
+  const weightsSum = Number(weights.pesoTareas || 0) + Number(weights.pesoAsistencia || 0)
+
+  const handleSaveWeights = async () => {
+    if (!filters.materiaId || savingWeights) return
+    setSavingWeights(true)
+    setWeightsNotice('')
+    try {
+      await guardarPonderacion({
+        materiaId: Number(filters.materiaId),
+        pesoTareas: Number(weights.pesoTareas),
+        pesoAsistencia: Number(weights.pesoAsistencia),
+      })
+      await obtenerDocente({
+        materiaId: filters.materiaId,
+        grupoId: filters.grupoId || undefined,
+        unidadId: filters.unidadId || undefined,
+      })
+      setWeightsNotice('Ponderación guardada. Se aplica a reportes, exportaciones y a la vista de los alumnos.')
+    } catch {
+      // El store ya expone el mensaje en `error`.
+    } finally {
+      setSavingWeights(false)
+    }
+  }
 
   const selectedMateria = useMemo(
     () => materias.find((materia) => materia.id === Number(filters.materiaId)),
@@ -332,8 +371,6 @@ function DocenteCalificaciones() {
         materiaId: filters.materiaId,
         grupoId: filters.grupoId || undefined,
         unidadId: filters.unidadId || undefined,
-        pesoTareas: filters.pesoTareas,
-        pesoAsistencia: filters.pesoAsistencia,
       }, formato)
     } finally {
       setDownloading(null)
@@ -371,8 +408,6 @@ function DocenteCalificaciones() {
       }, {
         grupoId: filters.grupoId || undefined,
         unidadId: filters.unidadId || undefined,
-        pesoTareas: filters.pesoTareas,
-        pesoAsistencia: filters.pesoAsistencia,
       })
     } finally {
       setSavingKey(null)
@@ -381,40 +416,40 @@ function DocenteCalificaciones() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-[2rem] border border-slate-200 bg-white px-6 py-7">
+      <section className="rounded-[2rem] border border-border bg-card px-6 py-7">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-2xl">
-            <span className="inline-flex rounded-full bg-sky-50 px-4 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-sky-700 ring-1 ring-sky-100">
+            <span className="inline-flex rounded-full bg-accent px-4 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-primary-ink ring-1 ring-ring">
               Docente
             </span>
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900">Calificaciones</h1>
-            <p className="mt-2 text-sm text-slate-500">Lista por unidad con avance de tareas y asistencia.</p>
+            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground">Calificaciones</h1>
+            <p className="mt-2 text-sm text-muted-foreground">Lista por unidad con avance de tareas y asistencia.</p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
-            <button
+            <Button variant="default"
               type="button"
               disabled={!canExport || downloading !== null}
               onClick={() => handleExport('excel')}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
             >
               <FileSpreadsheet className="h-4 w-4" />
               {downloading === 'excel' ? 'Generando...' : 'Excel'}
-            </button>
-            <button
+            </Button>
+            <Button variant="outline"
               type="button"
               disabled={!canExport || downloading !== null}
               onClick={() => handleExport('csv')}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center justify-center gap-2 border px-5 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Download className="h-4 w-4" />
               {downloading === 'csv' ? 'Generando...' : 'CSV'}
-            </button>
+            </Button>
           </div>
         </div>
       </section>
 
-      <section className="rounded-[2rem] border border-slate-200 bg-white p-5">
-        <div className="flex items-center gap-2 text-slate-700">
+      <section className="rounded-[2rem] border border-border bg-card p-5">
+        <div className="flex items-center gap-2 text-foreground">
           <Filter className="h-4 w-4" />
           <h2 className="text-sm font-semibold uppercase tracking-[0.14em]">Filtros</h2>
         </div>
@@ -459,31 +494,56 @@ function DocenteCalificaciones() {
             ))}
           </SelectField>
 
-          <NumberField
-            label="Tareas %"
-            value={filters.pesoTareas}
-            onChange={(event) => setFilters((prev) => ({ ...prev, pesoTareas: event.target.value }))}
-          />
-
-          <NumberField
-            label="Asistencia %"
-            value={filters.pesoAsistencia}
-            onChange={(event) => setFilters((prev) => ({ ...prev, pesoAsistencia: event.target.value }))}
-          />
-
-          <button
+          <Button variant="outline"
             type="button"
-            onClick={() => setFilters({ materiaId: '', grupoId: '', unidadId: '', ...DEFAULT_WEIGHTS })}
-            className="mt-auto inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+            onClick={() => setFilters({ materiaId: '', grupoId: '', unidadId: '' })}
+            className="mt-auto inline-flex items-center justify-center gap-2 border px-4 py-3 text-sm font-semibold"
           >
             <RefreshCcw className="h-4 w-4" />
             Limpiar
-          </button>
+          </Button>
         </div>
       </section>
 
+      <section className="rounded-[2rem] border border-border bg-card p-5">
+        <div className="flex items-center gap-2 text-foreground">
+          <GraduationCap className="h-4 w-4" />
+          <h2 className="text-sm font-semibold uppercase tracking-[0.14em]">Ponderación de la materia</h2>
+        </div>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Se guarda en la materia y la usan por igual esta lista, las exportaciones y la vista de los alumnos.
+        </p>
+        <div className="mt-4 flex flex-wrap gap-4">
+          <NumberField
+            label="Tareas %"
+            value={weights.pesoTareas}
+            disabled={!ponderacion}
+            onChange={handleWeightChange('pesoTareas')}
+          />
+          <NumberField
+            label="Asistencia %"
+            value={weights.pesoAsistencia}
+            disabled={!ponderacion}
+            onChange={handleWeightChange('pesoAsistencia')}
+          />
+          <Button variant="default"
+            type="button"
+            disabled={!ponderacion || !weightsDirty || weightsSum !== 100 || savingWeights}
+            onClick={handleSaveWeights}
+            className="mt-auto inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <Save className="h-4 w-4" />
+            {savingWeights ? 'Guardando...' : 'Guardar ponderación'}
+          </Button>
+        </div>
+        {ponderacion && weightsSum !== 100 && (
+          <p role="alert" className="mt-2 text-sm text-destructive-foreground">Tareas y asistencia deben sumar 100 % (ahora suman {weightsSum} %).</p>
+        )}
+        {weightsNotice && <p role="status" className="mt-2 text-sm text-muted-foreground">{weightsNotice}</p>}
+      </section>
+
       {error && (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <div className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground">
           {Array.isArray(error) ? error.join(', ') : error}
         </div>
       )}
@@ -495,17 +555,17 @@ function DocenteCalificaciones() {
         <MetricCard icon={GraduationCap} label="Promedio" value={formatGrade(metrics.promedioGeneral)} tone="slate" />
       </section>
 
-      <section className="rounded-[2rem] border border-slate-200 bg-white p-5">
+      <section className="rounded-[2rem] border border-border bg-card p-5">
         <div className="mb-4">
-          <h2 className="text-lg font-semibold text-slate-900">Lista para captura</h2>
+          <h2 className="text-lg font-semibold text-foreground">Lista para captura</h2>
         </div>
 
         {loading ? (
-          <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 px-6 py-14 text-center text-sm text-slate-500">
+          <div className="rounded-3xl border border-dashed border-border bg-background px-6 py-14 text-center text-sm text-muted-foreground">
             Cargando calificaciones...
           </div>
         ) : !filters.materiaId ? (
-          <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 px-6 py-14 text-center text-sm text-slate-500">
+          <div className="rounded-3xl border border-dashed border-border bg-background px-6 py-14 text-center text-sm text-muted-foreground">
             Selecciona una materia para generar la lista.
           </div>
         ) : (
@@ -551,15 +611,15 @@ function AlumnoCalificaciones() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-[2rem] border border-slate-200 bg-white px-6 py-7">
-        <span className="inline-flex rounded-full bg-sky-50 px-4 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-sky-700 ring-1 ring-sky-100">
+      <section className="rounded-[2rem] border border-border bg-card px-6 py-7">
+        <span className="inline-flex rounded-full bg-accent px-4 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-primary-ink ring-1 ring-ring">
           Alumno
         </span>
-        <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900">Mis calificaciones</h1>
-        <p className="mt-2 text-sm text-slate-500">Consulta por unidad con resumen de asistencia y tareas.</p>
+        <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground">Mis calificaciones</h1>
+        <p className="mt-2 text-sm text-muted-foreground">Consulta por unidad con resumen de asistencia y tareas.</p>
       </section>
 
-      <section className="rounded-[2rem] border border-slate-200 bg-white p-5">
+      <section className="rounded-[2rem] border border-border bg-card p-5">
         <SelectField
           label="Materia"
           value={materiaId}
@@ -573,7 +633,7 @@ function AlumnoCalificaciones() {
       </section>
 
       {error && (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <div className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground">
           {Array.isArray(error) ? error.join(', ') : error}
         </div>
       )}
@@ -585,13 +645,13 @@ function AlumnoCalificaciones() {
         <MetricCard icon={GraduationCap} label="Promedio" value={formatGrade(metrics.promedioGeneral)} tone="slate" />
       </section>
 
-      <section className="rounded-[2rem] border border-slate-200 bg-white p-5">
+      <section className="rounded-[2rem] border border-border bg-card p-5">
         <div className="mb-4">
-          <h2 className="text-lg font-semibold text-slate-900">Avance por unidad</h2>
+          <h2 className="text-lg font-semibold text-foreground">Avance por unidad</h2>
         </div>
 
         {loading ? (
-          <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 px-6 py-14 text-center text-sm text-slate-500">
+          <div className="rounded-3xl border border-dashed border-border bg-background px-6 py-14 text-center text-sm text-muted-foreground">
             Cargando calificaciones...
           </div>
         ) : (

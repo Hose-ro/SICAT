@@ -1,3 +1,5 @@
+import { Button } from '@/components/ui/button'
+import Modal from '@/components/Modal'
 import { useMemo, useState } from 'react'
 import TarjetaMateria from './TarjetaMateria'
 import { useHorarioStore } from '../../../../store/horarioStore'
@@ -90,7 +92,7 @@ export default function GridHorario({
 
   if (!contextoSeleccionado) {
     return (
-      <div className="flex h-48 items-center justify-center text-sm text-slate-400">
+      <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
         {modo === 'grupo'
           ? 'Selecciona un grupo para ver o editar su horario'
           : 'Selecciona un docente para ver o editar su horario'}
@@ -103,30 +105,30 @@ export default function GridHorario({
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-lg font-semibold">{contextoSeleccionado.nombre}</h2>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-muted-foreground">
             {modo === 'grupo'
               ? `${contextoSeleccionado.carrera?.nombre ?? 'Carrera'} · Sem ${contextoSeleccionado.semestre} · ${contextoSeleccionado.periodo}`
               : `${clases.length} clase${clases.length !== 1 ? 's' : ''} · ${horasSemanales}h semanales`}
           </p>
         </div>
         {modoEdicion && (
-          <p className="text-xs text-blue-600">
+          <p className="text-xs text-primary-ink">
             Haz clic en una clase para editarla, o en un espacio libre para crear una nueva.
           </p>
         )}
       </div>
 
       {clases.length === 0 && !modoEdicion && (
-        <div className="flex h-32 items-center justify-center text-sm text-slate-400">
+        <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">
           Este horario todavía no tiene clases programadas.
         </div>
       )}
 
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Cuadrícula semanal">
         <div className="grid min-w-[720px]" style={{ gridTemplateColumns: '64px repeat(6, 1fr)' }}>
-          <div className="py-1 text-center text-xs text-slate-400" />
+          <div className="py-1 text-center text-xs text-muted-foreground" />
           {DIAS.map((dia) => (
-            <div key={dia} className="py-1 text-center text-xs font-semibold text-slate-600">
+            <div key={dia} className="py-1 text-center text-xs font-semibold text-muted-foreground">
               {dia}
             </div>
           ))}
@@ -134,7 +136,7 @@ export default function GridHorario({
           {HORAS.map((hora, rowIdx) => (
             <div key={`fila-${hora}`} className="contents">
               <div
-                className="border-t border-slate-100 pr-2 pt-1 text-right text-xs text-slate-400"
+                className="border-t border-border pr-2 pt-1 text-right text-xs text-muted-foreground"
                 style={{ gridRow: rowIdx + 1 }}
               >
                 {hora}
@@ -142,7 +144,7 @@ export default function GridHorario({
 
               {DIAS.map((dia, diaIdx) =>
                 modoEdicion ? (
-                  <button
+                  <Button variant="ghost" aria-label={`Nueva clase · ${dia} ${hora}`}
                     key={`${dia}-${hora}`}
                     type="button"
                     onClick={() =>
@@ -153,17 +155,17 @@ export default function GridHorario({
                       })
                     }
                     title={`Nueva clase · ${dia} ${hora}`}
-                    className="group min-h-[48px] border-l border-t border-slate-100 transition hover:bg-blue-50"
+                    className="group min-h-[48px] border-l border-t border-border  hover:bg-accent"
                     style={{ gridRow: rowIdx + 1, gridColumn: diaIdx + 2 }}
                   >
-                    <span className="text-sm font-medium text-blue-500 opacity-0 transition group-hover:opacity-100">
+                    <span className="text-sm font-medium text-primary-ink opacity-0 transition group-hover:opacity-100">
                       +
                     </span>
-                  </button>
+                  </Button>
                 ) : (
                   <div
                     key={`${dia}-${hora}`}
-                    className="min-h-[48px] border-l border-t border-slate-100"
+                    className="min-h-[48px] border-l border-t border-border"
                     style={{ gridRow: rowIdx + 1, gridColumn: diaIdx + 2 }}
                   />
                 ),
@@ -195,28 +197,10 @@ export default function GridHorario({
       </div>
 
       {detalle && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-          onClick={() => setDetalle(null)}
-        >
-          <div
-            className="w-full max-w-sm space-y-3 rounded-xl bg-white p-4 shadow-xl sm:p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between">
-              <div>
-                <h3 className="text-base font-semibold">{detalle.materia.nombre}</h3>
-                <p className="text-xs text-slate-400">{detalle.materia.clave}</p>
-              </div>
-              <button
-                onClick={() => setDetalle(null)}
-                className="text-lg leading-none text-slate-400 hover:text-slate-600"
-              >
-                ✕
-              </button>
-            </div>
+        <Modal open onClose={() => setDetalle(null)} title={detalle.materia.nombre}><p className="text-sm text-muted-foreground">{detalle.materia.clave}</p>
+            
 
-            <div className="space-y-1 text-sm text-slate-600">
+            <div className="space-y-1 text-sm text-muted-foreground">
               <p><span className="font-medium">Docente:</span> {detalle.docente.nombre}</p>
               <p><span className="font-medium">Aula:</span> {detalle.aula?.nombre || (detalle.bloques.some((b) => b.aula) ? 'Distinta por día' : 'Sin aula asignada')}</p>
               {detalle.grupo && <p><span className="font-medium">Grupo:</span> {detalle.grupo.nombre}</p>}
@@ -226,14 +210,14 @@ export default function GridHorario({
               {detalle.semestre && <p><span className="font-medium">Semestre:</span> {detalle.semestre}</p>}
             </div>
 
-            <div className="rounded-lg border border-slate-200">
+            <div className="rounded-lg border border-border">
               {detalle.bloques.map((bloque) => (
                 <div
                   key={`${bloque.horarioId}-${bloque.dia}`}
-                  className="flex items-center justify-between border-b border-slate-100 px-3 py-2 text-sm last:border-b-0"
+                  className="flex items-center justify-between border-b border-border px-3 py-2 text-sm last:border-b-0"
                 >
-                  <span className="font-medium text-slate-700">{bloque.dia}</span>
-                  <span className="text-slate-500">
+                  <span className="font-medium text-foreground">{bloque.dia}</span>
+                  <span className="text-muted-foreground">
                     {bloque.horaInicio}–{bloque.horaFin}
                     {bloque.aula ? ` · ${bloque.aula.nombre}` : ''}
                   </span>
@@ -241,17 +225,16 @@ export default function GridHorario({
               ))}
             </div>
 
-            <button
+            <Button variant="default"
               onClick={() => {
                 onEditarClase?.(detalle)
                 setDetalle(null)
               }}
-              className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              className="w-full px-4 py-2 text-sm font-medium"
             >
               Editar clase
-            </button>
-          </div>
-        </div>
+            </Button>
+          </Modal>
       )}
     </div>
   )

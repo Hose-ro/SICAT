@@ -3,6 +3,13 @@ import { Prisma, Rol, TipoEventoAuth } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma.service';
 import { UsuariosService } from './usuarios.service';
+import { inscribirAlumnosDelGrupo } from '../common/inscripciones-grupo';
+
+jest.mock('../common/inscripciones-grupo', () => ({
+  inscribirAlumnosDelGrupo: jest
+    .fn()
+    .mockResolvedValue({ creadas: 0, reactivadas: 0 }),
+}));
 
 describe('UsuariosService', () => {
   const usuarioFindUnique = jest.fn();
@@ -526,6 +533,9 @@ describe('UsuariosService', () => {
     expect(tx.usuario.update).toHaveBeenCalledWith({
       where: { id: 20 },
       data: { grupoId: 8 },
+    });
+    expect(inscribirAlumnosDelGrupo).toHaveBeenCalledWith(tx, 8, {
+      alumnoIds: [20],
     });
     expect(tx.authAudit.create).toHaveBeenCalledWith(
       expect.objectContaining({

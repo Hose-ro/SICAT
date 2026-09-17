@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button'
 import { useCallback, useEffect, useState } from 'react'
 import { useHorarioStore } from '../../../store/horarioStore'
 import SelectorDocente from './components/SelectorDocente'
@@ -29,14 +30,12 @@ export default function HorariosPage({ soloPropias = false }) {
     if (soloPropias) cargarMiHorario()
   }, [cargarCatalogos, cargarMiHorario, soloPropias])
 
-  useEffect(() => {
-    setModoEdicion(false)
+  const selectionKey = `${modo}:${docenteSeleccionado?.id ?? ''}:${grupoSeleccionado?.id ?? ''}`
+  const [previousSelection, setPreviousSelection] = useState(selectionKey)
+  if (previousSelection !== selectionKey) {
+    setPreviousSelection(selectionKey)
     setEditor(null)
-  }, [modo])
-
-  useEffect(() => {
-    setEditor(null)
-  }, [docenteSeleccionado?.id, grupoSeleccionado?.id])
+  }
 
   const contexto = modo === 'grupo' ? grupoSeleccionado : docenteSeleccionado
 
@@ -69,10 +68,10 @@ export default function HorariosPage({ soloPropias = false }) {
   return (
     <div className="flex h-full flex-col gap-4 px-4 py-4 sm:px-6 sm:py-6">
       <div>
-        <h1 className="text-xl font-bold text-slate-800 sm:text-2xl">
+        <h1 className="text-xl font-bold text-foreground sm:text-2xl">
           {soloPropias ? 'Mi horario' : 'Gestión de Horarios'}
         </h1>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-muted-foreground">
           {soloPropias
             ? 'Elige la materia y el grupo que vas a impartir. Si otro docente ya tiene esa materia en ese grupo, el sistema te avisa.'
             : 'Programa materias por docente y grupo con bloques por día y validación de conflictos'}
@@ -80,52 +79,52 @@ export default function HorariosPage({ soloPropias = false }) {
       </div>
 
       {error && (
-        <div className="flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="flex items-center justify-between rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground">
           <span>{error}</span>
-          <button onClick={clearError} className="ml-4 text-red-400 hover:text-red-600">
+          <Button variant="destructive" onClick={clearError} className="ml-4">
             ✕
-          </button>
+          </Button>
         </div>
       )}
 
       <div className="flex flex-col gap-3 text-sm sm:flex-row sm:items-center">
         {!soloPropias && (
           <>
-            <button
-              className={`rounded-lg border px-3 py-1.5 ${modo === 'docente' ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 text-slate-600'}`}
-              onClick={() => setModo('docente')}
+            <Button variant="ghost"
+              className={`rounded-lg border px-3 py-1.5 ${modo === 'docente' ? "border-border bg-primary text-primary-foreground" : "border-border text-muted-foreground"}`}
+              onClick={() => { setModo('docente'); setModoEdicion(false) }}
             >
               Vista por docente
-            </button>
-            <button
-              className={`rounded-lg border px-3 py-1.5 ${modo === 'grupo' ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 text-slate-600'}`}
-              onClick={() => setModo('grupo')}
+            </Button>
+            <Button variant="ghost"
+              className={`rounded-lg border px-3 py-1.5 ${modo === 'grupo' ? "border-border bg-primary text-primary-foreground" : "border-border text-muted-foreground"}`}
+              onClick={() => { setModo('grupo'); setModoEdicion(false) }}
             >
               Vista por grupo
-            </button>
+            </Button>
           </>
         )}
 
         {contexto && (
-          <button
+          <Button variant="ghost"
             onClick={alternarEdicion}
             className={`rounded-lg border px-3 py-1.5 sm:ml-auto ${
               modoEdicion
-                ? 'border-slate-300 bg-slate-100 text-slate-700'
-                : 'border-blue-600 bg-white text-blue-600 hover:bg-blue-50'
+                ? "border-border bg-muted text-foreground"
+                : "border-border bg-card text-primary-ink hover:bg-accent"
             }`}
           >
             {modoEdicion ? 'Salir de edición' : 'Editar horario'}
-          </button>
+          </Button>
         )}
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col gap-6 xl:flex-row">
         <aside className="flex w-full shrink-0 flex-col gap-4 overflow-y-auto xl:w-72">
           {soloPropias ? (
-            <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Docente</p>
-              <p className="mt-1 font-medium text-slate-800">{docenteSeleccionado?.nombre ?? 'Tu horario'}</p>
+            <div className="rounded-xl border border-border bg-card p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Docente</p>
+              <p className="mt-1 font-medium text-foreground">{docenteSeleccionado?.nombre ?? 'Tu horario'}</p>
             </div>
           ) : modo === 'docente' ? (
             <SelectorDocente />
@@ -134,16 +133,16 @@ export default function HorariosPage({ soloPropias = false }) {
           )}
 
           {modoEdicion && contexto && !editor && (
-            <button
+            <Button variant="outline"
               onClick={() => setEditor({ preset: null })}
-              className="rounded-xl border border-dashed border-blue-300 px-4 py-3 text-sm font-medium text-blue-600 transition hover:bg-blue-50"
+              className="border border-dashed px-4 py-3 text-sm font-medium"
             >
               + Nueva clase
-            </button>
+            </Button>
           )}
         </aside>
 
-        <main className="min-w-0 flex-1 overflow-y-auto rounded-xl border border-slate-200 bg-white p-3 sm:p-4">
+        <section aria-label="Cuadrícula del horario" className="min-w-0 flex-1 overflow-y-auto rounded-xl border border-border bg-card p-3 sm:p-4">
           <GridHorario
             modo={modo}
             modoEdicion={modoEdicion}
@@ -151,7 +150,7 @@ export default function HorariosPage({ soloPropias = false }) {
             onEditarClase={handleEditarClase}
             onNuevaClase={handleNuevaClase}
           />
-        </main>
+        </section>
 
         {editor && contexto && (
           <aside className="w-full shrink-0 overflow-y-auto xl:w-80">

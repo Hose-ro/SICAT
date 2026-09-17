@@ -1,0 +1,852 @@
+[
+  {
+    "theme": "light",
+    "values": [
+      {
+        "sample": "background/foreground",
+        "foreground": [
+          31,
+          38,
+          53
+        ],
+        "background": [
+          249,
+          250,
+          253
+        ],
+        "ratio": 14.50742277246819
+      },
+      {
+        "sample": "background/muted-foreground",
+        "foreground": [
+          92,
+          99,
+          114
+        ],
+        "background": [
+          249,
+          250,
+          253
+        ],
+        "ratio": 5.77715615881692
+      },
+      {
+        "sample": "background/primary-ink",
+        "foreground": [
+          40,
+          80,
+          176
+        ],
+        "background": [
+          249,
+          250,
+          253
+        ],
+        "ratio": 7.023850505271563
+      },
+      {
+        "sample": "card/foreground",
+        "foreground": [
+          31,
+          38,
+          53
+        ],
+        "background": [
+          252,
+          253,
+          255
+        ],
+        "ratio": 14.877049800491813
+      },
+      {
+        "sample": "card/muted-foreground",
+        "foreground": [
+          92,
+          99,
+          114
+        ],
+        "background": [
+          252,
+          253,
+          255
+        ],
+        "ratio": 5.924349295385902
+      },
+      {
+        "sample": "card/primary-ink",
+        "foreground": [
+          40,
+          80,
+          176
+        ],
+        "background": [
+          252,
+          253,
+          255
+        ],
+        "ratio": 7.2028075142637285
+      },
+      {
+        "sample": "muted/foreground",
+        "foreground": [
+          31,
+          38,
+          53
+        ],
+        "background": [
+          238,
+          240,
+          244
+        ],
+        "ratio": 13.271034353261278
+      },
+      {
+        "sample": "muted/muted-foreground",
+        "foreground": [
+          92,
+          99,
+          114
+        ],
+        "background": [
+          238,
+          240,
+          244
+        ],
+        "ratio": 5.284800687915047
+      },
+      {
+        "sample": "muted/primary-ink",
+        "foreground": [
+          40,
+          80,
+          176
+        ],
+        "background": [
+          238,
+          240,
+          244
+        ],
+        "ratio": 6.425246083303586
+      },
+      {
+        "sample": "accent/foreground",
+        "foreground": [
+          31,
+          38,
+          53
+        ],
+        "background": [
+          228,
+          235,
+          249
+        ],
+        "ratio": 12.654013379140807
+      },
+      {
+        "sample": "accent/muted-foreground",
+        "foreground": [
+          92,
+          99,
+          114
+        ],
+        "background": [
+          228,
+          235,
+          249
+        ],
+        "ratio": 5.039090159128077
+      },
+      {
+        "sample": "accent/primary-ink",
+        "foreground": [
+          40,
+          80,
+          176
+        ],
+        "background": [
+          228,
+          235,
+          249
+        ],
+        "ratio": 6.126511900891536
+      },
+      {
+        "sample": "primary/fill",
+        "foreground": [
+          250,
+          252,
+          255
+        ],
+        "background": [
+          56,
+          107,
+          226
+        ],
+        "ratio": 4.676348825978249
+      },
+      {
+        "sample": "primary/10",
+        "foreground": [
+          40,
+          80,
+          176
+        ],
+        "background": [
+          232.32156862745097,
+          238.2156862745098,
+          252.04313725490195
+        ],
+        "ratio": 6.319573750172077
+      },
+      {
+        "sample": "primary/15",
+        "foreground": [
+          40,
+          80,
+          176
+        ],
+        "background": [
+          222.49411764705883,
+          231.24313725490194,
+          250.9764705882353
+        ],
+        "ratio": 5.924677615063889
+      },
+      {
+        "sample": "primary/20",
+        "foreground": [
+          40,
+          80,
+          176
+        ],
+        "background": [
+          212.60000000000002,
+          223.4,
+          249
+        ],
+        "ratio": 5.509680228921357
+      },
+      {
+        "sample": "success/fill",
+        "foreground": [
+          249,
+          253,
+          250
+        ],
+        "background": [
+          33,
+          118,
+          60
+        ],
+        "ratio": 5.497687954552368
+      },
+      {
+        "sample": "success/10",
+        "foreground": [
+          8,
+          80,
+          35
+        ],
+        "background": [
+          229.26274509803923,
+          239.23529411764707,
+          235.0156862745098
+        ],
+        "ratio": 8.20978791011052
+      },
+      {
+        "sample": "success/15",
+        "foreground": [
+          8,
+          80,
+          35
+        ],
+        "background": [
+          219.51372549019607,
+          233.32941176470587,
+          225.94117647058823
+        ],
+        "ratio": 7.707596468176064
+      },
+      {
+        "sample": "success/20",
+        "foreground": [
+          8,
+          80,
+          35
+        ],
+        "background": [
+          208.60000000000002,
+          226.4,
+          216
+        ],
+        "ratio": 7.155207034382451
+      },
+      {
+        "sample": "warning/fill",
+        "foreground": [
+          38,
+          26,
+          9
+        ],
+        "background": [
+          228,
+          163,
+          57
+        ],
+        "ratio": 7.776216337482106
+      },
+      {
+        "sample": "warning/10",
+        "foreground": [
+          91,
+          59,
+          0
+        ],
+        "background": [
+          249.34901960784313,
+          244.23137254901962,
+          235.0156862745098
+        ],
+        "ratio": 9.277723682809473
+      },
+      {
+        "sample": "warning/15",
+        "foreground": [
+          91,
+          59,
+          0
+        ],
+        "background": [
+          248.4235294117647,
+          239.29019607843136,
+          225.04705882352943
+        ],
+        "ratio": 8.92341230058194
+      },
+      {
+        "sample": "warning/20",
+        "foreground": [
+          91,
+          59,
+          0
+        ],
+        "background": [
+          247.60000000000002,
+          235.4,
+          215
+        ],
+        "ratio": 8.639396783091485
+      },
+      {
+        "sample": "destructive/fill",
+        "foreground": [
+          255,
+          251,
+          250
+        ],
+        "background": [
+          215,
+          52,
+          49
+        ],
+        "ratio": 4.617282685702829
+      },
+      {
+        "sample": "destructive/10",
+        "foreground": [
+          148,
+          22,
+          23
+        ],
+        "background": [
+          248.3294117647059,
+          232.20000000000002,
+          233.99607843137255
+        ],
+        "ratio": 7.441001084610613
+      },
+      {
+        "sample": "destructive/15",
+        "foreground": [
+          148,
+          22,
+          23
+        ],
+        "background": [
+          246.4862745098039,
+          223.34509803921566,
+          224.00392156862745
+        ],
+        "ratio": 6.95824572028332
+      },
+      {
+        "sample": "destructive/20",
+        "foreground": [
+          148,
+          22,
+          23
+        ],
+        "background": [
+          244.60000000000002,
+          212.4,
+          214
+        ],
+        "ratio": 6.410119564509415
+      },
+      {
+        "sample": "primary/button",
+        "foreground": [
+          250,
+          252,
+          255
+        ],
+        "background": [
+          56,
+          107,
+          226
+        ],
+        "ratio": 4.676348825978249
+      },
+      {
+        "sample": "destructive/button",
+        "foreground": [
+          148,
+          22,
+          23
+        ],
+        "background": [
+          248.3294117647059,
+          232.20000000000002,
+          233.99607843137255
+        ],
+        "ratio": 7.441001084610613
+      }
+    ]
+  },
+  {
+    "theme": "dark",
+    "values": [
+      {
+        "sample": "background/foreground",
+        "foreground": [
+          232,
+          235,
+          241
+        ],
+        "background": [
+          14,
+          17,
+          22
+        ],
+        "ratio": 15.835802790807652
+      },
+      {
+        "sample": "background/muted-foreground",
+        "foreground": [
+          175,
+          180,
+          190
+        ],
+        "background": [
+          14,
+          17,
+          22
+        ],
+        "ratio": 9.090864696864626
+      },
+      {
+        "sample": "background/primary-ink",
+        "foreground": [
+          157,
+          189,
+          255
+        ],
+        "background": [
+          14,
+          17,
+          22
+        ],
+        "ratio": 10.047084026077062
+      },
+      {
+        "sample": "card/foreground",
+        "foreground": [
+          232,
+          235,
+          241
+        ],
+        "background": [
+          24,
+          27,
+          32
+        ],
+        "ratio": 14.455510899557195
+      },
+      {
+        "sample": "card/muted-foreground",
+        "foreground": [
+          175,
+          180,
+          190
+        ],
+        "background": [
+          24,
+          27,
+          32
+        ],
+        "ratio": 8.298480061156662
+      },
+      {
+        "sample": "card/primary-ink",
+        "foreground": [
+          157,
+          189,
+          255
+        ],
+        "background": [
+          24,
+          27,
+          32
+        ],
+        "ratio": 9.171352697826613
+      },
+      {
+        "sample": "muted/foreground",
+        "foreground": [
+          232,
+          235,
+          241
+        ],
+        "background": [
+          33,
+          36,
+          42
+        ],
+        "ratio": 13.021333993515483
+      },
+      {
+        "sample": "muted/muted-foreground",
+        "foreground": [
+          175,
+          180,
+          190
+        ],
+        "background": [
+          33,
+          36,
+          42
+        ],
+        "ratio": 7.475161636671017
+      },
+      {
+        "sample": "muted/primary-ink",
+        "foreground": [
+          157,
+          189,
+          255
+        ],
+        "background": [
+          33,
+          36,
+          42
+        ],
+        "ratio": 8.261433821366204
+      },
+      {
+        "sample": "accent/foreground",
+        "foreground": [
+          232,
+          235,
+          241
+        ],
+        "background": [
+          39,
+          46,
+          59
+        ],
+        "ratio": 11.416996585498651
+      },
+      {
+        "sample": "accent/muted-foreground",
+        "foreground": [
+          175,
+          180,
+          190
+        ],
+        "background": [
+          39,
+          46,
+          59
+        ],
+        "ratio": 6.554159114912809
+      },
+      {
+        "sample": "accent/primary-ink",
+        "foreground": [
+          157,
+          189,
+          255
+        ],
+        "background": [
+          39,
+          46,
+          59
+        ],
+        "ratio": 7.243555981040958
+      },
+      {
+        "sample": "primary/fill",
+        "foreground": [
+          11,
+          15,
+          24
+        ],
+        "background": [
+          101,
+          148,
+          250
+        ],
+        "ratio": 6.543223226130737
+      },
+      {
+        "sample": "primary/10",
+        "foreground": [
+          157,
+          189,
+          255
+        ],
+        "background": [
+          31.545098039215688,
+          39.23529411764706,
+          53.71764705882353
+        ],
+        "ratio": 7.934946291942733
+      },
+      {
+        "sample": "primary/15",
+        "foreground": [
+          157,
+          189,
+          255
+        ],
+        "background": [
+          35.47450980392156,
+          45.03137254901961,
+          64.18823529411765
+        ],
+        "ratio": 7.323370195541056
+      },
+      {
+        "sample": "primary/20",
+        "foreground": [
+          157,
+          189,
+          255
+        ],
+        "background": [
+          39.2,
+          51.6,
+          75.6
+        ],
+        "ratio": 6.663133974008529
+      },
+      {
+        "sample": "success/fill",
+        "foreground": [
+          7,
+          21,
+          10
+        ],
+        "background": [
+          78,
+          176,
+          104
+        ],
+        "ratio": 6.90111949939427
+      },
+      {
+        "sample": "success/10",
+        "foreground": [
+          163,
+          223,
+          175
+        ],
+        "background": [
+          29.50588235294118,
+          42.294117647058826,
+          39.74901960784314
+        ],
+        "ratio": 9.674077305961363
+      },
+      {
+        "sample": "success/15",
+        "foreground": [
+          163,
+          223,
+          175
+        ],
+        "background": [
+          32.49411764705882,
+          48.90588235294118,
+          42.28235294117647
+        ],
+        "ratio": 8.947866744295903
+      },
+      {
+        "sample": "success/20",
+        "foreground": [
+          163,
+          223,
+          175
+        ],
+        "background": [
+          35.2,
+          56.6,
+          46.6
+        ],
+        "ratio": 8.125367194066316
+      },
+      {
+        "sample": "warning/fill",
+        "foreground": [
+          38,
+          26,
+          9
+        ],
+        "background": [
+          235,
+          169,
+          65
+        ],
+        "ratio": 8.333049116414555
+      },
+      {
+        "sample": "warning/10",
+        "foreground": [
+          249,
+          225,
+          192
+        ],
+        "background": [
+          45.51372549019608,
+          41.27450980392157,
+          35.772549019607844
+        ],
+        "ratio": 11.341081179724732
+      },
+      {
+        "sample": "warning/15",
+        "foreground": [
+          249,
+          225,
+          192
+        ],
+        "background": [
+          55.443137254901956,
+          48.01176470588236,
+          37.21568627450981
+        ],
+        "ratio": 10.253882423631813
+      },
+      {
+        "sample": "warning/20",
+        "foreground": [
+          249,
+          225,
+          192
+        ],
+        "background": [
+          66.2,
+          55.6,
+          38.6
+        ],
+        "ratio": 9.099672093424305
+      },
+      {
+        "sample": "destructive/fill",
+        "foreground": [
+          31,
+          11,
+          9
+        ],
+        "background": [
+          234,
+          107,
+          96
+        ],
+        "ratio": 6.099110663134581
+      },
+      {
+        "sample": "destructive/10",
+        "foreground": [
+          252,
+          197,
+          189
+        ],
+        "background": [
+          45.51372549019608,
+          35.258823529411764,
+          38.72941176470589
+        ],
+        "ratio": 9.997905352729513
+      },
+      {
+        "sample": "destructive/15",
+        "foreground": [
+          252,
+          197,
+          189
+        ],
+        "background": [
+          55.443137254901956,
+          38.92156862745098,
+          41.239215686274505
+        ],
+        "ratio": 9.324245679618155
+      },
+      {
+        "sample": "destructive/20",
+        "foreground": [
+          252,
+          197,
+          189
+        ],
+        "background": [
+          66.2,
+          42.6,
+          44.6
+        ],
+        "ratio": 8.608509331059073
+      },
+      {
+        "sample": "primary/button",
+        "foreground": [
+          11,
+          15,
+          24
+        ],
+        "background": [
+          101,
+          148,
+          250
+        ],
+        "ratio": 6.543223226130737
+      },
+      {
+        "sample": "destructive/button",
+        "foreground": [
+          252,
+          197,
+          189
+        ],
+        "background": [
+          45.51372549019608,
+          35.258823529411764,
+          38.72941176470589
+        ],
+        "ratio": 9.997905352729513
+      }
+    ]
+  }
+]

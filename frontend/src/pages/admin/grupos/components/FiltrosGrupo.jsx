@@ -18,10 +18,10 @@ export default function FiltrosGrupo() {
 
   return (
     <div className="flex flex-wrap gap-3 items-center">
-      <select
+      <select aria-label="Carrera"
         value={filtros.carreraId ?? ''}
         onChange={(e) => handleChange('carreraId', e.target.value ? Number(e.target.value) : undefined)}
-        className="border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="border border-border rounded-xl px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <option value="">Todas las carreras</option>
         {carreras.map((c) => (
@@ -29,10 +29,10 @@ export default function FiltrosGrupo() {
         ))}
       </select>
 
-      <select
+      <select aria-label="Semestre"
         value={filtros.semestre ?? ''}
         onChange={(e) => handleChange('semestre', e.target.value ? Number(e.target.value) : undefined)}
-        className="border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="border border-border rounded-xl px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <option value="">Todos los semestres</option>
         {SEMESTRES.map((s) => (
@@ -40,12 +40,12 @@ export default function FiltrosGrupo() {
         ))}
       </select>
 
-      <input
+      <input aria-label="Periodo escolar"
         type="text"
         placeholder="Periodo (ej: 2026-A)"
         value={filtros.periodo ?? ''}
         onChange={(e) => handleChange('periodo', e.target.value)}
-        className="border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-44"
+        className="border border-border rounded-xl px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring w-44"
       />
     </div>
   )
