@@ -258,6 +258,7 @@
 .dialog-backdrop { position: fixed; inset: 0; z-index: 200; background: color-mix(in oklab, var(--overlay) 45%, transparent); }
 .dialog-panel { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 201; width: min(32rem, calc(100vw - 2rem)); max-height: calc(100dvh - 2rem); overflow-y: auto; overscroll-behavior: contain; border: 1px solid var(--border); border-radius: 20px; background: var(--card); color: var(--foreground); }
 .dialog-panel--wide { width: min(48rem, calc(100vw - 2rem)); }
+.dialog-panel--report { width: min(72rem, calc(100vw - 2rem)); }
 
 @media (max-width: 1023px) {
   .mobile-topbar { display: flex; }

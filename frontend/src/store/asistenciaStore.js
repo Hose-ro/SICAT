@@ -1,6 +1,38 @@
 import { create } from 'zustand'
 import api from '../api/axios'
 
+/**
+ * Los mismos filtros alimentan la vista previa (JSON) y la descarga
+ * (PDF/Excel), así lo que se ve en pantalla es lo que sale en el archivo.
+ */
+function construirParamsReporte(options = {}, legacyUnidadId) {
+  const normalized = typeof options === 'string'
+    ? { formato: options, unidadId: legacyUnidadId }
+    : options
+
+  const {
+    formato = 'excel',
+    sesionId,
+    grupoId,
+    fecha,
+    semana,
+    mes,
+    unidadId,
+    docenteId,
+  } = normalized
+
+  const params = new URLSearchParams()
+  if (sesionId) params.set('sesionId', sesionId)
+  if (grupoId) params.set('grupoId', grupoId)
+  if (fecha) params.set('fecha', fecha)
+  if (semana) params.set('semana', semana)
+  if (mes) params.set('mes', mes)
+  if (unidadId) params.set('unidadId', unidadId)
+  if (docenteId) params.set('docenteId', docenteId)
+
+  return { formato, params }
+}
+
 function descargarArchivo(blob, nombre) {
   const url = URL.createObjectURL(blob)
   const anchor = document.createElement('a')
@@ -122,30 +154,16 @@ export const useAsistenciaStore = create((set) => ({
     return response.data
   },
 
+  obtenerDatosReporte: async (materiaId, options = {}) => {
+    const { params } = construirParamsReporte(options)
+    const query = params.toString() ? `?${params.toString()}` : ''
+    const response = await api.get(`/asistencias/reporte/${materiaId}${query}`)
+    return response.data
+  },
+
   exportar: async (materiaId, options = {}, legacyUnidadId) => {
-    const normalized = typeof options === 'string'
-      ? { formato: options, unidadId: legacyUnidadId }
-      : options
-
-    const {
-      formato = 'excel',
-      sesionId,
-      grupoId,
-      fecha,
-      semana,
-      mes,
-      unidadId,
-      docenteId,
-    } = normalized
-
-    const params = new URLSearchParams({ formato })
-    if (sesionId) params.set('sesionId', sesionId)
-    if (grupoId) params.set('grupoId', grupoId)
-    if (fecha) params.set('fecha', fecha)
-    if (semana) params.set('semana', semana)
-    if (mes) params.set('mes', mes)
-    if (unidadId) params.set('unidadId', unidadId)
-    if (docenteId) params.set('docenteId', docenteId)
+    const { formato, params } = construirParamsReporte(options, legacyUnidadId)
+    params.set('formato', formato)
 
     const response = await api.get(`/asistencias/exportar/${materiaId}?${params.toString()}`, {
       responseType: 'blob',

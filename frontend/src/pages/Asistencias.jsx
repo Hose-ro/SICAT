@@ -10,6 +10,7 @@ import { useClaseStore } from '../store/claseStore'
 import { useAsistenciaStore } from '../store/asistenciaStore'
 import AttendanceBadge from '../components/AttendanceBadge'
 import AsistenciaSesionPanel from './docente/components/AsistenciaSesionPanel'
+import VistaPreviaReporteModal from './docente/components/VistaPreviaReporteModal'
 
 function formatDate(value) {
   if (!value) return 'Sin fecha'
@@ -83,13 +84,24 @@ function StatPill({ label, value, tone = 'slate' }) {
   )
 }
 
-function ExportActions({ onExportPdf, onExportExcel, label, disabled = false, ayudaId }) {
+function ExportActions({ onVer, onExportPdf, onExportExcel, label, disabled = false, ayudaId }) {
   return (
     <div className="flex flex-wrap gap-2">
       {label && (
         <span className="rounded-full bg-muted px-3 py-2 text-xs font-medium text-muted-foreground">
           {label}
         </span>
+      )}
+      {onVer && (
+        <Button variant="outline"
+          type="button"
+          onClick={onVer}
+          disabled={disabled}
+          aria-describedby={ayudaId}
+          className="border px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Ver
+        </Button>
       )}
       <Button variant="outline"
         type="button"
@@ -118,7 +130,7 @@ function ExportActions({ onExportPdf, onExportExcel, label, disabled = false, ay
  * filtro fino del historial: entran todas las unidades (aunque sigan
  * abiertas), todas las fechas y, si se elige, un solo grupo.
  */
-function ReporteAcumuladoCard({ materias = [], materiaSugeridaId, grupoSugeridoId, onExport }) {
+function ReporteAcumuladoCard({ materias = [], materiaSugeridaId, grupoSugeridoId, onExport, onVer }) {
   const [materiaId, setMateriaId] = useState('')
   const [grupoId, setGrupoId] = useState('')
   const [grupos, setGrupos] = useState([])
@@ -255,6 +267,7 @@ function ReporteAcumuladoCard({ materias = [], materiaSugeridaId, grupoSugeridoI
         </div>
 
         <ExportActions
+          onVer={() => onVer({ materiaId, grupoId: grupoId || undefined, descripcion: resumen })}
           onExportPdf={() => descargar('pdf')}
           onExportExcel={() => descargar('excel')}
           disabled={!materiaId || Boolean(descargando)}
@@ -387,7 +400,17 @@ function ClaseCard({
  * Sesiones registradas. Arranca contraída para no saturar la pantalla; el
  * padre la abre al aplicar filtros mediante `abierto` / `onToggle`.
  */
-function HistorialTable({ items, onEditar, onExportarPdf, onExportarExcel, abierto = false, onToggle }) {
+// Encabezado de la vista previa de una sola sesión.
+function describirSesion(item) {
+  return [
+    item.materia?.nombre,
+    item.grupo?.nombre ?? 'Sin grupo',
+    item.unidad?.nombre ?? 'Sin unidad',
+    formatDate(item.fecha),
+  ].filter(Boolean).join(' · ')
+}
+
+function HistorialTable({ items, onEditar, onVer, onExportarPdf, onExportarExcel, abierto = false, onToggle }) {
   const panelId = useId()
 
   if (items.length === 0) {
@@ -461,6 +484,13 @@ function HistorialTable({ items, onEditar, onExportarPdf, onExportarExcel, abier
                     className="border px-3 py-2 text-sm font-medium"
                   >
                     Editar
+                  </Button>
+                  <Button variant="outline"
+                    type="button"
+                    onClick={() => onVer(item)}
+                    className="border px-3 py-2 text-sm font-medium"
+                  >
+                    Ver
                   </Button>
                   <Button variant="outline"
                     type="button"
@@ -1449,6 +1479,7 @@ function DocenteAsistenciasView() {
   const [mensaje, setMensaje] = useState('')
   const [exportSuggestion, setExportSuggestion] = useState(null)
   const [historialAbierto, setHistorialAbierto] = useState(false)
+  const [vistaPrevia, setVistaPrevia] = useState(null)
   const [filters, setFilters] = useState({
     materiaId: '',
     grupoId: '',
@@ -1907,6 +1938,7 @@ function DocenteAsistenciasView() {
           materiaSugeridaId={clasePrincipal?.materiaId}
           grupoSugeridoId={clasePrincipal?.grupoId}
           onExport={(formato, { materiaId, grupoId }) => exportar(materiaId, { formato, grupoId })}
+          onVer={({ materiaId, grupoId, descripcion }) => setVistaPrevia({ materiaId, opciones: { grupoId }, descripcion })}
         />
 
         <FiltroToolbar
@@ -1965,10 +1997,15 @@ function DocenteAsistenciasView() {
           abierto={historialAbierto}
           onToggle={() => setHistorialAbierto((prev) => !prev)}
           onEditar={(item) => setSelectedSessionId(item.id)}
+          onVer={(item) => setVistaPrevia({ materiaId: item.materia.id, opciones: { sesionId: item.id }, descripcion: describirSesion(item) })}
           onExportarPdf={(item) => exportar(item.materia.id, { formato: 'pdf', sesionId: item.id })}
           onExportarExcel={(item) => exportar(item.materia.id, { formato: 'excel', sesionId: item.id })}
         />
       </section>
+
+      {vistaPrevia && (
+        <VistaPreviaReporteModal {...vistaPrevia} onClose={() => setVistaPrevia(null)} />
+      )}
     </div>
   )
 }
@@ -1990,6 +2027,7 @@ function AdminAsistenciasView() {
   const [grupos, setGrupos] = useState([])
   const [materiaDetalle, setMateriaDetalle] = useState(null)
   const [historialAbierto, setHistorialAbierto] = useState(false)
+  const [vistaPrevia, setVistaPrevia] = useState(null)
 
   useEffect(() => {
     Promise.all([
@@ -2154,6 +2192,11 @@ function AdminAsistenciasView() {
         abierto={historialAbierto}
         onToggle={() => setHistorialAbierto((prev) => !prev)}
         onEditar={(item) => setSelectedSessionId(item.id)}
+        onVer={(item) => setVistaPrevia({
+          materiaId: item.materia.id,
+          opciones: { sesionId: item.id, docenteId: filters.docenteId || undefined },
+          descripcion: describirSesion(item),
+        })}
         onExportarPdf={(item) => exportar(item.materia.id, { formato: 'pdf', sesionId: item.id, docenteId: filters.docenteId || undefined })}
         onExportarExcel={(item) => exportar(item.materia.id, { formato: 'excel', sesionId: item.id, docenteId: filters.docenteId || undefined })}
       />
@@ -2165,6 +2208,10 @@ function AdminAsistenciasView() {
           onSaved={() => obtenerHistorial(filters)}
         />
       </section>
+
+      {vistaPrevia && (
+        <VistaPreviaReporteModal {...vistaPrevia} onClose={() => setVistaPrevia(null)} />
+      )}
     </div>
   )
 }
