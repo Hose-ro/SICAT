@@ -54,12 +54,12 @@ export class CreateGrupoDto {
   @IsInt()
   carreraId: number;
 
-  @V.MaxLength(200)
+  /** Como lo nombre la institución: "2026-A", "Agosto-Diciembre 2026"… */
   @V.Matches(/\S/, { message: 'El texto no puede estar vacío' })
-  @V.Matches(/^\d{4}-[AB]$/)
   @ApiProperty({ example: '2026-A' })
   @IsString()
   @IsNotEmpty()
+  @MaxLength(40, { message: 'El periodo no puede pasar de 40 caracteres' })
   periodo: string;
 
   /** Escolarizado de lunes a viernes o mixto (sábados); si se omite, escolarizado. */

@@ -72,13 +72,16 @@ test.describe.serial('grupo mixto con su propio periodo', () => {
     await expect(dialogo.getByRole('radio', { name: /Escolarizado/ })).toBeChecked()
     await dialogo.getByText('Mixto', { exact: true }).click()
     await expect(dialogo.getByText(/se regirán por el calendario mixto/)).toBeVisible()
+    // El periodo es texto libre, como lo nombre la institución.
+    await dialogo.getByLabel('Periodo *').fill('Agosto-Diciembre 2026')
     await dialogo.getByRole('button', { name: 'Guardar cambios' }).click()
 
     await expect(dialogo).toBeHidden()
     const encabezado = page.getByRole('heading', { name: 'E2E-1B' })
     await expect(encabezado.locator('..').getByText('Mixto', { exact: true })).toBeVisible()
+    await expect(encabezado.locator('..')).toContainText('Agosto-Diciembre 2026')
     const detalle = await (await api(page).get(`/grupos/${grupo.id}`)).json()
-    expect(detalle).toMatchObject({ modalidad: 'MIXTO', seccion: 'B' })
+    expect(detalle).toMatchObject({ modalidad: 'MIXTO', seccion: 'B', periodo: 'Agosto-Diciembre 2026' })
 
     // E2E-1Z no puede pasar a mixto: la sección Z mixta ya es de E2E-1SZ.
     const catalogo = await (await api(page).get('/grupos')).json()

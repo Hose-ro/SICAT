@@ -35,6 +35,11 @@ function normalizarNombreGrupo(nombre: string) {
   return nombre.trim().replace(/\s+/g, ' ').toUpperCase();
 }
 
+/** El periodo también es libre ("2026-A", "Agosto-Diciembre"): sólo se limpia. */
+function normalizarPeriodo(periodo: string) {
+  return periodo.trim().replace(/\s+/g, ' ');
+}
+
 /**
  * Letra de sección implícita en el nombre, o `undefined` si no la hay. En un
  * mixto la S que precede a la letra es parte de la convención (103-SA), no
@@ -115,19 +120,20 @@ export class GruposService {
     if (!carrera) throw new NotFoundException('Carrera no encontrada');
 
     const nombre = normalizarNombreGrupo(dto.nombre);
+    const periodo = normalizarPeriodo(dto.periodo);
     const modalidad = dto.modalidad ?? 'ESCOLARIZADO';
 
     const existe = await this.prisma.grupo.findFirst({
-      where: { nombre, periodo: dto.periodo },
+      where: { nombre, periodo },
     });
     if (existe)
       throw new ConflictException(
-        `Ya existe el grupo "${nombre}" en el periodo ${dto.periodo}`,
+        `Ya existe el grupo "${nombre}" en el periodo ${periodo}`,
       );
 
     const seccion = await this.resolverSeccion(
       nombre,
-      { ...dto, modalidad },
+      { ...dto, periodo, modalidad },
       carrera.nombre,
     );
 
@@ -169,7 +175,7 @@ export class GruposService {
         semestre: dto.semestre,
         seccion,
         carreraId: dto.carreraId,
-        periodo: dto.periodo,
+        periodo,
         modalidad,
         materias: {
           connect: secciones.map((m) => ({ id: m.id })),
@@ -876,7 +882,9 @@ export class GruposService {
       ? normalizarNombreGrupo(dto.nombre)
       : grupo.nombre;
     const nuevaSeccion = dto.seccion ?? grupo.seccion;
-    const nuevoPeriodo = dto.periodo ?? grupo.periodo;
+    const nuevoPeriodo = dto.periodo
+      ? normalizarPeriodo(dto.periodo)
+      : grupo.periodo;
     const nuevaModalidad = dto.modalidad ?? grupo.modalidad;
 
     if (nuevoNombre !== grupo.nombre || nuevoPeriodo !== grupo.periodo) {
@@ -913,7 +921,7 @@ export class GruposService {
       data: {
         ...(dto.nombre && { nombre: nuevoNombre }),
         ...(dto.seccion && { seccion: dto.seccion }),
-        ...(dto.periodo && { periodo: dto.periodo }),
+        ...(dto.periodo && { periodo: nuevoPeriodo }),
         ...(dto.modalidad && { modalidad: dto.modalidad }),
       },
       include: INCLUDE_DETAIL,

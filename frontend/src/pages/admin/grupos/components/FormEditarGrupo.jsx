@@ -26,7 +26,8 @@ export default function FormEditarGrupo({ open, onClose, grupo }) {
   const cambios = {}
   const nombre = form.nombre.trim().replace(/\s+/g, ' ').toUpperCase()
   if (grupo && nombre !== grupo.nombre) cambios.nombre = nombre
-  if (grupo && form.periodo.trim().toUpperCase() !== grupo.periodo) cambios.periodo = form.periodo.trim().toUpperCase()
+  const periodo = form.periodo.trim().replace(/\s+/g, ' ')
+  if (grupo && periodo !== grupo.periodo) cambios.periodo = periodo
   if (grupo && form.modalidad !== (grupo.modalidad ?? 'ESCOLARIZADO')) cambios.modalidad = form.modalidad
   const hayCambios = Object.keys(cambios).length > 0
 
@@ -81,12 +82,14 @@ export default function FormEditarGrupo({ open, onClose, grupo }) {
           <label htmlFor={fieldId + '-periodo'} className="block text-xs font-medium text-foreground mb-1">Periodo *</label>
           <input id={fieldId + '-periodo'}
             required
+            maxLength={40}
             placeholder="2026-A"
             value={form.periodo}
             onChange={(e) => setForm({ ...form, periodo: e.target.value })}
             disabled={guardando}
             className="w-full border border-border rounded-xl px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
+          <p className="text-xs text-muted-foreground mt-1">Como lo nombra la institución: 2026-A, Agosto-Diciembre 2026…</p>
         </div>
 
         {error && <p role="alert" className="text-sm text-destructive-foreground">{error}</p>}

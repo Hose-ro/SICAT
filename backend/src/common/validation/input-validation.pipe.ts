@@ -16,13 +16,11 @@ export function validateQueryShape(
         !/^[A-Za-z][A-Za-z0-9]*$/.test(key) || typeof value !== 'string',
     )
   ) {
-    response
-      .status(400)
-      .json({
-        statusCode: 400,
-        message: 'Los filtros deben ser valores simples sin duplicados',
-        error: 'Bad Request',
-      });
+    response.status(400).json({
+      statusCode: 400,
+      message: 'Los filtros deben ser valores simples sin duplicados',
+      error: 'Bad Request',
+    });
     return;
   }
   next();
@@ -74,7 +72,9 @@ export class InputValidationPipe extends ValidationPipe {
           if (!isISO8601(text, { strict: true, strictSeparator: true }))
             this.invalid(key);
         } else if (key === 'periodo') {
-          if (!/^\d{4}-[AB]$/.test(text)) this.invalid(key);
+          // El periodo del grupo lo nombra la institución ("2026-A",
+          // "Agosto-Diciembre"); sólo se acota el tamaño.
+          if (!text.trim() || text.length > 40) this.invalid(key);
         } else if (key === 'seccion') {
           if (!/^[A-Z]$/.test(text)) this.invalid(key);
         } else if (key === 'formato') {

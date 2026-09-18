@@ -101,6 +101,19 @@ describe('GruposService', () => {
     );
   });
 
+  it('el periodo es texto libre: se guarda limpio, sin forzar formato', async () => {
+    grupoFindUnique.mockResolvedValue(grupoExistente);
+    grupoUpdate.mockResolvedValue({ id: 4 });
+
+    await service.editarGrupo(4, { periodo: '  Agosto -  Diciembre 2026 ' });
+
+    expect(grupoUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { periodo: 'Agosto - Diciembre 2026' },
+      }),
+    );
+  });
+
   it('rechaza un nombre que ya usa otro grupo del mismo periodo', async () => {
     grupoFindUnique.mockResolvedValue(grupoExistente);
     grupoFindFirst.mockResolvedValue({ id: 9, nombre: 'ISC-1A' });

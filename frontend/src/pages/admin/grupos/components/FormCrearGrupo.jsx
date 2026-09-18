@@ -67,7 +67,7 @@ export default function FormCrearGrupo({ open, onClose }) {
         nombre: preview.nombre,
         semestre: Number(form.semestre),
         carreraId: Number(form.carreraId),
-        periodo: form.periodo,
+        periodo: form.periodo.trim().replace(/\s+/g, ' '),
         modalidad: form.modalidad,
       })
       onClose()
@@ -140,11 +140,13 @@ export default function FormCrearGrupo({ open, onClose }) {
             <label htmlFor={fieldId + '-control-119'} className="block text-xs font-medium text-foreground mb-1">Periodo *</label>
             <input id={fieldId + '-control-119'}
               required
+              maxLength={40}
               placeholder="2026-A"
               value={form.periodo}
               onChange={(e) => setForm({ ...form, periodo: e.target.value })}
               className="w-full border border-border rounded-xl px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
+            <p className="text-xs text-muted-foreground mt-1">Como lo nombra la institución: 2026-A, Agosto-Diciembre 2026…</p>
           </div>
 
           {error && <p className="text-sm text-destructive-foreground">{error}</p>}

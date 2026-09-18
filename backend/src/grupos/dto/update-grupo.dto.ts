@@ -32,11 +32,12 @@ export class UpdateGrupoDto {
   })
   seccion?: string;
 
-  @V.MaxLength(200)
-  @V.Matches(/^\d{4}-[AB]$/)
+  @V.Matches(/\S/, { message: 'El texto no puede estar vacío' })
   @ApiPropertyOptional({ example: '2026-B' })
   @V.ValidateIf((_object, value: unknown) => value !== undefined)
   @IsString()
+  @IsNotEmpty()
+  @MaxLength(40, { message: 'El periodo no puede pasar de 40 caracteres' })
   periodo?: string;
 
   @ApiPropertyOptional({ enum: ModalidadGrupo })
