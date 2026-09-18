@@ -8,6 +8,7 @@ import TabMaterias from './components/TabMaterias'
 import TabHorario from './components/TabHorario'
 import ModalAsignarAlumnos from './components/ModalAsignarAlumnos'
 import ModalAgregarMaterias from './components/ModalAgregarMaterias'
+import FormEditarGrupo from './components/FormEditarGrupo'
 
 export default function GrupoDetalle() {
   const { id } = useParams()
@@ -17,6 +18,7 @@ export default function GrupoDetalle() {
   const [tab, setTab] = useState('alumnos')
   const [modalAlumnos, setModalAlumnos] = useState(false)
   const [modalMaterias, setModalMaterias] = useState(false)
+  const [modalEditar, setModalEditar] = useState(false)
   const [confirmEliminar, setConfirmEliminar] = useState(false)
 
   useEffect(() => { seleccionarGrupo(Number(id)) }, [id, seleccionarGrupo])
@@ -75,12 +77,20 @@ export default function GrupoDetalle() {
           </div>
           <p className="text-sm text-muted-foreground mt-0.5">{grupoActivo.carrera?.nombre}</p>
         </div>
-        <Button variant="destructive"
-          onClick={() => setConfirmEliminar(true)}
-          className="text-xs border px-3 py-1.5"
-        >
-          Eliminar
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline"
+            onClick={() => setModalEditar(true)}
+            className="text-xs border px-3 py-1.5"
+          >
+            Editar
+          </Button>
+          <Button variant="destructive"
+            onClick={() => setConfirmEliminar(true)}
+            className="text-xs border px-3 py-1.5"
+          >
+            Eliminar
+          </Button>
+        </div>
       </div>
 
       {error && (
@@ -129,6 +139,11 @@ export default function GrupoDetalle() {
       <ModalAgregarMaterias
         open={modalMaterias}
         onClose={() => setModalMaterias(false)}
+        grupo={grupoActivo}
+      />
+      <FormEditarGrupo
+        open={modalEditar}
+        onClose={() => setModalEditar(false)}
         grupo={grupoActivo}
       />
 

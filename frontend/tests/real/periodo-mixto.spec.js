@@ -54,6 +54,40 @@ test.describe.serial('grupo mixto con su propio periodo', () => {
     expect(grupo).toMatchObject({ modalidad: 'MIXTO', seccion: 'Z', semestre: 1 })
   })
 
+  test('el admin cambia un grupo escolarizado a mixto desde su detalle', async ({ page }) => {
+    await login(page, USERS.admin)
+    const carreras = await (await api(page).get('/carreras')).json()
+    const carrera = carreras.find((item) => item.codigo === 'E2E')
+    const { clave: periodo } = await (await api(page).get('/periodos/actual')).json()
+    const creado = await api(page).post('/grupos', {
+      data: { nombre: 'E2E-1B', semestre: 1, carreraId: carrera.id, periodo },
+    })
+    expect(creado.ok(), await creado.text()).toBeTruthy()
+    const grupo = await creado.json()
+    expect(grupo.modalidad).toBe('ESCOLARIZADO')
+
+    await page.goto(`/admin/grupos/${grupo.id}`)
+    await page.getByRole('button', { name: 'Editar', exact: true }).click()
+    const dialogo = page.getByRole('dialog')
+    await expect(dialogo.getByRole('radio', { name: /Escolarizado/ })).toBeChecked()
+    await dialogo.getByText('Mixto', { exact: true }).click()
+    await expect(dialogo.getByText(/se regirán por el calendario mixto/)).toBeVisible()
+    await dialogo.getByRole('button', { name: 'Guardar cambios' }).click()
+
+    await expect(dialogo).toBeHidden()
+    const encabezado = page.getByRole('heading', { name: 'E2E-1B' })
+    await expect(encabezado.locator('..').getByText('Mixto', { exact: true })).toBeVisible()
+    const detalle = await (await api(page).get(`/grupos/${grupo.id}`)).json()
+    expect(detalle).toMatchObject({ modalidad: 'MIXTO', seccion: 'B' })
+
+    // E2E-1Z no puede pasar a mixto: la sección Z mixta ya es de E2E-1SZ.
+    const catalogo = await (await api(page).get('/grupos')).json()
+    const escolarizadoZ = catalogo.find((item) => item.nombre === 'E2E-1Z')
+    const conflicto = await api(page).patch(`/grupos/${escolarizadoZ.id}`, { data: { modalidad: 'MIXTO' } })
+    expect(conflicto.status()).toBe(409)
+    expect((await conflicto.json()).message).toContain(GRUPO)
+  })
+
   test('el docente con clase en sábado captura el calendario mixto aparte', async ({ page }) => {
     await login(page, USERS.docente)
     // Sin grupos mixtos sólo aparece el periodo escolarizado.
