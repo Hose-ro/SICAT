@@ -40,6 +40,16 @@ export default function FiltrosGrupo() {
         ))}
       </select>
 
+      <select aria-label="Modalidad"
+        value={filtros.modalidad ?? ''}
+        onChange={(e) => handleChange('modalidad', e.target.value)}
+        className="border border-border rounded-xl px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <option value="">Todas las modalidades</option>
+        <option value="ESCOLARIZADO">Escolarizado</option>
+        <option value="MIXTO">Mixto</option>
+      </select>
+
       <input aria-label="Periodo escolar"
         type="text"
         placeholder="Periodo (ej: 2026-A)"

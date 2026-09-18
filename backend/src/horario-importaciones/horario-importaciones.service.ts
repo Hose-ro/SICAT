@@ -91,12 +91,15 @@ export class HorarioImportacionesService implements OnModuleInit {
     seccion?: string,
   ) {
     const clave = this.normalizarClaveGrupo(periodo, seccion);
+    // La foto del horario no dice la modalidad: se empareja con el grupo
+    // escolarizado de esa sección, que es el que sube su horario por aquí.
     const grupo = await this.prisma.grupo.findFirst({
       where: {
         carreraId,
         semestre,
         periodo: clave.periodo,
         seccion: clave.seccion,
+        modalidad: 'ESCOLARIZADO',
         activo: true,
         horarios: { some: { activo: true } },
       },
@@ -371,6 +374,7 @@ export class HorarioImportacionesService implements OnModuleInit {
         semestre: importacion.semestre,
         periodo: importacion.periodo,
         seccion: importacion.seccion,
+        modalidad: 'ESCOLARIZADO',
         activo: true,
       },
       include: { horarios: { where: { activo: true }, select: { id: true } } },

@@ -1,6 +1,10 @@
-import { BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
-import { PeriodosService } from './periodos.service';
+import { contarSabados, PeriodosService } from './periodos.service';
 
 describe('PeriodosService', () => {
   const findUnique = jest.fn();
@@ -13,9 +17,13 @@ describe('PeriodosService', () => {
   const institucionalUpsert = jest.fn();
   const institucionalFindMany = jest.fn();
   const institucionalFindUnique = jest.fn();
+  const grupoFindMany = jest.fn();
+  const usuarioFindUnique = jest.fn();
   const prisma = {
     periodoAcademico: { findUnique, upsert },
     horarioMateria: { findMany: horarioFindMany },
+    grupo: { findMany: grupoFindMany },
+    usuario: { findUnique: usuarioFindUnique },
     claseSesion: { findMany: claseFindMany },
     suspensionClase: {
       upsert: suspensionUpsert,
@@ -30,15 +38,23 @@ describe('PeriodosService', () => {
     $transaction: jest.fn((operations) => Promise.all(operations)),
   } as unknown as PrismaService;
   const service = new PeriodosService(prisma);
+  type PorModalidad = { where: { clave_modalidad: { modalidad: string } } };
   const REFERENCIA = new Date(2026, 8, 9);
+  const ADMIN = { id: 7, rol: 'ADMIN' as const };
+  const DOCENTE = { id: 9, rol: 'DOCENTE' as const };
 
   beforeEach(() => {
     jest.clearAllMocks();
     findUnique.mockResolvedValue(null);
     upsert.mockResolvedValue({});
     horarioFindMany.mockResolvedValue([
-      { dias: 'Jueves,Viernes', grupo: { periodo: '2026-A' } },
+      {
+        dias: 'Jueves,Viernes',
+        grupo: { periodo: '2026-A', modalidad: 'ESCOLARIZADO' },
+      },
     ]);
+    grupoFindMany.mockResolvedValue([]);
+    usuarioFindUnique.mockResolvedValue(null);
     claseFindMany.mockResolvedValue([]);
     suspensionUpsert.mockResolvedValue({});
     suspensionFindMany.mockResolvedValue([]);
@@ -85,16 +101,19 @@ describe('PeriodosService', () => {
 
   it('guarda las fechas del periodo en curso', async () => {
     await service.actualizarActual(
-      7,
+      ADMIN,
       { fechaInicio: '2026-08-29', fechaFin: '2026-12-18' },
       REFERENCIA,
     );
 
     expect(upsert).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { clave: '2026-B' },
+        where: {
+          clave_modalidad: { clave: '2026-B', modalidad: 'ESCOLARIZADO' },
+        },
         create: expect.objectContaining({
           clave: '2026-B',
+          modalidad: 'ESCOLARIZADO',
           // Medianoche local, sin el corrimiento de interpretar la clave como UTC.
           fechaInicio: new Date(2026, 7, 29),
           fechaFin: new Date(2026, 11, 18),
@@ -104,10 +123,204 @@ describe('PeriodosService', () => {
     );
   });
 
+  it('el calendario mixto se guarda aparte del escolarizado', async () => {
+    // Del sábado 5 de septiembre al sábado 19 de diciembre: 16 sábados justos.
+    await service.actualizarActual(
+      ADMIN,
+      {
+        modalidad: 'MIXTO',
+        fechaInicio: '2026-09-05',
+        fechaFin: '2026-12-19',
+      },
+      REFERENCIA,
+    );
+
+    expect(upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { clave_modalidad: { clave: '2026-B', modalidad: 'MIXTO' } },
+        create: expect.objectContaining({
+          modalidad: 'MIXTO',
+          fechaInicio: new Date(2026, 8, 5),
+          fechaFin: new Date(2026, 11, 19),
+        }),
+      }),
+    );
+  });
+
+  it('el semestre mixto debe iniciar en sábado', async () => {
+    await expect(
+      service.actualizarActual(
+        ADMIN,
+        {
+          modalidad: 'MIXTO',
+          fechaInicio: '2026-09-07',
+          fechaFin: '2026-12-19',
+        },
+        REFERENCIA,
+      ),
+    ).rejects.toThrow('inicia en sábado');
+    expect(upsert).not.toHaveBeenCalled();
+  });
+
+  it('rechaza un semestre mixto con menos de 16 sábados', async () => {
+    await expect(
+      service.actualizarActual(
+        ADMIN,
+        {
+          modalidad: 'MIXTO',
+          fechaInicio: '2026-09-05',
+          fechaFin: '2026-12-12',
+        },
+        REFERENCIA,
+      ),
+    ).rejects.toThrow('sólo tiene 15 sábados');
+    expect(upsert).not.toHaveBeenCalled();
+
+    // Con más de 16 (reposiciones por festivos) sí pasa.
+    await service.actualizarActual(
+      ADMIN,
+      {
+        modalidad: 'MIXTO',
+        fechaInicio: '2026-09-05',
+        fechaFin: '2026-12-26',
+      },
+      REFERENCIA,
+    );
+    expect(upsert).toHaveBeenCalledTimes(1);
+  });
+
+  it('el escolarizado no está sujeto a la regla de los sábados', async () => {
+    await service.actualizarActual(
+      ADMIN,
+      { fechaInicio: '2026-08-31', fechaFin: '2026-10-02' },
+      REFERENCIA,
+    );
+    expect(upsert).toHaveBeenCalledTimes(1);
+  });
+
+  it('un docente sin grupos mixtos no puede fijar ese calendario', async () => {
+    await expect(
+      service.actualizarActual(
+        DOCENTE,
+        {
+          modalidad: 'MIXTO',
+          fechaInicio: '2026-09-05',
+          fechaFin: '2026-12-12',
+        },
+        REFERENCIA,
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(upsert).not.toHaveBeenCalled();
+  });
+
+  it('un docente con grupo mixto sí fija ese calendario', async () => {
+    horarioFindMany.mockResolvedValue([
+      { dias: 'Sábado', grupo: { modalidad: 'MIXTO' } },
+    ]);
+
+    await service.actualizarActual(
+      DOCENTE,
+      {
+        modalidad: 'MIXTO',
+        fechaInicio: '2026-09-05',
+        fechaFin: '2026-12-19',
+      },
+      REFERENCIA,
+    );
+
+    expect(upsert).toHaveBeenCalledTimes(1);
+  });
+
+  describe('sábados del semestre mixto', () => {
+    const mixto = { fechaInicio: '2026-09-05', fechaFin: '2026-12-19' };
+
+    it('cuenta los 16 sábados y por cuál va', () => {
+      // Sábado 3 de octubre: es el quinto sábado del semestre.
+      const resumen = contarSabados(mixto, [], new Date(2026, 9, 3));
+      expect(resumen).toMatchObject({
+        requeridos: 16,
+        total: 16,
+        conClase: 16,
+        transcurridos: 5,
+        sinClases: [],
+        finSugerido: null,
+      });
+    });
+
+    it('un festivo en sábado descuenta y propone extender el fin', () => {
+      const festivo = {
+        fecha: '2026-11-21',
+        motivo: 'Revolución',
+        institucional: true,
+      };
+      const resumen = contarSabados(
+        mixto,
+        [
+          festivo,
+          { fecha: '2026-11-20', motivo: 'Viernes', institucional: false },
+        ],
+        new Date(2026, 8, 9),
+      );
+      expect(resumen).toMatchObject({
+        total: 16,
+        conClase: 15,
+        transcurridos: 1,
+        sinClases: [festivo],
+        finSugerido: '2026-12-26',
+      });
+    });
+
+    it('al sugerir el fin salta los sábados que también están suspendidos', () => {
+      const resumen = contarSabados(mixto, [
+        { fecha: '2026-11-21', motivo: 'Festivo', institucional: true },
+        { fecha: '2026-12-26', motivo: 'Vacaciones', institucional: true },
+      ]);
+      expect(resumen.finSugerido).toBe('2027-01-02');
+    });
+
+    it('sólo se calcula con fechas reales y con las suspensiones de quien consulta', async () => {
+      const sinFechas = await service.obtenerActualesPara(ADMIN, REFERENCIA);
+      expect(sinFechas.mixto.sabados).toBeNull();
+
+      findUnique.mockImplementation((args: PorModalidad) =>
+        Promise.resolve(
+          args.where.clave_modalidad.modalidad === 'MIXTO'
+            ? {
+                fechaInicio: new Date(2026, 8, 5),
+                fechaFin: new Date(2026, 11, 19),
+                updatedAt: new Date(),
+              }
+            : null,
+        ),
+      );
+      institucionalFindMany.mockResolvedValue([
+        { id: 1, fecha: '2026-11-21', motivo: 'Revolución' },
+      ]);
+      suspensionFindMany.mockResolvedValue([
+        { id: 4, fecha: '2026-10-10', motivo: 'Congreso' },
+      ]);
+
+      const admin = await service.obtenerActualesPara(ADMIN, REFERENCIA);
+      expect(admin.mixto.sabados?.sinClases.map((s) => s.fecha)).toEqual([
+        '2026-11-21',
+      ]);
+
+      horarioFindMany.mockResolvedValue([
+        { dias: 'Sábado', grupo: { modalidad: 'MIXTO' } },
+      ]);
+      const docente = await service.obtenerActualesPara(DOCENTE, REFERENCIA);
+      expect(docente.mixto.sabados?.sinClases.map((s) => s.fecha)).toEqual([
+        '2026-10-10',
+        '2026-11-21',
+      ]);
+      expect(docente.mixto.sabados?.conClase).toBe(14);
+    });
+  });
+
   it('rechaza un fin anterior o igual al inicio', async () => {
     await expect(
       service.actualizarActual(
-        7,
+        ADMIN,
         { fechaInicio: '2026-12-18', fechaFin: '2026-08-29' },
         REFERENCIA,
       ),
@@ -118,7 +331,7 @@ describe('PeriodosService', () => {
   it('rechaza un periodo demasiado corto o demasiado largo', async () => {
     await expect(
       service.actualizarActual(
-        7,
+        ADMIN,
         { fechaInicio: '2026-08-29', fechaFin: '2026-09-05' },
         REFERENCIA,
       ),
@@ -126,11 +339,75 @@ describe('PeriodosService', () => {
 
     await expect(
       service.actualizarActual(
-        7,
+        ADMIN,
         { fechaInicio: '2026-01-01', fechaFin: '2027-06-30' },
         REFERENCIA,
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('al admin le aplican los dos calendarios; al docente sólo los de sus grupos', async () => {
+    const admin = await service.obtenerActualesPara(ADMIN, REFERENCIA);
+    expect(admin.escolarizado.aplica).toBe(true);
+    expect(admin.mixto.aplica).toBe(true);
+
+    const escolarizado = await service.obtenerActualesPara(DOCENTE, REFERENCIA);
+    expect(escolarizado.escolarizado.aplica).toBe(true);
+    expect(escolarizado.mixto.aplica).toBe(false);
+
+    // Grupo agregado a mano, sin horario todavía.
+    horarioFindMany.mockResolvedValue([]);
+    grupoFindMany.mockResolvedValue([{ modalidad: 'MIXTO' }]);
+    const mixto = await service.obtenerActualesPara(DOCENTE, REFERENCIA);
+    expect(mixto.escolarizado.aplica).toBe(false);
+    expect(mixto.mixto.aplica).toBe(true);
+  });
+
+  it('sin grupos el docente ve el calendario escolarizado', async () => {
+    horarioFindMany.mockResolvedValue([]);
+    const periodos = await service.obtenerActualesPara(DOCENTE, REFERENCIA);
+    expect(periodos.escolarizado.aplica).toBe(true);
+    expect(periodos.mixto.aplica).toBe(false);
+  });
+
+  it('el rango del admin abarca las modalidades capturadas y omite la estimada', async () => {
+    findUnique.mockImplementation((args: PorModalidad) =>
+      Promise.resolve(
+        args.where.clave_modalidad.modalidad === 'ESCOLARIZADO'
+          ? {
+              fechaInicio: new Date(2026, 7, 31),
+              fechaFin: new Date(2026, 11, 18),
+              updatedAt: new Date(),
+            }
+          : null,
+      ),
+    );
+    const periodos = await service.obtenerActualesPara(ADMIN, REFERENCIA);
+    expect(periodos.rango).toEqual({
+      fechaInicio: '2026-08-31',
+      fechaFin: '2026-12-18',
+    });
+
+    findUnique.mockImplementation((args: PorModalidad) =>
+      Promise.resolve(
+        args.where.clave_modalidad.modalidad === 'ESCOLARIZADO'
+          ? {
+              fechaInicio: new Date(2026, 7, 31),
+              fechaFin: new Date(2026, 11, 18),
+              updatedAt: new Date(),
+            }
+          : {
+              fechaInicio: new Date(2026, 8, 5),
+              fechaFin: new Date(2027, 0, 9),
+              updatedAt: new Date(),
+            },
+      ),
+    );
+    const ambos = await service.obtenerActualesPara(ADMIN, REFERENCIA);
+    expect(ambos.rango).toEqual({
+      fechaInicio: '2026-08-31',
+      fechaFin: '2027-01-09',
+    });
   });
 
   it('expone el rango como fechas locales para acotar consultas', async () => {
@@ -170,6 +447,37 @@ describe('PeriodosService', () => {
           }),
         }),
       );
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('el docente mixto marca un sábado que cae fuera del calendario escolarizado', async () => {
+    findUnique.mockImplementation((args: PorModalidad) =>
+      Promise.resolve(
+        args.where.clave_modalidad.modalidad === 'ESCOLARIZADO'
+          ? {
+              fechaInicio: new Date(2026, 7, 31),
+              fechaFin: new Date(2026, 11, 4),
+              updatedAt: new Date(),
+            }
+          : {
+              fechaInicio: new Date(2026, 8, 5),
+              fechaFin: new Date(2026, 11, 19),
+              updatedAt: new Date(),
+            },
+      ),
+    );
+    horarioFindMany.mockResolvedValue([
+      { dias: 'Sábado', grupo: { modalidad: 'MIXTO' } },
+    ]);
+    jest.useFakeTimers().setSystemTime(new Date(2026, 8, 17));
+    try {
+      await service.guardarSuspensiones(9, {
+        fechas: ['2026-12-12'],
+        motivo: 'Posada',
+      });
+      expect(suspensionUpsert).toHaveBeenCalledTimes(1);
     } finally {
       jest.useRealTimers();
     }

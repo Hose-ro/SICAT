@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
-import { Prisma, Rol } from '@prisma/client';
+import { ModalidadGrupo, Prisma, Rol } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { UsuariosService } from '../usuarios/usuarios.service';
 import { CreateGrupoDto } from './dto/create-grupo.dto';
@@ -33,6 +33,17 @@ const SECCIONES = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 /** El nombre del grupo lo escribe el administrador: se guarda normalizado. */
 function normalizarNombreGrupo(nombre: string) {
   return nombre.trim().replace(/\s+/g, ' ').toUpperCase();
+}
+
+/**
+ * Letra de sección implícita en el nombre, o `undefined` si no la hay. En un
+ * mixto la S que precede a la letra es parte de la convención (103-SA), no
+ * la sección; en un escolarizado "103-SA" sería sección A con una S extraña,
+ * así que ahí sólo cuenta la letra pegada al número o al guion.
+ */
+export function seccionDelNombre(nombre: string, modalidad: ModalidadGrupo) {
+  const patron = modalidad === 'MIXTO' ? /[0-9-]S?([A-Z])$/ : /[0-9-]([A-Z])$/;
+  return patron.exec(nombre)?.[1];
 }
 
 const INCLUDE_LIST = {
@@ -104,6 +115,7 @@ export class GruposService {
     if (!carrera) throw new NotFoundException('Carrera no encontrada');
 
     const nombre = normalizarNombreGrupo(dto.nombre);
+    const modalidad = dto.modalidad ?? 'ESCOLARIZADO';
 
     const existe = await this.prisma.grupo.findFirst({
       where: { nombre, periodo: dto.periodo },
@@ -113,7 +125,11 @@ export class GruposService {
         `Ya existe el grupo "${nombre}" en el periodo ${dto.periodo}`,
       );
 
-    const seccion = await this.resolverSeccion(nombre, dto, carrera.nombre);
+    const seccion = await this.resolverSeccion(
+      nombre,
+      { ...dto, modalidad },
+      carrera.nombre,
+    );
 
     // Obtener materias del catálogo de retícula para este semestre/carrera
     const reticulaMaterias = await this.prisma.reticulaMateria.findMany({
@@ -154,6 +170,7 @@ export class GruposService {
         seccion,
         carreraId: dto.carreraId,
         periodo: dto.periodo,
+        modalidad,
         materias: {
           connect: secciones.map((m) => ({ id: m.id })),
         },
@@ -163,20 +180,22 @@ export class GruposService {
   }
 
   /**
-   * La sección ya no se captura: se toma de la última letra del nombre
-   * (103A → A) y, si esa letra está ocupada o el nombre no termina en letra,
-   * se asigna la primera libre de ese semestre, carrera y periodo. Sigue
-   * sirviendo para emparejar al alumno que sube su horario.
+   * La sección ya no se captura: se toma de la letra final del nombre
+   * (103A, 103-A y el mixto 103-SA → A) y, si esa letra está ocupada o el
+   * nombre no termina en letra, se asigna la primera libre de ese semestre,
+   * carrera, periodo y modalidad. Sigue sirviendo para emparejar al alumno
+   * que sube su horario.
    */
   private async resolverSeccion(
     nombre: string,
-    dto: CreateGrupoDto,
+    dto: CreateGrupoDto & { modalidad: ModalidadGrupo },
     carreraNombre: string,
   ) {
     const clave = {
       semestre: dto.semestre,
       carreraId: dto.carreraId,
       periodo: dto.periodo,
+      modalidad: dto.modalidad,
     };
 
     if (dto.seccion) {
@@ -193,23 +212,24 @@ export class GruposService {
     });
     const tomadas = new Set(ocupadas.map((grupo) => grupo.seccion));
 
-    // Sólo se interpreta como sección la letra final que sigue a un número,
-    // como en 103A; en un nombre como "GRUPO NUEVO" la última letra no lo es.
-    const sufijo = /[0-9]([A-Z])$/.exec(nombre)?.[1];
+    // Sólo se interpreta como sección la letra final que sigue a un número o
+    // a un guion, con la S del grupo mixto opcional en medio (103A, 103-A,
+    // 103-SA); en un nombre como "GRUPO NUEVO" la última letra no lo es.
+    const sufijo = seccionDelNombre(nombre, dto.modalidad);
     if (sufijo && !tomadas.has(sufijo)) return sufijo;
 
     const libre = SECCIONES.find((letra) => !tomadas.has(letra));
     if (!libre) {
       throw new ConflictException(
-        `El semestre ${dto.semestre} de ${carreraNombre} ya tiene 26 grupos en el periodo ${dto.periodo}`,
+        `El semestre ${dto.semestre} de ${carreraNombre} ya tiene 26 grupos ${dto.modalidad === 'MIXTO' ? 'mixtos' : 'escolarizados'} en el periodo ${dto.periodo}`,
       );
     }
     return libre;
   }
 
   /**
-   * La base sólo admite una sección por semestre, carrera y periodo, aunque el
-   * nombre del grupo ahora sea libre.
+   * La base sólo admite una sección por semestre, carrera, periodo y
+   * modalidad, aunque el nombre del grupo ahora sea libre.
    */
   private async ensureSeccionLibre(
     clave: {
@@ -217,6 +237,7 @@ export class GruposService {
       seccion: string;
       carreraId: number;
       periodo: string;
+      modalidad: ModalidadGrupo;
     },
     carreraNombre: string,
     excluirGrupoId?: number,
@@ -230,7 +251,7 @@ export class GruposService {
     });
     if (ocupada) {
       throw new ConflictException(
-        `La sección ${clave.seccion} del semestre ${clave.semestre} de ${carreraNombre} ya la ocupa el grupo "${ocupada.nombre}" en el periodo ${clave.periodo}`,
+        `La sección ${clave.seccion} del semestre ${clave.semestre} de ${carreraNombre} ya la ocupa el grupo ${clave.modalidad === 'MIXTO' ? 'mixto' : 'escolarizado'} "${ocupada.nombre}" en el periodo ${clave.periodo}`,
       );
     }
   }
@@ -241,6 +262,7 @@ export class GruposService {
     carreraId?: number;
     semestre?: number;
     periodo?: string;
+    modalidad?: ModalidadGrupo;
   }) {
     return this.prisma.grupo.findMany({
       where: {
@@ -248,6 +270,7 @@ export class GruposService {
         ...(filtros.carreraId && { carreraId: filtros.carreraId }),
         ...(filtros.semestre && { semestre: filtros.semestre }),
         ...(filtros.periodo && { periodo: filtros.periodo }),
+        ...(filtros.modalidad && { modalidad: filtros.modalidad }),
       },
       include: INCLUDE_LIST,
       orderBy: [{ semestre: 'asc' }, { nombre: 'asc' }],
@@ -276,6 +299,7 @@ export class GruposService {
         semestre: true,
         seccion: true,
         periodo: true,
+        modalidad: true,
         carreraId: true,
         carrera: { select: { id: true, nombre: true, codigo: true } },
       },
@@ -853,6 +877,7 @@ export class GruposService {
       : grupo.nombre;
     const nuevaSeccion = dto.seccion ?? grupo.seccion;
     const nuevoPeriodo = dto.periodo ?? grupo.periodo;
+    const nuevaModalidad = dto.modalidad ?? grupo.modalidad;
 
     if (nuevoNombre !== grupo.nombre || nuevoPeriodo !== grupo.periodo) {
       const existe = await this.prisma.grupo.findFirst({
@@ -865,13 +890,18 @@ export class GruposService {
       }
     }
 
-    if (nuevaSeccion !== grupo.seccion || nuevoPeriodo !== grupo.periodo) {
+    if (
+      nuevaSeccion !== grupo.seccion ||
+      nuevoPeriodo !== grupo.periodo ||
+      nuevaModalidad !== grupo.modalidad
+    ) {
       await this.ensureSeccionLibre(
         {
           semestre: grupo.semestre,
           seccion: nuevaSeccion,
           carreraId: grupo.carreraId,
           periodo: nuevoPeriodo,
+          modalidad: nuevaModalidad,
         },
         grupo.carrera.nombre,
         id,
@@ -884,6 +914,7 @@ export class GruposService {
         ...(dto.nombre && { nombre: nuevoNombre }),
         ...(dto.seccion && { seccion: dto.seccion }),
         ...(dto.periodo && { periodo: dto.periodo }),
+        ...(dto.modalidad && { modalidad: dto.modalidad }),
       },
       include: INCLUDE_DETAIL,
     });

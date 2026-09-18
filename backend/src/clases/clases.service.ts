@@ -6,7 +6,11 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { EstadoAsistencia, TipoNotificacion } from '@prisma/client';
+import {
+  EstadoAsistencia,
+  ModalidadGrupo,
+  TipoNotificacion,
+} from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import { IniciarClaseDto } from './dto/iniciar-clase.dto';
@@ -29,6 +33,7 @@ import {
 } from './clases.utils';
 import { getCurrentAcademicPeriod } from '../common/periodo.util';
 import { PeriodosService } from '../periodos/periodos.service';
+import { modalidadDeHorario } from '../common/modalidad.util';
 
 /** Tope de seguridad hacia atrás, por si el periodo empezó hace mucho. */
 const DIAS_MAXIMOS_ATRASO = 120;
@@ -431,10 +436,11 @@ export class ClasesService {
    * Ventana capturable: del inicio del periodo escolar hasta hoy, sin pasar de
    * su fecha de fin. Antes del inicio no había clases que registrar. El tope de
    * {@link DIAS_MAXIMOS_ATRASO} días sigue como red de seguridad por si nadie
-   * ha capturado las fechas reales del periodo.
+   * ha capturado las fechas reales del periodo. Cada modalidad tiene su propio
+   * calendario: un grupo mixto no arranca ni termina con los escolarizados.
    */
-  private async obtenerVentanaAtraso(hoy: Date) {
-    const periodo = await this.periodos.obtenerRangoActual(hoy);
+  private async obtenerVentanaAtraso(hoy: Date, modalidad: ModalidadGrupo) {
+    const periodo = await this.periodos.obtenerRangoActual(hoy, modalidad);
     const inicioPeriodo = obtenerInicioDelDia(periodo.inicio);
     const tope = sumarDias(hoy, -DIAS_MAXIMOS_ATRASO);
     const finPeriodo = obtenerInicioDelDia(periodo.fin);
@@ -502,7 +508,10 @@ export class ClasesService {
     const ahora = new Date();
     const hoy = obtenerInicioDelDia(ahora);
     const ahoraMinutos = convertirFechaAMinutos(ahora);
-    const ventana = await this.obtenerVentanaAtraso(hoy);
+    const ventanas = new Map<
+      ModalidadGrupo,
+      Awaited<ReturnType<typeof this.obtenerVentanaAtraso>>
+    >();
     const fechasSuspendidas = new Set(
       (await this.periodos.listarSuspensiones(docenteId, ahora)).map(
         (item) => item.fecha,
@@ -531,7 +540,13 @@ export class ClasesService {
           },
         },
         grupo: {
-          select: { id: true, nombre: true, periodo: true, semestre: true },
+          select: {
+            id: true,
+            nombre: true,
+            periodo: true,
+            semestre: true,
+            modalidad: true,
+          },
         },
         aula: { select: { id: true, nombre: true, edificio: true } },
       },
@@ -549,6 +564,12 @@ export class ClasesService {
     let fechaMasAntigua: Date | null = null;
 
     for (const horario of horarios) {
+      const modalidad = modalidadDeHorario(horario);
+      let ventana = ventanas.get(modalidad);
+      if (!ventana) {
+        ventana = await this.obtenerVentanaAtraso(hoy, modalidad);
+        ventanas.set(modalidad, ventana);
+      }
       for (
         let dia = ventana.desde;
         dia <= ventana.hasta;
@@ -657,7 +678,7 @@ export class ClasesService {
         materia: {
           include: { unidades: { orderBy: { orden: 'asc' } } },
         },
-        grupo: { select: { id: true, nombre: true } },
+        grupo: { select: { id: true, nombre: true, modalidad: true } },
       },
     });
 
@@ -695,10 +716,13 @@ export class ClasesService {
         'La clase de hoy aún no termina; inicia la clase desde el panel',
       );
     }
-    const ventana = await this.obtenerVentanaAtraso(inicioHoy);
+    const ventana = await this.obtenerVentanaAtraso(
+      inicioHoy,
+      modalidadDeHorario(horario),
+    );
     if (hoy < ventana.desde || hoy > obtenerInicioDelDia(ventana.hasta)) {
       throw new BadRequestException(
-        `Esa fecha está fuera del periodo ${ventana.periodo.clave}, que va del ${formatearFechaClave(ventana.periodo.inicio)} al ${formatearFechaClave(ventana.periodo.fin)}`,
+        `Esa fecha está fuera del periodo ${ventana.periodo.clave}${ventana.periodo.modalidad === 'MIXTO' ? ' mixto' : ''}, que va del ${formatearFechaClave(ventana.periodo.inicio)} al ${formatearFechaClave(ventana.periodo.fin)}`,
       );
     }
     if (!horarioAplicaEnFecha(horario.dias, fecha)) {

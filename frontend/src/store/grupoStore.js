@@ -5,7 +5,7 @@ export const useGrupoStore = create((set, get) => ({
   grupos: [],
   grupoActivo: null,
   aulas: [],
-  filtros: { carreraId: undefined, semestre: undefined, periodo: undefined },
+  filtros: { carreraId: undefined, semestre: undefined, periodo: undefined, modalidad: undefined },
   loading: false,
   error: null,
 
@@ -16,6 +16,7 @@ export const useGrupoStore = create((set, get) => ({
     if (f.carreraId) params.carreraId = f.carreraId
     if (f.semestre) params.semestre = f.semestre
     if (f.periodo) params.periodo = f.periodo
+    if (f.modalidad) params.modalidad = f.modalidad
     try {
       const res = await api.get('/grupos', { params })
       set({ grupos: res.data, loading: false })

@@ -1,8 +1,10 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
 } from '@nestjs/common';
+import { ModalidadGrupo, Rol } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import {
   formatearFechaClave,
@@ -10,12 +12,55 @@ import {
   obtenerInicioDelDia,
   parsearFechaClave,
   horarioAplicaEnFecha,
+  sumarDias,
 } from '../clases/clases.utils';
 import { getCurrentAcademicPeriod } from '../common/periodo.util';
+import { MODALIDADES, modalidadDeHorario } from '../common/modalidad.util';
 
 /** Un periodo escolar no dura ni menos de un mes ni más de un año. */
 const DIAS_MINIMOS = 30;
 const DIAS_MAXIMOS = 366;
+
+/** Un semestre mixto son 16 sábados de clase. */
+export const SABADOS_POR_SEMESTRE = 16;
+
+/** Cómo va el semestre mixto contado en sábados, que es su unidad real. */
+export type ResumenSabados = {
+  requeridos: number;
+  /** Sábados dentro del rango, tengan clase o no. */
+  total: number;
+  conClase: number;
+  /** Sábados con clase que ya pasaron (hoy incluido si es sábado). */
+  transcurridos: number;
+  /** Sábados del rango marcados sin clases (festivos o suspensiones). */
+  sinClases: Array<{ fecha: string; motivo: string; institucional: boolean }>;
+  /** Sábado en que se completarían los 16 con clase, si el rango se queda corto. */
+  finSugerido: string | null;
+};
+
+export type PeriodoModalidad = {
+  clave: string;
+  modalidad: ModalidadGrupo;
+  fechaInicio: string;
+  fechaFin: string;
+  configurado: boolean;
+  actualizadoEn: Date | null;
+};
+
+/** Los dos calendarios del periodo en curso, tal como los ve un usuario. */
+export type PeriodosActuales = {
+  clave: string;
+  escolarizado: PeriodoModalidad & { aplica: boolean };
+  /** `sabados` sólo cuando las fechas son reales: sobre un estimado no dice nada. */
+  mixto: PeriodoModalidad & {
+    aplica: boolean;
+    sabados: ResumenSabados | null;
+  };
+  /** Unión de las fechas de las modalidades que le aplican al usuario. */
+  rango: { fechaInicio: string; fechaFin: string };
+};
+
+type Actor = { id: number; rol: Rol };
 
 /** Un día sin clases tal como lo ve un docente, venga de él o de la institución. */
 export type SuspensionVigente = {
@@ -36,20 +81,24 @@ export class PeriodosService {
   constructor(private prisma: PrismaService) {}
 
   /**
-   * Fechas del periodo en curso. Mientras nadie las haya capturado se devuelve
-   * un estimado por el calendario (enero–junio o julio–diciembre) marcado con
-   * `configurado: false`, para que la interfaz pida las reales en vez de fingir
-   * que las sabe.
+   * Fechas del periodo en curso para una modalidad. Mientras nadie las haya
+   * capturado se devuelve un estimado por el calendario (enero–junio o
+   * julio–diciembre) marcado con `configurado: false`, para que la interfaz
+   * pida las reales en vez de fingir que las sabe.
    */
-  async obtenerActual(referencia = new Date()) {
+  async obtenerActual(
+    referencia = new Date(),
+    modalidad: ModalidadGrupo = 'ESCOLARIZADO',
+  ): Promise<PeriodoModalidad> {
     const clave = getCurrentAcademicPeriod(referencia);
     const guardado = await this.prisma.periodoAcademico.findUnique({
-      where: { clave },
+      where: { clave_modalidad: { clave, modalidad } },
     });
 
     if (guardado) {
       return {
         clave,
+        modalidad,
         fechaInicio: formatearFechaClave(guardado.fechaInicio),
         fechaFin: formatearFechaClave(guardado.fechaFin),
         configurado: true,
@@ -61,6 +110,7 @@ export class PeriodosService {
     const primerSemestre = referencia.getMonth() + 1 <= 6;
     return {
       clave,
+      modalidad,
       fechaInicio: formatearFechaClave(
         new Date(anio, primerSemestre ? 0 : 6, 1),
       ),
@@ -72,11 +122,88 @@ export class PeriodosService {
     };
   }
 
+  /**
+   * Los dos calendarios del periodo en curso, marcando cuáles le tocan a quien
+   * pregunta: al admin y al jefe de carrera ambos; al docente los de sus
+   * grupos (escolarizado mientras no tenga ninguno); al alumno el de su grupo.
+   */
+  async obtenerActualesPara(
+    actor: Actor,
+    referencia = new Date(),
+  ): Promise<PeriodosActuales> {
+    const [escolarizado, mixto, modalidades] = await Promise.all([
+      this.obtenerActual(referencia, 'ESCOLARIZADO'),
+      this.obtenerActual(referencia, 'MIXTO'),
+      this.modalidadesDe(actor),
+    ]);
+    const periodos = { escolarizado, mixto };
+    const aplicaMixto = modalidades.includes('MIXTO');
+    // El docente descuenta también sus propios días sin clases; los demás
+    // sólo ven los festivos institucionales.
+    const sinClases =
+      mixto.configurado && aplicaMixto
+        ? actor.rol === 'DOCENTE'
+          ? await this.listarSuspensiones(actor.id, referencia)
+          : (await this.listarSuspensionesInstitucionales(referencia)).map(
+              (item) => ({ ...item, institucional: true }),
+            )
+        : null;
+    return {
+      clave: escolarizado.clave,
+      escolarizado: {
+        ...escolarizado,
+        aplica: modalidades.includes('ESCOLARIZADO'),
+      },
+      mixto: {
+        ...mixto,
+        aplica: aplicaMixto,
+        sabados: sinClases ? contarSabados(mixto, sinClases, referencia) : null,
+      },
+      rango: rangoDe(periodos, modalidades),
+    };
+  }
+
+  /** Modalidades de los grupos del docente; escolarizado si aún no tiene. */
+  async modalidadesDeDocente(docenteId: number): Promise<ModalidadGrupo[]> {
+    const [horarios, agregados] = await Promise.all([
+      this.prisma.horarioMateria.findMany({
+        where: { docenteId, activo: true },
+        select: { dias: true, grupo: { select: { modalidad: true } } },
+      }),
+      this.prisma.grupo.findMany({
+        where: { activo: true, docentes: { some: { id: docenteId } } },
+        select: { modalidad: true },
+      }),
+    ]);
+    const propias = new Set<ModalidadGrupo>([
+      ...horarios.map(modalidadDeHorario),
+      ...agregados.map((grupo) => grupo.modalidad),
+    ]);
+    if (!propias.size) return ['ESCOLARIZADO'];
+    return MODALIDADES.filter((modalidad) => propias.has(modalidad));
+  }
+
+  private async modalidadesDe(actor: Actor): Promise<ModalidadGrupo[]> {
+    if (actor.rol === 'DOCENTE') return this.modalidadesDeDocente(actor.id);
+    if (actor.rol === 'ALUMNO') {
+      const alumno = await this.prisma.usuario.findUnique({
+        where: { id: actor.id },
+        select: { grupo: { select: { modalidad: true } } },
+      });
+      return [alumno?.grupo?.modalidad ?? 'ESCOLARIZADO'];
+    }
+    return [...MODALIDADES];
+  }
+
   /** Límites reales del periodo, ya como fechas locales, para acotar consultas. */
-  async obtenerRangoActual(referencia = new Date()) {
-    const periodo = await this.obtenerActual(referencia);
+  async obtenerRangoActual(
+    referencia = new Date(),
+    modalidad: ModalidadGrupo = 'ESCOLARIZADO',
+  ) {
+    const periodo = await this.obtenerActual(referencia, modalidad);
     return {
       clave: periodo.clave,
+      modalidad,
       configurado: periodo.configurado,
       inicio: obtenerInicioDelDia(
         parsearFechaClave(periodo.fechaInicio) as Date,
@@ -85,11 +212,27 @@ export class PeriodosService {
     };
   }
 
+  /**
+   * Guarda las fechas de una modalidad del periodo en curso. El docente sólo
+   * puede tocar las de las modalidades en las que da clase; el admin, ambas.
+   */
   async actualizarActual(
-    actorId: number,
-    dto: { fechaInicio: string; fechaFin: string },
+    actor: Actor,
+    dto: { fechaInicio: string; fechaFin: string; modalidad?: ModalidadGrupo },
     referencia = new Date(),
   ) {
+    const modalidad = dto.modalidad ?? 'ESCOLARIZADO';
+    if (
+      actor.rol === 'DOCENTE' &&
+      !(await this.modalidadesDeDocente(actor.id)).includes(modalidad)
+    ) {
+      throw new ForbiddenException(
+        modalidad === 'MIXTO'
+          ? 'No tienes grupos mixtos: sólo puedes editar el periodo escolarizado'
+          : 'No tienes grupos escolarizados: sólo puedes editar el periodo mixto',
+      );
+    }
+
     const inicio = parsearFechaClave(dto.fechaInicio);
     const fin = parsearFechaClave(dto.fechaFin);
     if (!inicio || !fin) throw new BadRequestException('Fecha inválida');
@@ -111,24 +254,36 @@ export class PeriodosService {
         `El periodo no puede durar más de ${DIAS_MAXIMOS} días`,
       );
     }
+    if (modalidad === 'MIXTO') {
+      if (inicio.getDay() !== 6) {
+        throw new BadRequestException('El semestre mixto inicia en sábado');
+      }
+      const sabados = sabadosEntre(inicio, fin).length;
+      if (sabados < SABADOS_POR_SEMESTRE) {
+        throw new BadRequestException(
+          `El rango sólo tiene ${sabados} sábados; el semestre mixto necesita ${SABADOS_POR_SEMESTRE}`,
+        );
+      }
+    }
 
     const clave = getCurrentAcademicPeriod(referencia);
     await this.prisma.periodoAcademico.upsert({
-      where: { clave },
+      where: { clave_modalidad: { clave, modalidad } },
       create: {
         clave,
+        modalidad,
         fechaInicio: inicio,
         fechaFin: fin,
-        actualizadoPorId: actorId,
+        actualizadoPorId: actor.id,
       },
       update: {
         fechaInicio: inicio,
         fechaFin: fin,
-        actualizadoPorId: actorId,
+        actualizadoPorId: actor.id,
       },
     });
 
-    return this.obtenerActual(referencia);
+    return this.obtenerActual(referencia, modalidad);
   }
 
   /**
@@ -269,7 +424,10 @@ export class PeriodosService {
     docenteId: number,
     dto: { fechas: string[]; motivo: string },
   ) {
-    const { motivo, fechas, periodo } = await this.validarSuspensiones(dto);
+    const { motivo, fechas, periodo } = await this.validarSuspensiones(
+      dto,
+      docenteId,
+    );
     const horarios = await this.prisma.horarioMateria.findMany({
       where: { docenteId, activo: true },
       select: { dias: true },
@@ -366,8 +524,15 @@ export class PeriodosService {
     return this.listarSuspensionesInstitucionales();
   }
 
-  /** Motivo y fechas válidas, únicas y dentro del periodo en curso. */
-  private async validarSuspensiones(dto: { fechas: string[]; motivo: string }) {
+  /**
+   * Motivo y fechas válidas, únicas y dentro del periodo en curso. Con
+   * `docenteId` el periodo es el de sus modalidades; sin él (institucional)
+   * cuenta cualquier fecha de cualquiera de las dos.
+   */
+  private async validarSuspensiones(
+    dto: { fechas: string[]; motivo: string },
+    docenteId?: number,
+  ) {
     const motivo = dto.motivo?.trim();
     if (!motivo || motivo.length > 500) {
       throw new BadRequestException(
@@ -378,19 +543,24 @@ export class PeriodosService {
     if (!fechas.length || fechas.length > 31) {
       throw new BadRequestException('Selecciona entre 1 y 31 fechas');
     }
-    const periodo = await this.obtenerActual();
+    const [escolarizado, mixto, modalidades] = await Promise.all([
+      this.obtenerActual(new Date(), 'ESCOLARIZADO'),
+      this.obtenerActual(new Date(), 'MIXTO'),
+      docenteId ? this.modalidadesDeDocente(docenteId) : [...MODALIDADES],
+    ]);
+    const rango = rangoDe({ escolarizado, mixto }, modalidades);
     for (const clave of fechas) {
       const fecha = parsearFechaClave(clave);
       if (!fecha || formatearFechaClave(fecha) !== clave) {
         throw new BadRequestException(`Fecha inválida: ${clave}`);
       }
-      if (clave < periodo.fechaInicio || clave > periodo.fechaFin) {
+      if (clave < rango.fechaInicio || clave > rango.fechaFin) {
         throw new BadRequestException(
           `${clave} está fuera del periodo escolar`,
         );
       }
     }
-    return { motivo, fechas, periodo };
+    return { motivo, fechas, periodo: escolarizado };
   }
 
   /**
@@ -432,4 +602,86 @@ export class PeriodosService {
       }
     }
   }
+}
+
+/**
+ * Unión de las fechas de las modalidades indicadas. Una modalidad sin fechas
+ * capturadas sólo cuenta cuando ninguna las tiene: su estimado abarca medio
+ * año y taparía el calendario real de la otra.
+ */
+export function rangoDe(
+  periodos: { escolarizado: PeriodoModalidad; mixto: PeriodoModalidad },
+  modalidades: ModalidadGrupo[],
+) {
+  const propios = (modalidades.length ? modalidades : ['ESCOLARIZADO']).map(
+    (modalidad) =>
+      modalidad === 'MIXTO' ? periodos.mixto : periodos.escolarizado,
+  );
+  const configurados = propios.filter((periodo) => periodo.configurado);
+  const base = configurados.length ? configurados : propios;
+  return {
+    fechaInicio: base.map((p) => p.fechaInicio).sort()[0],
+    fechaFin: base
+      .map((p) => p.fechaFin)
+      .sort()
+      .at(-1) as string,
+  };
+}
+
+/** Claves de los sábados entre dos fechas, ambas incluidas. */
+function sabadosEntre(inicio: Date, fin: Date) {
+  const claves: string[] = [];
+  let dia = sumarDias(inicio, (6 - inicio.getDay() + 7) % 7);
+  for (; dia <= fin; dia = sumarDias(dia, 7)) {
+    claves.push(formatearFechaClave(dia));
+  }
+  return claves;
+}
+
+/**
+ * Sábados del semestre mixto: cuántos caen en el rango, cuáles quedan sin
+ * clase y por cuál va. Si los festivos dejan menos de {@link SABADOS_POR_SEMESTRE}
+ * con clase, `finSugerido` es el sábado en que se completarían.
+ */
+export function contarSabados(
+  periodo: { fechaInicio: string; fechaFin: string },
+  suspensiones: Array<{
+    fecha: string;
+    motivo: string;
+    institucional: boolean;
+  }>,
+  hoy = new Date(),
+): ResumenSabados {
+  const inicio = parsearFechaClave(periodo.fechaInicio) as Date;
+  const fin = parsearFechaClave(periodo.fechaFin) as Date;
+  const suspendidos = new Map(suspensiones.map((item) => [item.fecha, item]));
+  const hoyClave = formatearFechaClave(hoy);
+
+  const sabados = sabadosEntre(inicio, fin);
+  const sinClases = sabados
+    .filter((clave) => suspendidos.has(clave))
+    .map((clave) => {
+      const { fecha, motivo, institucional } = suspendidos.get(clave)!;
+      return { fecha, motivo, institucional };
+    });
+  const conClase = sabados.filter((clave) => !suspendidos.has(clave));
+
+  let finSugerido: string | null = null;
+  let faltan = SABADOS_POR_SEMESTRE - conClase.length;
+  for (let dia = sumarDias(fin, 1); faltan > 0; dia = sumarDias(dia, 1)) {
+    if (dia.getDay() !== 6 || suspendidos.has(formatearFechaClave(dia))) {
+      continue;
+    }
+    faltan -= 1;
+    if (faltan === 0) finSugerido = formatearFechaClave(dia);
+  }
+
+  return {
+    requeridos: SABADOS_POR_SEMESTRE,
+    total: sabados.length,
+    conClase: conClase.length,
+    transcurridos: conClase.filter((clave) => clave <= hoyClave).length,
+    sinClases,
+    finSugerido,
+  };
 }

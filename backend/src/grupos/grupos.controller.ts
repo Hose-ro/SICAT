@@ -17,6 +17,7 @@ import {
   ApiOperation,
   ApiQuery,
 } from '@nestjs/swagger';
+import { ModalidadGrupo } from '@prisma/client';
 import { GruposService } from './grupos.service';
 import { CreateGrupoDto } from './dto/create-grupo.dto';
 import { UpdateGrupoDto } from './dto/update-grupo.dto';
@@ -55,15 +56,21 @@ export class GruposController {
   @ApiQuery({ name: 'carreraId', required: false, type: Number })
   @ApiQuery({ name: 'semestre', required: false, type: Number })
   @ApiQuery({ name: 'periodo', required: false, type: String })
+  @ApiQuery({ name: 'modalidad', required: false, enum: ModalidadGrupo })
   listar(
     @Query('carreraId') carreraId?: string,
     @Query('semestre') semestre?: string,
     @Query('periodo') periodo?: string,
+    @Query('modalidad') modalidad?: string,
   ) {
     return this.grupos.listarGrupos({
       carreraId: carreraId ? Number(carreraId) : undefined,
       semestre: semestre ? Number(semestre) : undefined,
       periodo,
+      modalidad:
+        modalidad === 'ESCOLARIZADO' || modalidad === 'MIXTO'
+          ? modalidad
+          : undefined,
     });
   }
 
@@ -195,7 +202,12 @@ export class GruposController {
     @Body() dto: CompletarAlumnoGrupoDto,
     @Request() req: any,
   ) {
-    return this.grupos.actualizarAlumnoDeMiGrupo(id, req.user.id, alumnoId, dto);
+    return this.grupos.actualizarAlumnoDeMiGrupo(
+      id,
+      req.user.id,
+      alumnoId,
+      dto,
+    );
   }
 
   @Delete('lote')

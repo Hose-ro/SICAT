@@ -4,16 +4,30 @@ import { useNavigate } from 'react-router-dom'
 import api from '../../../../api/axios'
 import { useGrupoStore } from '../../../../store/grupoStore'
 import Modal from '../../../../components/Modal'
-import { getCurrentAcademicPeriod } from '../../../../lib/periodo'
+import { ETIQUETA_MODALIDAD, getCurrentAcademicPeriod } from '../../../../lib/periodo'
 
 const SEMESTRES = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+/** Escolarizado va de lunes a viernes; mixto sólo sábados, con su propio calendario. */
+const MODALIDADES = [
+  { valor: 'ESCOLARIZADO', descripcion: 'Lunes a viernes', ejemplo: '103-A' },
+  { valor: 'MIXTO', descripcion: 'Sólo sábados', ejemplo: '103-SA' },
+]
+
+const FORM_INICIAL = () => ({
+  nombre: '',
+  carreraId: '',
+  semestre: '',
+  periodo: getCurrentAcademicPeriod(),
+  modalidad: 'ESCOLARIZADO',
+})
 
 export default function FormCrearGrupo({ open, onClose }) {
   const fieldId = useId()
   const navigate = useNavigate()
   const { crearGrupo } = useGrupoStore()
   const [carreras, setCarreras] = useState([])
-  const [form, setForm] = useState({ nombre: '', carreraId: '', semestre: '', periodo: getCurrentAcademicPeriod() })
+  const [form, setForm] = useState(FORM_INICIAL)
   const [preview, setPreview] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -21,7 +35,7 @@ export default function FormCrearGrupo({ open, onClose }) {
 
   useEffect(() => {
     if (open) {
-      setForm({ nombre: '', carreraId: '', semestre: '', periodo: getCurrentAcademicPeriod() })
+      setForm(FORM_INICIAL())
       setPreview(null)
       setError('')
       setStep('form')
@@ -59,6 +73,7 @@ export default function FormCrearGrupo({ open, onClose }) {
         semestre: Number(form.semestre),
         carreraId: Number(form.carreraId),
         periodo: form.periodo,
+        modalidad: form.modalidad,
       })
       onClose()
       navigate(`/admin/grupos/${grupo.id}`)
@@ -73,17 +88,52 @@ export default function FormCrearGrupo({ open, onClose }) {
     <Modal open={open} onClose={onClose} title="Crear grupo">
       {step === 'form' ? (
         <form onSubmit={handlePreview} className="space-y-4">
+          <fieldset>
+            <legend className="block text-xs font-medium text-foreground mb-1">Modalidad *</legend>
+            <div className="grid grid-cols-2 gap-2">
+              {MODALIDADES.map((opcion) => {
+                const activa = form.modalidad === opcion.valor
+                return (
+                  <label
+                    key={opcion.valor}
+                    className={`cursor-pointer rounded-xl border px-3 py-2 text-sm transition-colors ${activa ? 'border-primary bg-primary/10 text-primary-ink' : 'border-border text-foreground hover:bg-muted/40'}`}
+                  >
+                    <input
+                      type="radio"
+                      name={fieldId + '-modalidad'}
+                      value={opcion.valor}
+                      checked={activa}
+                      onChange={() => setForm({ ...form, modalidad: opcion.valor })}
+                      className="sr-only"
+                    />
+                    <span className="block font-medium">{ETIQUETA_MODALIDAD[opcion.valor]}</span>
+                    <span className="block text-xs text-muted-foreground">{opcion.descripcion} · ej. {opcion.ejemplo}</span>
+                  </label>
+                )
+              })}
+            </div>
+            {form.modalidad === 'MIXTO' && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Los grupos mixtos (sábados) llevan su propio calendario de inicio y fin de semestre.
+              </p>
+            )}
+          </fieldset>
+
           <div>
             <label htmlFor={fieldId + '-control-76'} className="block text-xs font-medium text-foreground mb-1">Nombre del grupo *</label>
             <input id={fieldId + '-control-76'}
               required
               maxLength={20}
-              placeholder="103A"
+              placeholder={form.modalidad === 'MIXTO' ? '103-SA' : '103-A'}
               value={form.nombre}
               onChange={(e) => setForm({ ...form, nombre: e.target.value.toUpperCase() })}
               className="w-full border border-border rounded-xl px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
-            <p className="text-xs text-muted-foreground mt-1">Como lo nombra la institución, por ejemplo 103A</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {form.modalidad === 'MIXTO'
+                ? 'Como lo nombra la institución, con la S antes de la letra: 103-SA, 103-SB…'
+                : 'Como lo nombra la institución, por ejemplo 103-A o 103-B'}
+            </p>
           </div>
 
           <div>
@@ -149,6 +199,10 @@ export default function FormCrearGrupo({ open, onClose }) {
             </p>
             <p className="text-sm text-muted-foreground">
               <span className="font-medium">Periodo:</span> {preview?.periodo}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              <span className="font-medium">Modalidad:</span> {ETIQUETA_MODALIDAD[preview?.modalidad] ?? ETIQUETA_MODALIDAD.ESCOLARIZADO}
+              {preview?.modalidad === 'MIXTO' ? ' (sólo sábados)' : ' (lunes a viernes)'}
             </p>
             <p className="text-sm text-muted-foreground">
               <span className="font-medium">Materias de retícula:</span>{' '}

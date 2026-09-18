@@ -2,7 +2,7 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { HorariosService } from '../horarios/horarios.service';
 import { UsuariosService } from '../usuarios/usuarios.service';
-import { GruposService } from './grupos.service';
+import { GruposService, seccionDelNombre } from './grupos.service';
 import {
   inscribirAlumnosDelGrupo,
   quitarInscripcionesDelGrupo,
@@ -55,8 +55,37 @@ describe('GruposService', () => {
     seccion: 'A',
     carreraId: 1,
     periodo: '2026-A',
+    modalidad: 'ESCOLARIZADO' as const,
     carrera: { id: 1, nombre: 'ISC', codigo: '06' },
   };
+
+  it('lee la sección del nombre según la convención de cada modalidad', () => {
+    expect(seccionDelNombre('103A', 'ESCOLARIZADO')).toBe('A');
+    expect(seccionDelNombre('103-A', 'ESCOLARIZADO')).toBe('A');
+    expect(seccionDelNombre('103-SB', 'MIXTO')).toBe('B');
+    expect(seccionDelNombre('103SB', 'MIXTO')).toBe('B');
+    expect(seccionDelNombre('103-B', 'MIXTO')).toBe('B');
+    expect(seccionDelNombre('GRUPO NUEVO', 'ESCOLARIZADO')).toBeUndefined();
+  });
+
+  it('cambiar la modalidad revisa que la sección esté libre en la nueva', async () => {
+    grupoFindUnique.mockResolvedValue(grupoExistente);
+    grupoFindFirst.mockResolvedValue({ id: 9, nombre: '103-SA' });
+
+    await expect(
+      service.editarGrupo(4, { modalidad: 'MIXTO' }),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(grupoFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          seccion: 'A',
+          modalidad: 'MIXTO',
+          id: { not: 4 },
+        }),
+      }),
+    );
+    expect(grupoUpdate).not.toHaveBeenCalled();
+  });
 
   it('renombra el grupo con el nombre que escribe el administrador', async () => {
     grupoFindUnique.mockResolvedValue(grupoExistente);

@@ -1,6 +1,8 @@
 import * as V from 'class-validator';
 import {
+  IsEnum,
   IsInt,
+  IsOptional,
   IsString,
   IsNotEmpty,
   Min,
@@ -9,12 +11,14 @@ import {
   MaxLength,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ModalidadGrupo } from '@prisma/client';
 
 export class CreateGrupoDto {
   @V.Matches(/\S/, { message: 'El texto no puede estar vacío' })
   @ApiProperty({
-    example: '103A',
-    description: 'Nombre con el que se conoce al grupo',
+    example: '103-A',
+    description:
+      'Nombre con el que se conoce al grupo: 103-A escolarizado, 103-SA mixto (sábados)',
   })
   @IsString()
   @IsNotEmpty()
@@ -57,4 +61,12 @@ export class CreateGrupoDto {
   @IsString()
   @IsNotEmpty()
   periodo: string;
+
+  /** Escolarizado de lunes a viernes o mixto (sábados); si se omite, escolarizado. */
+  @ApiPropertyOptional({ enum: ModalidadGrupo, default: 'ESCOLARIZADO' })
+  @IsOptional()
+  @IsEnum(ModalidadGrupo, {
+    message: 'La modalidad debe ser ESCOLARIZADO o MIXTO',
+  })
+  modalidad?: ModalidadGrupo;
 }

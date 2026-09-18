@@ -58,6 +58,7 @@ const HORARIO_INCLUDE = {
       nombre: true,
       semestre: true,
       periodo: true,
+      modalidad: true,
       carrera: { select: { id: true, nombre: true, codigo: true } },
     },
   },
@@ -413,7 +414,10 @@ export class HorariosService {
     });
   }
 
-  async validarConflicto(dto: ValidarConflictoHorarioDto, actor?: ActorHorario) {
+  async validarConflicto(
+    dto: ValidarConflictoHorarioDto,
+    actor?: ActorHorario,
+  ) {
     const payloads = await this.prepararHorarios(
       this.aplicarActorDocente(actor, dto),
     );
@@ -990,7 +994,13 @@ export class HorariosService {
    * autoritativo; si tampoco está, no hay con qué comparar y se deja pasar.
    */
   private async validarSemestreMateriaGrupo(
-    materia: { id: number; nombre: string; clave: string; semestre: number | null; carreraId: number | null },
+    materia: {
+      id: number;
+      nombre: string;
+      clave: string;
+      semestre: number | null;
+      carreraId: number | null;
+    },
     grupo: { nombre: string; semestre: number } | null,
   ) {
     if (!grupo) return;

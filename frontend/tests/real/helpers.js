@@ -21,6 +21,7 @@ export function api(page) {
   return {
     get: (path, options) => page.request.get(base + path, options),
     post: (path, options) => page.request.post(base + path, options),
+    put: (path, options) => page.request.put(base + path, options),
     patch: (path, options) => page.request.patch(base + path, options),
     delete: (path, options) => page.request.delete(base + path, options),
   }

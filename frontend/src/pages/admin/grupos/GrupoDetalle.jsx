@@ -67,6 +67,11 @@ export default function GrupoDetalle() {
               Sem. {grupoActivo.semestre}
             </span>
             <span className="text-xs text-muted-foreground">{grupoActivo.periodo}</span>
+            {grupoActivo.modalidad === 'MIXTO' && (
+              <span className="text-xs bg-primary/10 text-primary-ink px-2.5 py-1 rounded-full font-medium">
+                Mixto
+              </span>
+            )}
           </div>
           <p className="text-sm text-muted-foreground mt-0.5">{grupoActivo.carrera?.nombre}</p>
         </div>

@@ -26,16 +26,22 @@ export class PeriodosController {
 
   @Get('actual')
   @Roles('DOCENTE', 'ADMIN', 'JEFE_CARRERA', 'ALUMNO')
-  @ApiOperation({ summary: 'Fechas del periodo escolar en curso' })
-  obtenerActual() {
-    return this.periodos.obtenerActual();
+  @ApiOperation({
+    summary:
+      'Fechas del periodo en curso, escolarizado y mixto, y cuáles aplican a quien consulta',
+  })
+  obtenerActual(@Req() req) {
+    return this.periodos.obtenerActualesPara(req.user);
   }
 
   @Put('actual')
   @Roles('DOCENTE', 'ADMIN')
-  @ApiOperation({ summary: 'Establecer inicio y fin del periodo en curso' })
-  actualizarActual(@Req() req, @Body() dto: ActualizarPeriodoDto) {
-    return this.periodos.actualizarActual(req.user.id, dto);
+  @ApiOperation({
+    summary: 'Establecer inicio y fin del periodo en curso para una modalidad',
+  })
+  async actualizarActual(@Req() req, @Body() dto: ActualizarPeriodoDto) {
+    await this.periodos.actualizarActual(req.user, dto);
+    return this.periodos.obtenerActualesPara(req.user);
   }
 
   @Get('actual/suspensiones')

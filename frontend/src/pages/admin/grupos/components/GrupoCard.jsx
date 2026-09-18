@@ -28,7 +28,12 @@ export default function GrupoCard({ grupo, seleccionable = false, seleccionado =
         )}
       </div>
 
-      <p className="text-xs text-muted-foreground mb-3">{grupo.periodo}</p>
+      <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground mb-3">
+        {grupo.periodo}
+        {grupo.modalidad === 'MIXTO' && (
+          <span className="rounded-full bg-primary/10 px-2 py-0.5 font-semibold text-primary-ink">Mixto</span>
+        )}
+      </p>
 
       <div className="flex gap-2">
         <span className="text-xs bg-muted text-muted-foreground px-2.5 py-1 rounded-full">

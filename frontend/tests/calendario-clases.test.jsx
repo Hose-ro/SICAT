@@ -3,10 +3,13 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 vi.mock('../src/api/axios', () => ({ default: { get: vi.fn(), post: vi.fn(), delete: vi.fn() } }))
+const escolarizado = { clave: '2026-B', modalidad: 'ESCOLARIZADO', fechaInicio: '2026-09-01', fechaFin: '2026-09-30', configurado: true, aplica: true }
+// El mixto arranca una semana después y sigue hasta octubre.
+const mixto = { clave: '2026-B', modalidad: 'MIXTO', fechaInicio: '2026-09-08', fechaFin: '2026-10-31', configurado: true, aplica: true }
 vi.mock('../src/store/periodoStore', () => ({
   usePeriodoStore: () => ({
-    periodo: { clave: '2026-B', fechaInicio: '2026-09-01', fechaFin: '2026-09-30', configurado: true },
-    cargarPeriodo: vi.fn(),
+    periodos: { clave: '2026-B', escolarizado, mixto, rango: { fechaInicio: '2026-09-01', fechaFin: '2026-10-31' } },
+    cargarPeriodos: vi.fn(),
   }),
 }))
 
@@ -74,4 +77,23 @@ test('en modo institucional el admin marca cualquier día del periodo para todos
     { fechas: ['2026-09-16'], motivo: 'Independencia' },
   ))
   expect(await screen.findByRole('button', { name: /16 de septiembre de 2026: sin clases, Independencia/ })).toBeTruthy()
+})
+
+test('un grupo mixto sólo tiene clase los sábados dentro de su propio calendario', async () => {
+  const user = userEvent.setup()
+  render(<CalendarioClases horarios={[
+    { dias: 'Jueves', grupo: { nombre: '103-A', modalidad: 'ESCOLARIZADO' }, horaInicio: '08:00', horaFin: '10:00' },
+    { dias: 'Sábado', grupo: { nombre: '103-SA', modalidad: 'MIXTO' }, horaInicio: '08:00', horaFin: '12:00' },
+  ]} />)
+
+  await user.click(screen.getByRole('button', { name: /Calendario de clases/ }))
+  // El sábado 5 todavía no empieza el semestre mixto; el 12 sí.
+  expect(screen.getByRole('button', { name: /sábado, 5 de septiembre de 2026: 0 clases/ }).disabled).toBe(true)
+  expect(screen.getByRole('button', { name: /sábado, 12 de septiembre de 2026: 1 clase/ }).disabled).toBe(false)
+  expect(screen.getByRole('button', { name: /jueves, 3 de septiembre de 2026: 1 clase/ }).disabled).toBe(false)
+
+  // En octubre ya terminó el escolarizado pero el mixto sigue.
+  await user.click(screen.getByRole('button', { name: 'Mes siguiente' }))
+  expect(screen.getByRole('button', { name: /jueves, 1 de octubre de 2026: 0 clases/ }).disabled).toBe(true)
+  expect(screen.getByRole('button', { name: /sábado, 3 de octubre de 2026: 1 clase/ }).disabled).toBe(false)
 })

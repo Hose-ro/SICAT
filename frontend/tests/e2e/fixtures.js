@@ -21,7 +21,7 @@ export async function mockApi(page,role='ALUMNO') {
   else if(p==='/notificaciones/no-leidas')data=1
   else if(p==='/notificaciones'){const items=url.searchParams.get('soloNoLeidas')==='true'?notificaciones.filter(n=>!n.leida):notificaciones;data={items,total:items.length}}
   else if(p.startsWith('/notificaciones/')&&(req.method()==='PATCH'||req.method()==='DELETE'))data={ok:true}
-  else if(p==='/periodos/actual')data={fechaInicio:'2026-08-31',fechaFin:'2026-12-18',configurado:true}
+  else if(p==='/periodos/actual'){const escolarizado={clave:'2026-B',modalidad:'ESCOLARIZADO',fechaInicio:'2026-08-31',fechaFin:'2026-12-18',configurado:true,aplica:true};data={clave:'2026-B',escolarizado,mixto:{...escolarizado,modalidad:'MIXTO',aplica:false},rango:{fechaInicio:'2026-08-31',fechaFin:'2026-12-18'}}}
   else if(p.includes('mis-horarios')||p==='/horarios/docente/2')data={alumno:user,docente,grupo,horarios:[horario],clases:[]}
   else if(p==='/horarios/validar-conflicto')data={ok:true,message:'Horario disponible',conflicts:[]}
   else if(p.startsWith('/horarios')&&req.method()==='POST')data={...horario}

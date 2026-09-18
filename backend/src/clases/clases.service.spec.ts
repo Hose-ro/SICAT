@@ -132,16 +132,14 @@ describe('ClasesService asistencias atrasadas', () => {
       new Date(2026, 7, 29),
       new Date(2026, 11, 18),
     );
-    jest
-      .spyOn(fakePeriodos, 'listarSuspensiones')
-      .mockResolvedValue([
-        {
-          id: 1,
-          fecha: '2026-09-07',
-          motivo: 'Día festivo',
-          institucional: false,
-        },
-      ]);
+    jest.spyOn(fakePeriodos, 'listarSuspensiones').mockResolvedValue([
+      {
+        id: 1,
+        fecha: '2026-09-07',
+        motivo: 'Día festivo',
+        institucional: false,
+      },
+    ]);
     const conSuspension = new ClasesService(
       prisma,
       notificaciones,
@@ -181,6 +179,56 @@ describe('ClasesService asistencias atrasadas', () => {
 
     expect(fechas).toEqual(['2026-09-01', '2026-08-31']);
     expect(fechas).not.toContain('2026-09-07');
+  });
+
+  it('cada modalidad usa su propio calendario para las clases atrasadas', async () => {
+    // El escolarizado arranca el 7 de septiembre; el mixto, el 29 de agosto.
+    const rangoPorModalidad = jest.fn((_hoy: Date, modalidad: string) =>
+      Promise.resolve({
+        clave: '2026-B',
+        modalidad,
+        configurado: true,
+        inicio:
+          modalidad === 'MIXTO' ? new Date(2026, 7, 29) : new Date(2026, 8, 7),
+        fin: new Date(2026, 11, 18),
+      }),
+    );
+    const porModalidad = {
+      obtenerRangoActual: rangoPorModalidad,
+      obtenerSuspension: jest.fn().mockResolvedValue(null),
+      listarSuspensiones: jest.fn().mockResolvedValue([]),
+    } as unknown as PeriodosService;
+    horarioFindMany.mockResolvedValue([
+      horarioBase,
+      {
+        ...horarioBase,
+        id: 8,
+        grupoId: 6,
+        dias: 'sábado',
+        horaInicio: '08:00',
+        horaFin: '12:00',
+        grupo: {
+          id: 6,
+          nombre: '103-SA',
+          periodo: '2026-B',
+          semestre: 1,
+          modalidad: 'MIXTO',
+        },
+      },
+    ]);
+    const mixto = new ClasesService(prisma, notificaciones, porModalidad);
+
+    const pendientes = await mixto.obtenerClasesAtrasadas(9);
+    const mixtas = pendientes
+      .filter((item) => item.horarioId === 8)
+      .map((item) => item.fecha);
+    const escolarizadas = pendientes
+      .filter((item) => item.horarioId === 3)
+      .map((item) => item.fecha);
+
+    expect(mixtas).toEqual(['2026-09-05', '2026-08-29']);
+    expect(escolarizadas).toEqual(['2026-09-08', '2026-09-07']);
+    expect(rangoPorModalidad).toHaveBeenCalledTimes(2);
   });
 
   it('rechaza registrar una clase anterior al inicio del semestre', async () => {

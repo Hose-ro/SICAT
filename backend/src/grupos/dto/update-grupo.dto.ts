@@ -1,6 +1,14 @@
 import * as V from 'class-validator';
-import { IsString, IsNotEmpty, Matches, MaxLength } from 'class-validator';
+import {
+  IsEnum,
+  IsOptional,
+  IsString,
+  IsNotEmpty,
+  Matches,
+  MaxLength,
+} from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ModalidadGrupo } from '@prisma/client';
 
 export class UpdateGrupoDto {
   @V.Matches(/\S/, { message: 'El texto no puede estar vacío' })
@@ -30,4 +38,11 @@ export class UpdateGrupoDto {
   @V.ValidateIf((_object, value: unknown) => value !== undefined)
   @IsString()
   periodo?: string;
+
+  @ApiPropertyOptional({ enum: ModalidadGrupo })
+  @IsOptional()
+  @IsEnum(ModalidadGrupo, {
+    message: 'La modalidad debe ser ESCOLARIZADO o MIXTO',
+  })
+  modalidad?: ModalidadGrupo;
 }

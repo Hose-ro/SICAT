@@ -3,21 +3,28 @@ import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-rea
 import { Button } from '@/components/ui/button'
 import api from '../api/axios'
 import { usePeriodoStore } from '../store/periodoStore'
-import { claveDeFecha as claveFecha, fechaDeClave as fechaLocal } from '../lib/periodo'
+import { claveDeFecha as claveFecha, fechaDeClave as fechaLocal, periodoDeHorario } from '../lib/periodo'
 
 const DIAS = ['L', 'M', 'M', 'J', 'V', 'S', 'D']
 const NOMBRES_DIA = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']
 
-function primerMesVisible(periodo) {
+function primerMesVisible(rango) {
   const hoy = claveFecha(new Date())
-  const clave = hoy < periodo.fechaInicio ? periodo.fechaInicio : hoy > periodo.fechaFin ? periodo.fechaFin : hoy
+  const clave = hoy < rango.fechaInicio ? rango.fechaInicio : hoy > rango.fechaFin ? rango.fechaFin : hoy
   const fecha = fechaLocal(clave)
   return new Date(fecha.getFullYear(), fecha.getMonth(), 1)
 }
 
-function aplica(horario, fecha) {
+/**
+ * Un bloque tiene clase ese día si cae en uno de sus días de la semana y
+ * dentro del calendario de su modalidad: el mixto no empieza ni termina
+ * con el escolarizado.
+ */
+function aplica(horario, fecha, clave, periodos) {
   const dias = (horario.dias ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().split(',').map((dia) => dia.trim())
-  return dias.includes(NOMBRES_DIA[fecha.getDay()])
+  if (!dias.includes(NOMBRES_DIA[fecha.getDay()])) return false
+  const periodo = periodoDeHorario(periodos, horario)
+  return clave >= periodo.fechaInicio && clave <= periodo.fechaFin
 }
 
 /**
@@ -46,7 +53,9 @@ const MODOS = {
 export default function CalendarioClases({ horarios = [], modo = 'docente' }) {
   const config = MODOS[modo]
   const institucional = modo === 'institucional'
-  const { periodo, cargarPeriodo } = usePeriodoStore()
+  const { periodos, cargarPeriodos } = usePeriodoStore()
+  // Unión de los calendarios que le tocan al usuario: acota los meses visibles.
+  const rango = periodos?.rango ?? null
   const [abierto, setAbierto] = useState(false)
   const [mes, setMes] = useState(null)
   const [suspensiones, setSuspensiones] = useState([])
@@ -58,17 +67,17 @@ export default function CalendarioClases({ horarios = [], modo = 'docente' }) {
   const [mensaje, setMensaje] = useState('')
 
   useEffect(() => {
-    if (!periodo) cargarPeriodo().catch(() => {})
-  }, [periodo, cargarPeriodo])
+    if (!periodos) cargarPeriodos().catch(() => {})
+  }, [periodos, cargarPeriodos])
 
   useEffect(() => {
-    if (periodo) setMes((actual) => {
+    if (rango) setMes((actual) => {
       const claveMes = actual && claveFecha(actual).slice(0, 7)
-      return !actual || claveMes < periodo.fechaInicio.slice(0, 7) || claveMes > periodo.fechaFin.slice(0, 7)
-        ? primerMesVisible(periodo)
+      return !actual || claveMes < rango.fechaInicio.slice(0, 7) || claveMes > rango.fechaFin.slice(0, 7)
+        ? primerMesVisible(rango)
         : actual
     })
-  }, [periodo])
+  }, [rango])
 
   useEffect(() => {
     if (!abierto) return
@@ -83,7 +92,7 @@ export default function CalendarioClases({ horarios = [], modo = 'docente' }) {
 
   const porFecha = useMemo(() => new Map(suspensiones.map((item) => [item.fecha, item])), [suspensiones])
   const celdas = useMemo(() => {
-    if (!mes || !periodo) return []
+    if (!mes || !rango) return []
     const primero = new Date(mes.getFullYear(), mes.getMonth(), 1)
     const desplazamiento = (primero.getDay() + 6) % 7
     const total = new Date(mes.getFullYear(), mes.getMonth() + 1, 0).getDate()
@@ -92,15 +101,15 @@ export default function CalendarioClases({ horarios = [], modo = 'docente' }) {
       if (dia < 1 || dia > total) return null
       const fecha = new Date(mes.getFullYear(), mes.getMonth(), dia)
       const clave = claveFecha(fecha)
-      const enPeriodo = clave >= periodo.fechaInicio && clave <= periodo.fechaFin
+      const enPeriodo = clave >= rango.fechaInicio && clave <= rango.fechaFin
       return {
         dia,
         clave,
         enPeriodo,
-        clases: enPeriodo ? horarios.filter((horario) => aplica(horario, fecha)) : [],
+        clases: enPeriodo ? horarios.filter((horario) => aplica(horario, fecha, clave, periodos)) : [],
       }
     })
-  }, [mes, periodo, horarios])
+  }, [mes, rango, periodos, horarios])
 
   // En modo docente un festivo institucional no se toca: lo levanta el admin.
   const bloqueada = (clave) => !institucional && Boolean(porFecha.get(clave)?.institucional)
@@ -162,8 +171,8 @@ export default function CalendarioClases({ horarios = [], modo = 'docente' }) {
     }
   }
 
-  const inicioMes = mes && periodo && claveFecha(mes).slice(0, 7) <= periodo.fechaInicio.slice(0, 7)
-  const finMes = mes && periodo && claveFecha(mes).slice(0, 7) >= periodo.fechaFin.slice(0, 7)
+  const inicioMes = mes && rango && claveFecha(mes).slice(0, 7) <= rango.fechaInicio.slice(0, 7)
+  const finMes = mes && rango && claveFecha(mes).slice(0, 7) >= rango.fechaFin.slice(0, 7)
 
   return (
     <section className="rounded-2xl border border-border bg-card print:hidden">
@@ -183,7 +192,7 @@ export default function CalendarioClases({ horarios = [], modo = 'docente' }) {
 
       {abierto && (
         <div id="calendario-clases-panel" className="border-t border-border px-4 pb-5 pt-4 sm:px-5">
-          {!periodo || !mes ? <p className="text-sm text-muted-foreground">Cargando periodo escolar…</p> : (
+          {!rango || !mes ? <p className="text-sm text-muted-foreground">Cargando periodo escolar…</p> : (
             <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(240px,0.45fr)]">
               <div>
                 <div className="mb-4 flex items-center justify-between gap-3">

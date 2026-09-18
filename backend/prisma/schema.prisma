@@ -72,6 +72,13 @@ enum EstadoInscripcion {
   RECHAZADA
 }
 
+/// Escolarizado va de lunes a viernes; mixto (antes "sabatino") sólo los
+/// sábados y con su propio calendario de semestre.
+enum ModalidadGrupo {
+  ESCOLARIZADO
+  MIXTO
+}
+
 enum EstadoImportacionHorario {
   PENDIENTE_PROCESAMIENTO
   PENDIENTE_REVISION
@@ -315,16 +322,20 @@ model AlertaCarrera {
   @@index([responsableId])
 }
 
-/// Fechas reales del periodo escolar. Una fila por clave de periodo ("2026-B").
-/// Acota hasta dónde se puede capturar asistencia atrasada: antes de esto el
-/// semestre no había empezado.
+/// Fechas reales del periodo escolar. Una fila por clave de periodo ("2026-B")
+/// y modalidad: los grupos mixtos empiezan y terminan en fechas distintas a
+/// los escolarizados. Acota hasta dónde se puede capturar asistencia atrasada:
+/// antes de esto el semestre no había empezado.
 model PeriodoAcademico {
-  clave            String   @id
+  clave            String
+  modalidad        ModalidadGrupo @default(ESCOLARIZADO)
   fechaInicio      DateTime
   fechaFin         DateTime
   actualizadoPorId Int?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@id([clave, modalidad])
 }
 
 /// Un día sin clases para el horario de un docente durante un periodo.
@@ -715,6 +726,7 @@ model Grupo {
   carreraId            Int
   carrera              Carrera              @relation(fields: [carreraId], references: [id])
   periodo              String
+  modalidad            ModalidadGrupo       @default(ESCOLARIZADO)
   activo               Boolean              @default(true)
   createdAt            DateTime             @default(now())
   updatedAt            DateTime             @updatedAt
@@ -728,5 +740,5 @@ model Grupo {
   importacionesHorario ImportacionHorario[]
   calificaciones       CalificacionUnidad[]
 
-  @@unique([semestre, seccion, carreraId, periodo])
+  @@unique([semestre, seccion, carreraId, periodo, modalidad])
 }

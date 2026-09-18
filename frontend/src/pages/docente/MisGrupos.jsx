@@ -216,6 +216,11 @@ function TarjetaGrupo({
         <span className="rounded-full bg-muted px-2.5 py-1 text-muted-foreground">
           {grupo.periodo}
         </span>
+        {grupo.modalidad === 'MIXTO' && (
+          <span className="rounded-full bg-primary/10 px-2.5 py-1 font-semibold text-primary-ink">
+            Mixto
+          </span>
+        )}
         <span className="rounded-full bg-muted px-2.5 py-1 text-muted-foreground">
           {grupo._count?.alumnos ?? 0} alumnos
         </span>
@@ -510,6 +515,7 @@ function ModalAgregarGrupo({ open, misGrupos, onClose, onAgregado }) {
                     <p className="truncate text-xs text-muted-foreground">
                       {grupo.carrera?.nombre ?? 'Sin carrera'} · Sem.{' '}
                       {grupo.semestre} · {grupo.periodo}
+                      {grupo.modalidad === 'MIXTO' && ' · Mixto'}
                     </p>
                   </div>
                   <Button variant="default"
