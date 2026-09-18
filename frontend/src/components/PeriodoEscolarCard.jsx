@@ -120,7 +120,11 @@ export default function PeriodoEscolarCard({ editable = false, compacto = false 
             <p className="mt-1 text-xs text-muted-foreground">
               {!periodo.configurado
                 ? 'Fechas estimadas por calendario: captúralas para acotar las asistencias atrasadas.'
-                : `${nota.charAt(0).toUpperCase()}${nota.slice(1)} de clases.`}
+                : faltaIniciar > 0
+                  ? `El periodo comienza en ${faltaIniciar} día${faltaIniciar === 1 ? '' : 's'}.`
+                  : restantes >= 0
+                    ? `Quedan ${restantes} día${restantes === 1 ? '' : 's'} para terminar el periodo.`
+                    : `El periodo terminó hace ${Math.abs(restantes)} día${Math.abs(restantes) === 1 ? '' : 's'}.`}
             </p>
           </div>
         </div>

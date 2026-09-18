@@ -12,6 +12,8 @@ const periodosFalsos = (inicio: Date, fin: Date) =>
       inicio,
       fin,
     }),
+    obtenerSuspension: jest.fn().mockResolvedValue(null),
+    listarSuspensiones: jest.fn().mockResolvedValue([]),
   }) as unknown as PeriodosService;
 
 describe('ClasesService asistencias atrasadas', () => {
@@ -123,6 +125,31 @@ describe('ClasesService asistencias atrasadas', () => {
       sesion: null,
       unidad: unidadActiva,
     });
+  });
+
+  it('no exige lista atrasada de los días suspendidos', async () => {
+    const fakePeriodos = periodosFalsos(
+      new Date(2026, 7, 29),
+      new Date(2026, 11, 18),
+    );
+    jest
+      .spyOn(fakePeriodos, 'listarSuspensiones')
+      .mockResolvedValue([
+        {
+          id: 1,
+          fecha: '2026-09-07',
+          motivo: 'Día festivo',
+          institucional: false,
+        },
+      ]);
+    const conSuspension = new ClasesService(
+      prisma,
+      notificaciones,
+      fakePeriodos,
+    );
+    const pendientes = await conSuspension.obtenerClasesAtrasadas(9);
+    expect(pendientes.map((item) => item.fecha)).not.toContain('2026-09-07');
+    expect(pendientes.map((item) => item.fecha)).toContain('2026-09-08');
   });
 
   it('no ofrece clases anteriores al inicio del semestre', async () => {

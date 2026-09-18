@@ -4,7 +4,9 @@
       "/opt/homebrew/Cellar/node@22/22.22.0/bin/node",
       "/Users/jose/Documents/8vosemestre/fede/SICAT/frontend/node_modules/.bin/playwright",
       "test",
-      "tests/e2e/tmp/historial-colapsable.spec.js"
+      "tests/e2e/audit.spec.js",
+      "-g",
+      "exportaciones"
     ],
     "configFile": "/Users/jose/Documents/8vosemestre/fede/SICAT/frontend/playwright.config.js",
     "rootDir": "/Users/jose/Documents/8vosemestre/fede/SICAT/frontend/tests/e2e",
@@ -66,13 +68,13 @@
   },
   "suites": [
     {
-      "title": "tmp/historial-colapsable.spec.js",
-      "file": "tmp/historial-colapsable.spec.js",
+      "title": "audit.spec.js",
+      "file": "audit.spec.js",
       "column": 0,
       "line": 0,
       "specs": [
         {
-          "title": "historial contraído por defecto, se expande y se abre al aplicar filtros",
+          "title": "exportaciones: el reporte filtrado descarga Excel y PDF del backend",
           "ok": true,
           "tags": [],
           "tests": [
@@ -87,12 +89,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 1996,
+                  "duration": 1140,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-17T19:07:17.764Z",
+                  "startTime": "2026-09-17T19:45:35.010Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -100,9 +102,9 @@
               "status": "expected"
             }
           ],
-          "id": "022f8789b10e6bdc2ed2-f8682b7c5136e0f99898",
-          "file": "tmp/historial-colapsable.spec.js",
-          "line": 15,
+          "id": "cb3620ddbaaaeb17db70-6f13f94661b86463be42",
+          "file": "audit.spec.js",
+          "line": 61,
           "column": 1
         }
       ]
@@ -110,8 +112,8 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-09-17T19:07:15.928Z",
-    "duration": 4869.149,
+    "startTime": "2026-09-17T19:45:33.137Z",
+    "duration": 4092.925,
     "expected": 1,
     "skipped": 0,
     "unexpected": 0,

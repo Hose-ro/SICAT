@@ -33,7 +33,7 @@ function construirFilas({ sesiones = [], alumnos = [], asistencias = [] }) {
   return alumnos.map((alumno) => {
     const conteo = { ASISTENCIA: 0, FALTA: 0, RETARDO: 0, JUSTIFICADA: 0 }
     const estados = sesiones.map((sesion) => {
-      const estado = mapa.get(`${alumno.id}_${sesion.id}`) ?? null
+      const estado = sesion.suspensionMotivo ? null : mapa.get(`${alumno.id}_${sesion.id}`) ?? null
       if (estado in conteo) conteo[estado] += 1
       return estado
     })
@@ -116,8 +116,14 @@ export default function VistaPreviaReporteModal({ materiaId, opciones = {}, desc
             {data.materia?.docente?.nombre && (
               <span>Docente: <strong className="font-medium text-foreground">{data.materia.docente.nombre}</strong></span>
             )}
-            <span>{sesiones.length} {sesiones.length === 1 ? 'sesión' : 'sesiones'} · {filas.length} {filas.length === 1 ? 'alumno' : 'alumnos'}</span>
+            <span>{sesiones.filter((sesion) => !sesion.suspensionMotivo).length} sesiones · {sesiones.filter((sesion) => sesion.suspensionMotivo).length} días sin clases · {filas.length} {filas.length === 1 ? 'alumno' : 'alumnos'}</span>
           </div>
+
+          {sesiones.filter((sesion) => sesion.suspensionMotivo).map((sesion) => (
+            <p key={sesion.id} className="rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive-foreground">
+              Sin clases el {formatFechaLarga(sesion.fecha)}: {sesion.suspensionMotivo}
+            </p>
+          ))}
 
           {filas.length === 0 ? (
             <p className="rounded-xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
@@ -137,8 +143,8 @@ export default function VistaPreviaReporteModal({ materiaId, opciones = {}, desc
                     <th scope="col" className="sticky left-0 z-10 bg-background px-3 py-2 text-left">Alumno</th>
                     <th scope="col" className="px-3 py-2 text-left">Núm. control</th>
                     {sesiones.map((sesion) => (
-                      <th key={sesion.id} scope="col" className="px-2 py-2 text-center whitespace-nowrap">
-                        <span title={formatFechaLarga(sesion.fecha)}>{formatFechaCorta(sesion.fecha)}</span>
+                      <th key={sesion.id} scope="col" className={`px-2 py-2 text-center whitespace-nowrap ${sesion.suspensionMotivo ? 'bg-destructive/10 text-destructive-foreground' : ''}`}>
+                        <span title={sesion.suspensionMotivo ? `Sin clases: ${sesion.suspensionMotivo}` : formatFechaLarga(sesion.fecha)}>{formatFechaCorta(sesion.fecha)}{sesion.suspensionMotivo ? ' · SC' : ''}</span>
                       </th>
                     ))}
                     <th scope="col" className="px-2 py-2 text-center">A</th>
@@ -156,8 +162,10 @@ export default function VistaPreviaReporteModal({ materiaId, opciones = {}, desc
                       </th>
                       <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">{alumno.numeroControl ?? '—'}</td>
                       {estados.map((estado, index) => (
-                        <td key={sesiones[index].id} className="px-2 py-2 text-center">
-                          {estado ? (
+                        <td key={sesiones[index].id} className={`px-2 py-2 text-center ${sesiones[index].suspensionMotivo ? 'bg-destructive/5' : ''}`}>
+                          {sesiones[index].suspensionMotivo ? (
+                            <span className="font-semibold text-destructive-foreground" title={sesiones[index].suspensionMotivo}>SC</span>
+                          ) : estado ? (
                             <span
                               className={`inline-flex min-w-7 justify-center rounded-md px-1.5 py-0.5 text-xs font-semibold ${ESTADO_STYLE[estado] ?? 'bg-muted text-muted-foreground'}`}
                               title={ESTADO_LABEL[estado]}
@@ -182,7 +190,7 @@ export default function VistaPreviaReporteModal({ materiaId, opciones = {}, desc
           )}
 
           <p className="text-xs text-muted-foreground">
-            A: Asistencia · F: Falta · R: Retardo · J: Justificada · -: sin registro
+            A: Asistencia · F: Falta · R: Retardo · J: Justificada · SC: sin clases · -: sin registro
           </p>
 
           {sesiones.length > SESIONES_EN_PDF && (

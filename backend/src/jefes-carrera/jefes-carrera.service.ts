@@ -11,6 +11,7 @@ import {
 import * as ExcelJS from 'exceljs';
 import PDFDocument from 'pdfkit';
 import { PrismaService } from '../prisma.service';
+import { PeriodosService } from '../periodos/periodos.service';
 import {
   convertirFechaAMinutos,
   convertirHoraAMinutos,
@@ -48,7 +49,10 @@ type ReporteExportacion = {
 
 @Injectable()
 export class JefesCarreraService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly periodos: PeriodosService,
+  ) {}
 
   obtenerCarreras(usuarioId: number) {
     return this.prisma.carrera.findMany({
@@ -105,7 +109,9 @@ export class JefesCarreraService {
       carreras: await this.obtenerCarreras(usuarioId),
       indicadores: {
         docentesActivos: docentes.length,
-        clasesHoy: clases.length,
+        clasesHoy: clases.filter((item) => item.estado !== 'SUSPENDIDA').length,
+        clasesSuspendidas: clases.filter((item) => item.estado === 'SUSPENDIDA')
+          .length,
         clasesEnCurso: clases.filter((item) => item.estado === 'EN_CURSO')
           .length,
         clasesConIncidencia: clases.filter((item) =>
@@ -303,20 +309,31 @@ export class JefesCarreraService {
         _count: { select: { asistencias: true } },
       },
     });
+    const suspendidos = await this.periodos.suspensionesDelDia(ahora, [
+      ...new Set(hoy.map((item) => item.docenteId)),
+    ]);
     const minutos = convertirFechaAMinutos(ahora);
     return hoy.map((horario) => {
       const sesion = sesiones.find(
         (item) => item.horarioMateriaId === horario.id,
       );
+      const suspension = suspendidos.get(horario.docenteId) ?? null;
       let estado = 'PROXIMA';
-      if (sesion?.activa)
+      if (suspension) estado = 'SUSPENDIDA';
+      else if (sesion?.activa)
         estado = sesion.fueFueraDeHorario ? 'FUERA_DE_HORARIO' : 'EN_CURSO';
       else if (sesion?.horaFin) estado = 'FINALIZADA';
       else if (minutos > convertirHoraAMinutos(horario.horaFin))
         estado = 'NO_INICIADA';
       else if (minutos >= convertirHoraAMinutos(horario.horaInicio))
         estado = 'PROGRAMADA';
-      return { ...horario, sesion: sesion ?? null, estado };
+      return {
+        ...horario,
+        sesion: sesion ?? null,
+        estado,
+        suspensionMotivo: suspension?.motivo ?? null,
+        suspensionInstitucional: suspension?.institucional ?? false,
+      };
     });
   }
 
@@ -348,7 +365,8 @@ export class JefesCarreraService {
 
     const resumen = { asistencias: 0, faltas: 0, retardos: 0, justificadas: 0 };
     for (const registro of sesion.asistencias) {
-      if (registro.estado === EstadoAsistencia.ASISTENCIA) resumen.asistencias++;
+      if (registro.estado === EstadoAsistencia.ASISTENCIA)
+        resumen.asistencias++;
       else if (registro.estado === EstadoAsistencia.FALTA) resumen.faltas++;
       else if (registro.estado === EstadoAsistencia.RETARDO) resumen.retardos++;
       else if (registro.estado === EstadoAsistencia.JUSTIFICADA)
@@ -553,7 +571,9 @@ export class JefesCarreraService {
       carreras,
       resumen: {
         docentes: docentes.length,
-        clasesHoy: clases.length,
+        clasesHoy: clases.filter((item) => item.estado !== 'SUSPENDIDA').length,
+        clasesSuspendidas: clases.filter((item) => item.estado === 'SUSPENDIDA')
+          .length,
         clasesFinalizadas: clases.filter((item) => item.estado === 'FINALIZADA')
           .length,
         incidencias: clases.filter((item) =>
@@ -753,6 +773,10 @@ export class JefesCarreraService {
       },
       include: { _count: { select: { asistencias: true } } },
     });
+    // Un día sin clases no genera "clase no iniciada": el docente ya avisó.
+    const suspendidos = await this.periodos.suspensionesDelDia(ahora, [
+      ...new Set(hoy.map((item) => item.docenteId)),
+    ]);
     const minutos = convertirFechaAMinutos(ahora);
     return hoy.map((horario) => {
       const sesion = sesiones.find(
@@ -761,8 +785,9 @@ export class JefesCarreraService {
       return {
         ...horario,
         sesion,
-        estado:
-          !sesion && minutos > convertirHoraAMinutos(horario.horaFin)
+        estado: suspendidos.has(horario.docenteId)
+          ? 'SUSPENDIDA'
+          : !sesion && minutos > convertirHoraAMinutos(horario.horaFin)
             ? 'NO_INICIADA'
             : sesion?.activa
               ? 'EN_CURSO'

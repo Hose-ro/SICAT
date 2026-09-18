@@ -6,6 +6,7 @@ import PeriodoEscolarCard from '../../components/PeriodoEscolarCard'
 import { CalendarClock, Download } from 'lucide-react'
 import api from '../../api/axios'
 import HorarioSemanal from '../../components/horario/HorarioSemanal'
+import CalendarioClases from '../../components/CalendarioClases'
 import { horasSemanales as calcularHorasSemanales } from '../../lib/horarioColors'
 import { generarHorarioPdf } from '../../lib/generarHorarioPdf'
 
@@ -89,6 +90,8 @@ export default function MiHorario() {
       <div className="print-hidden">
         <PeriodoEscolarCard editable />
       </div>
+
+      {!loading && !error && <CalendarioClases horarios={horarios} />}
 
       {error && (
         <div className="rounded-2xl border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground">

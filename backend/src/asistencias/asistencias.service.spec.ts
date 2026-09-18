@@ -1,7 +1,12 @@
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import { AsistenciasService } from './asistencias.service';
+import { PeriodosService } from '../periodos/periodos.service';
 
 describe('AsistenciasService filtros de historial', () => {
   const materiaFindMany = jest.fn();
@@ -9,6 +14,8 @@ describe('AsistenciasService filtros de historial', () => {
   const grupoFindMany = jest.fn();
   const reticulaMateriaFindMany = jest.fn();
   const claseSesionFindMany = jest.fn();
+  const horarioFindMany = jest.fn();
+  const listarSuspensionesDeDocentes = jest.fn();
   const prisma = {
     materia: {
       findMany: materiaFindMany,
@@ -17,9 +24,13 @@ describe('AsistenciasService filtros de historial', () => {
     grupo: { findMany: grupoFindMany },
     reticulaMateria: { findMany: reticulaMateriaFindMany },
     claseSesion: { findMany: claseSesionFindMany },
+    horarioMateria: { findMany: horarioFindMany },
   } as unknown as PrismaService;
   const notificaciones = {} as unknown as NotificacionesService;
-  const service = new AsistenciasService(prisma, notificaciones);
+  const periodos = {
+    listarSuspensionesDeDocentes,
+  } as unknown as PeriodosService;
+  const service = new AsistenciasService(prisma, notificaciones, periodos);
 
   const materia = {
     id: 12,
@@ -58,6 +69,8 @@ describe('AsistenciasService filtros de historial', () => {
       { fecha: new Date(2026, 8, 2, 9, 0) },
       { fecha: new Date(2026, 8, 4, 8, 0) },
     ]);
+    horarioFindMany.mockResolvedValue([]);
+    listarSuspensionesDeDocentes.mockResolvedValue([]);
   });
 
   it('ofrece sólo grupos del semestre de retícula impartidos por el docente', async () => {
@@ -122,17 +135,25 @@ describe('AsistenciasService.obtenerAsistenciasAlumno (IDOR)', () => {
   const usuarioFindUnique = jest.fn();
   const materiaCount = jest.fn();
   const horarioMateriaCount = jest.fn();
+  const horarioMateriaFindMany = jest.fn();
+  const listarSuspensionesDeDocentes = jest.fn();
   const claseSesionFindMany = jest.fn();
   const asistenciaFindMany = jest.fn();
   const prisma = {
     usuario: { findUnique: usuarioFindUnique },
     materia: { count: materiaCount },
-    horarioMateria: { count: horarioMateriaCount },
+    horarioMateria: {
+      count: horarioMateriaCount,
+      findMany: horarioMateriaFindMany,
+    },
     claseSesion: { findMany: claseSesionFindMany },
     asistencia: { findMany: asistenciaFindMany },
   } as unknown as PrismaService;
   const notificaciones = {} as unknown as NotificacionesService;
-  const service = new AsistenciasService(prisma, notificaciones);
+  const periodos = {
+    listarSuspensionesDeDocentes,
+  } as unknown as PeriodosService;
+  const service = new AsistenciasService(prisma, notificaciones, periodos);
 
   const alumnoId = 50;
   const materiaId = 12;
@@ -143,6 +164,8 @@ describe('AsistenciasService.obtenerAsistenciasAlumno (IDOR)', () => {
     usuarioFindUnique.mockResolvedValue({ grupoId: 4 });
     claseSesionFindMany.mockResolvedValue([]);
     asistenciaFindMany.mockResolvedValue([]);
+    horarioMateriaFindMany.mockResolvedValue([]);
+    listarSuspensionesDeDocentes.mockResolvedValue([]);
   });
 
   it('rechaza a un DOCENTE que no imparte la materia del alumno', async () => {
@@ -211,18 +234,53 @@ describe('AsistenciasService.obtenerAsistenciasAlumno (IDOR)', () => {
     expect(materiaCount).not.toHaveBeenCalled();
     expect(claseSesionFindMany).toHaveBeenCalled();
   });
+
+  it('muestra al alumno el motivo del día sin clases sin asignarle una falta', async () => {
+    horarioMateriaFindMany.mockResolvedValue([
+      {
+        docenteId: 31,
+        dias: 'viernes',
+        grupo: { id: 4, nombre: '103A', periodo: '2026-A' },
+      },
+    ]);
+    listarSuspensionesDeDocentes.mockResolvedValue([
+      {
+        id: 'institucional-1',
+        docenteId: 31,
+        fecha: '2026-09-18',
+        motivo: 'Día festivo',
+        institucional: true,
+      },
+    ]);
+
+    const items = await service.obtenerAsistenciasAlumno(alumnoId, materiaId, {
+      id: alumnoId,
+      rol: 'ALUMNO',
+    });
+    expect(items).toEqual([
+      expect.objectContaining({
+        suspendida: true,
+        suspensionMotivo: 'Día festivo',
+        estado: null,
+      }),
+    ]);
+  });
 });
 
 describe('AsistenciasService rangos de día, semana y mes', () => {
   const claseSesionFindMany = jest.fn();
   const asistenciaFindMany = jest.fn();
+  const horarioFindMany = jest.fn();
+  const listarSuspensionesDeDocentes = jest.fn();
   const prisma = {
     claseSesion: { findMany: claseSesionFindMany },
     asistencia: { findMany: asistenciaFindMany },
+    horarioMateria: { findMany: horarioFindMany },
   } as unknown as PrismaService;
   const service = new AsistenciasService(
     prisma,
     {} as unknown as NotificacionesService,
+    { listarSuspensionesDeDocentes } as unknown as PeriodosService,
   );
   const docente = { id: 9, rol: 'DOCENTE' } as never;
 
@@ -234,6 +292,8 @@ describe('AsistenciasService rangos de día, semana y mes', () => {
     jest.clearAllMocks();
     claseSesionFindMany.mockResolvedValue([]);
     asistenciaFindMany.mockResolvedValue([]);
+    horarioFindMany.mockResolvedValue([]);
+    listarSuspensionesDeDocentes.mockResolvedValue([]);
   });
 
   it('acota el día en hora local, sin correrse al día anterior', async () => {
@@ -300,5 +360,95 @@ describe('AsistenciasService rangos de día, semana y mes', () => {
     const where = whereDeLaConsulta();
     expect(where).not.toHaveProperty('fecha');
     expect(where).not.toHaveProperty('semanaClave');
+  });
+});
+
+describe('AsistenciasService días sin clases', () => {
+  const claseSesionFindMany = jest.fn();
+  const claseSesionFindUnique = jest.fn();
+  const listarSuspensionesDeDocentes = jest.fn();
+  const obtenerSuspension = jest.fn();
+  const horarioFindMany = jest.fn();
+  const prisma = {
+    claseSesion: {
+      findMany: claseSesionFindMany,
+      findUnique: claseSesionFindUnique,
+    },
+    horarioMateria: { findMany: horarioFindMany },
+  } as unknown as PrismaService;
+  const periodos = {
+    listarSuspensionesDeDocentes,
+    obtenerSuspension,
+  } as unknown as PeriodosService;
+  const service = new AsistenciasService(
+    prisma,
+    {} as NotificacionesService,
+    periodos,
+  );
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    claseSesionFindMany.mockResolvedValue([]);
+    listarSuspensionesDeDocentes.mockResolvedValue([
+      {
+        id: 'docente-4',
+        docenteId: 9,
+        fecha: '2026-09-18',
+        motivo: 'Día festivo',
+        institucional: false,
+      },
+    ]);
+    horarioFindMany.mockResolvedValue([
+      {
+        id: 5,
+        docenteId: 9,
+        materiaId: 12,
+        grupoId: 3,
+        dias: 'viernes',
+        materia: { id: 12, nombre: 'Matemáticas', clave: 'MAT' },
+        grupo: { id: 3, nombre: '103A', periodo: '2026-A' },
+        docente: { id: 9, nombre: 'Docente' },
+        aula: { id: 2, nombre: 'A1' },
+      },
+    ]);
+    claseSesionFindUnique.mockResolvedValue({
+      id: 10,
+      docenteId: 9,
+      fecha: new Date(2026, 8, 18, 8),
+      grupo: { id: 3, nombre: '103A' },
+    });
+    obtenerSuspension.mockResolvedValue({
+      id: 4,
+      fecha: '2026-09-18',
+      motivo: 'Día festivo',
+      institucional: false,
+    });
+  });
+
+  it('muestra el motivo en el historial sin contar faltas ni asistencias', async () => {
+    const historial = await service.obtenerHistorial(
+      { id: 9, rol: 'DOCENTE' },
+      {},
+    );
+    expect(historial.items).toEqual([
+      expect.objectContaining({
+        suspendida: true,
+        suspensionMotivo: 'Día festivo',
+        materia: expect.objectContaining({ id: 12 }),
+      }),
+    ]);
+    expect(historial.estadisticas.faltas).toBe(0);
+  });
+
+  it('impide pasar lista en una sesión de un día suspendido', async () => {
+    await expect(
+      service.pasarLista(
+        { id: 9, rol: 'DOCENTE' },
+        {
+          claseSesionId: 10,
+          registros: [],
+        },
+      ),
+    ).rejects.toBeInstanceOf(ConflictException);
   });
 });

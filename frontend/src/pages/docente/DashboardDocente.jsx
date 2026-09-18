@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   AlertTriangle,
+  CalendarOff,
   CalendarPlus,
   Check,
   ChevronRight,
@@ -16,6 +17,7 @@ import {
 import api from '../../api/axios'
 import { useAuthStore } from '../../store/authStore'
 import PeriodoEscolarCard from '../../components/PeriodoEscolarCard'
+import { fechaDeClave } from '../../lib/periodo'
 
 const DIAS_LARGOS = [
   'Domingo',
@@ -173,13 +175,17 @@ export default function DashboardDocente() {
 
       <PeriodoEscolarCard compacto />
 
-      <ClaseDestacada
-        clase={claseDestacada}
-        ahora={ahora}
-        iniciando={iniciando}
-        error={errorClase}
-        onPasarLista={pasarLista}
-      />
+      {panel?.suspensionHoy ? (
+        <DiaSinClases suspension={panel.suspensionHoy} />
+      ) : (
+        <ClaseDestacada
+          clase={claseDestacada}
+          ahora={ahora}
+          iniciando={iniciando}
+          error={errorClase}
+          onPasarLista={pasarLista}
+        />
+      )}
 
       <AccesosRapidos
         claseActual={panel?.claseActual}
@@ -189,6 +195,7 @@ export default function DashboardDocente() {
       <section className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
         <AgendaHoy
           clases={panel?.clasesHoy ?? []}
+          proximasSuspensiones={panel?.proximasSuspensiones ?? []}
           iniciando={iniciando}
           onPasarLista={pasarLista}
         />
@@ -229,6 +236,31 @@ function Encabezado({ nombre, fecha, resumen, urgentes }) {
         )}
       </div>
     </div>
+  )
+}
+
+/** Hoy no hay clases: ocupa el lugar de la clase destacada para que no pase desapercibido. */
+function DiaSinClases({ suspension }) {
+  return (
+    <section
+      role="status"
+      className="flex items-start gap-4 rounded-2xl border-2 border-destructive/30 bg-destructive/10 p-5"
+    >
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-destructive/15 text-destructive-foreground">
+        <CalendarOff className="h-5 w-5" />
+      </span>
+      <div className="min-w-0">
+        <p className="text-sm font-semibold text-destructive-foreground">
+          Hoy no hay clases
+        </p>
+        <p className="mt-1 text-sm text-foreground">{suspension.motivo}</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {suspension.institucional
+            ? 'Suspensión marcada por la institución para todos los docentes. No se pasa lista.'
+            : 'Lo marcaste en tu calendario de clases. No se pasa lista.'}
+        </p>
+      </div>
+    </section>
   )
 }
 
@@ -386,7 +418,7 @@ function AccesosRapidos({ claseActual, onPasarLista }) {
   )
 }
 
-function AgendaHoy({ clases, iniciando, onPasarLista }) {
+function AgendaHoy({ clases, proximasSuspensiones, iniciando, onPasarLista }) {
   return (
     <article className="rounded-2xl border border-border bg-card p-5">
       <div className="flex items-center justify-between gap-3">
@@ -428,11 +460,51 @@ function AgendaHoy({ clases, iniciando, onPasarLista }) {
           ))}
         </ul>
       )}
+
+      {proximasSuspensiones.length > 0 && (
+        <div className="mt-4 border-t border-border pt-3">
+          <p className="text-xs font-medium text-muted-foreground">
+            Próximos días sin clases
+          </p>
+          <ul className="mt-1.5 space-y-1">
+            {proximasSuspensiones.map((item) => (
+              <li key={item.fecha} className="flex items-baseline gap-2 text-xs">
+                <span className="shrink-0 font-medium text-destructive-foreground">
+                  {fechaLocalCorta(item.fecha)}
+                </span>
+                <span className="truncate text-muted-foreground">
+                  {item.motivo}
+                  {item.institucional && ' · institución'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </article>
   )
 }
 
+function fechaLocalCorta(clave) {
+  return fechaDeClave(clave).toLocaleDateString('es-MX', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+  })
+}
+
 function EstadoClase({ clase, iniciando, onPasarLista }) {
+  if (clase.estado === 'SUSPENDIDA') {
+    return (
+      <span
+        className="shrink-0 rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive-foreground"
+        title={clase.suspensionMotivo ?? undefined}
+      >
+        Sin clases
+      </span>
+    )
+  }
+
   if (clase.estado === 'FINALIZADA') {
     return (
       <span className="inline-flex shrink-0 items-center gap-1 text-xs text-success-foreground ">

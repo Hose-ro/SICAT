@@ -71,6 +71,15 @@ export class ClasesService {
     if (!horario.grupoId) {
       throw new BadRequestException('El horario no tiene un grupo asignado');
     }
+    const suspension = await this.periodos.obtenerSuspension(
+      docenteId,
+      referencia,
+    );
+    if (suspension) {
+      throw new ConflictException(
+        `No hay clases el ${suspension.fecha}: ${suspension.motivo}`,
+      );
+    }
 
     const unidadActiva = horario.materia.unidades.find(
       (unidad) => unidad.status === 'ACTIVA',
@@ -276,6 +285,10 @@ export class ClasesService {
     const referencia = new Date();
     const inicioDia = obtenerInicioDelDia(referencia);
     const finDia = obtenerFinDelDia(referencia);
+    const suspension = await this.periodos.obtenerSuspension(
+      docenteId,
+      referencia,
+    );
 
     const horarios = await this.prisma.horarioMateria.findMany({
       where: { docenteId, activo: true },
@@ -348,7 +361,9 @@ export class ClasesService {
         ahoraMinutos >= horaInicioMinutos && ahoraMinutos <= horaFinMinutos;
 
       let estado = 'PROXIMA';
-      if (sesion?.activa) {
+      if (suspension) {
+        estado = 'SUSPENDIDA';
+      } else if (sesion?.activa) {
         estado = sesion.fueFueraDeHorario ? 'FUERA_DE_HORARIO' : 'EN_CURSO';
       } else if (sesion?.horaFin) {
         estado = 'FINALIZADA';
@@ -373,23 +388,39 @@ export class ClasesService {
         unidadActiva,
         sesion: sesion ?? null,
         estado,
+        suspensionMotivo: suspension?.motivo ?? null,
       };
     });
 
     const claseActual =
-      clasesHoy.find((clase) => clase.sesion?.activa) ??
-      clasesHoy.find((clase) => clase.dentroDeHorario) ??
+      clasesHoy.find(
+        (clase) => clase.estado !== 'SUSPENDIDA' && clase.sesion?.activa,
+      ) ??
+      clasesHoy.find(
+        (clase) => clase.estado !== 'SUSPENDIDA' && clase.dentroDeHorario,
+      ) ??
       null;
 
     const proximaClase =
       clasesHoy.find(
         (clase) =>
           convertirHoraAMinutos(clase.horaInicio) > ahoraMinutos &&
+          clase.estado !== 'SUSPENDIDA' &&
           !clase.sesion?.activa,
       ) ?? null;
 
+    // Lo que sigue en el calendario, para que el docente lo vea sin abrir Mi Horario.
+    const hoyClave = formatearFechaClave(referencia);
+    const proximasSuspensiones = (
+      await this.periodos.listarSuspensiones(docenteId, referencia)
+    )
+      .filter((item) => item.fecha > hoyClave)
+      .slice(0, 3);
+
     return {
-      fecha: formatearFechaClave(referencia),
+      fecha: hoyClave,
+      suspensionHoy: suspension,
+      proximasSuspensiones,
       claseActual,
       proximaClase,
       clasesHoy,
@@ -472,6 +503,11 @@ export class ClasesService {
     const hoy = obtenerInicioDelDia(ahora);
     const ahoraMinutos = convertirFechaAMinutos(ahora);
     const ventana = await this.obtenerVentanaAtraso(hoy);
+    const fechasSuspendidas = new Set(
+      (await this.periodos.listarSuspensiones(docenteId, ahora)).map(
+        (item) => item.fecha,
+      ),
+    );
 
     const horarios = await this.prisma.horarioMateria.findMany({
       where: { docenteId, activo: true, grupoId: { not: null } },
@@ -519,6 +555,7 @@ export class ClasesService {
         dia = sumarDias(dia, 1)
       ) {
         if (!horarioAplicaEnFecha(horario.dias, dia)) continue;
+        if (fechasSuspendidas.has(formatearFechaClave(dia))) continue;
         // La clase de hoy sólo se considera atrasada cuando ya terminó.
         if (
           dia.getTime() === hoy.getTime() &&
@@ -632,6 +669,13 @@ export class ClasesService {
     }
     if (!horario.grupoId) {
       throw new BadRequestException('El horario no tiene un grupo asignado');
+    }
+
+    const suspension = await this.periodos.obtenerSuspension(docenteId, fecha);
+    if (suspension) {
+      throw new ConflictException(
+        `No hay clases el ${suspension.fecha}: ${suspension.motivo}`,
+      );
     }
 
     const ahora = new Date();

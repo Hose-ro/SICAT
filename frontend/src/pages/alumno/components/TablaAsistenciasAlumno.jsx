@@ -89,6 +89,11 @@ export default function TablaAsistenciasAlumno({ materiaId }) {
 
   return (
     <div className="space-y-4">
+      {asistenciaDeHoy?.suspendida && (
+        <div className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground">
+          Hoy no habrá clases: {asistenciaDeHoy.suspensionMotivo}
+        </div>
+      )}
       {asistenciaDeHoy?.estado && (
         <div className={`flex items-center gap-3 rounded-2xl border px-4 py-3 ${
           asistenciaDeHoy.estado === 'ASISTENCIA' ? "border-success/30 bg-success/10" :
@@ -156,14 +161,14 @@ export default function TablaAsistenciasAlumno({ materiaId }) {
             {filtradas.map((a, i) => (
               <div
                 key={i}
-                className="grid grid-cols-[1fr_80px_140px_100px] items-center gap-2 px-4 py-3 transition-colors hover:bg-background/60"
+                className={`grid grid-cols-[1fr_80px_140px_100px] items-center gap-2 px-4 py-3 transition-colors hover:bg-background/60 ${a.suspendida ? 'bg-destructive/5' : ''}`}
               >
-                <span className="text-sm text-foreground">{formatDateShort(a.fecha)}</span>
+                <span className="text-sm text-foreground">{formatDateShort(a.fecha)}{a.suspendida && <span className="mt-1 block text-xs text-destructive-foreground">{a.suspensionMotivo}</span>}</span>
                 <span className="text-center text-sm text-muted-foreground">
                   {a.unidad ?? <span className="text-muted-foreground">—</span>}
                 </span>
                 <div className="flex justify-center">
-                  <EstadoBadge estado={a.estado} />
+                  {a.suspendida ? <span className="rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive-foreground">Sin clases</span> : <EstadoBadge estado={a.estado} />}
                 </div>
                 <div className="flex justify-center">
                   {a.estado === 'FALTA' && (

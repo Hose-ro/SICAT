@@ -20,6 +20,7 @@ export const E2E = {
   docente: 'e2e.docente',
   colega: 'e2e.colega',
   ajeno: 'e2e.ajeno',
+  admin: 'e2e.admin',
   alumno: 'E2E00001',
   alumnoPendiente: 'E2E00002',
 };
@@ -27,6 +28,10 @@ export const E2E = {
 const prisma = new PrismaClient();
 
 async function down() {
+  // Los festivos institucionales no llevan prefijo: se reconocen por quién los creó.
+  await prisma.suspensionInstitucional.deleteMany({
+    where: { creadoPor: { username: { startsWith: 'e2e.' } } },
+  });
   const usuarios = await prisma.usuario.findMany({
     where: {
       OR: [
@@ -128,7 +133,7 @@ async function up() {
   });
   const usuario = (data: {
     nombre: string;
-    rol: 'DOCENTE' | 'ALUMNO';
+    rol: 'DOCENTE' | 'ALUMNO' | 'ADMIN';
     username?: string;
     numeroControl?: string;
     grupoId?: number;
@@ -153,6 +158,7 @@ async function up() {
     username: E2E.colega,
   });
   await usuario({ nombre: 'E2E Ajeno', rol: 'DOCENTE', username: E2E.ajeno });
+  await usuario({ nombre: 'E2E Admin', rol: 'ADMIN', username: E2E.admin });
   const alumno = await usuario({
     nombre: 'E2E Alumno',
     rol: 'ALUMNO',

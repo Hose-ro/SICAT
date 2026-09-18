@@ -63,7 +63,7 @@ export default function JefeDashboard() {
 
       <MetricRow items={[
         { label: 'Docentes activos', value: indicadores.docentesActivos },
-        { label: 'Clases de hoy', value: indicadores.clasesHoy, detail: `${indicadores.clasesEnCurso} en curso` },
+        { label: 'Clases de hoy', value: indicadores.clasesHoy, detail: `${indicadores.clasesEnCurso} en curso${indicadores.clasesSuspendidas ? ` · ${indicadores.clasesSuspendidas} sin clases` : ''}` },
         { label: 'Asistencia acumulada', value: `${indicadores.asistenciaPromedio}%` },
         { label: 'Alertas abiertas', value: indicadores.alertasAbiertas, tone: indicadores.alertasAbiertas ? "text-destructive-foreground" : "text-success-foreground" },
       ]} />

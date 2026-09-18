@@ -68,6 +68,7 @@ export default function JefeClasesHorarios() {
               <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-muted-foreground"><span className="inline-flex items-center gap-1.5"><Clock3 className="h-4 w-4" />{clase.horaInicio}-{clase.horaFin}</span><span className="inline-flex items-center gap-1.5"><MapPin className="h-4 w-4" />{clase.aula?.nombre ?? 'Sin aula'}</span>{clase.sesion?.unidadRef && <span>{clase.sesion.unidadRef.nombre}</span>}</div>
               <div className="md:text-right">
                 <StatusBadge value={clase.estado} />
+                {clase.suspensionMotivo && <p className="mt-2 text-xs text-muted-foreground">{clase.suspensionMotivo}{clase.suspensionInstitucional && ' · institución'}</p>}
                 {clase.sesion && <p className="mt-2 text-xs text-muted-foreground">{clase.sesion._count.asistencias} asistencias</p>}
                 {clase.estado === 'EN_CURSO' && clase.sesion?.id && (
                   <Button variant="outline"

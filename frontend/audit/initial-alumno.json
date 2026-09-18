@@ -3,156 +3,171 @@
   "path": "/alumno/horario",
   "files": [
     {
-      "name": "/assets/index-DR2mTV9P.js",
-      "bytes": 340256,
-      "gzip": 112752
+      "name": "/assets/index-CmUYNjQB.js",
+      "bytes": 340457,
+      "gzip": 112836
     },
     {
-      "name": "/assets/BaseLayout-heuLCu0g.js",
-      "bytes": 70481,
-      "gzip": 23704
+      "name": "/assets/BaseLayout-a6t72HNJ.js",
+      "bytes": 70205,
+      "gzip": 23599
     },
     {
-      "name": "/assets/x-CUuLBic-.js",
+      "name": "/assets/x-Ne5xiFGy.js",
       "bytes": 155,
       "gzip": 148
     },
     {
-      "name": "/assets/Modal-DMWxo0Sh.js",
+      "name": "/assets/Modal-iSpLtw8u.js",
       "bytes": 61580,
-      "gzip": 21124
+      "gzip": 21121
     },
     {
-      "name": "/assets/feedback-BlXZHaPE.js",
+      "name": "/assets/feedback-DJ1YKL8v.js",
       "bytes": 662,
-      "gzip": 380
+      "gzip": 379
     },
     {
-      "name": "/assets/useThemeStore-CygQHoXh.js",
+      "name": "/assets/useThemeStore-1jJ4yPxw.js",
       "bytes": 726,
       "gzip": 404
     },
     {
-      "name": "/assets/calendar-check-oK9eRIWG.js",
+      "name": "/assets/calendar-check-Dxqlkfbg.js",
       "bytes": 306,
-      "gzip": 226
+      "gzip": 227
     },
     {
-      "name": "/assets/notificacionStore-B6387j2m.js",
+      "name": "/assets/notificacionStore-CIWC9S1z.js",
       "bytes": 11342,
-      "gzip": 4225
+      "gzip": 4229
     },
     {
-      "name": "/assets/calendar-range-CxTnDs9B.js",
+      "name": "/assets/calendar-range-BlxiX02z.js",
       "bytes": 416,
       "gzip": 259
     },
     {
-      "name": "/assets/book-open-iRDWg2xg.js",
+      "name": "/assets/book-open-DIZniqXc.js",
       "bytes": 280,
       "gzip": 207
     },
     {
-      "name": "/assets/user-round-BshjJNX3.js",
+      "name": "/assets/user-round-zalMSV_7.js",
       "bytes": 178,
       "gzip": 176
     },
     {
-      "name": "/assets/clock-C7U_yC1S.js",
-      "bytes": 165,
-      "gzip": 165
+      "name": "/assets/circle-check-yzFbsicE.js",
+      "bytes": 174,
+      "gzip": 167
     },
     {
-      "name": "/assets/clipboard-check-Bgiv1liG.js",
+      "name": "/assets/clock-CNoAHcnf.js",
+      "bytes": 165,
+      "gzip": 166
+    },
+    {
+      "name": "/assets/upload-GSvX-6sA.js",
+      "bytes": 231,
+      "gzip": 193
+    },
+    {
+      "name": "/assets/calendar-clock-SoqAunm_.js",
+      "bytes": 374,
+      "gzip": 252
+    },
+    {
+      "name": "/assets/clipboard-check-DoAcsZd2.js",
       "bytes": 300,
       "gzip": 233
     },
     {
-      "name": "/assets/calendar-clock-pApOVy33.js",
-      "bytes": 374,
-      "gzip": 251
-    },
-    {
-      "name": "/assets/check-CCWzj3rw.js",
+      "name": "/assets/check-CrG7AJoT.js",
       "bytes": 120,
       "gzip": 137
     },
     {
-      "name": "/assets/circle-check-B_Co1NL1.js",
-      "bytes": 174,
-      "gzip": 166
-    },
-    {
-      "name": "/assets/upload-BGgsL7_5.js",
-      "bytes": 231,
-      "gzip": 192
-    },
-    {
-      "name": "/assets/BrandMark-2yKwqgNq.js",
-      "bytes": 288,
-      "gzip": 254
-    },
-    {
-      "name": "/assets/trash-2-DeT8VwaW.js",
+      "name": "/assets/trash-2-8z89i7Nb.js",
       "bytes": 329,
-      "gzip": 216
+      "gzip": 218
     },
     {
-      "name": "/assets/search-ByaUeVL0.js",
+      "name": "/assets/BrandMark-CM_RtxlI.js",
+      "bytes": 288,
+      "gzip": 253
+    },
+    {
+      "name": "/assets/search-DM684rYz.js",
       "bytes": 170,
       "gzip": 167
     },
     {
-      "name": "/assets/book-open-check-CvtWmtFA.js",
-      "bytes": 336,
-      "gzip": 232
-    },
-    {
-      "name": "/assets/graduation-cap-CiBKb8J6.js",
+      "name": "/assets/graduation-cap-DvgBnbyT.js",
       "bytes": 333,
-      "gzip": 250
+      "gzip": 252
     },
     {
-      "name": "/assets/users-round-D8kU7-vc.js",
+      "name": "/assets/users-round-CtFkDjfI.js",
       "bytes": 249,
-      "gzip": 217
+      "gzip": 218
     },
     {
-      "name": "/assets/calendar-days-hNfng4iI.js",
+      "name": "/assets/calendar-days-DU_H6wI0.js",
       "bytes": 495,
       "gzip": 268
     },
     {
-      "name": "/assets/scan-line-Dsyu8b9H.js",
+      "name": "/assets/book-open-check-BbPlghmZ.js",
+      "bytes": 336,
+      "gzip": 233
+    },
+    {
+      "name": "/assets/scan-line-ZUcb75uk.js",
       "bytes": 332,
       "gzip": 224
     },
     {
-      "name": "/assets/school-ChBd9xU0.js",
+      "name": "/assets/door-open-BZOr_d4D.js",
+      "bytes": 373,
+      "gzip": 257
+    },
+    {
+      "name": "/assets/school-BW-UIOjh.js",
       "bytes": 448,
-      "gzip": 287
+      "gzip": 288
     },
     {
-      "name": "/assets/TarjetaMateria-O1Dj4HaV.js",
-      "bytes": 1145,
-      "gzip": 606
+      "name": "/assets/MiHorarioAlumno-emzrb8xN.js",
+      "bytes": 3762,
+      "gzip": 1433
     },
     {
-      "name": "/assets/generarHorarioPdf-1K7UOZu5.js",
-      "bytes": 2675,
-      "gzip": 1376
+      "name": "/assets/TarjetaMateria-BtYj1sIc.js",
+      "bytes": 1497,
+      "gzip": 787
     },
     {
-      "name": "/assets/MiHorarioAlumno-DcTZI0Br.js",
-      "bytes": 5488,
-      "gzip": 2105
+      "name": "/assets/generarHorarioPdf-ByAjYUEv.js",
+      "bytes": 7553,
+      "gzip": 3097
     },
     {
-      "name": "/assets/download-C5H0GBAl.js",
+      "name": "/assets/download-BXw_3am9.js",
       "bytes": 233,
-      "gzip": 192
+      "gzip": 194
+    },
+    {
+      "name": "/assets/users-DDbhyAps.js",
+      "bytes": 307,
+      "gzip": 223
+    },
+    {
+      "name": "/assets/clock-3-B-naxTS2.js",
+      "bytes": 165,
+      "gzip": 165
     }
   ],
-  "bytes": 500267,
-  "gzip": 171143
+  "bytes": 504541,
+  "gzip": 173010
 }

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -11,14 +12,16 @@ import { ActualizarAsistenciaDto } from './dto/actualizar-asistencia.dto';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import {
   formatearFechaClave,
-  obtenerClaveMes,
   obtenerClaveSemana,
   obtenerFinDelDia,
   obtenerInicioDelDia,
   parsearFechaClave,
   parsearMesClave,
+  horarioAplicaEnFecha,
+  sumarDias,
 } from '../clases/clases.utils';
 import { esDocenteDeMateria } from '../common/materia-ownership';
+import { PeriodosService } from '../periodos/periodos.service';
 
 type Actor = {
   id: number;
@@ -50,6 +53,7 @@ export class AsistenciasService {
   constructor(
     private prisma: PrismaService,
     private notificaciones: NotificacionesService,
+    private periodos: PeriodosService,
   ) {}
 
   async pasarLista(actor: Actor, dto: PasarListaDto) {
@@ -61,6 +65,7 @@ export class AsistenciasService {
     });
     if (!sesion) throw new NotFoundException('Sesión no encontrada');
     this.validarAccesoSesion(actor, sesion.docenteId);
+    await this.validarNoSuspendida(sesion.docenteId, sesion.fecha);
 
     const alumnosPermitidos = new Set(
       await this.obtenerAlumnoIdsPermitidosSesion(sesion.id),
@@ -343,20 +348,79 @@ export class AsistenciasService {
       asistencias.map((asistencia) => [asistencia.claseSesionId, asistencia]),
     );
 
-    return sesiones.map((sesion) => {
-      const asistencia = mapaAsistencias.get(sesion.id);
-      return {
-        id: asistencia?.id ?? null,
-        sesionId: sesion.id,
-        fecha: sesion.fecha,
-        semanaClave: sesion.semanaClave,
-        unidad: sesion.unidadRef?.orden ?? sesion.unidad,
-        unidadId: sesion.unidadId,
-        grupo: sesion.grupo,
-        estado: asistencia?.estado ?? null,
-        observacion: asistencia?.observacion ?? null,
-      };
-    });
+    const horarios = alumno?.grupoId
+      ? await this.prisma.horarioMateria.findMany({
+          where: { materiaId, grupoId: alumno.grupoId, activo: true },
+          select: {
+            docenteId: true,
+            dias: true,
+            grupo: { select: { id: true, nombre: true } },
+          },
+        })
+      : [];
+    const suspensiones = await this.periodos.listarSuspensionesDeDocentes([
+      ...new Set(horarios.map((horario) => horario.docenteId)),
+    ]);
+    const diasSinClases = new Map<
+      string,
+      {
+        fecha: Date;
+        motivo: string;
+        grupo: { id: number; nombre: string } | null;
+      }
+    >();
+    for (const suspension of suspensiones) {
+      const fecha = parsearFechaClave(suspension.fecha) as Date;
+      const horario = horarios.find(
+        (item) =>
+          item.docenteId === suspension.docenteId &&
+          horarioAplicaEnFecha(item.dias, fecha),
+      );
+      if (horario && !diasSinClases.has(suspension.fecha)) {
+        diasSinClases.set(suspension.fecha, {
+          fecha,
+          motivo: suspension.motivo,
+          grupo: horario.grupo,
+        });
+      }
+    }
+
+    const items: any[] = sesiones
+      .filter(
+        (sesion) =>
+          !diasSinClases.has(formatearFechaClave(sesion.fecha)) ||
+          mapaAsistencias.has(sesion.id),
+      )
+      .map((sesion) => {
+        const asistencia = mapaAsistencias.get(sesion.id);
+        return {
+          id: asistencia?.id ?? null,
+          sesionId: sesion.id,
+          fecha: sesion.fecha,
+          semanaClave: sesion.semanaClave,
+          unidad: sesion.unidadRef?.orden ?? sesion.unidad,
+          unidadId: sesion.unidadId,
+          grupo: sesion.grupo,
+          estado: asistencia?.estado ?? null,
+          observacion: asistencia?.observacion ?? null,
+        };
+      });
+    for (const suspension of diasSinClases.values()) {
+      items.push({
+        id: null,
+        sesionId: null,
+        fecha: suspension.fecha,
+        semanaClave: obtenerClaveSemana(suspension.fecha),
+        unidad: null,
+        unidadId: null,
+        grupo: suspension.grupo,
+        estado: null,
+        observacion: null,
+        suspendida: true,
+        suspensionMotivo: suspension.motivo,
+      });
+    }
+    return items.sort((a, b) => b.fecha.getTime() - a.fecha.getTime());
   }
 
   async obtenerResumenAlumnoPorMateria(alumnoId: number) {
@@ -504,7 +568,22 @@ export class AsistenciasService {
       orderBy: [{ fecha: 'desc' }, { horaInicio: 'desc' }],
     });
 
-    const items = sesiones.map((sesion) => {
+    const suspensiones = await this.construirSuspensionesHistorial(
+      actor,
+      filters,
+    );
+    const clavesSuspendidas = new Set(
+      suspensiones.map(
+        (item) => `${item.docente.id}:${formatearFechaClave(item.fecha)}`,
+      ),
+    );
+    const sesionesValidas = sesiones.filter(
+      (sesion) =>
+        !clavesSuspendidas.has(
+          `${sesion.docenteId}:${formatearFechaClave(sesion.fecha)}`,
+        ) || sesion.asistencias.length > 0,
+    );
+    const items: any[] = sesionesValidas.map((sesion) => {
       const resumen = this.resumirRegistros(sesion.asistencias);
       return {
         id: sesion.id,
@@ -526,7 +605,9 @@ export class AsistenciasService {
       };
     });
 
-    const registros = sesiones.flatMap((sesion) => sesion.asistencias);
+    items.push(...suspensiones);
+    items.sort((a, b) => b.fecha.getTime() - a.fecha.getTime());
+    const registros = sesionesValidas.flatMap((sesion) => sesion.asistencias);
     const estadisticas = this.construirEstadisticasGlobales(registros);
 
     return {
@@ -662,12 +743,19 @@ export class AsistenciasService {
       select: { fecha: true },
       orderBy: { fecha: 'asc' },
     });
+    const suspendidas = await this.construirSuspensionesHistorial(actor, {
+      materiaId: materia.id,
+      grupoId: filters.grupoId,
+      docenteId: filters.docenteId,
+    });
     const fechasClase = Array.from(
-      new Set(sesiones.map((sesion) => formatearFechaClave(sesion.fecha))),
-    );
-    // Sólo se ofrecen los meses que de verdad tuvieron clase, igual que las fechas.
+      new Set([
+        ...sesiones.map((sesion) => formatearFechaClave(sesion.fecha)),
+        ...suspendidas.map((item) => formatearFechaClave(item.fecha)),
+      ]),
+    ).sort();
     const mesesClase = Array.from(
-      new Set(sesiones.map((sesion) => obtenerClaveMes(sesion.fecha))),
+      new Set(fechasClase.map((fecha) => fecha.slice(0, 7))),
     ).sort();
 
     return {
@@ -687,11 +775,15 @@ export class AsistenciasService {
     const asistencia = await this.prisma.asistencia.findUnique({
       where: { id: asistenciaId },
       include: {
-        claseSesion: { select: { id: true, docenteId: true } },
+        claseSesion: { select: { id: true, docenteId: true, fecha: true } },
       },
     });
     if (!asistencia) throw new NotFoundException('Asistencia no encontrada');
     this.validarAccesoSesion(actor, asistencia.claseSesion.docenteId);
+    await this.validarNoSuspendida(
+      asistencia.claseSesion.docenteId,
+      asistencia.claseSesion.fecha,
+    );
 
     return this.prisma.asistencia.update({
       where: { id: asistenciaId },
@@ -751,6 +843,33 @@ export class AsistenciasService {
       orderBy: { fecha: 'asc' },
     });
 
+    const suspensiones = filters.sesionId
+      ? []
+      : await this.construirSuspensionesHistorial(actor, {
+          ...filters,
+          materiaId,
+        });
+    const sesionesReporte: any[] = [
+      ...sesiones.filter(
+        (sesion) =>
+          !suspensiones.some(
+            (item) =>
+              item.docente.id === sesion.docenteId &&
+              formatearFechaClave(item.fecha) ===
+                formatearFechaClave(sesion.fecha) &&
+              item.materia.id === sesion.materiaId &&
+              (item.grupo?.id ?? null) === sesion.grupoId,
+          ),
+      ),
+      ...suspensiones.map((item) => ({
+        id: item.id,
+        fecha: item.fecha,
+        grupoId: item.grupo?.id ?? null,
+        grupo: item.grupo,
+        suspensionMotivo: item.suspensionMotivo,
+      })),
+    ].sort((a, b) => a.fecha.getTime() - b.fecha.getTime());
+
     const sesionIds = sesiones.map((sesion) => sesion.id);
     const asistencias =
       sesionIds.length > 0
@@ -777,11 +896,11 @@ export class AsistenciasService {
       });
     });
 
-    if (filters.grupoId || sesiones.some((sesion) => sesion.grupoId)) {
+    if (filters.grupoId || sesionesReporte.some((sesion) => sesion.grupoId)) {
       const grupoIds = Array.from(
         new Set([
           ...(filters.grupoId ? [filters.grupoId] : []),
-          ...(sesiones
+          ...(sesionesReporte
             .map((sesion) => sesion.grupoId)
             .filter(Boolean) as number[]),
         ]),
@@ -820,12 +939,118 @@ export class AsistenciasService {
         mes: filters.mes ?? null,
         unidadId: filters.unidadId ?? null,
       },
-      sesiones,
+      sesiones: sesionesReporte,
       alumnos: Array.from(alumnosMapa.values()).sort((a, b) =>
         a.nombre.localeCompare(b.nombre, 'es'),
       ),
       asistencias,
     };
+  }
+
+  private async validarNoSuspendida(docenteId: number, fecha: Date) {
+    const suspension = await this.periodos.obtenerSuspension(docenteId, fecha);
+    if (suspension) {
+      throw new ConflictException(
+        `No se pasa lista este día: ${suspension.motivo}`,
+      );
+    }
+  }
+
+  private async construirSuspensionesHistorial(
+    actor: Actor,
+    filters: {
+      materiaId?: number;
+      grupoId?: number;
+      fecha?: string;
+      semana?: string;
+      mes?: string;
+      unidadId?: number;
+      docenteId?: number;
+    },
+  ) {
+    const rango = this.construirRangoDeFecha(filters) as {
+      fecha?: { gte: Date; lte: Date };
+    } | null;
+    const semanaInicio =
+      !filters.fecha && filters.semana
+        ? (parsearFechaClave(
+            obtenerClaveSemana(parsearFechaClave(filters.semana) as Date),
+          ) as Date)
+        : null;
+    const fechaFiltro = rango?.fecha
+      ? {
+          gte: formatearFechaClave(rango.fecha.gte),
+          lte: formatearFechaClave(rango.fecha.lte),
+        }
+      : semanaInicio
+        ? {
+            gte: formatearFechaClave(semanaInicio),
+            lte: formatearFechaClave(sumarDias(semanaInicio, 6)),
+          }
+        : null;
+    // Primero los horarios que caen en el filtro; de sus docentes salen las
+    // suspensiones. Así una institucional se refleja en cada materia afectada.
+    const docenteScope = actor.rol === 'ADMIN' ? filters.docenteId : actor.id;
+    const horarios = await this.prisma.horarioMateria.findMany({
+      where: {
+        activo: true,
+        ...(docenteScope ? { docenteId: docenteScope } : {}),
+        ...(filters.materiaId ? { materiaId: filters.materiaId } : {}),
+        ...(filters.grupoId ? { grupoId: filters.grupoId } : {}),
+      },
+      include: {
+        materia: { select: { id: true, nombre: true, clave: true } },
+        grupo: { select: { id: true, nombre: true } },
+        docente: { select: { id: true, nombre: true } },
+        aula: { select: { id: true, nombre: true } },
+      },
+    });
+    const suspensiones = await this.periodos.listarSuspensionesDeDocentes(
+      [...new Set(horarios.map((horario) => horario.docenteId))],
+      fechaFiltro ?? undefined,
+    );
+    if (!suspensiones.length) return [];
+
+    const vistos = new Set<string>();
+    return suspensiones.flatMap((suspension) => {
+      const fecha = parsearFechaClave(suspension.fecha) as Date;
+      return horarios
+        .filter(
+          (horario) =>
+            horario.docenteId === suspension.docenteId &&
+            horarioAplicaEnFecha(horario.dias, fecha),
+        )
+        .filter((horario) => {
+          const clave = `${suspension.docenteId}:${suspension.fecha}:${horario.materiaId}:${horario.grupoId}`;
+          if (vistos.has(clave)) return false;
+          vistos.add(clave);
+          return true;
+        })
+        .map((horario) => ({
+          id: `suspension-${suspension.id}-${suspension.docenteId}-${horario.materiaId}-${horario.grupoId ?? 'sin-grupo'}`,
+          fecha,
+          semanaClave: obtenerClaveSemana(fecha),
+          fueFueraDeHorario: false,
+          registroAtrasado: false,
+          activa: false,
+          suspendida: true,
+          suspensionInstitucional: suspension.institucional,
+          suspensionMotivo: suspension.motivo,
+          materia: horario.materia,
+          grupo: horario.grupo,
+          docente: horario.docente,
+          aula: horario.aula,
+          unidad: null,
+          resumen: {
+            asistencias: 0,
+            faltas: 0,
+            retardos: 0,
+            justificados: 0,
+            total: 0,
+            porcentaje: 0,
+          },
+        }));
+    });
   }
 
   /**

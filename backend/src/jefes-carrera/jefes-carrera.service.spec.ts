@@ -1,13 +1,14 @@
 import { ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { JefesCarreraService } from './jefes-carrera.service';
+import { PeriodosService } from '../periodos/periodos.service';
 
 describe('JefesCarreraService', () => {
   const findManyAsignaciones = jest.fn();
   const prisma = {
     jefeCarreraAsignacion: { findMany: findManyAsignaciones },
   } as unknown as PrismaService;
-  const service = new JefesCarreraService(prisma);
+  const service = new JefesCarreraService(prisma, {} as PeriodosService);
 
   beforeEach(() => {
     jest.clearAllMocks();

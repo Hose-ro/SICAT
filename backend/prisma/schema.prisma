@@ -211,6 +211,8 @@ model Usuario {
   docenteMaterias       Materia[]                  @relation("DocenteMateria")
   gruposDocente         Grupo[]                    @relation("DocenteGrupo")
   horariosDocente       HorarioMateria[]           @relation("HorarioDocente")
+  suspensionesClase     SuspensionClase[]          @relation("SuspensionesDocente")
+  suspensionesCreadas   SuspensionInstitucional[]  @relation("SuspensionesInstitucionales")
   academias             Academia[]                 @relation("DocenteAcademia")
   inscripcionesAlumno   Inscripcion[]              @relation("InscripcionAlumno")
   claseSesiones         ClaseSesion[]              @relation("ClaseSesionDocente")
@@ -323,6 +325,36 @@ model PeriodoAcademico {
   actualizadoPorId Int?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+}
+
+/// Un día sin clases para el horario de un docente durante un periodo.
+model SuspensionClase {
+  id           Int      @id @default(autoincrement())
+  periodoClave String
+  docenteId    Int
+  fecha        String   @db.VarChar(10)
+  motivo       String   @db.VarChar(500)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  docente      Usuario  @relation("SuspensionesDocente", fields: [docenteId], references: [id], onDelete: Cascade)
+
+  @@unique([docenteId, fecha])
+  @@index([periodoClave, fecha])
+}
+
+/// Un día sin clases para toda la institución (festivo, suspensión oficial).
+/// Lo marca el admin y aplica al horario de todos los docentes.
+model SuspensionInstitucional {
+  id           Int      @id @default(autoincrement())
+  periodoClave String
+  fecha        String   @unique @db.VarChar(10)
+  motivo       String   @db.VarChar(500)
+  creadoPorId  Int?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  creadoPor    Usuario? @relation("SuspensionesInstitucionales", fields: [creadoPorId], references: [id], onDelete: SetNull)
+
+  @@index([periodoClave, fecha])
 }
 
 model Aula {

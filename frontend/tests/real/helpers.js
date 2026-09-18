@@ -2,7 +2,7 @@ import { expect } from '@playwright/test'
 import { API } from '../../playwright.real.config.js'
 
 export const PASSWORD = process.env.E2E_PASSWORD || 'Sicat-e2e-2026!'
-export const USERS = { docente: 'e2e.docente', colega: 'e2e.colega', ajeno: 'e2e.ajeno', alumno: 'E2E00001' }
+export const USERS = { docente: 'e2e.docente', colega: 'e2e.colega', ajeno: 'e2e.ajeno', admin: 'e2e.admin', alumno: 'E2E00001' }
 
 /** Login real por la interfaz; la cookie httpOnly queda en el contexto. */
 export async function login(page, identifier, password = PASSWORD) {

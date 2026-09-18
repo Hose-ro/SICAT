@@ -41,6 +41,7 @@ const PasarLista = lazy(() => import("./pages/docente/PasarLista"));
 const TareaForm = lazy(() => import("./pages/docente/TareaForm"));
 const TareaDetalle = lazy(() => import("./pages/docente/TareaDetalle"));
 const MiHorario = lazy(() => import("./pages/docente/MiHorario"));
+const CalendarioEscolar = lazy(() => import("./pages/admin/CalendarioEscolar"));
 const MisGrupos = lazy(() => import("./pages/docente/MisGrupos"));
 const DashboardDocente = lazy(() => import("./pages/docente/DashboardDocente"));
 const SolicitudesPendientes = lazy(() => import("./pages/docente/SolicitudesPendientes"));
@@ -241,6 +242,7 @@ function App() {
               <Route path="/usuarios" element={<Usuarios />} />
               <Route path="/carreras" element={<Carreras />} />
               <Route path="/admin/horarios" element={<HorariosPage />} />
+              <Route path="/admin/calendario" element={<CalendarioEscolar />} />
               <Route
                 path="/admin/horarios-importados"
                 element={<HorarioImportacionesPage />}

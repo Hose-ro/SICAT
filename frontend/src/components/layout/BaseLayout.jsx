@@ -186,6 +186,11 @@ export function BaseLayout({ children }) {
                 <span className="nav__label">Horarios</span>
               </NavLink>
 
+              <NavLink to="/admin/calendario" className={navClass} data-tip="Calendario escolar" hidden={!'Calendario escolar'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
+                <CiCalendar className="nav__icon" />
+                <span className="nav__label">Calendario escolar</span>
+              </NavLink>
+
               <NavLink to="/admin/horarios-importados" className={navClass} data-tip="Horarios por revisar" hidden={!'Horarios por revisar'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
                 <ScanLine className="nav__icon" />
                 <span className="nav__label">Horarios por revisar</span>

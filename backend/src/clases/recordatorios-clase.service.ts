@@ -3,6 +3,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { TipoNotificacion } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
+import { PeriodosService } from '../periodos/periodos.service';
 import {
   convertirFechaAMinutos,
   convertirHoraAMinutos,
@@ -25,6 +26,7 @@ export class RecordatoriosClaseService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificaciones: NotificacionesService,
+    private readonly periodos: PeriodosService,
   ) {}
 
   @Cron(CronExpression.EVERY_MINUTE)
@@ -59,14 +61,21 @@ export class RecordatoriosClaseService {
 
     const candidatos = horarios.filter((horario) => {
       if (!horarioAplicaEnFecha(horario.dias, referencia)) return false;
-      const faltan = convertirHoraAMinutos(horario.horaInicio) - minutosActuales;
+      const faltan =
+        convertirHoraAMinutos(horario.horaInicio) - minutosActuales;
       return (
         faltan >= MINUTOS_ANTICIPACION_MIN && faltan <= MINUTOS_ANTICIPACION_MAX
       );
     });
 
+    const suspendidos = await this.periodos.suspensionesDelDia(referencia, [
+      ...new Set(candidatos.map((horario) => horario.docenteId)),
+    ]);
+
     for (const horario of candidatos) {
-      const faltan = convertirHoraAMinutos(horario.horaInicio) - minutosActuales;
+      if (suspendidos.has(horario.docenteId)) continue;
+      const faltan =
+        convertirHoraAMinutos(horario.horaInicio) - minutosActuales;
 
       const sesionExistente = await this.prisma.claseSesion.findFirst({
         where: {

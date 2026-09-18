@@ -17,6 +17,15 @@ function formatDate(value) {
   return new Date(value).toLocaleDateString('es-MX', { dateStyle: 'medium' })
 }
 
+function opcionesReporteItem(item) {
+  if (!item.suspendida) return { sesionId: item.id }
+  const fecha = new Date(item.fecha)
+  return {
+    fecha: `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${String(fecha.getDate()).padStart(2, '0')}`,
+    grupoId: item.grupo?.id ?? undefined,
+  }
+}
+
 function formatTime(value) {
   if (!value) return '--:--'
   return value.slice(0, 5)
@@ -32,6 +41,8 @@ function estadoClaseLabel(estado) {
       return 'Clase actual'
     case 'FINALIZADA':
       return 'Finalizada'
+    case 'SUSPENDIDA':
+      return 'Sin clases'
     case 'PASADA':
       return 'Pendiente'
     case 'PROXIMA':
@@ -48,6 +59,8 @@ function estadoClaseStyle(estado) {
       return "bg-warning/10 text-warning-foreground"
     case 'FINALIZADA':
       return "bg-muted text-foreground"
+    case 'SUSPENDIDA':
+      return "bg-destructive/10 text-destructive-foreground"
     case 'PROGRAMADA_AHORA':
       return "bg-accent text-primary-ink"
     case 'PASADA':
@@ -292,6 +305,8 @@ function ClaseCard({
 
   const iniciarLabel = clase.sesion?.id
     ? 'Clase iniciada'
+    : clase.estado === 'SUSPENDIDA'
+      ? 'Sin clases'
     : requiereUnidadActiva
       ? unidadPendiente
         ? `Inicia ${unidadPendiente.nombre} primero`
@@ -323,6 +338,7 @@ function ClaseCard({
             <p className="mt-1 text-sm text-muted-foreground">
               {clase.grupo?.nombre ?? 'Sin grupo'} · {clase.aula?.nombre ?? 'Aula pendiente'}
             </p>
+            {clase.suspensionMotivo && <p className="mt-2 rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground">Sin clases: {clase.suspensionMotivo}</p>}
           </div>
 
           <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
@@ -337,7 +353,7 @@ function ClaseCard({
           <Button variant="default"
             type="button"
             onClick={onIniciar}
-            disabled={Boolean(clase.sesion?.id) || requiereUnidadActiva}
+            disabled={clase.estado === 'SUSPENDIDA' || Boolean(clase.sesion?.id) || requiereUnidadActiva}
             aria-describedby={requiereUnidadActiva ? inicioAyudaId : undefined}
             className="px-4 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
           >
@@ -351,7 +367,7 @@ function ClaseCard({
           <Button variant="outline"
             type="button"
             onClick={onTomarAsistencia}
-            disabled={!clase.sesion?.id}
+            disabled={clase.estado === 'SUSPENDIDA' || !clase.sesion?.id}
             className="border px-4 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
           >
             Tomar asistencia
@@ -359,7 +375,7 @@ function ClaseCard({
           <Button variant="destructive"
             type="button"
             onClick={onFinalizar}
-            disabled={!clase.sesion?.activa}
+            disabled={clase.estado === 'SUSPENDIDA' || !clase.sesion?.activa}
             className="border px-4 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
           >
             Finalizar clase
@@ -405,7 +421,7 @@ function describirSesion(item) {
   return [
     item.materia?.nombre,
     item.grupo?.nombre ?? 'Sin grupo',
-    item.unidad?.nombre ?? 'Sin unidad',
+    item.suspendida ? `Sin clases: ${item.suspensionMotivo}` : item.unidad?.nombre ?? 'Sin unidad',
     formatDate(item.fecha),
   ].filter(Boolean).join(' · ')
 }
@@ -472,7 +488,9 @@ function HistorialTable({ items, onEditar, onVer, onExportarPdf, onExportarExcel
   const ultima = items.reduce((max, item) => (
     !max || new Date(item.fecha) > new Date(max.fecha) ? item : max
   ), null)
-  const resumen = `${items.length} ${items.length === 1 ? 'sesión' : 'sesiones'} · última el ${formatDate(ultima?.fecha)}`
+  const sesiones = items.filter((item) => !item.suspendida).length
+  const sinClases = items.length - sesiones
+  const resumen = `${sesiones} ${sesiones === 1 ? 'sesión' : 'sesiones'}${sinClases ? ` · ${sinClases} ${sinClases === 1 ? 'día sin clases' : 'días sin clases'}` : ''} · última fecha ${formatDate(ultima?.fecha)}`
 
   return (
     <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
@@ -484,7 +502,7 @@ function HistorialTable({ items, onEditar, onVer, onExportarPdf, onExportarExcel
         className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left transition-colors hover:bg-muted/40"
       >
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-foreground">Sesiones registradas</p>
+          <p className="text-sm font-semibold text-foreground">Historial de clases</p>
           <p className="mt-0.5 text-xs text-muted-foreground">{resumen}</p>
         </div>
         <span className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-muted-foreground">
@@ -505,34 +523,37 @@ function HistorialTable({ items, onEditar, onVer, onExportarPdf, onExportarExcel
 
           <div className="divide-y divide-border">
             {items.map((item) => (
-              <div key={item.id} className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,1fr)] gap-3 px-4 py-4">
+              <div key={item.id} className={`grid grid-cols-[minmax(0,1.4fr)_minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,1fr)] gap-3 px-4 py-4 ${item.suspendida ? 'bg-destructive/5' : ''}`}>
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-foreground">{item.materia?.nombre}</p>
                   <p className="mt-1 truncate text-xs text-muted-foreground">
                     {item.grupo?.nombre ?? 'Sin grupo'} · {item.aula?.nombre ?? 'Aula pendiente'}
                   </p>
+                  {item.suspendida && <p className="mt-1 text-xs font-medium text-destructive-foreground">Sin clases · {item.suspensionMotivo}{item.suspensionInstitucional && ' · institución'}</p>}
                 </div>
                 <div className="text-sm text-muted-foreground">
                   <p>{formatDate(item.fecha)}</p>
                   <p className="mt-1 text-xs text-muted-foreground">Semana {item.semanaClave}</p>
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  {item.unidad?.nombre ?? 'Sin unidad'}
+                  {item.suspendida ? 'No aplica' : item.unidad?.nombre ?? 'Sin unidad'}
                 </div>
                 <div className="flex flex-wrap gap-2">
+                  {item.suspendida ? <span className="rounded-full bg-destructive/10 px-3 py-1 text-xs font-semibold text-destructive-foreground">No requiere lista</span> : <>
                   <StatPill label="A" value={item.resumen?.asistencias ?? 0} tone="emerald" />
                   <StatPill label="F" value={item.resumen?.faltas ?? 0} tone="rose" />
                   <StatPill label="R" value={item.resumen?.retardos ?? 0} tone="amber" />
                   <StatPill label="J" value={item.resumen?.justificados ?? 0} tone="sky" />
+                  </>}
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Button variant="outline"
+                  {!item.suspendida && <Button variant="outline"
                     type="button"
                     onClick={() => onEditar(item)}
                     className="border px-3 py-2 text-sm font-medium"
                   >
                     Editar
-                  </Button>
+                  </Button>}
                   <Button variant="outline"
                     type="button"
                     onClick={() => onVer(item)}
@@ -1903,7 +1924,9 @@ function DocenteAsistenciasView() {
           />
         ) : (
           <div className="rounded-3xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
-            No tienes clases programadas para hoy.
+            {clasesHoy.some((clase) => clase.estado === 'SUSPENDIDA')
+              ? `Hoy no habrá clases: ${clasesHoy.find((clase) => clase.suspensionMotivo)?.suspensionMotivo ?? 'día sin clases'}.`
+              : 'No tienes clases programadas para hoy.'}
           </div>
         )}
       </section>
@@ -2036,9 +2059,9 @@ function DocenteAsistenciasView() {
           abierto={historialAbierto}
           onToggle={() => setHistorialAbierto((prev) => !prev)}
           onEditar={(item) => setSelectedSessionId(item.id)}
-          onVer={(item) => setVistaPrevia({ materiaId: item.materia.id, opciones: { sesionId: item.id }, descripcion: describirSesion(item) })}
-          onExportarPdf={(item) => exportar(item.materia.id, { formato: 'pdf', sesionId: item.id })}
-          onExportarExcel={(item) => exportar(item.materia.id, { formato: 'excel', sesionId: item.id })}
+          onVer={(item) => setVistaPrevia({ materiaId: item.materia.id, opciones: opcionesReporteItem(item), descripcion: describirSesion(item) })}
+          onExportarPdf={(item) => exportar(item.materia.id, { formato: 'pdf', ...opcionesReporteItem(item) })}
+          onExportarExcel={(item) => exportar(item.materia.id, { formato: 'excel', ...opcionesReporteItem(item) })}
         />
       </section>
 
@@ -2224,11 +2247,11 @@ function AdminAsistenciasView() {
         onEditar={(item) => setSelectedSessionId(item.id)}
         onVer={(item) => setVistaPrevia({
           materiaId: item.materia.id,
-          opciones: { sesionId: item.id, docenteId: filters.docenteId || undefined },
+          opciones: { ...opcionesReporteItem(item), docenteId: item.docente?.id || filters.docenteId || undefined },
           descripcion: describirSesion(item),
         })}
-        onExportarPdf={(item) => exportar(item.materia.id, { formato: 'pdf', sesionId: item.id, docenteId: filters.docenteId || undefined })}
-        onExportarExcel={(item) => exportar(item.materia.id, { formato: 'excel', sesionId: item.id, docenteId: filters.docenteId || undefined })}
+        onExportarPdf={(item) => exportar(item.materia.id, { formato: 'pdf', ...opcionesReporteItem(item), docenteId: item.docente?.id || filters.docenteId || undefined })}
+        onExportarExcel={(item) => exportar(item.materia.id, { formato: 'excel', ...opcionesReporteItem(item), docenteId: item.docente?.id || filters.docenteId || undefined })}
       />
 
       <section className="space-y-4">

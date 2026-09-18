@@ -192,7 +192,9 @@ export class DashboardService {
       periodo,
       resumen: {
         materias: resumenMaterias.length,
-        clasesHoy: clases.clasesHoy.length,
+        clasesHoy: clases.clasesHoy.filter(
+          (clase) => clase.estado !== 'SUSPENDIDA',
+        ).length,
         // Clases cuyo horario ya pasó y nunca se registró la sesión.
         listasPendientes: clases.clasesHoy.filter(
           (clase) => clase.estado === 'PASADA',

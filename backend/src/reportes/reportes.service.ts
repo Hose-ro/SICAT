@@ -40,7 +40,7 @@ export class ReportesService {
     const headerRow = sheet.addRow([
       'Alumno',
       'Num. Control',
-      ...sesiones.map((s) => new Date(s.fecha).toLocaleDateString('es-MX')),
+      ...sesiones.map((s) => `${new Date(s.fecha).toLocaleDateString('es-MX')}${s.suspensionMotivo ? ' · Sin clases' : ''}`),
       'A',
       'F',
       'R',
@@ -53,6 +53,13 @@ export class ReportesService {
       pattern: 'solid',
       fgColor: { argb: 'FFD9D9D9' },
     };
+    sesiones.forEach((sesion, index) => {
+      if (!sesion.suspensionMotivo) return;
+      const cell = headerRow.getCell(index + 3);
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFCE8E8' } };
+      cell.font = { bold: true, color: { argb: 'FFB91C1C' } };
+      cell.note = `Sin clases: ${sesion.suspensionMotivo}`;
+    });
 
     // Build attendance map
     const mapaAsist = new Map<string, string>();
@@ -73,7 +80,7 @@ export class ReportesService {
         r = 0,
         j = 0;
       const estados = sesiones.map((s) => {
-        const estado = mapaAsist.get(`${alumno.id}_${s.id}`) ?? '';
+        const estado = s.suspensionMotivo ? '' : mapaAsist.get(`${alumno.id}_${s.id}`) ?? '';
         if (estado === 'ASISTENCIA') a++;
         else if (estado === 'FALTA') f++;
         else if (estado === 'RETARDO') r++;
@@ -97,7 +104,11 @@ export class ReportesService {
       // Color cells by attendance state
       estados.forEach((estado, idx) => {
         const cell = row.getCell(3 + idx);
-        cell.value = estado.charAt(0) || '';
+        cell.value = sesiones[idx].suspensionMotivo ? 'SC' : estado.charAt(0) || '';
+        if (sesiones[idx].suspensionMotivo) {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFCE8E8' } };
+          return;
+        }
         if (estadoColores[estado]) {
           cell.fill = {
             type: 'pattern',
@@ -111,6 +122,16 @@ export class ReportesService {
     // Totals row
     const totalRow = sheet.addRow(['TOTALES', '', ...sesiones.map(() => '')]);
     totalRow.font = { bold: true };
+
+    const suspendidas = sesiones.filter((sesion) => sesion.suspensionMotivo);
+    if (suspendidas.length) {
+      sheet.addRow([]);
+      sheet.addRow(['Días sin clases', 'Motivo']);
+      suspendidas.forEach((sesion) => sheet.addRow([
+        new Date(sesion.fecha).toLocaleDateString('es-MX'),
+        sesion.suspensionMotivo,
+      ]));
+    }
 
     sheet.columns.forEach((col) => {
       col.width = 14;
@@ -166,6 +187,15 @@ export class ReportesService {
       }
       doc.moveDown();
 
+      const suspendidas = sesiones.filter((sesion) => sesion.suspensionMotivo);
+      if (suspendidas.length) {
+        doc.fillColor('#B91C1C').fontSize(8);
+        for (const sesion of suspendidas) {
+          doc.text(`Sin clases ${new Date(sesion.fecha).toLocaleDateString('es-MX')}: ${sesion.suspensionMotivo}`);
+        }
+        doc.fillColor('#000000').moveDown(0.5);
+      }
+
       const mapaAsist = new Map<string, string>();
       for (const a of asistencias) {
         mapaAsist.set(`${a.alumnoId}_${a.claseSesionId}`, a.estado);
@@ -188,10 +218,11 @@ export class ReportesService {
           month: '2-digit',
           day: '2-digit',
         });
-        doc
+        doc.fillColor(s.suspensionMotivo ? '#B91C1C' : '#000000')
           .rect(x, y, colWidth, rowHeight)
           .stroke()
           .text(label, x + 2, y + 4, { width: colWidth - 4 });
+        doc.fillColor('#000000');
         x += colWidth;
       });
 
@@ -210,11 +241,12 @@ export class ReportesService {
           .text(alumno.nombre.substring(0, 22), x + 2, y + 4, { width: 126 });
         x += 130;
         sesiones.slice(0, 10).forEach((s) => {
-          const estado = mapaAsist.get(`${alumno.id}_${s.id}`) ?? '-';
+          const estado = s.suspensionMotivo ? 'SC' : mapaAsist.get(`${alumno.id}_${s.id}`) ?? '-';
           const letra =
             { ASISTENCIA: 'A', FALTA: 'F', RETARDO: 'R', JUSTIFICADA: 'J' }[
               estado
-            ] ?? '-';
+            ] ?? (estado === 'SC' ? 'SC' : '-');
+          doc.fillColor(s.suspensionMotivo ? '#B91C1C' : '#000000');
           doc
             .rect(x, y, colWidth, rowHeight)
             .stroke()
@@ -222,6 +254,7 @@ export class ReportesService {
               width: colWidth - 4,
               align: 'center',
             });
+          doc.fillColor('#000000');
           x += colWidth;
         });
       }
