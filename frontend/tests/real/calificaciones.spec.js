@@ -10,14 +10,17 @@ test('la ponderación se guarda en la materia y la ve el alumno', async ({ page,
   await login(page, USERS.docente)
   await page.goto('/calificaciones')
   await elegirMateriaE2E(page)
+  // La ponderación está plegada; al escribir un peso se completa el otro.
+  await page.getByText('Ponderación', { exact: true }).click()
   await expect(page.getByLabel('Tareas %')).toHaveValue('80')
   await page.getByLabel('Tareas %').fill('70')
-  await page.getByLabel('Asistencia %').fill('30')
+  await expect(page.getByLabel('Asistencia %')).toHaveValue('30')
   await page.getByRole('button', { name: 'Guardar ponderación' }).click()
   await expect(page.getByRole('status')).toContainText('Ponderación guardada')
 
   await page.reload()
   await elegirMateriaE2E(page)
+  await page.getByText('Ponderación', { exact: true }).click()
   await expect(page.getByLabel('Tareas %')).toHaveValue('70')
   await expect(page.getByLabel('Asistencia %')).toHaveValue('30')
 
