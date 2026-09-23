@@ -16,6 +16,7 @@ import { RolesGuard } from '../auth/roles.guard';
 import { ReportesService } from '../reportes/reportes.service';
 import { CalificacionesService } from './calificaciones.service';
 import { GuardarCalificacionManualDto } from './dto/guardar-calificacion-manual.dto';
+import { GuardarCalificacionesLoteDto } from './dto/guardar-calificaciones-lote.dto';
 import { GuardarPonderacionDto } from './dto/guardar-ponderacion.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -78,6 +79,20 @@ export class CalificacionesController {
     @Query('unidadId') unidadId?: string,
   ) {
     return this.calificacionesService.guardarManual(req.user, dto, {
+      grupoId: grupoId ? Number(grupoId) : undefined,
+      unidadId: unidadId ? Number(unidadId) : undefined,
+    });
+  }
+
+  @Patch('manual/lote')
+  @Roles('DOCENTE', 'ADMIN')
+  guardarManualLote(
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: GuardarCalificacionesLoteDto,
+    @Query('grupoId') grupoId?: string,
+    @Query('unidadId') unidadId?: string,
+  ) {
+    return this.calificacionesService.guardarManualLote(req.user, dto, {
       grupoId: grupoId ? Number(grupoId) : undefined,
       unidadId: unidadId ? Number(unidadId) : undefined,
     });

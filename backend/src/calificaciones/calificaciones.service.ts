@@ -8,6 +8,7 @@ import { PrismaService } from '../prisma.service';
 import { getCurrentAcademicPeriod } from '../common/periodo.util';
 import { asegurarAccesoMateria } from '../common/materia-ownership';
 import { GuardarCalificacionManualDto } from './dto/guardar-calificacion-manual.dto';
+import { GuardarCalificacionesLoteDto } from './dto/guardar-calificaciones-lote.dto';
 import { GuardarPonderacionDto } from './dto/guardar-ponderacion.dto';
 
 type Actor = {
@@ -129,15 +130,43 @@ export class CalificacionesService {
     return { tareas: dto.pesoTareas, asistencia: dto.pesoAsistencia };
   }
 
-  async guardarManual(
+  guardarManual(
     actor: Actor,
     dto: GuardarCalificacionManualDto,
     filtros: Pick<CalificacionesFiltros, 'grupoId' | 'unidadId'> = {},
   ) {
-    const materia = await this.obtenerMateria({
-      materiaId: dto.materiaId,
-      unidadId: dto.unidadId,
-    });
+    return this.guardarManualLote(
+      actor,
+      {
+        materiaId: dto.materiaId,
+        grupoId: dto.grupoId,
+        calificaciones: [
+          {
+            alumnoId: dto.alumnoId,
+            unidadId: dto.unidadId,
+            calificacionManual: dto.calificacionManual,
+            observacion: dto.observacion,
+          },
+        ],
+      },
+      filtros,
+    );
+  }
+
+  // Guarda varias capturas en una transacción y devuelve el reporte una sola
+  // vez, para que "Guardar todo" no reconstruya el reporte por cada alumno.
+  async guardarManualLote(
+    actor: Actor,
+    dto: GuardarCalificacionesLoteDto,
+    filtros: Pick<CalificacionesFiltros, 'grupoId' | 'unidadId'> = {},
+  ) {
+    const materia = await this.obtenerMateria({ materiaId: dto.materiaId });
+    const unidadIds = new Set(materia.unidades.map((unidad) => unidad.id));
+    if (dto.calificaciones.some((item) => !unidadIds.has(item.unidadId))) {
+      throw new BadRequestException(
+        'La unidad no pertenece a la materia seleccionada',
+      );
+    }
     await asegurarAccesoMateria(this.prisma, actor, dto.materiaId, dto.grupoId);
 
     if (
@@ -149,55 +178,65 @@ export class CalificacionesService {
       );
     }
 
-    const alumnos = await this.obtenerAlumnosReporte(
-      dto.materiaId,
-      dto.grupoId,
+    const alumnos = new Map(
+      (await this.obtenerAlumnosReporte(dto.materiaId, dto.grupoId)).map(
+        (alumno) => [alumno.id, alumno] as const,
+      ),
     );
-    const alumno = alumnos.find((item) => item.id === dto.alumnoId);
-    if (!alumno) {
-      throw new BadRequestException(
-        'El alumno no pertenece a la materia seleccionada',
-      );
-    }
-
-    const calificacionManual =
-      dto.calificacionManual == null ? null : Number(dto.calificacionManual);
-    if (
-      calificacionManual !== null &&
-      (!Number.isFinite(calificacionManual) ||
-        calificacionManual < 1 ||
-        calificacionManual > 100)
-    ) {
-      throw new BadRequestException('La calificacion debe estar entre 1 y 100');
-    }
+    const capturas = dto.calificaciones.map((item) => {
+      const alumno = alumnos.get(item.alumnoId);
+      if (!alumno) {
+        throw new BadRequestException(
+          'El alumno no pertenece a la materia seleccionada',
+        );
+      }
+      const calificacionManual =
+        item.calificacionManual == null
+          ? null
+          : Number(item.calificacionManual);
+      if (
+        calificacionManual !== null &&
+        (!Number.isFinite(calificacionManual) ||
+          calificacionManual < 1 ||
+          calificacionManual > 100)
+      ) {
+        throw new BadRequestException(
+          'La calificacion debe estar entre 1 y 100',
+        );
+      }
+      return {
+        alumnoId: item.alumnoId,
+        unidadId: item.unidadId,
+        grupoId: dto.grupoId ?? alumno.grupoId ?? null,
+        calificacionManual,
+        observacion: item.observacion?.trim() || null,
+      };
+    });
 
     const periodo = getCurrentAcademicPeriod();
-    await this.prisma.calificacionUnidad.upsert({
-      where: {
-        alumnoId_materiaId_unidadId_periodo: {
-          alumnoId: dto.alumnoId,
-          materiaId: dto.materiaId,
-          unidadId: dto.unidadId,
-          periodo,
-        },
-      },
-      create: {
-        alumnoId: dto.alumnoId,
-        materiaId: dto.materiaId,
-        grupoId: dto.grupoId ?? alumno.grupoId ?? null,
-        unidadId: dto.unidadId,
-        periodo,
-        calificacionManual,
-        observacion: dto.observacion?.trim() || null,
-        docenteId: actor.id,
-      },
-      update: {
-        grupoId: dto.grupoId ?? alumno.grupoId ?? null,
-        calificacionManual,
-        observacion: dto.observacion?.trim() || null,
-        docenteId: actor.id,
-      },
-    });
+    await this.prisma.$transaction(
+      capturas.map(({ alumnoId, unidadId, ...datos }) =>
+        this.prisma.calificacionUnidad.upsert({
+          where: {
+            alumnoId_materiaId_unidadId_periodo: {
+              alumnoId,
+              materiaId: dto.materiaId,
+              unidadId,
+              periodo,
+            },
+          },
+          create: {
+            alumnoId,
+            materiaId: dto.materiaId,
+            unidadId,
+            periodo,
+            ...datos,
+            docenteId: actor.id,
+          },
+          update: { ...datos, docenteId: actor.id },
+        }),
+      ),
+    );
 
     return this.construirReporte(
       {
