@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button'
 import { useState } from 'react'
+import SexoBadge from '../../../../components/SexoBadge'
 import { useGrupoStore } from '../../../../store/grupoStore'
 
 export default function TabAlumnos({ grupo, onAgregarClick }) {
@@ -40,6 +41,7 @@ export default function TabAlumnos({ grupo, onAgregarClick }) {
               <tr>
                 <th className="px-4 py-3 text-left">Número de control</th>
                 <th className="px-4 py-3 text-left">Nombre</th>
+                <th className="px-4 py-3 text-left">Sexo</th>
                 <th className="px-4 py-3 text-left">Email</th>
                 <th className="px-4 py-3 text-right"></th>
               </tr>
@@ -49,6 +51,9 @@ export default function TabAlumnos({ grupo, onAgregarClick }) {
                 <tr key={a.id} className="hover:bg-background">
                   <td className="px-4 py-3 font-mono text-muted-foreground">{a.numeroControl ?? '—'}</td>
                   <td className="px-4 py-3 font-medium text-foreground">{a.nombre}</td>
+                  <td className="px-4 py-3">
+                    {a.sexo ? <SexoBadge sexo={a.sexo} /> : <span className="text-muted-foreground">—</span>}
+                  </td>
                   <td className="px-4 py-3 text-muted-foreground">{a.email ?? '—'}</td>
                   <td className="px-4 py-3 text-right">
                     {confirmId === a.id ? (

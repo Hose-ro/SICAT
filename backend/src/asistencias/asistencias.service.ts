@@ -1321,7 +1321,12 @@ export class AsistenciasService {
     registros: Array<{
       estado: EstadoAsistencia;
       alumnoId: number;
-      alumno: { id: number; nombre: string; numeroControl: string | null };
+      alumno: {
+        id: number;
+        nombre: string;
+        numeroControl: string | null;
+        sexo: Sexo | null;
+      };
     }>,
   ) {
     const resumen = this.resumirRegistros(registros);
@@ -1331,6 +1336,7 @@ export class AsistenciasService {
         alumnoId: number;
         nombre: string;
         numeroControl: string | null;
+        sexo: Sexo | null;
         faltas: number;
       }
     >();
@@ -1341,6 +1347,7 @@ export class AsistenciasService {
           alumnoId: registro.alumno.id,
           nombre: registro.alumno.nombre,
           numeroControl: registro.alumno.numeroControl,
+          sexo: registro.alumno.sexo,
           faltas: 0,
         });
       }

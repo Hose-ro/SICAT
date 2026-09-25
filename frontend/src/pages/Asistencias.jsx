@@ -9,6 +9,7 @@ import { useAuthStore } from '../store/authStore'
 import { useClaseStore } from '../store/claseStore'
 import { useAsistenciaStore } from '../store/asistenciaStore'
 import AttendanceBadge from '../components/AttendanceBadge'
+import SexoBadge from '../components/SexoBadge'
 import AsistenciaSesionPanel from './docente/components/AsistenciaSesionPanel'
 import VistaPreviaReporteModal from './docente/components/VistaPreviaReporteModal'
 
@@ -472,7 +473,10 @@ function RankingFaltas({ items }) {
             <li key={item.alumnoId} className="flex items-center gap-3 bg-card/60 px-5 py-2.5 text-sm">
               <span className="w-6 shrink-0 text-xs font-semibold tabular-nums text-muted-foreground">{indice + 1}.</span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate font-medium text-foreground">{item.nombre}</span>
+                <span className="flex items-center gap-2 font-medium text-foreground">
+                  <SexoBadge sexo={item.sexo} />
+                  <span className="truncate">{item.nombre}</span>
+                </span>
                 {item.numeroControl && (
                   <span className="block text-xs text-muted-foreground">{item.numeroControl}</span>
                 )}

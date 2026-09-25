@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import api from '../../../../api/axios'
 import { useGrupoStore } from '../../../../store/grupoStore'
 import Modal from '../../../../components/Modal'
+import SexoBadge from '../../../../components/SexoBadge'
 
 export default function ModalAsignarAlumnos({ open, onClose, grupo }) {
   const { asignarAlumnos } = useGrupoStore()
@@ -100,7 +101,10 @@ export default function ModalAsignarAlumnos({ open, onClose, grupo }) {
                   className="accent-primary"
                 />
                 <div>
-                  <p className="text-sm font-medium text-foreground">{a.nombre}</p>
+                  <p className="flex items-center gap-2 text-sm font-medium text-foreground">
+                    <SexoBadge sexo={a.sexo} />
+                    {a.nombre}
+                  </p>
                   <p className="text-xs text-muted-foreground">
                     {a.numeroControl && <span>{a.numeroControl} · </span>}
                     {bloqueado ? (
