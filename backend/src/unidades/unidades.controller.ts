@@ -43,6 +43,15 @@ export class UnidadesController {
     return this.unidades.cancelar(id, req.user);
   }
 
+  @Patch(':id/reabrir')
+  @Roles('DOCENTE', 'ADMIN')
+  @ApiOperation({
+    summary: 'Reabrir la última unidad finalizada (vuelve a activa)',
+  })
+  reabrir(@Param('id', ParseIntPipe) id: number, @Req() req) {
+    return this.unidades.reabrir(id, req.user);
+  }
+
   @Patch(':id/fechas')
   @Roles('DOCENTE', 'ADMIN')
   @ApiOperation({ summary: 'Editar fecha de inicio y/o fin de una unidad' })

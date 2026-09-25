@@ -1,4 +1,8 @@
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { UnidadesService } from './unidades.service';
 
@@ -157,6 +161,86 @@ describe('UnidadesService (IDOR)', () => {
         service.cancelar(unidadId, { id: 1, rol: 'ADMIN' }),
       ).rejects.toBeInstanceOf(BadRequestException);
 
+      expect(unidadUpdate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('reabrir', () => {
+    beforeEach(() => {
+      unidadFindUnique.mockResolvedValue({
+        id: unidadId,
+        materiaId,
+        orden: 2,
+        status: 'FINALIZADA',
+      });
+    });
+
+    it('rechaza a un DOCENTE que no imparte la materia de la unidad', async () => {
+      mockMateriaCount(true, false);
+
+      await expect(
+        service.reabrir(unidadId, { id: otroDocenteId, rol: 'DOCENTE' }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+
+      expect(unidadUpdate).not.toHaveBeenCalled();
+    });
+
+    it('regresa la unidad a ACTIVA y borra su fecha de fin', async () => {
+      mockMateriaCount(true, true);
+
+      await service.reabrir(unidadId, { id: docenteId, rol: 'DOCENTE' });
+
+      expect(unidadUpdate).toHaveBeenCalledWith({
+        where: { id: unidadId },
+        data: { status: 'ACTIVA', fechaFin: null },
+      });
+    });
+
+    it('rechaza reabrir una unidad que no está FINALIZADA', async () => {
+      unidadFindUnique.mockResolvedValue({
+        id: unidadId,
+        materiaId,
+        orden: 2,
+        status: 'ACTIVA',
+      });
+
+      await expect(
+        service.reabrir(unidadId, { id: 1, rol: 'ADMIN' }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(unidadUpdate).not.toHaveBeenCalled();
+    });
+
+    it('rechaza reabrir si ya hay otra unidad activa', async () => {
+      unidadFindFirst.mockResolvedValueOnce({
+        id: 8,
+        nombre: 'Unidad 3',
+        status: 'ACTIVA',
+      });
+
+      await expect(
+        service.reabrir(unidadId, { id: 1, rol: 'ADMIN' }),
+      ).rejects.toBeInstanceOf(ConflictException);
+
+      expect(unidadUpdate).not.toHaveBeenCalled();
+    });
+
+    it('rechaza reabrir si una unidad posterior ya se inició', async () => {
+      unidadFindFirst
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: 8, orden: 3, status: 'FINALIZADA' });
+
+      await expect(
+        service.reabrir(unidadId, { id: 1, rol: 'ADMIN' }),
+      ).rejects.toBeInstanceOf(ConflictException);
+
+      expect(unidadFindFirst).toHaveBeenLastCalledWith({
+        where: {
+          materiaId,
+          orden: { gt: 2 },
+          status: { not: 'PENDIENTE' },
+        },
+      });
       expect(unidadUpdate).not.toHaveBeenCalled();
     });
   });

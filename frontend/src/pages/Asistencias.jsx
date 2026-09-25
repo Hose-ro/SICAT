@@ -298,8 +298,12 @@ function ClaseCard({
   onFinalizar,
   onIniciarUnidad,
   onFinalizarUnidad,
+  onReabrirUnidad,
 }) {
-  const unidadPendiente = clase?.materia?.unidades?.find((unidad) => unidad.status === 'PENDIENTE')
+  const unidades = clase?.materia?.unidades ?? []
+  const unidadPendiente = unidades.find((unidad) => unidad.status === 'PENDIENTE')
+  // La última finalizada es la única que se puede reabrir (vienen ordenadas).
+  const unidadAnterior = unidades.findLast((unidad) => unidad.status === 'FINALIZADA')
   const requiereUnidadActiva = !clase.sesion?.id && !clase.unidadActiva
   const inicioAyudaId = `clase-${clase.horarioId}-inicio-ayuda`
 
@@ -391,6 +395,16 @@ function ClaseCard({
             className="bg-success/10 px-3 py-2 text-xs font-semibold text-success-foreground  hover:bg-success/15"
           >
             Iniciar {unidadPendiente.nombre}
+          </Button>
+        )}
+
+        {!clase.unidadActiva && unidadAnterior && (
+          <Button variant="ghost"
+            type="button"
+            onClick={() => onReabrirUnidad(unidadAnterior)}
+            className="bg-muted px-3 py-2 text-xs font-semibold text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+          >
+            Regresar a {unidadAnterior.nombre}
           </Button>
         )}
 
@@ -1741,6 +1755,20 @@ function DocenteAsistenciasView() {
     }
   }
 
+  const handleReabrirUnidad = useAsyncAction(async (unidad) => {
+    if (!unidad?.id) return
+    if (!(await confirmAction({ title: `Regresar a ${unidad.nombre}`, description: `${unidad.nombre} volverá a estar activa y se quitará su fecha de fin. Las clases que inicies se registrarán en esa unidad.`, confirmLabel: `Reabrir ${unidad.nombre}` }))) return
+
+    setMensaje('')
+    try {
+      await api.patch(`/unidades/${unidad.id}/reabrir`)
+      await cargarTodo()
+      setMensaje(`${unidad.nombre} está activa de nuevo.`)
+    } catch (error) {
+      setMensaje(getApiErrorMessage(error, 'No se pudo reabrir la unidad.'))
+    }
+  })
+
   const handleCapturarAtrasada = async (item) => {
     const clave = claveAtrasada(item)
     setMensaje('')
@@ -1921,6 +1949,7 @@ function DocenteAsistenciasView() {
             onFinalizar={() => handleFinalizeClass(clasePrincipal)}
             onIniciarUnidad={handleIniciarUnidad}
             onFinalizarUnidad={handleFinalizarUnidad}
+            onReabrirUnidad={handleReabrirUnidad}
           />
         ) : (
           <div className="rounded-3xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
@@ -1953,6 +1982,7 @@ function DocenteAsistenciasView() {
               onFinalizar={() => handleFinalizeClass(clase)}
               onIniciarUnidad={handleIniciarUnidad}
               onFinalizarUnidad={handleFinalizarUnidad}
+              onReabrirUnidad={handleReabrirUnidad}
             />
           ))}
         </div>

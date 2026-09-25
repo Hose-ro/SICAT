@@ -60,6 +60,48 @@ export class UnidadesService {
     });
   }
 
+  /**
+   * Deshace un "finalizar": la última unidad FINALIZADA vuelve a ACTIVA. Solo
+   * si no hay otra activa y ninguna posterior se ha iniciado, para no romper
+   * el orden de las unidades.
+   */
+  async reabrir(id: number, actor: ActorMateria) {
+    const unidad = await this.prisma.unidad.findUnique({ where: { id } });
+    if (!unidad) throw new NotFoundException('Unidad no encontrada');
+    await asegurarAccesoMateria(this.prisma, actor, unidad.materiaId);
+    if (unidad.status !== 'FINALIZADA')
+      throw new BadRequestException(
+        'Solo se puede reabrir una unidad finalizada',
+      );
+
+    const unidadActiva = await this.prisma.unidad.findFirst({
+      where: { materiaId: unidad.materiaId, status: 'ACTIVA' },
+    });
+    if (unidadActiva) {
+      throw new ConflictException(
+        `Primero cancela o finaliza ${unidadActiva.nombre}`,
+      );
+    }
+
+    const posteriorIniciada = await this.prisma.unidad.findFirst({
+      where: {
+        materiaId: unidad.materiaId,
+        orden: { gt: unidad.orden },
+        status: { not: 'PENDIENTE' },
+      },
+    });
+    if (posteriorIniciada) {
+      throw new ConflictException(
+        'Solo se puede reabrir la última unidad finalizada',
+      );
+    }
+
+    return this.prisma.unidad.update({
+      where: { id },
+      data: { status: 'ACTIVA', fechaFin: null },
+    });
+  }
+
   async editarFechas(
     id: number,
     actor: ActorMateria,
