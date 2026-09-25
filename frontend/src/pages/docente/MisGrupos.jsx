@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom'
 import {
   BookOpen,
   CalendarClock,
+  Pencil,
   Plus,
   Search,
   Trash2,
@@ -15,7 +16,10 @@ import {
 import api from '../../api/axios'
 import Modal from '../../components/Modal'
 import SexoBadge from '../../components/SexoBadge'
+import SexoSelector from '../../components/SexoSelector'
+import { resumirDatosAlumnos } from '../../lib/datosAlumno'
 import AgregarAlumnosGrupoModal from './components/AgregarAlumnosGrupoModal'
+import EditarListaAlumnos from './components/EditarListaAlumnos'
 
 function textoDeGrupo(grupo) {
   return [
@@ -547,27 +551,22 @@ function mensajeError(error, fallback) {
   return message || fallback
 }
 
-const FORM_EDITAR_ALUMNO = {
-  nombre: '',
-  numeroControl: '',
-  email: '',
-  telefono: '',
-  password: '',
-}
-
 function ModalDetalleGrupo({ grupo, onClose }) {
   const [detalle, setDetalle] = useState(null)
-  const [cargando, setCargando] = useState(false)
+  const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
   const [aviso, setAviso] = useState('')
   const [alumnoEditar, setAlumnoEditar] = useState(null)
   const [modoSeleccion, setModoSeleccion] = useState(false)
-  const [modoEdicionLista, setModoEdicionLista] = useState(false)
+  // null = lista normal; si no, el filtro con el que se abrió la edición.
+  const [filtroEdicion, setFiltroEdicion] = useState(null)
   const [seleccion, setSeleccion] = useState([])
   const [quitando, setQuitando] = useState(false)
+  const editandoLista = filtroEdicion !== null
 
+  // Sólo la primera carga muestra "Cargando": las recargas posteriores se
+  // hacen por debajo para no vaciar la lista ni perder el scroll.
   const cargarDetalle = useCallback(async () => {
-    setCargando(true)
     setError('')
     try {
       const { data } = await api.get(`/grupos/mis-grupos/${grupo.id}`)
@@ -583,7 +582,24 @@ function ModalDetalleGrupo({ grupo, onClose }) {
     cargarDetalle()
   }, [cargarDetalle])
 
-  const alumnos = detalle?.alumnos ?? []
+  const alumnos = useMemo(() => detalle?.alumnos ?? [], [detalle])
+  const resumen = useMemo(() => resumirDatosAlumnos(alumnos), [alumnos])
+
+  const actualizarAlumno = useCallback((alumnoId, cambios) => {
+    setDetalle((actual) =>
+      actual && {
+        ...actual,
+        alumnos: actual.alumnos.map((alumno) =>
+          alumno.id === alumnoId ? { ...alumno, ...cambios } : alumno,
+        ),
+      },
+    )
+  }, [])
+
+  const abrirEdicion = (filtro) => {
+    setAviso('')
+    setFiltroEdicion(filtro)
+  }
 
   const todosSeleccionados =
     alumnos.length > 0 && seleccion.length === alumnos.length
@@ -648,7 +664,7 @@ function ModalDetalleGrupo({ grupo, onClose }) {
   })
 
   return (
-    <Modal open onClose={onClose} title={`Grupo ${grupo.nombre}`}>
+    <Modal open onClose={onClose} title={`Grupo ${grupo.nombre}`} wide={editandoLista}>
       {cargando ? (
         <p className="py-8 text-center text-sm text-muted-foreground">
           Cargando alumnos...
@@ -695,11 +711,21 @@ function ModalDetalleGrupo({ grupo, onClose }) {
           ) : (
             <div className="space-y-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-medium text-foreground">
-                  {modoSeleccion
-                    ? `${seleccion.length} de ${alumnos.length} seleccionado${seleccion.length === 1 ? '' : 's'}`
-                    : `${alumnos.length} alumno${alumnos.length === 1 ? '' : 's'}`}
-                </p>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground">
+                    {modoSeleccion
+                      ? `${seleccion.length} de ${alumnos.length} seleccionado${seleccion.length === 1 ? '' : 's'}`
+                      : editandoLista
+                        ? `Editar lista · ${alumnos.length} alumno${alumnos.length === 1 ? '' : 's'}`
+                        : `${alumnos.length} alumno${alumnos.length === 1 ? '' : 's'}`}
+                  </p>
+                  {!modoSeleccion && !editandoLista && (
+                    <p className="text-xs tabular-nums text-muted-foreground">
+                      {resumen.hombres} H · {resumen.mujeres} M
+                      {resumen.sinSexo > 0 && ` · ${resumen.sinSexo} sin registrar`}
+                    </p>
+                  )}
+                </div>
                 <div className="flex flex-wrap gap-2">
                   {modoSeleccion && (
                     <Button variant="outline"
@@ -710,34 +736,66 @@ function ModalDetalleGrupo({ grupo, onClose }) {
                       {todosSeleccionados ? 'Quitar selección' : 'Seleccionar todos'}
                     </Button>
                   )}
-                  {!modoSeleccion && (
-                    <Button variant="outline"
+                  {editandoLista ? (
+                    <Button variant="default"
                       type="button"
-                      onClick={() => setModoEdicionLista((actual) => !actual)}
-                      className="border px-2.5 py-1.5 text-xs font-medium"
+                      onClick={() => setFiltroEdicion(null)}
+                      className="px-3 py-1.5 text-xs font-medium"
                     >
-                      {modoEdicionLista ? 'Cerrar edición' : 'Editar lista'}
+                      Listo
                     </Button>
-                  )}
-                  {!modoEdicionLista && (
-                    <Button variant="outline"
-                      type="button"
-                      onClick={() =>
-                        modoSeleccion ? salirDeSeleccion() : setModoSeleccion(true)
-                      }
-                      className="border px-2.5 py-1.5 text-xs font-medium"
-                    >
-                      {modoSeleccion ? 'Cancelar' : 'Seleccionar'}
-                    </Button>
+                  ) : (
+                    <>
+                      {!modoSeleccion && (
+                        <Button variant="outline"
+                          type="button"
+                          onClick={() => abrirEdicion('todos')}
+                          className="border px-2.5 py-1.5 text-xs font-medium"
+                        >
+                          <Pencil className="size-3.5" />
+                          Editar lista
+                        </Button>
+                      )}
+                      <Button variant="outline"
+                        type="button"
+                        onClick={() =>
+                          modoSeleccion ? salirDeSeleccion() : setModoSeleccion(true)
+                        }
+                        className="border px-2.5 py-1.5 text-xs font-medium"
+                      >
+                        {modoSeleccion ? 'Cancelar' : 'Seleccionar'}
+                      </Button>
+                    </>
                   )}
                 </div>
               </div>
-              {modoEdicionLista && (
-                <p className="rounded-lg bg-primary/10 px-3 py-2 text-xs text-primary-ink">
-                  Asigna el sexo de cada alumno con un clic. Los datos faltantes se marcan junto al nombre.
-                </p>
+
+              {!modoSeleccion && !editandoLista && resumen.incompletos > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning-foreground">
+                  <span>
+                    {resumen.incompletos === 1
+                      ? '1 alumno tiene datos faltantes.'
+                      : `${resumen.incompletos} alumnos tienen datos faltantes.`}
+                  </span>
+                  <Button variant="link"
+                    type="button"
+                    onClick={() => abrirEdicion('faltantes')}
+                    className="h-auto min-h-0 px-0 text-xs font-semibold"
+                  >
+                    Completar ahora
+                  </Button>
+                </div>
               )}
 
+              {editandoLista ? (
+                <EditarListaAlumnos
+                  grupoId={grupo.id}
+                  alumnos={alumnos}
+                  filtroInicial={filtroEdicion}
+                  onActualizado={actualizarAlumno}
+                  onEditarCompleto={setAlumnoEditar}
+                />
+              ) : (
               <ul className="max-h-80 divide-y divide-border overflow-y-auto rounded-xl border border-border">
                 {alumnos.map((alumno) => {
                   const datosIncompletos = !alumno.numeroControl
@@ -776,32 +834,29 @@ function ModalDetalleGrupo({ grupo, onClose }) {
                           </p>
                         </div>
                       </div>
-                      {modoEdicionLista ? (
-                        <SexoToggle grupoId={grupo.id} alumno={alumno} onGuardado={cargarDetalle} />
-                      ) : (
-                        !modoSeleccion && (
-                          <div className="flex shrink-0 gap-2">
-                            <Button variant="outline"
-                              type="button"
-                              onClick={() => setAlumnoEditar(alumno)}
-                              className="border px-2.5 py-1.5 text-xs font-medium"
-                            >
-                              {datosIncompletos ? 'Completar datos' : 'Editar'}
-                            </Button>
-                            <Button variant="destructive"
-                              type="button"
-                              onClick={() => quitarAlumno(alumno)}
-                              className="border px-2.5 py-1.5 text-xs font-medium"
-                            >
-                              Quitar
-                            </Button>
-                          </div>
-                        )
+                      {!modoSeleccion && (
+                        <div className="flex shrink-0 gap-2">
+                          <Button variant="outline"
+                            type="button"
+                            onClick={() => setAlumnoEditar(alumno)}
+                            className="border px-2.5 py-1.5 text-xs font-medium"
+                          >
+                            {datosIncompletos ? 'Completar datos' : 'Editar'}
+                          </Button>
+                          <Button variant="destructive"
+                            type="button"
+                            onClick={() => quitarAlumno(alumno)}
+                            className="border px-2.5 py-1.5 text-xs font-medium"
+                          >
+                            Quitar
+                          </Button>
+                        </div>
                       )}
                     </li>
                   )
                 })}
               </ul>
+              )}
 
               {modoSeleccion && (
                 <Button variant="destructive"
@@ -836,55 +891,6 @@ function ModalDetalleGrupo({ grupo, onClose }) {
   )
 }
 
-/** Par de botones para asignar el sexo de un alumno con un solo clic, sin abrir el modal completo. */
-function SexoToggle({ grupoId, alumno, onGuardado }) {
-  const [guardando, setGuardando] = useState(false)
-  const [error, setError] = useState('')
-
-  const asignar = async (sexo) => {
-    if (guardando || alumno.sexo === sexo) return
-    setGuardando(true)
-    setError('')
-    try {
-      await api.patch(`/grupos/mis-grupos/${grupoId}/alumnos/${alumno.id}`, { sexo })
-      await onGuardado?.()
-    } catch (err) {
-      setError(mensajeError(err, 'No se pudo guardar'))
-    } finally {
-      setGuardando(false)
-    }
-  }
-
-  return (
-    <div className="flex shrink-0 flex-col items-end gap-1">
-      <div className="flex overflow-hidden rounded-lg border border-border text-xs font-medium">
-        {[
-          { valor: 'HOMBRE', etiqueta: 'Hombre' },
-          { valor: 'MUJER', etiqueta: 'Mujer' },
-        ].map(({ valor, etiqueta }, indice) => (
-          <button
-            key={valor}
-            type="button"
-            onClick={() => asignar(valor)}
-            disabled={guardando}
-            aria-pressed={alumno.sexo === valor}
-            className={`px-2.5 py-1.5 transition disabled:cursor-not-allowed disabled:opacity-50 ${
-              indice > 0 ? 'border-l border-border' : ''
-            } ${
-              alumno.sexo === valor
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-background text-foreground hover:bg-muted'
-            }`}
-          >
-            {etiqueta}
-          </button>
-        ))}
-      </div>
-      {error && <p role="alert" className="text-[11px] text-destructive-foreground">{error}</p>}
-    </div>
-  )
-}
-
 function ModalEditarAlumnoGrupo({ grupo, alumno, onClose, onGuardado }) {
   const [form, setForm] = useState({
     nombre: alumno.nombre || '',
@@ -892,6 +898,7 @@ function ModalEditarAlumnoGrupo({ grupo, alumno, onClose, onGuardado }) {
     email: alumno.email || '',
     telefono: alumno.telefono || '',
     password: '',
+    sexo: alumno.sexo ?? null,
   })
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState('')
@@ -913,6 +920,11 @@ function ModalEditarAlumnoGrupo({ grupo, alumno, onClose, onGuardado }) {
       if (form.email.trim()) payload.email = form.email.trim()
       if (form.telefono.trim()) payload.telefono = form.telefono.trim()
       if (form.password.trim()) payload.password = form.password.trim()
+      if (form.sexo && form.sexo !== alumno.sexo) payload.sexo = form.sexo
+      if (Object.keys(payload).length === 0) {
+        onClose()
+        return
+      }
 
       await api.patch(`/grupos/mis-grupos/${grupo.id}/alumnos/${alumno.id}`, payload)
       await onGuardado(`Datos de ${nombre || alumno.nombre} actualizados.`)
@@ -931,6 +943,14 @@ function ModalEditarAlumnoGrupo({ grupo, alumno, onClose, onGuardado }) {
             ? 'Corrige los datos del alumno. Deja la contraseña vacía si no quieres cambiarla.'
             : 'Este alumno se dio de alta sólo con su nombre. Agrega lo que tengas a la mano; puedes completar el resto más tarde.'}
         </p>
+        <div>
+          <p className="mb-1 block text-xs font-medium text-foreground">Sexo</p>
+          <SexoSelector
+            value={form.sexo}
+            label={`Sexo de ${alumno.nombre}`}
+            onChange={(sexo) => setForm({ ...form, sexo })}
+          />
+        </div>
         {[
           { campo: 'nombre', etiqueta: 'Nombre completo', tipo: 'text' },
           { campo: 'numeroControl', etiqueta: 'Número de control', tipo: 'text', placeholder: '225Q0103' },

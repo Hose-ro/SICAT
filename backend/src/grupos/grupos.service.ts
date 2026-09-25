@@ -437,6 +437,7 @@ export class GruposService {
             nombre: true,
             numeroControl: true,
             email: true,
+            telefono: true,
             sexo: true,
           },
           orderBy: { nombre: 'asc' },
