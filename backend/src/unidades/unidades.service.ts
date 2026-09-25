@@ -9,6 +9,8 @@ import {
   asegurarAccesoMateria,
   ActorMateria,
 } from '../common/materia-ownership';
+import { EditarFechasUnidadDto } from './dto/editar-fechas-unidad.dto';
+import { resolverFechaHoraLimite } from '../common/zona-horaria.util';
 
 @Injectable()
 export class UnidadesService {
@@ -38,6 +40,58 @@ export class UnidadesService {
     return this.prisma.unidad.update({
       where: { id },
       data: { status: 'ACTIVA', fechaInicio: new Date() },
+    });
+  }
+
+  /**
+   * Deshace un "iniciar" hecho por error: solo aplica a una unidad ACTIVA,
+   * que no tiene todavía fechaFin ni depende de que otra unidad se cierre.
+   */
+  async cancelar(id: number, actor: ActorMateria) {
+    const unidad = await this.prisma.unidad.findUnique({ where: { id } });
+    if (!unidad) throw new NotFoundException('Unidad no encontrada');
+    await asegurarAccesoMateria(this.prisma, actor, unidad.materiaId);
+    if (unidad.status !== 'ACTIVA')
+      throw new BadRequestException('Solo se puede cancelar una unidad activa');
+
+    return this.prisma.unidad.update({
+      where: { id },
+      data: { status: 'PENDIENTE', fechaInicio: null },
+    });
+  }
+
+  async editarFechas(
+    id: number,
+    actor: ActorMateria,
+    dto: EditarFechasUnidadDto,
+  ) {
+    const unidad = await this.prisma.unidad.findUnique({ where: { id } });
+    if (!unidad) throw new NotFoundException('Unidad no encontrada');
+    await asegurarAccesoMateria(this.prisma, actor, unidad.materiaId);
+
+    // El docente escribe la fecha en hora de pared del plantel; en Render el
+    // proceso corre en UTC, así que hay que anclarla a esa zona (ver zona-horaria.util).
+    const fechaInicio =
+      dto.fechaInicio !== undefined
+        ? resolverFechaHoraLimite(dto.fechaInicio)
+        : unidad.fechaInicio;
+    const fechaFin =
+      dto.fechaFin !== undefined
+        ? resolverFechaHoraLimite(dto.fechaFin)
+        : unidad.fechaFin;
+
+    if (fechaInicio && fechaFin && fechaFin < fechaInicio) {
+      throw new BadRequestException(
+        'La fecha de fin no puede ser anterior a la de inicio',
+      );
+    }
+
+    return this.prisma.unidad.update({
+      where: { id },
+      data: {
+        ...(dto.fechaInicio !== undefined ? { fechaInicio } : {}),
+        ...(dto.fechaFin !== undefined ? { fechaFin } : {}),
+      },
     });
   }
 

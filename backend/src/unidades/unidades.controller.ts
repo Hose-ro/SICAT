@@ -1,4 +1,5 @@
 import {
+  Body,
   Controller,
   Get,
   Patch,
@@ -12,6 +13,7 @@ import { UnidadesService } from './unidades.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+import { EditarFechasUnidadDto } from './dto/editar-fechas-unidad.dto';
 
 @ApiTags('Unidades')
 @ApiBearerAuth()
@@ -32,6 +34,24 @@ export class UnidadesController {
   @ApiOperation({ summary: 'Finalizar unidad' })
   finalizar(@Param('id', ParseIntPipe) id: number, @Req() req) {
     return this.unidades.finalizar(id, req.user);
+  }
+
+  @Patch(':id/cancelar')
+  @Roles('DOCENTE', 'ADMIN')
+  @ApiOperation({ summary: 'Cancelar una unidad activa (vuelve a pendiente)' })
+  cancelar(@Param('id', ParseIntPipe) id: number, @Req() req) {
+    return this.unidades.cancelar(id, req.user);
+  }
+
+  @Patch(':id/fechas')
+  @Roles('DOCENTE', 'ADMIN')
+  @ApiOperation({ summary: 'Editar fecha de inicio y/o fin de una unidad' })
+  editarFechas(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: EditarFechasUnidadDto,
+    @Req() req,
+  ) {
+    return this.unidades.editarFechas(id, req.user, dto);
   }
 
   @Get('materia/:materiaId')

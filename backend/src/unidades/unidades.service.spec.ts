@@ -1,4 +1,4 @@
-import { ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { UnidadesService } from './unidades.service';
 
@@ -113,6 +113,105 @@ describe('UnidadesService (IDOR)', () => {
       ).resolves.toBeDefined();
 
       expect(unidadUpdate).toHaveBeenCalled();
+    });
+  });
+
+  describe('cancelar', () => {
+    beforeEach(() => {
+      unidadFindUnique.mockResolvedValue({
+        id: unidadId,
+        materiaId,
+        status: 'ACTIVA',
+      });
+    });
+
+    it('rechaza a un DOCENTE que no imparte la materia de la unidad', async () => {
+      mockMateriaCount(true, false);
+
+      await expect(
+        service.cancelar(unidadId, { id: otroDocenteId, rol: 'DOCENTE' }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+
+      expect(unidadUpdate).not.toHaveBeenCalled();
+    });
+
+    it('permite a un DOCENTE que sí imparte la materia y la regresa a PENDIENTE', async () => {
+      mockMateriaCount(true, true);
+
+      await service.cancelar(unidadId, { id: docenteId, rol: 'DOCENTE' });
+
+      expect(unidadUpdate).toHaveBeenCalledWith({
+        where: { id: unidadId },
+        data: { status: 'PENDIENTE', fechaInicio: null },
+      });
+    });
+
+    it('rechaza cancelar una unidad que no está ACTIVA', async () => {
+      unidadFindUnique.mockResolvedValue({
+        id: unidadId,
+        materiaId,
+        status: 'PENDIENTE',
+      });
+
+      await expect(
+        service.cancelar(unidadId, { id: 1, rol: 'ADMIN' }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(unidadUpdate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('editarFechas', () => {
+    beforeEach(() => {
+      unidadFindUnique.mockResolvedValue({
+        id: unidadId,
+        materiaId,
+        status: 'FINALIZADA',
+        fechaInicio: new Date('2026-08-10T00:00:00.000Z'),
+        fechaFin: new Date('2026-09-10T00:00:00.000Z'),
+      });
+    });
+
+    it('rechaza a un DOCENTE que no imparte la materia de la unidad', async () => {
+      mockMateriaCount(true, false);
+
+      await expect(
+        service.editarFechas(
+          unidadId,
+          { id: otroDocenteId, rol: 'DOCENTE' },
+          { fechaInicio: '2026-08-01T00:00' },
+        ),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+
+      expect(unidadUpdate).not.toHaveBeenCalled();
+    });
+
+    it('permite a un DOCENTE que sí imparte la materia actualizar solo el campo enviado', async () => {
+      mockMateriaCount(true, true);
+
+      await service.editarFechas(
+        unidadId,
+        { id: docenteId, rol: 'DOCENTE' },
+        { fechaInicio: '2026-08-01T00:00' },
+      );
+
+      // Medianoche en Mexico_City (UTC-6 fijo) cae a las 06:00 UTC.
+      expect(unidadUpdate).toHaveBeenCalledWith({
+        where: { id: unidadId },
+        data: { fechaInicio: new Date('2026-08-01T06:00:00.000Z') },
+      });
+    });
+
+    it('rechaza si la fecha de fin queda antes que la de inicio', async () => {
+      await expect(
+        service.editarFechas(
+          unidadId,
+          { id: 1, rol: 'ADMIN' },
+          { fechaFin: '2026-01-01T00:00' },
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(unidadUpdate).not.toHaveBeenCalled();
     });
   });
 
