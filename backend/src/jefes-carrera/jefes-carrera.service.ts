@@ -6,10 +6,12 @@ import {
 import {
   EstadoAlertaCarrera,
   EstadoAsistencia,
+  Sexo,
   TipoAlertaCarrera,
 } from '@prisma/client';
 import * as ExcelJS from 'exceljs';
 import PDFDocument from 'pdfkit';
+import { letraSexo } from '../common/sexo';
 import { PrismaService } from '../prisma.service';
 import { PeriodosService } from '../periodos/periodos.service';
 import {
@@ -41,6 +43,7 @@ type ReporteExportacion = {
   alumnosRiesgo: Array<{
     nombre: string;
     numeroControl: string | null;
+    sexo: Sexo | null;
     total: number;
     riesgo: number;
     porcentajeRiesgo: number;
@@ -853,6 +856,7 @@ export class JefesCarreraService {
         id: number;
         nombre: string;
         numeroControl: string | null;
+        sexo: Sexo | null;
         carreraId: number;
         total: number;
         riesgo: number;
@@ -926,6 +930,7 @@ export class JefesCarreraService {
     riesgo.addRow([
       'Alumno',
       'Control',
+      'Sexo',
       'Registros',
       'Incidencias',
       'Porcentaje',
@@ -934,6 +939,7 @@ export class JefesCarreraService {
       riesgo.addRow([
         item.nombre,
         item.numeroControl,
+        letraSexo(item.sexo),
         item.total,
         item.riesgo,
         item.porcentajeRiesgo,
@@ -988,7 +994,7 @@ export class JefesCarreraService {
         doc
           .fontSize(9)
           .text(
-            `${item.nombre}: ${item.porcentajeRiesgo}% de faltas o retardos`,
+            `${item.nombre}${letraSexo(item.sexo) ? ` (${letraSexo(item.sexo)})` : ''}: ${item.porcentajeRiesgo}% de faltas o retardos`,
           );
       });
       doc.end();

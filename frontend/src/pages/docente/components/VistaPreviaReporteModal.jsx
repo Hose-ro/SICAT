@@ -149,6 +149,7 @@ export default function VistaPreviaReporteModal({ materiaId, opciones = {}, desc
                   <tr>
                     <th scope="col" className="sticky left-0 z-10 bg-background px-3 py-2 text-left">Alumno</th>
                     <th scope="col" className="px-3 py-2 text-left">Núm. control</th>
+                    <th scope="col" className="px-2 py-2 text-center">Sexo</th>
                     {sesiones.map((sesion) => (
                       <th key={sesion.id} scope="col" className={`px-2 py-2 text-center whitespace-nowrap ${sesion.suspensionMotivo ? 'bg-destructive/10 text-destructive-foreground' : ''}`}>
                         <span title={sesion.suspensionMotivo ? `Sin clases: ${sesion.suspensionMotivo}` : formatFechaLarga(sesion.fecha)}>{formatFechaCorta(sesion.fecha)}{sesion.suspensionMotivo ? ' · SC' : ''}</span>
@@ -165,12 +166,12 @@ export default function VistaPreviaReporteModal({ materiaId, opciones = {}, desc
                   {filas.map(({ alumno, estados, conteo, porcentaje }) => (
                     <tr key={alumno.id}>
                       <th scope="row" className="sticky left-0 z-10 bg-card px-3 py-2 text-left font-medium text-foreground whitespace-nowrap">
-                        <span className="flex items-center gap-2">
-                          <SexoBadge sexo={alumno.sexo} />
-                          {alumno.nombre}
-                        </span>
+                        {alumno.nombre}
                       </th>
                       <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">{alumno.numeroControl ?? '—'}</td>
+                      <td className="px-2 py-2 text-center">
+                        {alumno.sexo ? <SexoBadge sexo={alumno.sexo} /> : <span className="text-muted-foreground" aria-label="Sin registrar">—</span>}
+                      </td>
                       {estados.map((estado, index) => (
                         <td key={sesiones[index].id} className={`px-2 py-2 text-center ${sesiones[index].suspensionMotivo ? 'bg-destructive/5' : ''}`}>
                           {sesiones[index].suspensionMotivo ? (

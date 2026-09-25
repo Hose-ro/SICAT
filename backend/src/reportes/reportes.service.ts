@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import * as ExcelJS from 'exceljs';
 import PDFDocument from 'pdfkit';
+import { letraSexo } from '../common/sexo';
 
 @Injectable()
 export class ReportesService {
@@ -40,7 +41,11 @@ export class ReportesService {
     const headerRow = sheet.addRow([
       'Alumno',
       'Num. Control',
-      ...sesiones.map((s) => `${new Date(s.fecha).toLocaleDateString('es-MX')}${s.suspensionMotivo ? ' · Sin clases' : ''}`),
+      'Sexo',
+      ...sesiones.map(
+        (s) =>
+          `${new Date(s.fecha).toLocaleDateString('es-MX')}${s.suspensionMotivo ? ' · Sin clases' : ''}`,
+      ),
       'A',
       'F',
       'R',
@@ -55,8 +60,12 @@ export class ReportesService {
     };
     sesiones.forEach((sesion, index) => {
       if (!sesion.suspensionMotivo) return;
-      const cell = headerRow.getCell(index + 3);
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFCE8E8' } };
+      const cell = headerRow.getCell(index + 4);
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFFCE8E8' },
+      };
       cell.font = { bold: true, color: { argb: 'FFB91C1C' } };
       cell.note = `Sin clases: ${sesion.suspensionMotivo}`;
     });
@@ -80,7 +89,9 @@ export class ReportesService {
         r = 0,
         j = 0;
       const estados = sesiones.map((s) => {
-        const estado = s.suspensionMotivo ? '' : mapaAsist.get(`${alumno.id}_${s.id}`) ?? '';
+        const estado = s.suspensionMotivo
+          ? ''
+          : (mapaAsist.get(`${alumno.id}_${s.id}`) ?? '');
         if (estado === 'ASISTENCIA') a++;
         else if (estado === 'FALTA') f++;
         else if (estado === 'RETARDO') r++;
@@ -93,6 +104,7 @@ export class ReportesService {
       const row = sheet.addRow([
         alumno.nombre,
         alumno.numeroControl ?? '',
+        letraSexo(alumno.sexo),
         ...estados,
         a,
         f,
@@ -103,10 +115,16 @@ export class ReportesService {
 
       // Color cells by attendance state
       estados.forEach((estado, idx) => {
-        const cell = row.getCell(3 + idx);
-        cell.value = sesiones[idx].suspensionMotivo ? 'SC' : estado.charAt(0) || '';
+        const cell = row.getCell(4 + idx);
+        cell.value = sesiones[idx].suspensionMotivo
+          ? 'SC'
+          : estado.charAt(0) || '';
         if (sesiones[idx].suspensionMotivo) {
-          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFCE8E8' } };
+          cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFFCE8E8' },
+          };
           return;
         }
         if (estadoColores[estado]) {
@@ -120,22 +138,30 @@ export class ReportesService {
     }
 
     // Totals row
-    const totalRow = sheet.addRow(['TOTALES', '', ...sesiones.map(() => '')]);
+    const totalRow = sheet.addRow([
+      'TOTALES',
+      '',
+      '',
+      ...sesiones.map(() => ''),
+    ]);
     totalRow.font = { bold: true };
 
     const suspendidas = sesiones.filter((sesion) => sesion.suspensionMotivo);
     if (suspendidas.length) {
       sheet.addRow([]);
       sheet.addRow(['Días sin clases', 'Motivo']);
-      suspendidas.forEach((sesion) => sheet.addRow([
-        new Date(sesion.fecha).toLocaleDateString('es-MX'),
-        sesion.suspensionMotivo,
-      ]));
+      suspendidas.forEach((sesion) =>
+        sheet.addRow([
+          new Date(sesion.fecha).toLocaleDateString('es-MX'),
+          sesion.suspensionMotivo,
+        ]),
+      );
     }
 
     sheet.columns.forEach((col) => {
       col.width = 14;
     });
+    sheet.getColumn(3).width = 6;
 
     const buffer = await workbook.xlsx.writeBuffer();
     return Buffer.from(buffer);
@@ -191,7 +217,9 @@ export class ReportesService {
       if (suspendidas.length) {
         doc.fillColor('#B91C1C').fontSize(8);
         for (const sesion of suspendidas) {
-          doc.text(`Sin clases ${new Date(sesion.fecha).toLocaleDateString('es-MX')}: ${sesion.suspensionMotivo}`);
+          doc.text(
+            `Sin clases ${new Date(sesion.fecha).toLocaleDateString('es-MX')}: ${sesion.suspensionMotivo}`,
+          );
         }
         doc.fillColor('#000000').moveDown(0.5);
       }
@@ -202,6 +230,7 @@ export class ReportesService {
       }
 
       const colWidth = 45;
+      const sexoWidth = 28;
       const rowHeight = 18;
       let x = 30;
       let y = doc.y;
@@ -213,12 +242,18 @@ export class ReportesService {
         .stroke()
         .text('Alumno', x + 2, y + 4, { width: 126 });
       x += 130;
+      doc
+        .rect(x, y, sexoWidth, rowHeight)
+        .stroke()
+        .text('Sexo', x + 2, y + 4, { width: sexoWidth - 4, align: 'center' });
+      x += sexoWidth;
       sesiones.slice(0, 10).forEach((s) => {
         const label = new Date(s.fecha).toLocaleDateString('es-MX', {
           month: '2-digit',
           day: '2-digit',
         });
-        doc.fillColor(s.suspensionMotivo ? '#B91C1C' : '#000000')
+        doc
+          .fillColor(s.suspensionMotivo ? '#B91C1C' : '#000000')
           .rect(x, y, colWidth, rowHeight)
           .stroke()
           .text(label, x + 2, y + 4, { width: colWidth - 4 });
@@ -240,8 +275,18 @@ export class ReportesService {
           .stroke()
           .text(alumno.nombre.substring(0, 22), x + 2, y + 4, { width: 126 });
         x += 130;
+        doc
+          .rect(x, y, sexoWidth, rowHeight)
+          .stroke()
+          .text(letraSexo(alumno.sexo) || '-', x + 2, y + 4, {
+            width: sexoWidth - 4,
+            align: 'center',
+          });
+        x += sexoWidth;
         sesiones.slice(0, 10).forEach((s) => {
-          const estado = s.suspensionMotivo ? 'SC' : mapaAsist.get(`${alumno.id}_${s.id}`) ?? '-';
+          const estado = s.suspensionMotivo
+            ? 'SC'
+            : (mapaAsist.get(`${alumno.id}_${s.id}`) ?? '-');
           const letra =
             { ASISTENCIA: 'A', FALTA: 'F', RETARDO: 'R', JUSTIFICADA: 'J' }[
               estado
@@ -278,6 +323,7 @@ export class ReportesService {
     const headerRow = sheet.addRow([
       'Alumno',
       'Num. Control',
+      'Sexo',
       ...tareas.map((t) => t.titulo),
     ]);
     headerRow.font = { bold: true };
@@ -303,7 +349,12 @@ export class ReportesService {
           ? entrega.calificacion
           : entrega.estadoRevision;
       });
-      sheet.addRow([alumno.nombre, alumno.numeroControl ?? '', ...celdas]);
+      sheet.addRow([
+        alumno.nombre,
+        alumno.numeroControl ?? '',
+        letraSexo(alumno.sexo),
+        ...celdas,
+      ]);
     }
 
     sheet.columns.forEach((col) => {
@@ -386,6 +437,7 @@ export class ReportesService {
     const studentHeader = alumnos.addRow([
       'Alumno',
       'No. control',
+      'Sexo',
       'Pendientes',
       'Entregadas',
       'Tardías',
@@ -401,6 +453,7 @@ export class ReportesService {
       alumnos.addRow([
         student.nombre,
         student.numeroControl ?? '',
+        letraSexo(student.sexo),
         student.pendientes ?? 0,
         student.entregadas ?? 0,
         student.tardias ?? 0,
@@ -414,6 +467,7 @@ export class ReportesService {
     const taskColumns = [
       'Alumno',
       'No. control',
+      'Sexo',
       ...(reporte.tasks ?? []).map((task) => task.titulo),
     ];
     const matrixHeader = matriz.addRow(taskColumns);
@@ -433,7 +487,12 @@ export class ReportesService {
         if (typeof status.calificacion === 'number') return status.calificacion;
         return status.estado;
       });
-      matriz.addRow([student.nombre, student.numeroControl ?? '', ...row]);
+      matriz.addRow([
+        student.nombre,
+        student.numeroControl ?? '',
+        letraSexo(student.sexo),
+        ...row,
+      ]);
     }
     matriz.columns.forEach((column) => {
       column.width = 18;
@@ -507,7 +566,7 @@ export class ReportesService {
           .font('Helvetica')
           .fontSize(9)
           .text(
-            `Control ${student.numeroControl ?? '-'} | Pendientes ${student.pendientes ?? 0} | Tardías ${student.tardias ?? 0} | Promedio ${student.promedio ?? '-'}`,
+            `Control ${student.numeroControl ?? '-'} | Sexo ${letraSexo(student.sexo) || '-'} | Pendientes ${student.pendientes ?? 0} | Tardías ${student.tardias ?? 0} | Promedio ${student.promedio ?? '-'}`,
           );
         doc.moveDown(0.35);
       }
@@ -525,6 +584,7 @@ export class ReportesService {
     const capturaHeader = captura.addRow([
       'No. control',
       'Alumno',
+      'Sexo',
       'Calificacion',
       'Unidad',
       'Estado',
@@ -540,6 +600,7 @@ export class ReportesService {
       captura.addRow([
         row.alumno?.numeroControl ?? '',
         row.alumno?.nombre ?? '',
+        letraSexo(row.alumno?.sexo),
         this.valorCalificacion(this.obtenerCalificacionFinal(row)),
         row.unidad?.nombre ?? '',
         this.estadoCalificacionLabel(row.estado),
@@ -549,13 +610,14 @@ export class ReportesService {
     captura.columns = [
       { width: 18 },
       { width: 34 },
+      { width: 8 },
       { width: 18 },
       { width: 16 },
       { width: 20 },
     ];
-    captura.autoFilter = 'A1:E1';
+    captura.autoFilter = 'A1:F1';
 
-    respaldo.mergeCells('A1:T1');
+    respaldo.mergeCells('A1:U1');
     respaldo.getCell('A1').value = 'Calificaciones para captura';
     respaldo.getCell('A1').font = { bold: true, size: 16 };
     respaldo.addRow([
@@ -580,6 +642,7 @@ export class ReportesService {
     const respaldoHeader = respaldo.addRow([
       'No. control',
       'Alumno',
+      'Sexo',
       'Grupo',
       'Unidad',
       'Calificacion final',
@@ -610,6 +673,7 @@ export class ReportesService {
       respaldo.addRow([
         row.alumno?.numeroControl ?? '',
         row.alumno?.nombre ?? '',
+        letraSexo(row.alumno?.sexo),
         row.grupo?.nombre ?? '',
         row.unidad?.nombre ?? '',
         this.valorCalificacion(this.obtenerCalificacionFinal(row)),
@@ -635,8 +699,9 @@ export class ReportesService {
       column.width = 18;
     });
     respaldo.getColumn(2).width = 34;
-    respaldo.getColumn(20).width = 42;
-    respaldo.autoFilter = 'A8:T8';
+    respaldo.getColumn(3).width = 8;
+    respaldo.getColumn(21).width = 42;
+    respaldo.autoFilter = 'A8:U8';
 
     const buffer = await workbook.xlsx.writeBuffer();
     return Buffer.from(buffer);
@@ -644,10 +709,11 @@ export class ReportesService {
 
   async generarCsvCalificacionesCaptura(reporte: any): Promise<Buffer> {
     const rows = [
-      ['No. control', 'Alumno', 'Calificacion', 'Unidad', 'Estado'],
+      ['No. control', 'Alumno', 'Sexo', 'Calificacion', 'Unidad', 'Estado'],
       ...(reporte.rows ?? []).map((row) => [
         row.alumno?.numeroControl ?? '',
         row.alumno?.nombre ?? '',
+        letraSexo(row.alumno?.sexo),
         this.valorCalificacion(this.obtenerCalificacionFinal(row)),
         row.unidad?.nombre ?? '',
         this.estadoCalificacionLabel(row.estado),
