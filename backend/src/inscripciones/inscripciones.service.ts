@@ -215,6 +215,7 @@ export class InscripcionesService {
         nombre: true,
         numeroControl: true,
         semestre: true,
+        sexo: true,
         grupoId: true,
         grupo: { select: { id: true, nombre: true } },
       },
@@ -581,6 +582,7 @@ export class InscripcionesService {
         numeroControl,
         email,
         telefono,
+        sexo: dto.sexo,
         password,
         tokenVersion: password ? { increment: 1 } : undefined,
       },
@@ -590,6 +592,7 @@ export class InscripcionesService {
         numeroControl: true,
         email: true,
         telefono: true,
+        sexo: true,
       },
     });
   }

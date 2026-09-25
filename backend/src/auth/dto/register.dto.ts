@@ -17,7 +17,7 @@ import {
   MinLength,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Rol } from '@prisma/client';
+import { Rol, Sexo } from '@prisma/client';
 import {
   normalizeControlNumber,
   normalizeEmail,
@@ -118,4 +118,9 @@ export class RegisterDto {
   @Min(1)
   @Max(12)
   semestre?: number;
+
+  @ApiPropertyOptional({ enum: Sexo })
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
+  @IsEnum(Sexo)
+  sexo?: Sexo;
 }

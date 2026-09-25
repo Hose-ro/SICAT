@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import SexoBadge from '../../../components/SexoBadge'
 import { useInscripcionStore } from '../../../store/inscripcionStore'
 
 export default function TabAlumnosMateria({ materiaId }) {
@@ -24,7 +25,12 @@ export default function TabAlumnosMateria({ materiaId }) {
           <tbody>
             {alumnosMateria.map((i) => (
               <tr key={i.id} className="hover:bg-background">
-                <td className="border px-3 py-2 font-medium">{i.alumno?.nombre}</td>
+                <td className="border px-3 py-2 font-medium">
+                  <span className="flex items-center gap-2">
+                    <SexoBadge sexo={i.alumno?.sexo} />
+                    {i.alumno?.nombre}
+                  </span>
+                </td>
                 <td className="border px-3 py-2 text-muted-foreground">{i.alumno?.numeroControl || '-'}</td>
                 <td className="border px-3 py-2 text-muted-foreground">{i.alumno?.email || '-'}</td>
               </tr>

@@ -268,6 +268,7 @@ export class MateriasService {
                 email: true,
                 numeroControl: true,
                 telefono: true,
+                sexo: true,
               },
             },
           },
@@ -434,8 +435,7 @@ export class MateriasService {
 
     if (sobrantes.length) {
       const resumen = await this.contarDatosDeUnidades(id, sobrantes);
-      const total =
-        resumen.calificaciones + resumen.tareas + resumen.sesiones;
+      const total = resumen.calificaciones + resumen.tareas + resumen.sesiones;
       if (total > 0 && !dto.forzar) {
         throw new ConflictException({
           requiereConfirmacion: true,
@@ -538,7 +538,9 @@ export class MateriasService {
     await tx.claseSesion.deleteMany({ where: porUnidad });
     await tx.entregaTarea.deleteMany({ where: { tarea: porUnidad } });
     await tx.tarea.deleteMany({ where: porUnidad });
-    await tx.calificacionUnidad.deleteMany({ where: { unidadId: { in: ids } } });
+    await tx.calificacionUnidad.deleteMany({
+      where: { unidadId: { in: ids } },
+    });
     await tx.unidad.deleteMany({ where: { id: { in: ids } } });
   }
 

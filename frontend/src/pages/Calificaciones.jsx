@@ -20,6 +20,7 @@ import {
   X,
 } from 'lucide-react'
 import api from '../api/axios'
+import SexoBadge from '../components/SexoBadge'
 import useUnsavedChangesGuard from '@/hooks/useUnsavedChangesGuard'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { confirmAction, notify } from '@/lib/feedback'
@@ -247,7 +248,12 @@ function CalificacionesTable({ rows, showMateria = false }) {
             {rows.map((row) => (
               <tr key={getRowKey(row)}>
                 <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">{row.alumno?.numeroControl || '-'}</td>
-                <td className="min-w-[14rem] px-4 py-3 font-medium text-foreground">{row.alumno?.nombre}</td>
+                <td className="min-w-[14rem] px-4 py-3 font-medium text-foreground">
+                  <span className="flex items-center gap-2">
+                    <SexoBadge sexo={row.alumno?.sexo} />
+                    {row.alumno?.nombre}
+                  </span>
+                </td>
                 {showMateria && (
                   <td className="min-w-[14rem] px-4 py-3">
                     <p className="font-medium text-foreground">{row.materia?.nombre}</p>
@@ -472,7 +478,12 @@ function CapturaTable({ rows, drafts, showGrupo, showUnidad, onDraftChange }) {
               return (
                 <tr key={rowKey} className={drafts[rowKey] ? 'bg-warning/5' : undefined}>
                   <td className="whitespace-nowrap px-4 py-3 align-top text-muted-foreground">{row.alumno?.numeroControl || '-'}</td>
-                  <td className="min-w-[14rem] px-4 py-3 align-top font-medium text-foreground">{row.alumno?.nombre}</td>
+                  <td className="min-w-[14rem] px-4 py-3 align-top font-medium text-foreground">
+                    <span className="flex items-center gap-2">
+                      <SexoBadge sexo={row.alumno?.sexo} />
+                      {row.alumno?.nombre}
+                    </span>
+                  </td>
                   {showGrupo && <td className="whitespace-nowrap px-4 py-3 align-top">{row.grupo?.nombre || '-'}</td>}
                   {showUnidad && <td className="whitespace-nowrap px-4 py-3 align-top">{row.unidad?.nombre || '-'}</td>}
                   <td className="min-w-[11rem] px-4 py-3 align-top">
@@ -513,7 +524,10 @@ function CapturaCards({ rows, drafts, showGrupo, showUnidad, onDraftChange }) {
           <li key={rowKey} className={`rounded-3xl border p-4 ${drafts[rowKey] ? 'border-warning/40 bg-warning/5' : 'border-border bg-card'}`}>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="font-medium text-foreground">{row.alumno?.nombre}</p>
+                <p className="flex items-center gap-2 font-medium text-foreground">
+                  <SexoBadge sexo={row.alumno?.sexo} />
+                  {row.alumno?.nombre}
+                </p>
                 {detalle && <p className="text-xs text-muted-foreground">{detalle}</p>}
               </div>
               <StatusBadge estado={row.estado} />
@@ -551,7 +565,10 @@ function MatrizTable({ alumnos, unidades, drafts, showGrupo, onDraftChange }) {
               return (
                 <tr key={item.alumno?.id}>
                   <th scope="row" className="sticky left-0 z-[1] min-w-[12rem] bg-card px-4 py-3 text-left align-top font-medium">
-                    {item.alumno?.nombre}
+                    <span className="flex items-center gap-2">
+                      <SexoBadge sexo={item.alumno?.sexo} />
+                      {item.alumno?.nombre}
+                    </span>
                     <p className="text-xs font-normal text-muted-foreground">{item.alumno?.numeroControl}</p>
                   </th>
                   {showGrupo && <td className="whitespace-nowrap px-4 py-3 align-top">{item.grupo?.nombre || '-'}</td>}
@@ -588,7 +605,10 @@ function MatrizCards({ alumnos, unidades, drafts, showGrupo, onDraftChange }) {
           <li key={item.alumno?.id} className={`rounded-3xl border p-4 ${dirty ? 'border-warning/40 bg-warning/5' : 'border-border bg-card'}`}>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="font-medium text-foreground">{item.alumno?.nombre}</p>
+                <p className="flex items-center gap-2 font-medium text-foreground">
+                  <SexoBadge sexo={item.alumno?.sexo} />
+                  {item.alumno?.nombre}
+                </p>
                 {detalle && <p className="text-xs text-muted-foreground">{detalle}</p>}
               </div>
               <p className="text-right text-xs text-muted-foreground">

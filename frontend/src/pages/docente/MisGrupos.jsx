@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import api from '../../api/axios'
 import Modal from '../../components/Modal'
+import SexoBadge from '../../components/SexoBadge'
 import AgregarAlumnosGrupoModal from './components/AgregarAlumnosGrupoModal'
 
 function textoDeGrupo(grupo) {
@@ -561,6 +562,7 @@ function ModalDetalleGrupo({ grupo, onClose }) {
   const [aviso, setAviso] = useState('')
   const [alumnoEditar, setAlumnoEditar] = useState(null)
   const [modoSeleccion, setModoSeleccion] = useState(false)
+  const [modoEdicionLista, setModoEdicionLista] = useState(false)
   const [seleccion, setSeleccion] = useState([])
   const [quitando, setQuitando] = useState(false)
 
@@ -708,17 +710,33 @@ function ModalDetalleGrupo({ grupo, onClose }) {
                       {todosSeleccionados ? 'Quitar selección' : 'Seleccionar todos'}
                     </Button>
                   )}
-                  <Button variant="outline"
-                    type="button"
-                    onClick={() =>
-                      modoSeleccion ? salirDeSeleccion() : setModoSeleccion(true)
-                    }
-                    className="border px-2.5 py-1.5 text-xs font-medium"
-                  >
-                    {modoSeleccion ? 'Cancelar' : 'Seleccionar'}
-                  </Button>
+                  {!modoSeleccion && (
+                    <Button variant="outline"
+                      type="button"
+                      onClick={() => setModoEdicionLista((actual) => !actual)}
+                      className="border px-2.5 py-1.5 text-xs font-medium"
+                    >
+                      {modoEdicionLista ? 'Cerrar edición' : 'Editar lista'}
+                    </Button>
+                  )}
+                  {!modoEdicionLista && (
+                    <Button variant="outline"
+                      type="button"
+                      onClick={() =>
+                        modoSeleccion ? salirDeSeleccion() : setModoSeleccion(true)
+                      }
+                      className="border px-2.5 py-1.5 text-xs font-medium"
+                    >
+                      {modoSeleccion ? 'Cancelar' : 'Seleccionar'}
+                    </Button>
+                  )}
                 </div>
               </div>
+              {modoEdicionLista && (
+                <p className="rounded-lg bg-primary/10 px-3 py-2 text-xs text-primary-ink">
+                  Asigna el sexo de cada alumno con un clic. Los datos faltantes se marcan junto al nombre.
+                </p>
+              )}
 
               <ul className="max-h-80 divide-y divide-border overflow-y-auto rounded-xl border border-border">
                 {alumnos.map((alumno) => {
@@ -743,10 +761,11 @@ function ModalDetalleGrupo({ grupo, onClose }) {
                           />
                         )}
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-medium text-foreground">
-                            {alumno.nombre}
+                          <p className="flex items-center gap-2 truncate text-sm font-medium text-foreground">
+                            <SexoBadge sexo={alumno.sexo} />
+                            <span className="truncate">{alumno.nombre}</span>
                             {datosIncompletos && (
-                              <span className="ml-2 inline-flex items-center rounded-full bg-warning/15 px-2 py-0.5 text-[11px] font-medium text-warning-foreground">
+                              <span className="inline-flex shrink-0 items-center rounded-full bg-warning/15 px-2 py-0.5 text-[11px] font-medium text-warning-foreground">
                                 Datos incompletos
                               </span>
                             )}
@@ -757,23 +776,27 @@ function ModalDetalleGrupo({ grupo, onClose }) {
                           </p>
                         </div>
                       </div>
-                      {!modoSeleccion && (
-                        <div className="flex shrink-0 gap-2">
-                          <Button variant="outline"
-                            type="button"
-                            onClick={() => setAlumnoEditar(alumno)}
-                            className="border px-2.5 py-1.5 text-xs font-medium"
-                          >
-                            {datosIncompletos ? 'Completar datos' : 'Editar'}
-                          </Button>
-                          <Button variant="destructive"
-                            type="button"
-                            onClick={() => quitarAlumno(alumno)}
-                            className="border px-2.5 py-1.5 text-xs font-medium"
-                          >
-                            Quitar
-                          </Button>
-                        </div>
+                      {modoEdicionLista ? (
+                        <SexoToggle grupoId={grupo.id} alumno={alumno} onGuardado={cargarDetalle} />
+                      ) : (
+                        !modoSeleccion && (
+                          <div className="flex shrink-0 gap-2">
+                            <Button variant="outline"
+                              type="button"
+                              onClick={() => setAlumnoEditar(alumno)}
+                              className="border px-2.5 py-1.5 text-xs font-medium"
+                            >
+                              {datosIncompletos ? 'Completar datos' : 'Editar'}
+                            </Button>
+                            <Button variant="destructive"
+                              type="button"
+                              onClick={() => quitarAlumno(alumno)}
+                              className="border px-2.5 py-1.5 text-xs font-medium"
+                            >
+                              Quitar
+                            </Button>
+                          </div>
+                        )
                       )}
                     </li>
                   )
@@ -810,6 +833,55 @@ function ModalDetalleGrupo({ grupo, onClose }) {
         />
       )}
     </Modal>
+  )
+}
+
+/** Par de botones para asignar el sexo de un alumno con un solo clic, sin abrir el modal completo. */
+function SexoToggle({ grupoId, alumno, onGuardado }) {
+  const [guardando, setGuardando] = useState(false)
+  const [error, setError] = useState('')
+
+  const asignar = async (sexo) => {
+    if (guardando || alumno.sexo === sexo) return
+    setGuardando(true)
+    setError('')
+    try {
+      await api.patch(`/grupos/mis-grupos/${grupoId}/alumnos/${alumno.id}`, { sexo })
+      await onGuardado?.()
+    } catch (err) {
+      setError(mensajeError(err, 'No se pudo guardar'))
+    } finally {
+      setGuardando(false)
+    }
+  }
+
+  return (
+    <div className="flex shrink-0 flex-col items-end gap-1">
+      <div className="flex overflow-hidden rounded-lg border border-border text-xs font-medium">
+        {[
+          { valor: 'HOMBRE', etiqueta: 'Hombre' },
+          { valor: 'MUJER', etiqueta: 'Mujer' },
+        ].map(({ valor, etiqueta }, indice) => (
+          <button
+            key={valor}
+            type="button"
+            onClick={() => asignar(valor)}
+            disabled={guardando}
+            aria-pressed={alumno.sexo === valor}
+            className={`px-2.5 py-1.5 transition disabled:cursor-not-allowed disabled:opacity-50 ${
+              indice > 0 ? 'border-l border-border' : ''
+            } ${
+              alumno.sexo === valor
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-background text-foreground hover:bg-muted'
+            }`}
+          >
+            {etiqueta}
+          </button>
+        ))}
+      </div>
+      {error && <p role="alert" className="text-[11px] text-destructive-foreground">{error}</p>}
+    </div>
   )
 }
 

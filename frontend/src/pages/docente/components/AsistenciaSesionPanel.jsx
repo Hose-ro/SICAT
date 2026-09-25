@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button'
 import { useEffect, useState } from 'react'
+import SexoBadge from '../../../components/SexoBadge'
 import { useAsistenciaStore } from '../../../store/asistenciaStore'
 
 const ESTADOS = ['ASISTENCIA', 'RETARDO', 'FALTA', 'JUSTIFICADA']
@@ -103,6 +104,7 @@ export default function AsistenciaSesionPanel({
         alumnoId: alumno.id,
         nombre: alumno.nombre,
         numeroControl: alumno.numeroControl,
+        sexo: alumno.sexo,
         estado: null,
         manual: true,
         asistenciaId: null,
@@ -281,7 +283,10 @@ export default function AsistenciaSesionPanel({
           {alumnos.map((alumno) => (
             <div key={alumno.alumnoId} className="grid gap-2 px-4 py-3 sm:grid-cols-[minmax(0,1.8fr)_minmax(0,0.8fr)_minmax(0,1.5fr)] sm:gap-3">
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-foreground">{alumno.nombre}</p>
+                <p className="flex items-center gap-2 truncate text-sm font-medium text-foreground">
+                  <SexoBadge sexo={alumno.sexo} />
+                  {alumno.nombre}
+                </p>
                 <p className="text-xs text-muted-foreground sm:hidden">{alumno.numeroControl || 'Sin control'}</p>
                 {alumno.manual && (
                   <p className="mt-1 text-xs text-warning-foreground">Agregado manualmente</p>

@@ -607,6 +607,7 @@ export class CalificacionesService {
           id: true,
           nombre: true,
           numeroControl: true,
+          sexo: true,
           grupoId: true,
         },
       });
@@ -633,6 +634,7 @@ export class CalificacionesService {
             id: true,
             nombre: true,
             numeroControl: true,
+            sexo: true,
             grupoId: true,
           },
         },
@@ -649,6 +651,7 @@ export class CalificacionesService {
               id: true,
               nombre: true,
               numeroControl: true,
+              sexo: true,
               grupoId: true,
             },
           },

@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import { confirmAction } from '@/lib/feedback'
 import { useEffect, useRef, useState } from 'react'
 import Modal from '../../components/Modal'
+import SexoBadge from '../../components/SexoBadge'
 import api from '../../api/axios'
 import {
   FILA_ALUMNO_VACIA,
@@ -24,6 +25,7 @@ const FORM_COMPLETAR = {
   email: '',
   telefono: '',
   password: '',
+  sexo: '',
 }
 
 function mensajeError(error, fallback) {
@@ -248,6 +250,7 @@ export default function AlumnosMateriaCard({ materia, puedeEditar, onActualizado
       email: alumno.email || '',
       telefono: alumno.telefono || '',
       password: '',
+      sexo: alumno.sexo || '',
     })
     setErrorCompletar('')
     setCompletarModal(true)
@@ -272,6 +275,7 @@ export default function AlumnosMateriaCard({ materia, puedeEditar, onActualizado
       if (formCompletar.email.trim()) payload.email = formCompletar.email.trim()
       if (formCompletar.telefono.trim()) payload.telefono = formCompletar.telefono.trim()
       if (formCompletar.password.trim()) payload.password = formCompletar.password.trim()
+      if (formCompletar.sexo) payload.sexo = formCompletar.sexo
 
       await api.patch(
         `/inscripciones/materias/${materia.id}/alumnos/${alumnoCompletar.id}`,
@@ -331,6 +335,9 @@ export default function AlumnosMateriaCard({ materia, puedeEditar, onActualizado
               return (
                 <tr key={inscripcion.id} className="border-b border-border">
                   <td className="px-2 py-3 font-medium text-foreground">
+                    <span className="mr-2 inline-flex align-middle">
+                      <SexoBadge sexo={alumno.sexo} />
+                    </span>
                     {alumno.nombre}
                     {datosIncompletos && (
                       <span className="ml-2 inline-flex items-center rounded-full bg-warning/10 px-2 py-0.5 text-[11px] font-medium text-warning-foreground">
@@ -429,9 +436,10 @@ export default function AlumnosMateriaCard({ materia, puedeEditar, onActualizado
                       checked={seleccion.includes(alumno.id)}
                       onChange={() => alternar(alumno.id)}
                     />
-                    <span className="text-sm text-foreground">
+                    <span className="flex items-center gap-2 text-sm text-foreground">
+                      <SexoBadge sexo={alumno.sexo} />
                       {alumno.nombre}
-                      <span className="ml-2 text-xs text-muted-foreground">
+                      <span className="text-xs text-muted-foreground">
                         {alumno.numeroControl ?? 'sin control'} · {alumno.grupo?.nombre ?? 'sin grupo'}
                       </span>
                     </span>
@@ -654,6 +662,21 @@ export default function AlumnosMateriaCard({ materia, puedeEditar, onActualizado
               />
             </div>
           ))}
+          <div>
+            <label htmlFor="completar-sexo" className="mb-1 block text-xs font-medium text-foreground">
+              Sexo
+            </label>
+            <select
+              id="completar-sexo"
+              value={formCompletar.sexo}
+              onChange={(event) => setFormCompletar({ ...formCompletar, sexo: event.target.value })}
+              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <option value="">Sin especificar</option>
+              <option value="HOMBRE">Hombre</option>
+              <option value="MUJER">Mujer</option>
+            </select>
+          </div>
           {!formCompletar.numeroControl && (
             <p className="rounded-lg bg-warning/10 px-3 py-2 text-xs text-warning-foreground">
               Sin número de control, correo o contraseña real el alumno no podrá iniciar sesión todavía.

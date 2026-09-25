@@ -1,5 +1,6 @@
 import Modal from '@/components/Modal'
 import { Button } from '@/components/ui/button'
+import SexoBadge from '@/components/SexoBadge'
 import { useEffect, useMemo, useState } from 'react'
 import { useAsistenciaStore } from '@/store/asistenciaStore'
 
@@ -158,7 +159,10 @@ export default function VistaPreviaReporteModal({ materiaId, opciones = {}, desc
                   {filas.map(({ alumno, estados, conteo, porcentaje }) => (
                     <tr key={alumno.id}>
                       <th scope="row" className="sticky left-0 z-10 bg-card px-3 py-2 text-left font-medium text-foreground whitespace-nowrap">
-                        {alumno.nombre}
+                        <span className="flex items-center gap-2">
+                          <SexoBadge sexo={alumno.sexo} />
+                          {alumno.nombre}
+                        </span>
                       </th>
                       <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">{alumno.numeroControl ?? '—'}</td>
                       {estados.map((estado, index) => (

@@ -59,7 +59,13 @@ const INCLUDE_LIST = {
 const INCLUDE_DETAIL = {
   carrera: { select: { id: true, nombre: true, codigo: true } },
   alumnos: {
-    select: { id: true, nombre: true, numeroControl: true, email: true },
+    select: {
+      id: true,
+      nombre: true,
+      numeroControl: true,
+      email: true,
+      sexo: true,
+    },
     where: { activo: true },
   },
   materias: {
@@ -426,7 +432,13 @@ export class GruposService {
         ...this.incluirParaDocente(docenteId),
         alumnos: {
           where: { activo: true },
-          select: { id: true, nombre: true, numeroControl: true, email: true },
+          select: {
+            id: true,
+            nombre: true,
+            numeroControl: true,
+            email: true,
+            sexo: true,
+          },
           orderBy: { nombre: 'asc' },
         },
       },
@@ -541,6 +553,7 @@ export class GruposService {
         nombre: true,
         numeroControl: true,
         semestre: true,
+        sexo: true,
         grupo: { select: { id: true, nombre: true } },
       },
       orderBy: { nombre: 'asc' },
@@ -845,6 +858,7 @@ export class GruposService {
         numeroControl,
         email,
         telefono,
+        sexo: dto.sexo,
         password,
         tokenVersion: password ? { increment: 1 } : undefined,
       },
@@ -854,6 +868,7 @@ export class GruposService {
         numeroControl: true,
         email: true,
         telefono: true,
+        sexo: true,
       },
     });
   }
@@ -1087,7 +1102,13 @@ export class GruposService {
       where: { id: grupoId },
       include: {
         alumnos: {
-          select: { id: true, nombre: true, numeroControl: true, email: true },
+          select: {
+            id: true,
+            nombre: true,
+            numeroControl: true,
+            email: true,
+            sexo: true,
+          },
           where: { activo: true },
         },
       },

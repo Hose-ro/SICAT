@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { EstadoAsistencia, TipoNotificacion } from '@prisma/client';
+import { EstadoAsistencia, Sexo, TipoNotificacion } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { PasarListaDto } from './dto/pasar-lista.dto';
 import { ActualizarAsistenciaDto } from './dto/actualizar-asistencia.dto';
@@ -151,7 +151,12 @@ export class AsistenciasService {
         asistencias: {
           include: {
             alumno: {
-              select: { id: true, nombre: true, numeroControl: true },
+              select: {
+                id: true,
+                nombre: true,
+                numeroControl: true,
+                sexo: true,
+              },
             },
           },
           orderBy: { alumno: { nombre: 'asc' } },
@@ -181,7 +186,7 @@ export class AsistenciasService {
       },
       select: {
         alumno: {
-          select: { id: true, nombre: true, numeroControl: true },
+          select: { id: true, nombre: true, numeroControl: true, sexo: true },
         },
       },
       orderBy: { alumno: { nombre: 'asc' } },
@@ -216,7 +221,7 @@ export class AsistenciasService {
               notIn: Array.from(new Set([...idsFormales, ...idsRegistrados])),
             },
           },
-          select: { id: true, nombre: true, numeroControl: true },
+          select: { id: true, nombre: true, numeroControl: true, sexo: true },
           orderBy: { nombre: 'asc' },
         })
       : [];
@@ -230,6 +235,7 @@ export class AsistenciasService {
         alumnoId: alumno.id,
         nombre: alumno.nombre,
         numeroControl: alumno.numeroControl,
+        sexo: alumno.sexo,
         estado: mapaAsistencias.get(alumno.id)?.estado ?? null,
         observacion: mapaAsistencias.get(alumno.id)?.observacion ?? null,
         asistenciaId: mapaAsistencias.get(alumno.id)?.id ?? null,
@@ -239,6 +245,7 @@ export class AsistenciasService {
         alumnoId: item.alumno.id,
         nombre: item.alumno.nombre,
         numeroControl: item.alumno.numeroControl,
+        sexo: item.alumno.sexo,
         estado: item.asistencia.estado,
         observacion: item.asistencia.observacion ?? null,
         asistenciaId: item.asistencia.id,
@@ -295,7 +302,7 @@ export class AsistenciasService {
       where: { claseSesionId: { in: sesionIds } },
       include: {
         alumno: {
-          select: { id: true, nombre: true, numeroControl: true },
+          select: { id: true, nombre: true, numeroControl: true, sexo: true },
         },
       },
     });
@@ -561,7 +568,14 @@ export class AsistenciasService {
         },
         asistencias: {
           include: {
-            alumno: { select: { id: true, nombre: true, numeroControl: true } },
+            alumno: {
+              select: {
+                id: true,
+                nombre: true,
+                numeroControl: true,
+                sexo: true,
+              },
+            },
           },
         },
       },
@@ -793,7 +807,9 @@ export class AsistenciasService {
         editadaPorId: actor.id,
       },
       include: {
-        alumno: { select: { id: true, nombre: true, numeroControl: true } },
+        alumno: {
+          select: { id: true, nombre: true, numeroControl: true, sexo: true },
+        },
       },
     });
   }
@@ -877,7 +893,12 @@ export class AsistenciasService {
             where: { claseSesionId: { in: sesionIds } },
             include: {
               alumno: {
-                select: { id: true, nombre: true, numeroControl: true },
+                select: {
+                  id: true,
+                  nombre: true,
+                  numeroControl: true,
+                  sexo: true,
+                },
               },
             },
           })
@@ -885,7 +906,12 @@ export class AsistenciasService {
 
     const alumnosMapa = new Map<
       number,
-      { id: number; nombre: string; numeroControl: string | null }
+      {
+        id: number;
+        nombre: string;
+        numeroControl: string | null;
+        sexo: Sexo | null;
+      }
     >();
 
     asistencias.forEach((asistencia) => {
@@ -893,6 +919,7 @@ export class AsistenciasService {
         id: asistencia.alumno.id,
         nombre: asistencia.alumno.nombre,
         numeroControl: asistencia.alumno.numeroControl,
+        sexo: asistencia.alumno.sexo,
       });
     });
 
@@ -914,7 +941,14 @@ export class AsistenciasService {
             alumno: { grupoId: { in: grupoIds }, rol: 'ALUMNO', activo: true },
           },
           include: {
-            alumno: { select: { id: true, nombre: true, numeroControl: true } },
+            alumno: {
+              select: {
+                id: true,
+                nombre: true,
+                numeroControl: true,
+                sexo: true,
+              },
+            },
           },
         });
         formales.forEach((inscripcion) => {
@@ -922,6 +956,7 @@ export class AsistenciasService {
             id: inscripcion.alumno.id,
             nombre: inscripcion.alumno.nombre,
             numeroControl: inscripcion.alumno.numeroControl,
+            sexo: inscripcion.alumno.sexo,
           });
         });
       }

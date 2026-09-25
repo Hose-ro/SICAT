@@ -72,6 +72,11 @@ enum EstadoInscripcion {
   RECHAZADA
 }
 
+enum Sexo {
+  HOMBRE
+  MUJER
+}
+
 /// Escolarizado va de lunes a viernes; mixto (antes "sabatino") sólo los
 /// sábados y con su propio calendario de semestre.
 enum ModalidadGrupo {
@@ -201,6 +206,7 @@ model Usuario {
   password            String
   rol                 Rol
   telefono            String?
+  sexo                Sexo?
   semestre            Int?
   carreraId           Int?
   carrera             Carrera?  @relation(fields: [carreraId], references: [id])

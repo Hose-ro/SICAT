@@ -453,7 +453,9 @@ export class TareasService {
         permiteCorreccion: false,
       },
       include: {
-        alumno: { select: { id: true, nombre: true, numeroControl: true } },
+        alumno: {
+          select: { id: true, nombre: true, numeroControl: true, sexo: true },
+        },
         archivos: true,
       },
     });
@@ -479,7 +481,9 @@ export class TareasService {
         alumnoId: { in: alumnos.map((item) => item.id) },
       },
       include: {
-        alumno: { select: { id: true, nombre: true, numeroControl: true } },
+        alumno: {
+          select: { id: true, nombre: true, numeroControl: true, sexo: true },
+        },
         archivos: true,
       },
       orderBy: [{ fechaEntrega: 'desc' }, { id: 'desc' }],
@@ -859,7 +863,9 @@ export class TareasService {
         ...(filtros.alumnoId ? { alumnoId: filtros.alumnoId } : {}),
       },
       include: {
-        alumno: { select: { id: true, nombre: true, numeroControl: true } },
+        alumno: {
+          select: { id: true, nombre: true, numeroControl: true, sexo: true },
+        },
       },
     });
 
@@ -1048,7 +1054,14 @@ export class TareasService {
       include: {
         entrega: {
           include: {
-            alumno: { select: { id: true, nombre: true, numeroControl: true } },
+            alumno: {
+              select: {
+                id: true,
+                nombre: true,
+                numeroControl: true,
+                sexo: true,
+              },
+            },
             tarea: { select: { id: true, titulo: true } },
           },
         },
@@ -1186,7 +1199,9 @@ export class TareasService {
         },
         include: {
           tarea: true,
-          alumno: { select: { id: true, nombre: true, numeroControl: true } },
+          alumno: {
+            select: { id: true, nombre: true, numeroControl: true, sexo: true },
+          },
           archivos: true,
         },
       });
@@ -1483,6 +1498,7 @@ export class TareasService {
             id: true,
             nombre: true,
             numeroControl: true,
+            sexo: true,
             grupoId: true,
           },
         },

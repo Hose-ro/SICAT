@@ -353,7 +353,14 @@ export class JefesCarreraService {
         },
         asistencias: {
           include: {
-            alumno: { select: { id: true, nombre: true, numeroControl: true } },
+            alumno: {
+              select: {
+                id: true,
+                nombre: true,
+                numeroControl: true,
+                sexo: true,
+              },
+            },
           },
           orderBy: { alumno: { nombre: 'asc' } },
         },
@@ -394,6 +401,7 @@ export class JefesCarreraService {
         alumnoId: registro.alumnoId,
         nombre: registro.alumno.nombre,
         numeroControl: registro.alumno.numeroControl,
+        sexo: registro.alumno.sexo,
         estado: registro.estado,
         observacion: registro.observacion,
       })),
@@ -452,7 +460,13 @@ export class JefesCarreraService {
         carrera: { select: { id: true, nombre: true, codigo: true } },
         alumnos: {
           where: { activo: true },
-          select: { id: true, nombre: true, numeroControl: true, email: true },
+          select: {
+            id: true,
+            nombre: true,
+            numeroControl: true,
+            email: true,
+            sexo: true,
+          },
         },
         materias: { select: { id: true, nombre: true, clave: true } },
         horarios: {
@@ -827,6 +841,7 @@ export class JefesCarreraService {
             id: true,
             nombre: true,
             numeroControl: true,
+            sexo: true,
             carreraId: true,
           },
         },

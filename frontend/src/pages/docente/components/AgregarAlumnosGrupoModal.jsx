@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button'
 import { useEffect, useRef, useState } from 'react'
 import Modal from '../../../components/Modal'
+import SexoBadge from '../../../components/SexoBadge'
 import api from '../../../api/axios'
 import {
   FILA_ALUMNO_VACIA,
@@ -259,9 +260,10 @@ export default function AgregarAlumnosGrupoModal({ grupo, onClose, onListo }) {
                       checked={seleccion.includes(alumno.id)}
                       onChange={() => alternar(alumno.id)}
                     />
-                    <span className="text-sm text-foreground">
+                    <span className="flex items-center gap-2 text-sm text-foreground">
+                      <SexoBadge sexo={alumno.sexo} />
                       {alumno.nombre}
-                      <span className="ml-2 text-xs text-muted-foreground">
+                      <span className="text-xs text-muted-foreground">
                         {alumno.numeroControl ?? 'sin control'} ·{' '}
                         {enOtroGrupo
                           ? `ya está en ${alumno.grupo.nombre}`

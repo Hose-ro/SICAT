@@ -122,6 +122,7 @@ export class UsuariosService {
               password: hash,
               rol: normalized.rol,
               telefono: normalized.telefono,
+              sexo: normalized.sexo,
               registroAprobado: !options.publicRegistration,
               carreraId:
                 normalized.rol === Rol.ALUMNO
@@ -151,6 +152,7 @@ export class UsuariosService {
               username: true,
               rol: true,
               telefono: true,
+              sexo: true,
               semestre: true,
               academias: { select: { id: true, nombre: true } },
               activo: true,
@@ -226,6 +228,7 @@ export class UsuariosService {
         username: true,
         rol: true,
         telefono: true,
+        sexo: true,
         semestre: true,
         academias: { select: { id: true, nombre: true } },
         activo: true,
@@ -236,7 +239,9 @@ export class UsuariosService {
         carreraId: true,
         grupoId: true,
         carrera: true,
-        grupo: { select: { id: true, nombre: true, semestre: true, periodo: true } },
+        grupo: {
+          select: { id: true, nombre: true, semestre: true, periodo: true },
+        },
         carrerasJefe: {
           where: { activa: true },
           select: {
@@ -260,6 +265,7 @@ export class UsuariosService {
         username: true,
         rol: true,
         telefono: true,
+        sexo: true,
         semestre: true,
         academias: { select: { id: true, nombre: true } },
         activo: true,
@@ -268,7 +274,9 @@ export class UsuariosService {
         carreraId: true,
         grupoId: true,
         carrera: true,
-        grupo: { select: { id: true, nombre: true, semestre: true, periodo: true } },
+        grupo: {
+          select: { id: true, nombre: true, semestre: true, periodo: true },
+        },
         carrerasJefe: {
           where: { activa: true },
           select: {
@@ -456,6 +464,7 @@ export class UsuariosService {
               numeroControl: normalized.numeroControl,
               username: normalized.username,
               telefono: normalized.telefono,
+              sexo: normalized.sexo,
               password,
               rol: normalized.rol,
               carreraId: datosAlumno.carreraId,
@@ -473,6 +482,7 @@ export class UsuariosService {
               username: true,
               rol: true,
               telefono: true,
+              sexo: true,
               semestre: true,
               academias: { select: { id: true, nombre: true } },
               activo: true,

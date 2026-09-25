@@ -1,7 +1,9 @@
 import * as V from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { Sexo } from '@prisma/client';
 import {
   IsEmail,
+  IsEnum,
   IsNotEmpty,
   IsString,
   Matches,
@@ -52,4 +54,9 @@ export class CompletarAlumnoDto {
   @MinLength(8)
   @MaxLength(72)
   password?: string;
+
+  @ApiPropertyOptional({ enum: Sexo })
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
+  @IsEnum(Sexo)
+  sexo?: Sexo;
 }

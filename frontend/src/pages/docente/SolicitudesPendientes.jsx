@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button'
 import { useEffect, useState } from 'react'
+import SexoBadge from '../../components/SexoBadge'
 import TaskNotice from '../../components/TaskNotice'
 import { taskError } from '../../lib/tareas'
 import { useInscripcionStore } from '../../store/inscripcionStore'
@@ -38,7 +39,10 @@ export default function SolicitudesPendientes() {
           {pendientesDocente.map((s) => (
             <div key={s.id} className="flex flex-col gap-3 rounded-lg border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="font-semibold">{s.alumno?.nombre}</p>
+                <p className="flex items-center gap-2 font-semibold">
+                  <SexoBadge sexo={s.alumno?.sexo} />
+                  {s.alumno?.nombre}
+                </p>
                 <p className="text-sm text-muted-foreground">
                   {s.materia?.nombre} · Periodo: {s.periodo}
                 </p>

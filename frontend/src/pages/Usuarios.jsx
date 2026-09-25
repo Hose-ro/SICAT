@@ -4,6 +4,7 @@ import { CheckCircle2, Eye, GraduationCap, KeyRound, Pencil, Power, Trash2 } fro
 import PageHeader from '../components/PageHeader'
 import Modal from '../components/Modal'
 import SwipeableRow from '../components/SwipeableRow'
+import SexoBadge from '../components/SexoBadge'
 import api from '../api/axios'
 import { EMAIL_AUTH_ENABLED } from '../lib/authFeatures'
 
@@ -54,7 +55,7 @@ const getAccountStatus = (user) => {
 
 const EMPTY_FORM = {
   nombre: '', email: '', username: '', numeroControl: '',
-  password: '', rol: 'DOCENTE', academiaId: '', telefono: '',
+  password: '', rol: 'DOCENTE', academiaId: '', telefono: '', sexo: '',
   semestre: '', carreraId: '', carreraIds: [], activo: true,
 }
 
@@ -75,6 +76,7 @@ const buildFormFromUser = (user) => ({
   rol: user.rol,
   academiaId: user.academias?.[0]?.id ? String(user.academias[0].id) : '',
   telefono: user.telefono ?? '',
+  sexo: user.sexo ?? '',
   semestre: user.semestre != null ? String(user.semestre) : '',
   carreraId: user.carrera?.id ? String(user.carrera.id) : '',
   carreraIds: user.carrerasJefe?.map((item) => item.carrera.id) ?? [],
@@ -94,6 +96,7 @@ const buildEditPayload = (user, form) => {
     username: esAlumno ? '' : norm.username(form.username),
     numeroControl: esAlumno ? norm.numeroControl(form.numeroControl) : '',
     telefono: norm.telefono(form.telefono),
+    sexo: form.sexo || '',
   }
   Object.entries(opcionales).forEach(([campo, valor]) => {
     const siguiente = valor === '' ? null : valor
@@ -253,6 +256,15 @@ function UsuarioFormFields({ form, setForm, carreras, academias, mode }) {
         <input id={fieldId + '-control-251'} type="tel" pattern="\d{10}" value={form.telefono} onChange={(e) => setForm({ ...form, telefono: e.target.value })}
           className="w-full border border-border rounded-xl px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
       </div>
+      <div>
+        <label htmlFor={fieldId + '-control-sexo'} className="block text-xs font-medium text-foreground mb-1">Sexo</label>
+        <select id={fieldId + '-control-sexo'} value={form.sexo} onChange={(e) => setForm({ ...form, sexo: e.target.value })}
+          className="w-full border border-border rounded-xl px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <option value="">Sin especificar</option>
+          <option value="HOMBRE">Hombre</option>
+          <option value="MUJER">Mujer</option>
+        </select>
+      </div>
       {isEdit && (
         <label className="flex items-center gap-3 rounded-xl border border-border px-3 py-2.5 text-sm text-foreground">
           <input
@@ -335,6 +347,7 @@ export default function Usuarios() {
     if (!data.academiaId || data.rol !== 'DOCENTE') delete data.academiaId
     else data.academiaId = parseInt(data.academiaId)
     if (!data.telefono) delete data.telefono
+    if (!data.sexo) delete data.sexo
     if (!data.semestre) delete data.semestre
     else data.semestre = parseInt(data.semestre)
     if (!data.carreraId) delete data.carreraId
@@ -644,7 +657,10 @@ export default function Usuarios() {
                 className="h-4 w-4 shrink-0"
               />
               <div className="min-w-0 flex-1">
-                <p className="truncate font-medium text-foreground">{u.nombre}</p>
+                <p className="flex items-center gap-2 truncate font-medium text-foreground">
+                  <SexoBadge sexo={u.sexo} />
+                  {u.nombre}
+                </p>
                 <p className="truncate text-xs text-muted-foreground">
                   {u.numeroControl || u.username || u.email || '—'}
                 </p>
@@ -655,7 +671,10 @@ export default function Usuarios() {
             <SwipeableRow key={u.id} actions={accionesMovil(u)} onTap={() => abrirDetalle(u)}>
               <div className="flex items-center justify-between gap-3 px-4 py-3">
                 <div className="min-w-0">
-                  <p className="truncate font-medium text-foreground">{u.nombre}</p>
+                  <p className="flex items-center gap-2 truncate font-medium text-foreground">
+                    <SexoBadge sexo={u.sexo} />
+                    {u.nombre}
+                  </p>
                   <p className="truncate text-xs text-muted-foreground">
                     {u.numeroControl || u.username || u.email || '—'}
                   </p>
@@ -716,7 +735,12 @@ export default function Usuarios() {
                     />
                   </td>
                 )}
-                <td className="px-4 py-3 font-medium text-foreground">{u.nombre}</td>
+                <td className="px-4 py-3 font-medium text-foreground">
+                  <span className="flex items-center gap-2">
+                    <SexoBadge sexo={u.sexo} />
+                    {u.nombre}
+                  </span>
+                </td>
                 <td className="px-4 py-3 text-muted-foreground">{u.numeroControl || u.username || u.email || '—'}</td>
                 <td className="px-4 py-3">
                   <span className={`text-xs px-2 py-1 rounded-full font-medium ${ROL_COLORS[u.rol]}`}>{u.rol}</span>

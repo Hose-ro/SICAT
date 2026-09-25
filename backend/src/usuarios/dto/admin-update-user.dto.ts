@@ -19,7 +19,7 @@ import {
   MinLength,
 } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Rol } from '@prisma/client';
+import { Rol, Sexo } from '@prisma/client';
 import {
   normalizeControlNumber,
   normalizeEmail,
@@ -93,6 +93,11 @@ export class AdminUpdateUserDto {
     message: 'El teléfono debe contener 10 dígitos',
   })
   telefono?: string | null;
+
+  @ApiPropertyOptional({ enum: Sexo, nullable: true })
+  @IsOptional()
+  @IsEnum(Sexo)
+  sexo?: Sexo | null;
 
   @V.IsByteLength(0, 72)
   @ApiPropertyOptional()

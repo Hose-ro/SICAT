@@ -1,4 +1,5 @@
 import Modal from '@/components/Modal'
+import SexoBadge from '@/components/SexoBadge'
 import { useEffect, useState } from 'react'
 import { CalendarClock, MapPin, UserRound, UsersRound, X } from 'lucide-react'
 import api from '@/api/axios'
@@ -80,7 +81,10 @@ export default function AsistenciaSesionModal({ sesionId, onClose }) {
                         <div className="flex min-w-0 items-center gap-2">
                           <UserRound className="h-4 w-4 shrink-0 text-muted-foreground" />
                           <div className="min-w-0">
-                            <p className="truncate text-sm font-medium text-foreground">{alumno.nombre}</p>
+                            <p className="flex items-center gap-2 truncate text-sm font-medium text-foreground">
+                              <SexoBadge sexo={alumno.sexo} />
+                              {alumno.nombre}
+                            </p>
                             <p className="text-xs text-muted-foreground">{alumno.numeroControl ?? 'Sin número de control'}</p>
                           </div>
                         </div>

@@ -4,6 +4,7 @@ import { FileSpreadsheet, FileText } from 'lucide-react'
 import api from '@/api/axios'
 import PageHeader from '@/components/PageHeader'
 import { CarreraSelector, MetricRow, PageState } from '@/components/jefe-carrera/JefeCarreraUI'
+import SexoBadge from '@/components/SexoBadge'
 import { useJefeCarreraStore } from '@/store/jefeCarreraStore'
 
 export default function JefeReportes() {
@@ -50,7 +51,7 @@ export default function JefeReportes() {
       ]} />
       <div className="grid gap-4 lg:grid-cols-2">
         <ReportTable title="Carga docente" columns={['Docente', 'Horarios', 'Materias']} rows={reporte.cargaDocente.map((item) => [item.docente, item.horarios, item.materias])} />
-        <ReportTable title="Alumnos en riesgo" columns={['Alumno', 'Registros', 'Riesgo']} rows={reporte.alumnosRiesgo.map((item) => [item.nombre, item.total, `${item.porcentajeRiesgo}%`])} empty="No hay alumnos que superen el criterio de riesgo." />
+        <ReportTable title="Alumnos en riesgo" columns={['Alumno', 'Registros', 'Riesgo']} rows={reporte.alumnosRiesgo.map((item) => [<span key={item.id} className="flex items-center gap-2"><SexoBadge sexo={item.sexo} />{item.nombre}</span>, item.total, `${item.porcentajeRiesgo}%`])} empty="No hay alumnos que superen el criterio de riesgo." />
         <ReportTable title="Avance por materia" columns={['Materia', 'Docente', 'Unidad']} rows={reporte.materias.map((item) => [`${item.clave} ${item.nombre}`, item.docente, item.unidadActiva])} />
         <ReportTable title="Uso de aulas" columns={['Aula', 'Edificio', 'Horarios']} rows={reporte.usoAulas.map((item) => [item.nombre, item.edificio ?? 'Sin edificio', item.horarios])} empty="No hay aulas asignadas." />
       </div>

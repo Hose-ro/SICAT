@@ -14,6 +14,7 @@ import {
 import api from '../../api/axios'
 import { useTareaStore } from '../../store/tareaStore'
 
+import SexoBadge from '../../components/SexoBadge'
 import TaskCriteria from '../../components/TaskCriteria'
 import TaskNotice from '../../components/TaskNotice'
 import { TASK_STATE_LABEL, DELIVERY_STATE_LABEL, taskError, taskFileUrl } from '../../lib/tareas'
@@ -318,7 +319,10 @@ export default function TareaDetalle() {
                     </div>
 
                     <div>
-                      <h2 className="text-xl font-semibold text-foreground">{delivery.alumno.nombre}</h2>
+                      <h2 className="flex items-center gap-2 text-xl font-semibold text-foreground">
+                        <SexoBadge sexo={delivery.alumno.sexo} />
+                        {delivery.alumno.nombre}
+                      </h2>
                       <p className="mt-1 text-sm text-muted-foreground">No. control: {delivery.alumno.numeroControl || 'Sin registro'}</p>
                     </div>
 
