@@ -117,7 +117,13 @@ export default function VistaPreviaReporteModal({ materiaId, opciones = {}, desc
             {data.materia?.docente?.nombre && (
               <span>Docente: <strong className="font-medium text-foreground">{data.materia.docente.nombre}</strong></span>
             )}
-            <span>{sesiones.filter((sesion) => !sesion.suspensionMotivo).length} sesiones · {sesiones.filter((sesion) => sesion.suspensionMotivo).length} días sin clases · {filas.length} {filas.length === 1 ? 'alumno' : 'alumnos'}</span>
+            <span>
+              {sesiones.filter((sesion) => !sesion.suspensionMotivo).length}{' '}
+              {sesiones.filter((sesion) => !sesion.suspensionMotivo).length === 1 ? 'sesión' : 'sesiones'} ·{' '}
+              {sesiones.filter((sesion) => sesion.suspensionMotivo).length}{' '}
+              {sesiones.filter((sesion) => sesion.suspensionMotivo).length === 1 ? 'día sin clases' : 'días sin clases'} ·{' '}
+              {filas.length} {filas.length === 1 ? 'alumno' : 'alumnos'}
+            </span>
           </div>
 
           {sesiones.filter((sesion) => sesion.suspensionMotivo).map((sesion) => (

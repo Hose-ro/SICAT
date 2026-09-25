@@ -1075,7 +1075,7 @@ function DocenteCalificaciones() {
               <div className="flex flex-col gap-1">
                 <span className={FIELD_LABEL} id="vista-captura">Vista</span>
                 <div role="group" aria-labelledby="vista-captura" className="inline-flex rounded-2xl border border-border bg-background p-1">
-                  {[['lista', 'Lista', List], ['matriz', 'Por alumno', LayoutGrid]].map(([value, label, Icon]) => (
+                  {[['lista', 'Lista'], ['matriz', 'Por alumno']].map(([value, label]) => (
                     <Button
                       key={value}
                       type="button"
@@ -1084,7 +1084,7 @@ function DocenteCalificaciones() {
                       onClick={() => setVista(value)}
                       className="rounded-xl px-3"
                     >
-                      <Icon aria-hidden="true" />
+                      {value === 'lista' ? <List aria-hidden="true" /> : <LayoutGrid aria-hidden="true" />}
                       {label}
                     </Button>
                   ))}

@@ -7,7 +7,10 @@ import { confirmAction } from '@/lib/feedback'
 export default function useUnsavedChangesGuard(when, confirmOptions) {
   const navigate = useNavigate()
   const optionsRef = useRef(confirmOptions)
-  optionsRef.current = confirmOptions
+
+  useEffect(() => {
+    optionsRef.current = confirmOptions
+  }, [confirmOptions])
 
   useEffect(() => {
     if (!when) return undefined

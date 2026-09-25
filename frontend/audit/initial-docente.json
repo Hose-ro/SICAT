@@ -3,176 +3,191 @@
   "path": "/asistencias",
   "files": [
     {
-      "name": "/assets/index-CmUYNjQB.js",
-      "bytes": 340457,
-      "gzip": 112836
+      "name": "/assets/index-FCsOnC5u.js",
+      "bytes": 340907,
+      "gzip": 113009
     },
     {
-      "name": "/assets/BaseLayout-a6t72HNJ.js",
-      "bytes": 70205,
-      "gzip": 23599
-    },
-    {
-      "name": "/assets/x-Ne5xiFGy.js",
+      "name": "/assets/x-DpuZlBay.js",
       "bytes": 155,
       "gzip": 148
     },
     {
-      "name": "/assets/Modal-iSpLtw8u.js",
-      "bytes": 61580,
-      "gzip": 21121
-    },
-    {
-      "name": "/assets/feedback-DJ1YKL8v.js",
+      "name": "/assets/feedback-FvLKjzdI.js",
       "bytes": 662,
-      "gzip": 379
+      "gzip": 378
     },
     {
-      "name": "/assets/useThemeStore-1jJ4yPxw.js",
+      "name": "/assets/BaseLayout-DSZOCmln.js",
+      "bytes": 70292,
+      "gzip": 23584
+    },
+    {
+      "name": "/assets/useThemeStore-CIaiM-u5.js",
       "bytes": 726,
-      "gzip": 404
+      "gzip": 403
     },
     {
-      "name": "/assets/notificacionStore-CIWC9S1z.js",
-      "bytes": 11342,
-      "gzip": 4229
+      "name": "/assets/Modal-24SD4dN9.js",
+      "bytes": 61580,
+      "gzip": 21120
     },
     {
-      "name": "/assets/calendar-check-Dxqlkfbg.js",
+      "name": "/assets/notificacionStore-ZisJfPJQ.js",
+      "bytes": 11124,
+      "gzip": 4167
+    },
+    {
+      "name": "/assets/calendar-check-B9VVnqiQ.js",
       "bytes": 306,
-      "gzip": 227
+      "gzip": 226
     },
     {
-      "name": "/assets/calendar-range-BlxiX02z.js",
+      "name": "/assets/calendar-range-BUdajzq_.js",
       "bytes": 416,
-      "gzip": 259
+      "gzip": 256
     },
     {
-      "name": "/assets/book-open-DIZniqXc.js",
+      "name": "/assets/book-open-DH6UYdRe.js",
       "bytes": 280,
-      "gzip": 207
+      "gzip": 206
     },
     {
-      "name": "/assets/user-round-zalMSV_7.js",
-      "bytes": 178,
-      "gzip": 176
+      "name": "/assets/list-checks-BPrKTqEh.js",
+      "bytes": 396,
+      "gzip": 253
     },
     {
-      "name": "/assets/clock-CNoAHcnf.js",
-      "bytes": 165,
-      "gzip": 166
-    },
-    {
-      "name": "/assets/circle-check-yzFbsicE.js",
+      "name": "/assets/circle-check-DOuJqE5T.js",
       "bytes": 174,
-      "gzip": 167
+      "gzip": 165
     },
     {
-      "name": "/assets/upload-GSvX-6sA.js",
+      "name": "/assets/user-round-BLgMembt.js",
+      "bytes": 178,
+      "gzip": 175
+    },
+    {
+      "name": "/assets/upload-B7YMIBhO.js",
       "bytes": 231,
-      "gzip": 193
+      "gzip": 191
     },
     {
-      "name": "/assets/clipboard-check-DoAcsZd2.js",
+      "name": "/assets/clipboard-check-wubqAgnV.js",
       "bytes": 300,
-      "gzip": 233
+      "gzip": 232
     },
     {
-      "name": "/assets/calendar-clock-SoqAunm_.js",
+      "name": "/assets/calendar-clock-C5-SLDF4.js",
       "bytes": 374,
-      "gzip": 252
+      "gzip": 250
     },
     {
-      "name": "/assets/trash-2-8z89i7Nb.js",
-      "bytes": 329,
-      "gzip": 218
-    },
-    {
-      "name": "/assets/check-CrG7AJoT.js",
+      "name": "/assets/check-T4UZ2CKH.js",
       "bytes": 120,
       "gzip": 137
     },
     {
-      "name": "/assets/BrandMark-CM_RtxlI.js",
+      "name": "/assets/trash-2-svTZPSyR.js",
+      "bytes": 329,
+      "gzip": 217
+    },
+    {
+      "name": "/assets/BrandMark-ClakRLGe.js",
       "bytes": 288,
-      "gzip": 253
-    },
-    {
-      "name": "/assets/search-DM684rYz.js",
-      "bytes": 170,
-      "gzip": 167
-    },
-    {
-      "name": "/assets/graduation-cap-DvgBnbyT.js",
-      "bytes": 333,
       "gzip": 252
     },
     {
-      "name": "/assets/users-round-CtFkDjfI.js",
+      "name": "/assets/search-UHQUwTsZ.js",
+      "bytes": 170,
+      "gzip": 166
+    },
+    {
+      "name": "/assets/list-Byf68o7H.js",
+      "bytes": 303,
+      "gzip": 189
+    },
+    {
+      "name": "/assets/graduation-cap-BeJoRO3z.js",
+      "bytes": 333,
+      "gzip": 249
+    },
+    {
+      "name": "/assets/users-round-g1Xu2TQI.js",
       "bytes": 249,
-      "gzip": 218
+      "gzip": 216
     },
     {
-      "name": "/assets/book-open-check-BbPlghmZ.js",
+      "name": "/assets/book-open-check-xl98mZan.js",
       "bytes": 336,
-      "gzip": 233
+      "gzip": 231
     },
     {
-      "name": "/assets/calendar-days-DU_H6wI0.js",
+      "name": "/assets/calendar-days-SyqLxM_W.js",
       "bytes": 495,
-      "gzip": 268
+      "gzip": 265
     },
     {
-      "name": "/assets/scan-line-ZUcb75uk.js",
+      "name": "/assets/scan-line-BLBuFgMM.js",
       "bytes": 332,
-      "gzip": 224
+      "gzip": 223
     },
     {
-      "name": "/assets/school-BW-UIOjh.js",
+      "name": "/assets/school-Bu4enfu2.js",
       "bytes": 448,
       "gzip": 288
     },
     {
-      "name": "/assets/door-open-BZOr_d4D.js",
+      "name": "/assets/door-open-DfiVDxoA.js",
       "bytes": 373,
-      "gzip": 257
+      "gzip": 254
     },
     {
-      "name": "/assets/useAsyncAction-DfThCSyN.js",
-      "bytes": 208,
-      "gzip": 180
-    },
-    {
-      "name": "/assets/asistenciaStore-BGQ6nPEI.js",
-      "bytes": 2773,
-      "gzip": 1007
-    },
-    {
-      "name": "/assets/Asistencias-Dbz3kqNW.js",
-      "bytes": 51774,
-      "gzip": 12670
-    },
-    {
-      "name": "/assets/AttendanceBadge-DAwrXglc.js",
+      "name": "/assets/AttendanceBadge-OHByHymL.js",
       "bytes": 2683,
-      "gzip": 926
+      "gzip": 921
     },
     {
-      "name": "/assets/AsistenciaSesionPanel-Npopk8mR.js",
-      "bytes": 8513,
-      "gzip": 2776
+      "name": "/assets/useAsyncAction-Bk3VyisB.js",
+      "bytes": 208,
+      "gzip": 179
     },
     {
-      "name": "/assets/chevron-down-D2h8pgg3.js",
+      "name": "/assets/Asistencias-BQl3AhDq.js",
+      "bytes": 63078,
+      "gzip": 15342
+    },
+    {
+      "name": "/assets/asistenciaStore-CP-k_Hcc.js",
+      "bytes": 3012,
+      "gzip": 1069
+    },
+    {
+      "name": "/assets/SexoBadge-BtP1CyEx.js",
+      "bytes": 330,
+      "gzip": 273
+    },
+    {
+      "name": "/assets/chevron-down-BT96lBTM.js",
       "bytes": 129,
-      "gzip": 141
+      "gzip": 140
     },
     {
-      "name": "/assets/chevron-right-olRScbUJ.js",
+      "name": "/assets/AsistenciaSesionPanel-BTpzUmOy.js",
+      "bytes": 8619,
+      "gzip": 2815
+    },
+    {
+      "name": "/assets/chevron-left-1WXvQP_Z.js",
+      "bytes": 131,
+      "gzip": 144
+    },
+    {
+      "name": "/assets/chevron-right-CdqoNEv8.js",
       "bytes": 131,
       "gzip": 141
     }
   ],
-  "bytes": 557235,
-  "gzip": 184952
+  "bytes": 570198,
+  "gzip": 188474
 }

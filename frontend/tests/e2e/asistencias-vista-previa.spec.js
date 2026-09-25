@@ -60,7 +60,7 @@ test('acumulado: "Ver" abre la vista previa con todas las sesiones y descarga de
   const dialog = page.getByRole('dialog', { name: 'Vista previa del reporte' })
   await expect(dialog).toBeVisible()
   await expect(dialog).toContainText('Matemáticas · 101A · todas las unidades · acumulado al')
-  await expect(dialog).toContainText('2 sesiones · 2 alumnos')
+  await expect(dialog).toContainText(/2 sesiones · (?:\d+ días sin clases · )?2 alumnos/)
   await expect(dialog.getByRole('columnheader', { name: '10/09' })).toBeVisible()
   await expect(dialog.getByRole('columnheader', { name: '14/09' })).toBeVisible()
   // Ana: A en la 1ª, R en la 2ª → 1 A, 1 R, 50 %. Luis: F en la 1ª, sin registro en la 2ª → 0 %.
@@ -88,7 +88,7 @@ test('acumulado: "Ver" abre la vista previa con todas las sesiones y descarga de
 test('sesiones registradas: "Ver" muestra sólo esa sesión y descarga el PDF', async ({ page }) => {
   await mockReporte(page)
   await page.goto('/asistencias')
-  await page.getByRole('button', { name: /Sesiones registradas/ }).click()
+  await page.getByRole('button', { name: /Historial de clases/ }).click()
 
   const [request] = await Promise.all([
     page.waitForRequest((req) => req.url().includes('/asistencias/reporte/1')),
@@ -98,7 +98,7 @@ test('sesiones registradas: "Ver" muestra sólo esa sesión y descarga el PDF', 
 
   const dialog = page.getByRole('dialog', { name: 'Vista previa del reporte' })
   await expect(dialog).toContainText('Matemáticas · 101A · Unidad 1 · 10 sep 2026')
-  await expect(dialog).toContainText('1 sesión · 2 alumnos')
+  await expect(dialog).toContainText(/1 sesión · (?:\d+ días sin clases · )?2 alumnos/)
   await expect(dialog.getByRole('columnheader', { name: '10/09' })).toBeVisible()
   await expect(dialog.getByRole('columnheader', { name: '14/09' })).toHaveCount(0)
   await expect(fila(dialog, 'Ana Prueba')).toContainText(/A\s*1\s*0\s*0\s*0\s*100%/)
