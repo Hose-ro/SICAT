@@ -8,7 +8,10 @@ export default defineConfig({
   migrations: {
     path: "prisma/migrations",
   },
+  // Este bloque sobrescribe url/directUrl del schema.prisma, así que directUrl
+  // tiene que ir aquí también o `migrate deploy` usa el pooler de Neon (P1002).
   datasource: {
     url: process.env["DATABASE_URL"] as string,
+    ...(process.env["DIRECT_URL"] && { directUrl: process.env["DIRECT_URL"] }),
   },
 });
