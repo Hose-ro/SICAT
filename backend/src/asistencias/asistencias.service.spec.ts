@@ -438,6 +438,11 @@ describe('AsistenciasService días sin clases', () => {
       }),
     ]);
     expect(historial.estadisticas.faltas).toBe(0);
+    // Mediodía del plantel: con el servidor en UTC, la medianoche se veía en
+    // el navegador de México como el día anterior.
+    expect(historial.items[0].fecha.toISOString()).toBe(
+      '2026-09-18T18:00:00.000Z',
+    );
   });
 
   it('impide pasar lista en una sesión de un día suspendido', async () => {

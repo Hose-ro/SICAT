@@ -1,6 +1,7 @@
 import {
   formatearHoraEnZona,
   instanteEnZona,
+  mediodiaEnZona,
   rangoDiaEnZona,
   resolverFechaHoraLimite,
 } from './zona-horaria.util';
@@ -78,5 +79,14 @@ describe('zona-horaria.util', () => {
     expect(rango?.inicio.toISOString()).toBe('2026-09-20T06:00:00.000Z');
     expect(rango?.fin.toISOString()).toBe('2026-09-21T05:59:59.999Z');
     expect(rangoDiaEnZona('20/09/2026', MX)).toBeNull();
+  });
+
+  it('un día sin clases es el mediodía del plantel: la misma fecha en México y en UTC', () => {
+    const fecha = mediodiaEnZona('2026-09-16', MX);
+    expect(fecha?.toISOString()).toBe('2026-09-16T18:00:00.000Z');
+    expect(
+      fecha?.toLocaleDateString('es-MX', { timeZone: MX, dateStyle: 'long' }),
+    ).toBe('16 de septiembre de 2026');
+    expect(mediodiaEnZona('16/09/2026', MX)).toBeNull();
   });
 });

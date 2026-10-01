@@ -137,6 +137,22 @@ export function formatearHoraEnZona(
   return `${String(p.hour).padStart(2, '0')}:${String(p.minute).padStart(2, '0')}`;
 }
 
+/**
+ * Instante que representa un día `YYYY-MM-DD` sin hora propia (un día sin
+ * clases): mediodía en la zona del plantel. La medianoche del servidor (UTC en
+ * Render) el navegador en México la pinta como las 18:00 del día anterior; el
+ * mediodía cae en la misma fecha en la zona del plantel y en UTC.
+ */
+export function mediodiaEnZona(fecha: string, zona = zonaHoraria()) {
+  const match = FECHA.exec(fecha);
+  if (!match) return null;
+  const [, y, m, d] = match;
+  return instanteEnZona(
+    { year: Number(y), month: Number(m), day: Number(d), hour: 12, minute: 0 },
+    zona,
+  );
+}
+
 /** Principio y fin (inclusive) de un día `YYYY-MM-DD` en la zona del plantel. */
 export function rangoDiaEnZona(fecha: string, zona = zonaHoraria()) {
   const match = FECHA.exec(fecha);

@@ -21,6 +21,7 @@ import {
   sumarDias,
 } from '../clases/clases.utils';
 import { esDocenteDeMateria } from '../common/materia-ownership';
+import { mediodiaEnZona } from '../common/zona-horaria.util';
 import { PeriodosService } from '../periodos/periodos.service';
 
 type Actor = {
@@ -377,7 +378,7 @@ export class AsistenciasService {
       }
     >();
     for (const suspension of suspensiones) {
-      const fecha = parsearFechaClave(suspension.fecha) as Date;
+      const fecha = mediodiaEnZona(suspension.fecha) as Date;
       const horario = horarios.find(
         (item) =>
           item.docenteId === suspension.docenteId &&
@@ -1048,7 +1049,7 @@ export class AsistenciasService {
 
     const vistos = new Set<string>();
     return suspensiones.flatMap((suspension) => {
-      const fecha = parsearFechaClave(suspension.fecha) as Date;
+      const fecha = mediodiaEnZona(suspension.fecha) as Date;
       return horarios
         .filter(
           (horario) =>

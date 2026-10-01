@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import * as ExcelJS from 'exceljs';
 import PDFDocument from 'pdfkit';
 import { letraSexo } from '../common/sexo';
+import { zonaHoraria } from '../common/zona-horaria.util';
 
 @Injectable()
 export class ReportesService {
@@ -44,7 +45,7 @@ export class ReportesService {
       'Sexo',
       ...sesiones.map(
         (s) =>
-          `${new Date(s.fecha).toLocaleDateString('es-MX')}${s.suspensionMotivo ? ' · Sin clases' : ''}`,
+          `${new Date(s.fecha).toLocaleDateString('es-MX', { timeZone: zonaHoraria() })}${s.suspensionMotivo ? ' · Sin clases' : ''}`,
       ),
       'A',
       'F',
@@ -152,7 +153,9 @@ export class ReportesService {
       sheet.addRow(['Días sin clases', 'Motivo']);
       suspendidas.forEach((sesion) =>
         sheet.addRow([
-          new Date(sesion.fecha).toLocaleDateString('es-MX'),
+          new Date(sesion.fecha).toLocaleDateString('es-MX', {
+            timeZone: zonaHoraria(),
+          }),
           sesion.suspensionMotivo,
         ]),
       );
@@ -218,7 +221,7 @@ export class ReportesService {
         doc.fillColor('#B91C1C').fontSize(8);
         for (const sesion of suspendidas) {
           doc.text(
-            `Sin clases ${new Date(sesion.fecha).toLocaleDateString('es-MX')}: ${sesion.suspensionMotivo}`,
+            `Sin clases ${new Date(sesion.fecha).toLocaleDateString('es-MX', { timeZone: zonaHoraria() })}: ${sesion.suspensionMotivo}`,
           );
         }
         doc.fillColor('#000000').moveDown(0.5);
@@ -249,6 +252,7 @@ export class ReportesService {
       x += sexoWidth;
       sesiones.slice(0, 10).forEach((s) => {
         const label = new Date(s.fecha).toLocaleDateString('es-MX', {
+          timeZone: zonaHoraria(),
           month: '2-digit',
           day: '2-digit',
         });
@@ -376,7 +380,9 @@ export class ReportesService {
     resumen.addRow([]);
     resumen.addRow([
       'Generado en',
-      new Date(reporte.generatedAt).toLocaleString('es-MX'),
+      new Date(reporte.generatedAt).toLocaleString('es-MX', {
+        timeZone: zonaHoraria(),
+      }),
     ]);
     resumen.addRow([
       'Porcentaje de entrega',
@@ -426,7 +432,9 @@ export class ReportesService {
         task.pendientesRevision ?? 0,
         task.promedio ?? '',
         task.fechaLimite
-          ? new Date(task.fechaLimite).toLocaleString('es-MX')
+          ? new Date(task.fechaLimite).toLocaleString('es-MX', {
+              timeZone: zonaHoraria(),
+            })
           : 'Sin límite',
       ]);
     }
@@ -515,7 +523,7 @@ export class ReportesService {
         .fontSize(10)
         .font('Helvetica')
         .text(
-          `Generado: ${new Date(reporte.generatedAt).toLocaleString('es-MX')}`,
+          `Generado: ${new Date(reporte.generatedAt).toLocaleString('es-MX', { timeZone: zonaHoraria() })}`,
         );
       doc.text(
         `Porcentaje de entrega: ${reporte.metrics?.porcentajeEntrega ?? 0}%`,
@@ -635,7 +643,9 @@ export class ReportesService {
     ]);
     respaldo.addRow([
       'Generado',
-      new Date(reporte.generatedAt).toLocaleString('es-MX'),
+      new Date(reporte.generatedAt).toLocaleString('es-MX', {
+        timeZone: zonaHoraria(),
+      }),
     ]);
     respaldo.addRow([]);
 
