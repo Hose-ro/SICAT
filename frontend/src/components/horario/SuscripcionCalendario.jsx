@@ -97,11 +97,20 @@ export default function SuscripcionCalendario() {
                   </Button>
                 </span>
               </label>
-              <div className="flex flex-wrap gap-2">
-                <a href={webcal} className={cn(buttonVariants())}>Abrir en Calendario (iPhone, Mac)</a>
-                <a href={`https://calendar.google.com/calendar/render?cid=${encodeURIComponent(webcal)}`} target="_blank" rel="noreferrer"
-                  className={cn(buttonVariants({ variant: 'outline' }))}>Agregar a Google Calendar</a>
-              </div>
+              {url.startsWith('https:') ? (
+                <div className="flex flex-wrap gap-2">
+                  <a href={webcal} className={cn(buttonVariants())}>Abrir en Calendario (iPhone, Mac)</a>
+                  <a href={`https://calendar.google.com/calendar/render?cid=${encodeURIComponent(webcal)}`} target="_blank" rel="noreferrer"
+                    className={cn(buttonVariants({ variant: 'outline' }))}>Agregar a Google Calendar</a>
+                </div>
+              ) : (
+                // Calendario de Apple convierte webcal:// en HTTPS y Google no
+                // alcanza localhost: sin HTTPS sólo funciona la descarga.
+                <div className="space-y-2 rounded-[10px] border border-warning/30 bg-warning/10 p-3 text-sm text-warning-foreground">
+                  <p>Este servidor no usa HTTPS, así que las apps de calendario no pueden suscribirse (pasa en desarrollo; en sicatapp.com sí funciona).</p>
+                  <a href={url} download="sicat.ics" className={cn(buttonVariants({ variant: 'outline' }))}>Descargar el archivo .ics</a>
+                </div>
+              )}
               <p className="text-sm text-muted-foreground">
                 Guarda el enlace: por seguridad sólo se muestra ahora. Quien lo tenga puede ver tu horario, así que no lo compartas.
                 Google Calendar puede tardar unas horas en reflejar los cambios.

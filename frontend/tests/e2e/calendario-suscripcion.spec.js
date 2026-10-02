@@ -17,10 +17,10 @@ test('el docente crea el enlace de su calendario y lo puede desactivar', async (
 
   const enlace = page.getByLabel('Tu enlace')
   await expect(enlace).toHaveValue(/\/api\/calendario\/tok_abcdefghijklmnopqrstuvwx\.ics$/)
-  await expect(page.getByRole('link', { name: 'Abrir en Calendario (iPhone, Mac)' }))
-    .toHaveAttribute('href', /^webcal:\/\/.*\/api\/calendario\/tok_abcdefghijklmnopqrstuvwx\.ics$/)
-  await expect(page.getByRole('link', { name: 'Agregar a Google Calendar' }))
-    .toHaveAttribute('href', /calendar\.google\.com\/calendar\/render\?cid=webcal%3A%2F%2F/)
+  // El servidor de pruebas es http: Calendario de Apple sólo se suscribe por HTTPS.
+  await expect(page.getByText('Este servidor no usa HTTPS')).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Descargar el archivo .ics' }))
+    .toHaveAttribute('href', /\/api\/calendario\/tok_abcdefghijklmnopqrstuvwx\.ics$/)
 
   await page.getByRole('button', { name: 'Desactivar el enlace' }).click()
   await expect(page.getByText('El enlace dejó de funcionar.')).toBeVisible()
