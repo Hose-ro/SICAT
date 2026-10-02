@@ -9,6 +9,8 @@ import TabHorario from './components/TabHorario'
 import ModalAsignarAlumnos from './components/ModalAsignarAlumnos'
 import ModalAgregarMaterias from './components/ModalAgregarMaterias'
 import FormEditarGrupo from './components/FormEditarGrupo'
+import ModalCodigosActivacion from './components/ModalCodigosActivacion'
+import AgregarAlumnosGrupoModal from '../../docente/components/AgregarAlumnosGrupoModal'
 
 export default function GrupoDetalle() {
   const { id } = useParams()
@@ -17,6 +19,8 @@ export default function GrupoDetalle() {
 
   const [tab, setTab] = useState('alumnos')
   const [modalAlumnos, setModalAlumnos] = useState(false)
+  const [modalImportar, setModalImportar] = useState(false)
+  const [modalCodigos, setModalCodigos] = useState(false)
   const [modalMaterias, setModalMaterias] = useState(false)
   const [modalEditar, setModalEditar] = useState(false)
   const [confirmEliminar, setConfirmEliminar] = useState(false)
@@ -122,7 +126,12 @@ export default function GrupoDetalle() {
       {/* Contenido del tab */}
       <div>
         {tab === 'alumnos' && (
-          <TabAlumnos grupo={grupoActivo} onAgregarClick={() => setModalAlumnos(true)} />
+          <TabAlumnos
+            grupo={grupoActivo}
+            onAgregarClick={() => setModalAlumnos(true)}
+            onImportarClick={() => setModalImportar(true)}
+            onCodigosClick={() => setModalCodigos(true)}
+          />
         )}
         {tab === 'materias' && (
           <TabMaterias grupo={grupoActivo} onAgregarClick={() => setModalMaterias(true)} />
@@ -136,6 +145,23 @@ export default function GrupoDetalle() {
         onClose={() => setModalAlumnos(false)}
         grupo={grupoActivo}
       />
+      {modalImportar && (
+        <AgregarAlumnosGrupoModal
+          admin
+          grupo={grupoActivo}
+          onClose={() => {
+            setModalImportar(false)
+            seleccionarGrupo(Number(id))
+          }}
+          onListo={async () => {
+            setModalImportar(false)
+            await seleccionarGrupo(Number(id))
+          }}
+        />
+      )}
+      {modalCodigos && (
+        <ModalCodigosActivacion grupo={grupoActivo} onClose={() => setModalCodigos(false)} />
+      )}
       <ModalAgregarMaterias
         open={modalMaterias}
         onClose={() => setModalMaterias(false)}

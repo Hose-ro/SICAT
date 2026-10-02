@@ -101,4 +101,10 @@ describe('AuthController sessions', () => {
       path: '/api',
     });
   });
+
+  it('el registro público está cerrado salvo que se habilite a propósito', () => {
+    expect(() => controller.register({} as never, request, undefined)).toThrow(
+      /El registro está cerrado/,
+    );
+  });
 });

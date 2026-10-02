@@ -28,6 +28,7 @@ import { AsignarAulaGrupoDto } from './dto/asignar-aula-grupo.dto';
 import { AgregarGrupoDocenteDto } from './dto/agregar-grupo-docente.dto';
 import { CrearAlumnoGrupoDto } from './dto/crear-alumno-grupo.dto';
 import { ImportarAlumnosGrupoDto } from './dto/importar-alumnos-grupo.dto';
+import { GenerarCodigosActivacionDto } from './dto/generar-codigos-activacion.dto';
 import { CompletarAlumnoGrupoDto } from './dto/completar-alumno-grupo.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -258,6 +259,30 @@ export class GruposController {
     @Param('alumnoId', ParseIntPipe) alumnoId: number,
   ) {
     return this.grupos.quitarAlumno(grupoId, alumnoId);
+  }
+
+  @Post(':id/alumnos/importar')
+  @ApiOperation({
+    summary:
+      'Cargar el padrón del grupo desde una lista; las cuentas nuevas quedan por activar',
+  })
+  importarAlumnos(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ImportarAlumnosGrupoDto,
+  ) {
+    return this.grupos.importarAlumnosAGrupo(id, dto);
+  }
+
+  @Post(':id/codigos-activacion')
+  @ApiOperation({
+    summary:
+      'Generar los códigos de activación de los alumnos del grupo (sólo se muestran una vez)',
+  })
+  generarCodigosActivacion(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: GenerarCodigosActivacionDto,
+  ) {
+    return this.grupos.generarCodigosActivacion(id, dto.todos === true);
   }
 
   @Get(':id/alumnos')

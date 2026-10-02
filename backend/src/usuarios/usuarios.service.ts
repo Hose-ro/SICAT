@@ -124,6 +124,9 @@ export class UsuariosService {
               telefono: normalized.telefono,
               sexo: normalized.sexo,
               registroAprobado: !options.publicRegistration,
+              // Quien la crea ya conoce la contraseña; sólo las cuentas que
+              // carga la escuela por lista nacen pendientes de activar.
+              activadoAt: new Date(),
               carreraId:
                 normalized.rol === Rol.ALUMNO
                   ? normalized.carreraId

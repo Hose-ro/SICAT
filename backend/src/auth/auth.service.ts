@@ -22,7 +22,11 @@ import type {
   AuthRequestContext,
   PublicAuthUser,
 } from './auth.types';
-import { normalizeEmail } from '../common/identity-normalization';
+import {
+  normalizeControlNumber,
+  normalizeEmail,
+} from '../common/identity-normalization';
+import { hashCodigoActivacion } from '../common/activacion.util';
 import {
   AUTH_SESSION_TTL_SECONDS,
   MAX_SESIONES_CONCURRENTES,
@@ -149,6 +153,19 @@ export class AuthService {
       throw new HttpException(
         'Cuenta temporalmente bloqueada. Intenta nuevamente más tarde.',
         HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    // Los alumnos que cargó la escuela no conocen su contraseña hasta activar.
+    if (user.rol === Rol.ALUMNO && !user.activadoAt) {
+      await bcrypt.compare(dto.password, DUMMY_PASSWORD_HASH);
+      await this.audit(TipoEventoAuth.LOGIN_FALLIDO, context, {
+        userId: user.id,
+        identifier: dto.identifier,
+        metadata: { reason: 'not_activated' },
+      });
+      throw new ForbiddenException(
+        'Tu cuenta todavía no está activada. Entra a "Activar mi cuenta" con el código que te dio tu escuela.',
       );
     }
 
@@ -592,6 +609,100 @@ export class AuthService {
       identifier,
       metadata: { attempts },
     });
+  }
+
+  /**
+   * El alumno elige su contraseña con su número de control y el código que le
+   * dio la escuela. También sirve para recuperar la cuenta sin correo: la
+   * escuela le genera un código nuevo.
+   */
+  async activarCuenta(
+    dto: { numeroControl: string; codigo: string; password: string },
+    context: AuthRequestContext = {},
+  ) {
+    const invalido = () =>
+      new BadRequestException(
+        'El número de control o el código no son válidos',
+      );
+    const usuario = await this.prisma.usuario.findFirst({
+      where: {
+        numeroControl: {
+          equals: normalizeControlNumber(dto.numeroControl),
+          mode: 'insensitive',
+        },
+        rol: Rol.ALUMNO,
+      },
+      select: { id: true, activo: true, numeroControl: true },
+    });
+    const token = usuario
+      ? await this.prisma.authToken.findUnique({
+          where: { tokenHash: hashCodigoActivacion(usuario.id, dto.codigo) },
+          select: {
+            id: true,
+            usuarioId: true,
+            tipo: true,
+            usedAt: true,
+            expiresAt: true,
+          },
+        })
+      : null;
+    if (
+      !usuario ||
+      !token ||
+      token.usuarioId !== usuario.id ||
+      token.tipo !== TipoTokenAuth.ACTIVACION_CUENTA ||
+      token.usedAt ||
+      token.expiresAt <= new Date()
+    ) {
+      await this.audit(TipoEventoAuth.LOGIN_FALLIDO, context, {
+        userId: usuario?.id,
+        identifier: dto.numeroControl,
+        metadata: { reason: 'activation_code_invalid' },
+      });
+      throw invalido();
+    }
+    if (!usuario.activo) {
+      throw new ForbiddenException('La cuenta está desactivada');
+    }
+
+    const hash = await bcrypt.hash(dto.password, 12);
+    await this.prisma.$transaction(async (tx) => {
+      const ahora = new Date();
+      const claimed = await tx.authToken.updateMany({
+        where: { id: token.id, usedAt: null, expiresAt: { gt: ahora } },
+        data: { usedAt: ahora },
+      });
+      if (claimed.count !== 1) throw invalido();
+      const actual = await tx.usuario.findUnique({
+        where: { id: usuario.id },
+        select: { activadoAt: true },
+      });
+      await tx.usuario.update({
+        where: { id: usuario.id },
+        data: {
+          password: hash,
+          activadoAt: actual?.activadoAt ?? ahora,
+          registroAprobado: true,
+          tokenVersion: { increment: 1 },
+          failedLoginAttempts: 0,
+          lockedUntil: null,
+        },
+      });
+      await tx.sesion.updateMany({
+        where: { usuarioId: usuario.id, revocadaEn: null },
+        data: { revocadaEn: ahora },
+      });
+      await tx.authAudit.create({
+        data: {
+          usuarioId: usuario.id,
+          tipo: TipoEventoAuth.CUENTA_ACTIVADA,
+          identifier: usuario.numeroControl,
+          ip: context.ip,
+          userAgent: context.userAgent,
+        },
+      });
+    });
+    return { activada: true, numeroControl: usuario.numeroControl };
   }
 
   private findUsersByIdentifier(identifier: string) {

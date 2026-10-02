@@ -15,6 +15,7 @@ const api = axios.create({
 const SELF_HANDLED_AUTH_PATHS = [
   "/auth/login",
   "/auth/register",
+  "/auth/activar",
   "/auth/me",
   "/auth/request-email-verification",
   "/auth/verify-email",

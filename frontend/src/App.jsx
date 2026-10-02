@@ -14,6 +14,7 @@ import { clearLegacyAuthStorage } from "./lib/auth";
 import api from "./api/axios";
 const Login = lazy(() => import("./pages/Login"));
 const Registro = lazy(() => import("./pages/Registro"));
+const ActivarCuenta = lazy(() => import("./pages/ActivarCuenta"));
 const VerificarCorreo = lazy(() => import("./pages/VerificarCorreo"));
 const ReenviarVerificacion = lazy(() => import("./pages/ReenviarVerificacion"));
 const RecuperarPassword = lazy(() => import("./pages/RecuperarPassword"));
@@ -55,7 +56,7 @@ const JefeSeguimiento = lazy(() => import("./pages/jefe-carrera/JefeSeguimiento"
 const JefeAlertas = lazy(() => import("./pages/jefe-carrera/JefeAlertas"));
 const JefeReportes = lazy(() => import("./pages/jefe-carrera/JefeReportes"));
 import PwaInstallPrompt from "@/components/PwaInstallPrompt";
-import { EMAIL_AUTH_ENABLED } from "./lib/authFeatures";
+import { EMAIL_AUTH_ENABLED, REGISTRO_PUBLICO_ENABLED } from "./lib/authFeatures";
 
 function LayoutWrapper() {
   const location = useLocation();
@@ -127,7 +128,13 @@ function App() {
 
           {/* Rutas publicas (sin Sidebar) */}
           <Route path="/login" element={<Login />} />
-          <Route path="/registro" element={<Registro />} />
+          <Route
+            path="/registro"
+            element={
+              REGISTRO_PUBLICO_ENABLED ? <Registro /> : <Navigate to="/activar" replace />
+            }
+          />
+          <Route path="/activar" element={<ActivarCuenta />} />
           <Route
             path="/verificar-correo"
             element={

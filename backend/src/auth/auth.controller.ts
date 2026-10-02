@@ -1,5 +1,6 @@
 import {
   Controller,
+  ForbiddenException,
   Post,
   Body,
   Get,
@@ -22,6 +23,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { PublicStudentRegisterDto } from './dto/public-student-register.dto';
+import { ActivarCuentaDto } from './dto/activar-cuenta.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { RequestEmailVerificationDto } from './dto/request-email-verification.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
@@ -54,6 +56,13 @@ export class AuthController {
     @Req() request: ExpressRequest,
     @UploadedFile() fotoHorario?: Express.Multer.File,
   ) {
+    // La escuela da de alta a los alumnos: el autoregistro sólo vuelve si se
+    // habilita a propósito, para que nadie cree perfiles duplicados.
+    if (this.config.get<string>('REGISTRO_PUBLICO_HABILITADO') !== 'true') {
+      throw new ForbiddenException(
+        'El registro está cerrado. Tu escuela crea tu cuenta: actívala con tu número de control y tu código.',
+      );
+    }
     return this.auth.register(
       dto,
       this.getRequestContext(request),
@@ -173,6 +182,15 @@ export class AuthController {
       body.identifier,
       this.getRequestContext(request),
     );
+  }
+
+  @Post('activar')
+  @Throttle({ default: { limit: 5, ttl: 15 * 60_000 } })
+  @ApiOperation({
+    summary: 'Activar la cuenta del alumno con su número de control y código',
+  })
+  activar(@Body() dto: ActivarCuentaDto, @Req() request: ExpressRequest) {
+    return this.auth.activarCuenta(dto, this.getRequestContext(request));
   }
 
   @Post('reset-password')

@@ -34,8 +34,11 @@ function mensajeError(error, fallback) {
  * una materia, pero apuntando al grupo: aquí el alumno queda asignado al grupo
  * del docente, no inscrito a una materia.
  */
-export default function AgregarAlumnosGrupoModal({ grupo, onClose, onListo }) {
-  const [pestana, setPestana] = useState('existente')
+export default function AgregarAlumnosGrupoModal({ grupo, onClose, onListo, admin = false }) {
+  // El admin sólo carga el padrón por lista; dar de alta uno a uno o buscar
+  // existentes ya lo hace desde "Agregar alumnos" y Usuarios.
+  const pestanas = admin ? PESTANAS.filter((opcion) => opcion.clave === 'importar') : PESTANAS
+  const [pestana, setPestana] = useState(admin ? 'importar' : 'existente')
   const [busqueda, setBusqueda] = useState('')
   const [disponibles, setDisponibles] = useState([])
   const [seleccion, setSeleccion] = useState([])
@@ -183,7 +186,7 @@ export default function AgregarAlumnosGrupoModal({ grupo, onClose, onListo }) {
     setError('')
     try {
       const { data } = await api.post(
-        `/grupos/mis-grupos/${grupo.id}/alumnos/importar`,
+        admin ? `/grupos/${grupo.id}/alumnos/importar` : `/grupos/mis-grupos/${grupo.id}/alumnos/importar`,
         {
           alumnos: validas.map(({ nombre, numeroControl, email, telefono }) => ({
             nombre,
@@ -212,7 +215,7 @@ export default function AgregarAlumnosGrupoModal({ grupo, onClose, onListo }) {
     >
       <div className="space-y-4">
         <div className="flex flex-wrap gap-2">
-          {PESTANAS.map((opcion) => (
+          {pestanas.length > 1 && pestanas.map((opcion) => (
             <Button variant="ghost"
               key={opcion.clave}
               type="button"
@@ -360,6 +363,15 @@ export default function AgregarAlumnosGrupoModal({ grupo, onClose, onListo }) {
                   </li>
                   <li>Ya estaban en el grupo: {resumenImportacion.yaEnGrupo}</li>
                 </ul>
+                {resumenImportacion.creados > 0 && (
+                  <p>
+                    Los alumnos nuevos todavía no pueden entrar: necesitan su{' '}
+                    <strong>código de activación</strong>
+                    {admin
+                      ? '. Genéralos con el botón "Códigos de activación" del grupo.'
+                      : ', que les entrega la administración escolar.'}
+                  </p>
+                )}
                 {resumenImportacion.errores.length > 0 && (
                   <div>
                     <p className="font-medium text-destructive-foreground">

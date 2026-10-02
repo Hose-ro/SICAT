@@ -1,4 +1,8 @@
 import {
+  crearCodigosActivacion,
+  VIGENCIA_CODIGO_MS,
+} from '../common/activacion.util';
+import {
   Injectable,
   NotFoundException,
   ConflictException,
@@ -65,6 +69,7 @@ const INCLUDE_DETAIL = {
       numeroControl: true,
       email: true,
       sexo: true,
+      activadoAt: true,
     },
     where: { activo: true },
   },
@@ -614,7 +619,64 @@ export class GruposService {
     dto: ImportarAlumnosGrupoDto,
   ) {
     const grupo = await this.asegurarGrupoDelDocente(grupoId, docenteId);
+    return this.importarAlumnosEnGrupo(grupo, dto);
+  }
 
+  /** El admin carga el padrón de cualquier grupo con la misma regla. */
+  async importarAlumnosAGrupo(grupoId: number, dto: ImportarAlumnosGrupoDto) {
+    const grupo = await this.prisma.grupo.findUnique({
+      where: { id: grupoId },
+      select: { id: true, nombre: true, carreraId: true, semestre: true },
+    });
+    if (!grupo) throw new NotFoundException('Grupo no encontrado');
+    return this.importarAlumnosEnGrupo(grupo, dto);
+  }
+
+  /**
+   * Códigos de activación de los alumnos del grupo. Por defecto sólo de los
+   * que no han activado; con `todos` también reemplaza los de quienes ya
+   * entraron (sirve para recuperar cuentas sin correo).
+   */
+  async generarCodigosActivacion(grupoId: number, todos = false) {
+    const grupo = await this.prisma.grupo.findUnique({
+      where: { id: grupoId },
+      select: { id: true, nombre: true },
+    });
+    if (!grupo) throw new NotFoundException('Grupo no encontrado');
+    const alumnos = await this.prisma.usuario.findMany({
+      where: {
+        grupoId,
+        rol: Rol.ALUMNO,
+        activo: true,
+        ...(todos ? {} : { activadoAt: null }),
+      },
+      select: { id: true, nombre: true, numeroControl: true },
+      orderBy: { nombre: 'asc' },
+    });
+    const codigos = await this.prisma.$transaction((tx) =>
+      crearCodigosActivacion(
+        tx,
+        alumnos.map((alumno) => alumno.id),
+      ),
+    );
+    const codigoPorAlumno = new Map(
+      codigos.map((item) => [item.usuarioId, item.codigo]),
+    );
+    return {
+      grupo,
+      vigenciaDias: Math.round(VIGENCIA_CODIGO_MS / 86_400_000),
+      alumnos: alumnos.map((alumno) => ({
+        ...alumno,
+        codigo: codigoPorAlumno.get(alumno.id),
+      })),
+    };
+  }
+
+  private async importarAlumnosEnGrupo(
+    grupo: { id: number; nombre: string; carreraId: number; semestre: number },
+    dto: ImportarAlumnosGrupoDto,
+  ) {
+    const grupoId = grupo.id;
     const resultado = {
       creados: 0,
       vinculados: 0,

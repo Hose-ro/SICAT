@@ -27,6 +27,9 @@ enum TipoTokenAuth {
   RECUPERACION_PASSWORD
   /// Suscripción iCal al horario (URL sin sesión); se revoca marcando usedAt.
   CALENDARIO
+  /// Código corto que la escuela entrega al alumno para activar su cuenta
+  /// (o recuperarla) sin correo. Se valida junto con su número de control.
+  ACTIVACION_CUENTA
 }
 
 enum TipoEventoAuth {
@@ -215,6 +218,9 @@ model Usuario {
   carrera             Carrera?  @relation(fields: [carreraId], references: [id])
   activo              Boolean   @default(true)
   registroAprobado    Boolean   @default(true)
+  /// Cuándo el usuario eligió su propia contraseña. Los alumnos que carga la
+  /// escuela nacen sin ella y la activan con su código.
+  activadoAt          DateTime?
   tokenVersion        Int       @default(0)
   failedLoginAttempts Int       @default(0)
   lockedUntil         DateTime?

@@ -7,10 +7,12 @@ import { UsuariosService } from '../usuarios/usuarios.service';
 import { HorarioImportacionesService } from '../horario-importaciones/horario-importaciones.service';
 import { AuthMailService } from './auth-mail.service';
 import { AuthService } from './auth.service';
+import { hashCodigoActivacion } from '../common/activacion.util';
 
 describe('AuthService', () => {
   const usuarioFindMany = jest.fn();
   const usuarioFindUnique = jest.fn();
+  const usuarioFindFirst = jest.fn();
   const usuarioUpdate = jest.fn();
   const authTokenFindUnique = jest.fn();
   const authTokenUpdateMany = jest.fn();
@@ -24,6 +26,7 @@ describe('AuthService', () => {
     usuario: {
       findMany: usuarioFindMany,
       findUnique: usuarioFindUnique,
+      findFirst: usuarioFindFirst,
       update: usuarioUpdate,
     },
     authToken: {
@@ -250,6 +253,7 @@ describe('AuthService', () => {
         rol: Rol.ALUMNO,
         activo: true,
         registroAprobado: true,
+        activadoAt: new Date(),
         emailVerificadoAt: new Date(),
         lockedUntil: null,
         tokenVersion: 7,
@@ -282,6 +286,7 @@ describe('AuthService', () => {
         rol: Rol.ALUMNO,
         activo: true,
         registroAprobado: true,
+        activadoAt: new Date(),
         emailVerificadoAt: null,
         lockedUntil: null,
         tokenVersion: 0,
@@ -324,6 +329,7 @@ describe('AuthService', () => {
         email: null,
         emailVerificadoAt: null,
         registroAprobado: true,
+        activadoAt: new Date(),
         lockedUntil: null,
       },
     ]);
@@ -453,6 +459,7 @@ describe('AuthService', () => {
           rol: Rol.ALUMNO,
           activo: true,
           registroAprobado: true,
+          activadoAt: new Date(),
           emailVerificadoAt: new Date(),
           lockedUntil: null,
           tokenVersion: 0,
@@ -474,6 +481,7 @@ describe('AuthService', () => {
           rol: Rol.ALUMNO,
           activo: true,
           registroAprobado: true,
+          activadoAt: new Date(),
           emailVerificadoAt: new Date(),
           lockedUntil: null,
           tokenVersion: 0,
@@ -525,6 +533,118 @@ describe('AuthService', () => {
       expect(auditCall[0].data.usuarioId).toBe(20);
       expect(auditCall[0].data.tipo).toBe(TipoEventoAuth.SESION_EXPULSADA);
       expect(auditCall[0].data.metadata.sesionExpulsadaId).toBe('sid-vieja');
+    });
+  });
+
+  describe('activación de cuentas cargadas por la escuela', () => {
+    const alumnoSinActivar = {
+      id: 31,
+      nombre: 'Luis Prueba',
+      email: null,
+      numeroControl: '225Q0104',
+      username: null,
+      password: 'hash-aleatorio',
+      rol: Rol.ALUMNO,
+      activo: true,
+      registroAprobado: true,
+      activadoAt: null,
+      emailVerificadoAt: null,
+      lockedUntil: null,
+      tokenVersion: 0,
+    };
+
+    it('el login pide activar la cuenta en vez de decir "credenciales inválidas"', async () => {
+      usuarioFindMany.mockResolvedValue([alumnoSinActivar]);
+
+      await expect(
+        service.login({ identifier: '225Q0104', password: 'lo-que-sea' }),
+      ).rejects.toThrow(/todavía no está activada/);
+      expect(sign).not.toHaveBeenCalled();
+    });
+
+    it('con número de control y código válidos guarda la contraseña y marca la cuenta como activada', async () => {
+      usuarioFindFirst.mockResolvedValue({
+        id: 31,
+        activo: true,
+        numeroControl: '225Q0104',
+      });
+      authTokenFindUnique.mockResolvedValue({
+        id: 9,
+        usuarioId: 31,
+        tipo: TipoTokenAuth.ACTIVACION_CUENTA,
+        usedAt: null,
+        expiresAt: new Date(Date.now() + 60_000),
+      });
+      authTokenUpdateMany.mockResolvedValue({ count: 1 });
+      usuarioFindUnique.mockResolvedValue({ activadoAt: null });
+      usuarioUpdate.mockResolvedValue({});
+
+      await expect(
+        service.activarCuenta({
+          numeroControl: ' 225q0104 ',
+          codigo: 'k7p2 m9qx',
+          password: 'mi-clave-nueva',
+        }),
+      ).resolves.toEqual({ activada: true, numeroControl: '225Q0104' });
+
+      // El código se busca ligado a ese alumno y sin importar guion ni mayúsculas.
+      expect(authTokenFindUnique).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { tokenHash: hashCodigoActivacion(31, 'K7P2-M9QX') },
+        }),
+      );
+      const [[{ data }]] = usuarioUpdate.mock.calls as [
+        [
+          {
+            data: { password: string; activadoAt: Date; tokenVersion: unknown };
+          },
+        ],
+      ];
+      expect(await bcrypt.compare('mi-clave-nueva', data.password)).toBe(true);
+      expect(data.activadoAt).toBeInstanceOf(Date);
+      expect(data.tokenVersion).toEqual({ increment: 1 });
+      expect(authAuditCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            tipo: TipoEventoAuth.CUENTA_ACTIVADA,
+          }) as unknown,
+        }),
+      );
+    });
+
+    it('rechaza un código usado, vencido o de otro alumno sin decir cuál falló', async () => {
+      usuarioFindFirst.mockResolvedValue({
+        id: 31,
+        activo: true,
+        numeroControl: '225Q0104',
+      });
+      const casos = [
+        {
+          usuarioId: 31,
+          usedAt: new Date(),
+          expiresAt: new Date(Date.now() + 60_000),
+        },
+        { usuarioId: 31, usedAt: null, expiresAt: new Date(Date.now() - 1) },
+        {
+          usuarioId: 99,
+          usedAt: null,
+          expiresAt: new Date(Date.now() + 60_000),
+        },
+        null,
+      ];
+      for (const caso of casos) {
+        authTokenFindUnique.mockResolvedValueOnce(
+          caso && { id: 9, tipo: TipoTokenAuth.ACTIVACION_CUENTA, ...caso },
+        );
+        await expect(
+          service.activarCuenta({
+            numeroControl: '225Q0104',
+            codigo: 'K7P2-M9QX',
+            password: 'mi-clave-nueva',
+          }),
+        ).rejects.toThrow('El número de control o el código no son válidos');
+      }
+      expect(usuarioUpdate).not.toHaveBeenCalled();
     });
   });
 });

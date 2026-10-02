@@ -23,6 +23,9 @@ describe('GruposService', () => {
   const usuarioFindUnique = jest.fn();
   const usuarioUpdate = jest.fn();
   const usuarioCreate = jest.fn();
+  const usuarioFindMany = jest.fn();
+  const tokenUpdateMany = jest.fn();
+  const tokenCreateMany = jest.fn();
   const transaction = jest.fn();
   const prisma = {
     grupo: {
@@ -35,7 +38,9 @@ describe('GruposService', () => {
       findUnique: usuarioFindUnique,
       update: usuarioUpdate,
       create: usuarioCreate,
+      findMany: usuarioFindMany,
     },
+    authToken: { updateMany: tokenUpdateMany, createMany: tokenCreateMany },
     $transaction: transaction,
   } as unknown as PrismaService;
   const horarios = {} as unknown as HorariosService;
@@ -255,5 +260,75 @@ describe('GruposService', () => {
       NotFoundException,
     );
     expect(transaction).not.toHaveBeenCalled();
+  });
+
+  describe('padrón cargado por el admin', () => {
+    it('el admin importa a cualquier grupo con la misma regla que el docente', async () => {
+      grupoFindUnique.mockResolvedValue({ ...grupoExistente });
+      usuarioFindFirst.mockResolvedValue(null);
+      usuarioCreate.mockResolvedValue({ id: 21 });
+
+      await expect(
+        service.importarAlumnosAGrupo(4, {
+          alumnos: [{ nombre: 'Dana Ruiz', numeroControl: '225Q0200' }],
+        }),
+      ).resolves.toEqual(expect.objectContaining({ creados: 1 }));
+      expect(grupoFindFirst).not.toHaveBeenCalled();
+      // La cuenta nace sin activar: no trae activadoAt.
+      expect(usuarioCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.not.objectContaining({
+            activadoAt: expect.anything() as unknown,
+          }) as unknown,
+        }),
+      );
+    });
+
+    it('genera un código por alumno pendiente de activar, sin guardar el código en claro', async () => {
+      transaction.mockImplementation((fn: (tx: unknown) => unknown) =>
+        fn(prisma),
+      );
+      usuarioFindMany.mockResolvedValue([
+        { id: 11, nombre: 'Ana', numeroControl: '225Q0103' },
+        { id: 12, nombre: 'Beto', numeroControl: '225Q0104' },
+      ]);
+
+      const resultado = await service.generarCodigosActivacion(4);
+
+      expect(usuarioFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { grupoId: 4, rol: 'ALUMNO', activo: true, activadoAt: null },
+        }),
+      );
+      expect(resultado.alumnos.map((a) => a.codigo)).toEqual([
+        expect.stringMatching(/^[A-Z2-9]{4}-[A-Z2-9]{4}$/),
+        expect.stringMatching(/^[A-Z2-9]{4}-[A-Z2-9]{4}$/),
+      ]);
+      const guardados = JSON.stringify(tokenCreateMany.mock.calls);
+      for (const { codigo } of resultado.alumnos) {
+        expect(guardados).not.toContain(codigo);
+      }
+      // Los códigos anteriores de esos alumnos dejan de servir.
+      expect(tokenUpdateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            usuarioId: { in: [11, 12] },
+          }) as unknown,
+        }),
+      );
+    });
+
+    it('con "todos" también incluye a quienes ya activaron', async () => {
+      transaction.mockImplementation((fn: (tx: unknown) => unknown) =>
+        fn(prisma),
+      );
+      usuarioFindMany.mockResolvedValue([]);
+      await service.generarCodigosActivacion(4, true);
+      expect(usuarioFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { grupoId: 4, rol: 'ALUMNO', activo: true },
+        }),
+      );
+    });
   });
 });

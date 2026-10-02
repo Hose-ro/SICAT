@@ -13,7 +13,7 @@ import { useAuthStore } from "../store/authStore";
 import { useThemeStore } from "../store/useThemeStore";
 import api from "../api/axios";
 import BrandMark from "../components/branding/BrandMark";
-import { EMAIL_AUTH_ENABLED } from "../lib/authFeatures";
+import { EMAIL_AUTH_ENABLED, REGISTRO_PUBLICO_ENABLED } from "../lib/authFeatures";
 
 export default function Login() {
   const [identifier, setIdentifier] = useState("");
@@ -238,6 +238,11 @@ export default function Login() {
                       className="rounded-2xl border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground"
                     >
                       {error}
+                      {/no está activada/.test(error) && (
+                        <Link to="/activar" className="mt-1 block font-semibold underline">
+                          Activar mi cuenta
+                        </Link>
+                      )}
                     </div>
                   )}
 
@@ -253,14 +258,25 @@ export default function Login() {
 
                   <div className="space-y-3 pt-1 text-center">
                     <p className="text-sm text-muted-foreground">
-                      ¿Eres alumno nuevo?{" "}
+                      ¿Primera vez en SICAT?{" "}
                       <Link
-                        to="/registro"
+                        to="/activar"
                         className="font-medium text-primary-ink transition-colors hover:text-primary-strong hover:underline"
                       >
-                        Crea tu cuenta aquí
+                        Activa tu cuenta con tu código
                       </Link>
                     </p>
+                    {REGISTRO_PUBLICO_ENABLED && (
+                      <p className="text-sm text-muted-foreground">
+                        ¿No vienes en la lista de tu escuela?{" "}
+                        <Link
+                          to="/registro"
+                          className="font-medium text-primary-ink transition-colors hover:text-primary-strong hover:underline"
+                        >
+                          Solicita tu registro
+                        </Link>
+                      </p>
+                    )}
                   </div>
                 </form>
               </div>

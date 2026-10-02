@@ -3,7 +3,7 @@ import { useState } from 'react'
 import SexoBadge from '../../../../components/SexoBadge'
 import { useGrupoStore } from '../../../../store/grupoStore'
 
-export default function TabAlumnos({ grupo, onAgregarClick }) {
+export default function TabAlumnos({ grupo, onAgregarClick, onImportarClick, onCodigosClick }) {
   const { quitarAlumno } = useGrupoStore()
   const [confirmId, setConfirmId] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -19,17 +19,31 @@ export default function TabAlumnos({ grupo, onAgregarClick }) {
   }
 
   const alumnos = grupo?.alumnos ?? []
+  const sinActivar = alumnos.filter((a) => !a.activadoAt).length
 
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-muted-foreground">{alumnos.length} alumno(s)</p>
-        <Button variant="default"
-          onClick={onAgregarClick}
-          className="w-full px-4 py-2 text-sm sm:w-auto"
-        >
-          + Agregar alumnos
-        </Button>
+        <p className="text-sm text-muted-foreground">
+          {alumnos.length} alumno(s)
+          {sinActivar > 0 && (
+            <span className="font-medium text-warning-foreground"> · {sinActivar} sin activar su cuenta</span>
+          )}
+        </p>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Button variant="outline" onClick={onImportarClick} className="w-full px-4 py-2 text-sm sm:w-auto">
+            Importar lista (Excel)
+          </Button>
+          <Button variant="outline" onClick={onCodigosClick} disabled={alumnos.length === 0} className="w-full px-4 py-2 text-sm sm:w-auto">
+            Códigos de activación
+          </Button>
+          <Button variant="default"
+            onClick={onAgregarClick}
+            className="w-full px-4 py-2 text-sm sm:w-auto"
+          >
+            + Agregar alumnos
+          </Button>
+        </div>
       </div>
 
       {alumnos.length === 0 ? (
@@ -43,6 +57,7 @@ export default function TabAlumnos({ grupo, onAgregarClick }) {
                 <th className="px-4 py-3 text-left">Nombre</th>
                 <th className="px-4 py-3 text-left">Sexo</th>
                 <th className="px-4 py-3 text-left">Email</th>
+                <th className="px-4 py-3 text-left">Cuenta</th>
                 <th className="px-4 py-3 text-right"></th>
               </tr>
             </thead>
@@ -55,6 +70,13 @@ export default function TabAlumnos({ grupo, onAgregarClick }) {
                     {a.sexo ? <SexoBadge sexo={a.sexo} /> : <span className="text-muted-foreground">—</span>}
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">{a.email ?? '—'}</td>
+                  <td className="px-4 py-3">
+                    {a.activadoAt ? (
+                      <span className="text-xs text-muted-foreground">Activa</span>
+                    ) : (
+                      <span className="rounded-full bg-warning/15 px-2 py-0.5 text-xs font-medium text-warning-foreground">Sin activar</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-right">
                     {confirmId === a.id ? (
                       <span className="flex flex-wrap justify-end gap-2">
