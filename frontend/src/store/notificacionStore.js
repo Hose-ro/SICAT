@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { create } from 'zustand'
 import api from '../api/axios'
+import { avisarNotificacion, permisoAvisos } from '../lib/avisosSistema'
 
 const POLL_MS = 30000
 
@@ -45,8 +46,19 @@ export const useNotificacionStore = create((set, get) => ({
   contarNoLeidas: async () => {
     try {
       const res = await api.get('/notificaciones/no-leidas')
+      const anterior = get().noLeidas
       set({ noLeidas: res.data })
+      if (res.data > anterior) await get().avisarNuevas()
     } catch { /* Keep the previous count while the service is unavailable. */ }
+  },
+
+  // Algunas notificaciones (la clase ya inició) no pueden esperar a que se
+  // abra la campana: se avisan en cuanto llegan.
+  avisarNuevas: async () => {
+    try {
+      const res = await api.get('/notificaciones', { params: { skip: 0, take: 5, soloNoLeidas: true } })
+      for (const notificacion of res.data.items || []) await avisarNotificacion(notificacion)
+    } catch { /* El aviso es un extra: la campana sigue funcionando. */ }
   },
 
   marcarLeida: async (id) => {
@@ -94,9 +106,11 @@ export const useNotificacionStore = create((set, get) => ({
     poll.suscriptores += 1
     if (poll.timer) return
     // `focus` and `visibilitychange` fire together when returning to the tab;
-    // one request every few seconds is plenty.
+    // one request every few seconds is plenty. With system notifications
+    // allowed it keeps polling in the background so they can arrive.
     const tick = () => {
-      if (document.hidden || Date.now() - poll.ultimo < 5000) return
+      if (document.hidden && permisoAvisos() !== 'granted') return
+      if (Date.now() - poll.ultimo < 5000) return
       poll.ultimo = Date.now()
       get().contarNoLeidas()
     }

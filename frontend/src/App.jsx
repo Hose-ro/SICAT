@@ -45,6 +45,7 @@ const CalendarioEscolar = lazy(() => import("./pages/admin/CalendarioEscolar"));
 const MisGrupos = lazy(() => import("./pages/docente/MisGrupos"));
 const AlumnosRiesgo = lazy(() => import("./pages/docente/AlumnosRiesgo"));
 const DashboardDocente = lazy(() => import("./pages/docente/DashboardDocente"));
+const DashboardAlumno = lazy(() => import("./pages/alumno/DashboardAlumno"));
 const SolicitudesPendientes = lazy(() => import("./pages/docente/SolicitudesPendientes"));
 const JefeDashboard = lazy(() => import("./pages/jefe-carrera/JefeDashboard"));
 const JefeDocentes = lazy(() => import("./pages/jefe-carrera/JefeDocentes"));
@@ -112,6 +113,7 @@ function DashboardRoute() {
   if (user?.rol === "JEFE_CARRERA") return <JefeDashboard />;
   if (user?.rol === "DOCENTE") return <DashboardDocente />;
   if (user?.rol === "ADMIN") return <Dashboard />;
+  if (user?.rol === "ALUMNO") return <DashboardAlumno />;
   return <Navigate to="/materias" replace />;
 }
 

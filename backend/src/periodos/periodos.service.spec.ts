@@ -662,4 +662,60 @@ describe('PeriodosService', () => {
       9, 12,
     ]);
   });
+
+  describe('próximos días sin clases del alumno', () => {
+    beforeEach(() => {
+      jest.useFakeTimers({ now: REFERENCIA });
+      usuarioFindUnique.mockResolvedValue({ grupoId: 3 });
+      horarioFindMany.mockResolvedValue([
+        { docenteId: 9, dias: 'Lunes', materia: { nombre: 'Cálculo' } },
+        { docenteId: 9, dias: 'Miércoles', materia: { nombre: 'Redes' } },
+        { docenteId: 10, dias: 'Martes', materia: { nombre: 'Física' } },
+      ]);
+    });
+    afterEach(() => jest.useRealTimers());
+
+    it('junta los institucionales y los del docente sólo si ese día tenía clase', async () => {
+      institucionalFindMany.mockResolvedValue([
+        { fecha: '2026-09-16', motivo: 'Independencia' },
+      ]);
+      suspensionFindMany.mockResolvedValue([
+        // Lunes 14: el docente 9 da Cálculo ese día.
+        { docenteId: 9, fecha: '2026-09-14', motivo: 'Congreso' },
+        // El docente 10 sólo da clase los martes: no afecta al alumno.
+        { docenteId: 10, fecha: '2026-09-14', motivo: 'Junta' },
+        // Ya es institucional: se queda el aviso general.
+        { docenteId: 9, fecha: '2026-09-16', motivo: 'Personal' },
+      ]);
+
+      await expect(service.proximosDiasSinClasesAlumno(55)).resolves.toEqual([
+        {
+          fecha: '2026-09-14',
+          motivo: 'Congreso',
+          institucional: false,
+          materias: ['Cálculo'],
+        },
+        {
+          fecha: '2026-09-16',
+          motivo: 'Independencia',
+          institucional: true,
+          materias: [],
+        },
+      ]);
+      expect(institucionalFindMany).toHaveBeenCalledWith({
+        where: { fecha: { gte: '2026-09-09', lte: '2026-10-09' } },
+        select: { fecha: true, motivo: true },
+      });
+    });
+
+    it('sin grupo sólo ve los institucionales', async () => {
+      usuarioFindUnique.mockResolvedValue({ grupoId: null });
+      institucionalFindMany.mockResolvedValue([]);
+
+      await expect(service.proximosDiasSinClasesAlumno(55)).resolves.toEqual(
+        [],
+      );
+      expect(suspensionFindMany).not.toHaveBeenCalled();
+    });
+  });
 });

@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { EstadoAsistencia, Sexo, TipoNotificacion } from '@prisma/client';
+import { estaEnRiesgo } from '../common/riesgo.util';
 import { PrismaService } from '../prisma.service';
 import { PasarListaDto } from './dto/pasar-lista.dto';
 import { ActualizarAsistenciaDto } from './dto/actualizar-asistencia.dto';
@@ -551,6 +552,11 @@ export class AsistenciasService {
           ...resumen,
           totalSesiones: sesionesMateria.length,
           sinRegistro: Math.max(sesionesMateria.length - resumen.total, 0),
+          // Mismo criterio que ve el docente en "alumnos en riesgo".
+          enRiesgo: estaEnRiesgo(
+            resumen.total,
+            resumen.faltas + resumen.retardos,
+          ),
         },
       };
     });

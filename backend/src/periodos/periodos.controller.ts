@@ -17,6 +17,7 @@ import { Roles } from '../auth/roles.decorator';
 import { ActualizarPeriodoDto } from './dto/actualizar-periodo.dto';
 import { GuardarSuspensionesDto } from './dto/guardar-suspensiones.dto';
 
+import type { AuthenticatedRequest } from '../auth/auth.types';
 @ApiTags('Periodos')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -52,6 +53,15 @@ export class PeriodosController {
   })
   listarSuspensiones(@Req() req) {
     return this.periodos.listarSuspensiones(req.user.id);
+  }
+
+  @Get('actual/dias-sin-clases')
+  @Roles('ALUMNO')
+  @ApiOperation({
+    summary: 'Próximos días sin clases que afectan al alumno (30 días)',
+  })
+  proximosDiasSinClases(@Req() req: AuthenticatedRequest) {
+    return this.periodos.proximosDiasSinClasesAlumno(req.user.id);
   }
 
   @Post('actual/suspensiones')

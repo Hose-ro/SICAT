@@ -96,3 +96,22 @@ function isStaticAsset(request, url) {
 
   return ["style", "script", "image", "font", "manifest"].includes(request.destination)
 }
+
+// Al tocar un aviso del sistema se abre SICAT en la página de la notificación.
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close()
+  const url = event.notification.data?.url || "/dashboard"
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((clientes) => {
+        const cliente = clientes.find(
+          (item) => new URL(item.url).origin === self.location.origin,
+        )
+        if (cliente) {
+          return cliente.focus().then((enfocado) => enfocado.navigate(url))
+        }
+        return self.clients.openWindow(url)
+      }),
+  )
+})

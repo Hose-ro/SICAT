@@ -487,6 +487,83 @@ export class PeriodosService {
     return this.listarSuspensiones(docenteId);
   }
 
+  /**
+   * Próximos días sin clases que le tocan al alumno: los institucionales y
+   * los que marcó alguno de sus docentes, sólo si ese día tenía clase con él.
+   */
+  async proximosDiasSinClasesAlumno(alumnoId: number, dias = 30) {
+    const alumno = await this.prisma.usuario.findUnique({
+      where: { id: alumnoId },
+      select: { grupoId: true },
+    });
+    const hoy = obtenerInicioDelDia(new Date());
+    const rango = {
+      gte: formatearFechaClave(hoy),
+      lte: formatearFechaClave(sumarDias(hoy, dias)),
+    };
+    const horarios = alumno?.grupoId
+      ? await this.prisma.horarioMateria.findMany({
+          where: { grupoId: alumno.grupoId, activo: true },
+          select: {
+            docenteId: true,
+            dias: true,
+            materia: { select: { nombre: true } },
+          },
+        })
+      : [];
+    const [institucionales, propias] = await Promise.all([
+      this.prisma.suspensionInstitucional.findMany({
+        where: { fecha: rango },
+        select: { fecha: true, motivo: true },
+      }),
+      horarios.length
+        ? this.prisma.suspensionClase.findMany({
+            where: {
+              fecha: rango,
+              docenteId: { in: [...new Set(horarios.map((h) => h.docenteId))] },
+            },
+            select: { docenteId: true, fecha: true, motivo: true },
+          })
+        : Promise.resolve([]),
+    ]);
+
+    const porFecha = new Map<
+      string,
+      {
+        fecha: string;
+        motivo: string;
+        institucional: boolean;
+        materias: string[];
+      }
+    >();
+    for (const item of institucionales) {
+      porFecha.set(item.fecha, { ...item, institucional: true, materias: [] });
+    }
+    for (const item of propias) {
+      if (porFecha.get(item.fecha)?.institucional) continue;
+      const fecha = parsearFechaClave(item.fecha);
+      const materias = horarios
+        .filter(
+          (h) =>
+            h.docenteId === item.docenteId &&
+            fecha &&
+            horarioAplicaEnFecha(h.dias, fecha),
+        )
+        .map((h) => h.materia.nombre);
+      if (!materias.length) continue;
+      const actual = porFecha.get(item.fecha);
+      porFecha.set(item.fecha, {
+        fecha: item.fecha,
+        motivo: actual?.motivo ?? item.motivo,
+        institucional: false,
+        materias: [...new Set([...(actual?.materias ?? []), ...materias])],
+      });
+    }
+    return [...porFecha.values()].sort((a, b) =>
+      a.fecha.localeCompare(b.fecha),
+    );
+  }
+
   async listarSuspensionesInstitucionales(referencia = new Date()) {
     const periodo = await this.obtenerActual(referencia);
     return this.prisma.suspensionInstitucional.findMany({
