@@ -18,6 +18,7 @@ import { CarrerasModule } from './carreras/carreras.module';
 import { SolicitudesModule } from './solicitudes/solicitudes.module';
 import { NotificacionesModule } from './notificaciones/notificaciones.module';
 import { AvisosModule } from './avisos/avisos.module';
+import { CalendarioModule } from './calendario/calendario.module';
 import { AulasModule } from './aulas/aulas.module';
 import { HorariosModule } from './horarios/horarios.module';
 import { AcademiasModule } from './academias/academias.module';
@@ -92,6 +93,7 @@ import { PeriodosModule } from './periodos/periodos.module';
     SolicitudesModule,
     NotificacionesModule,
     AvisosModule,
+    CalendarioModule,
     AulasModule,
     HorariosModule,
     AcademiasModule,

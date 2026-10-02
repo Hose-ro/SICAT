@@ -6,6 +6,7 @@ import PeriodoEscolarCard from '../../components/PeriodoEscolarCard'
 import { CalendarClock, Download } from 'lucide-react'
 import api from '../../api/axios'
 import HorarioSemanal from '../../components/horario/HorarioSemanal'
+import SuscripcionCalendario from '../../components/horario/SuscripcionCalendario'
 import CalendarioClases from '../../components/CalendarioClases'
 import { horasSemanales as calcularHorasSemanales } from '../../lib/horarioColors'
 import { generarHorarioPdf } from '../../lib/generarHorarioPdf'
@@ -66,6 +67,8 @@ export default function MiHorario() {
           >
             Editar mi horario
           </Link>
+
+          <SuscripcionCalendario />
 
         {!loading && !error && horarios.length > 0 && (
           <Button variant="outline"

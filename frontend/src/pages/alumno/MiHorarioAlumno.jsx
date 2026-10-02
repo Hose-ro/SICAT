@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { CalendarClock, Download } from 'lucide-react'
 import api from '../../api/axios'
 import HorarioSemanal from '../../components/horario/HorarioSemanal'
+import SuscripcionCalendario from '../../components/horario/SuscripcionCalendario'
 import { horasSemanales as calcularHorasSemanales } from '../../lib/horarioColors'
 import { generarHorarioPdf } from '../../lib/generarHorarioPdf'
 
@@ -62,6 +63,8 @@ export default function MiHorarioAlumno() {
         </div>
         </div>
 
+        <div className="flex flex-wrap items-center gap-2">
+        {!loading && !error && grupo && <SuscripcionCalendario />}
         {!loading && !error && grupo && horarios.length > 0 && (
           <Button variant="outline"
             type="button"
@@ -79,6 +82,7 @@ export default function MiHorarioAlumno() {
             Descargar PDF
           </Button>
         )}
+        </div>
       </div>
 
       {error && (

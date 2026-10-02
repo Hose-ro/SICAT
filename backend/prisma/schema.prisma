@@ -25,6 +25,8 @@ enum Rol {
 enum TipoTokenAuth {
   VERIFICACION_CORREO
   RECUPERACION_PASSWORD
+  /// Suscripción iCal al horario (URL sin sesión); se revoca marcando usedAt.
+  CALENDARIO
 }
 
 enum TipoEventoAuth {
