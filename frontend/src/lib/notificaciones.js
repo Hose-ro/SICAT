@@ -1,6 +1,6 @@
 import {
   AlarmClock, Bell, BookOpen, CalendarCheck, CalendarClock, CalendarRange, CalendarX, ChartColumn,
-  CircleCheck, CircleX, ClipboardCheck, Clock, Inbox, ListChecks, MessageSquareText, StickyNote,
+  CircleCheck, CircleX, ClipboardCheck, Clock, Inbox, ListChecks, Megaphone, MessageSquareText, StickyNote,
   Sun, Upload, UserRound,
 } from 'lucide-react'
 
@@ -38,6 +38,7 @@ export const NOTIFICATION_META = {
   HORARIO_IMPORTADO: { icon: CalendarRange, label: 'Horario recibido', tone: 'neutral' },
   HORARIO_APROBADO: { icon: CalendarCheck, label: 'Horario aprobado', tone: 'success' },
   HORARIO_RECHAZADO: { icon: CalendarX, label: 'Horario rechazado', tone: 'destructive' },
+  AVISO_DOCENTE: { icon: Megaphone, label: 'Aviso del docente', tone: 'neutral' },
 }
 
 export const NOTIFICATION_TONE_CLASS = {

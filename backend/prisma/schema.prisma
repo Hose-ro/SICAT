@@ -165,6 +165,7 @@ enum TipoNotificacion {
   HORARIO_IMPORTADO
   HORARIO_APROBADO
   HORARIO_RECHAZADO
+  AVISO_DOCENTE
 }
 
 // ==================== MODELS ====================
@@ -244,6 +245,8 @@ model Usuario {
   importacionesHorario  ImportacionHorario[]       @relation("ImportacionHorarioAlumno")
   revisionesHorario     ImportacionHorario[]       @relation("ImportacionHorarioRevisor")
   bloquesImportados     BloqueImportacionHorario[] @relation("BloqueImportacionDocente")
+  avisosEnviados        Aviso[]                    @relation("AvisoDocente")
+  avisosRecibidos       Aviso[]                    @relation("AvisoAlumno")
 }
 
 model AuthToken {
@@ -418,6 +421,7 @@ model Materia {
   calificaciones CalificacionUnidad[]
   categorias     CategoriaEvaluacion[]
   ponderaciones  PonderacionGrupo[]
+  avisos         Aviso[]
 
   @@unique([clave, carreraId])
 }
@@ -578,6 +582,33 @@ model PonderacionGrupo {
 
   @@id([materiaId, grupoId])
   @@index([grupoId])
+}
+
+/// Aviso del docente a un grupo ("mañana no hay clase", "traigan
+/// calculadora") o a un solo alumno (p. ej. por riesgo de reprobar). Se
+/// notifica al publicarse; editarlo no vuelve a notificar.
+model Aviso {
+  id              Int      @id @default(autoincrement())
+  materiaId       Int
+  grupoId         Int
+  /// Con alumno, el aviso es sólo para él y queda como registro de que se le avisó.
+  alumnoId        Int?
+  docenteId       Int
+  titulo          String   @db.VarChar(120)
+  cuerpo          String   @db.VarChar(2000)
+  fijado          Boolean  @default(false)
+  /// Fecha (AAAA-MM-DD) de la suspensión de clase que lo generó, si la hay.
+  suspensionFecha String?  @db.VarChar(10)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  materia         Materia  @relation(fields: [materiaId], references: [id], onDelete: Cascade)
+  grupo           Grupo    @relation(fields: [grupoId], references: [id], onDelete: Cascade)
+  alumno          Usuario? @relation("AvisoAlumno", fields: [alumnoId], references: [id], onDelete: Cascade)
+  docente         Usuario  @relation("AvisoDocente", fields: [docenteId], references: [id], onDelete: Cascade)
+
+  @@index([materiaId, grupoId, createdAt])
+  @@index([alumnoId, createdAt])
+  @@index([docenteId, suspensionFecha])
 }
 
 model CalificacionUnidad {
@@ -795,6 +826,7 @@ model Grupo {
   calificaciones       CalificacionUnidad[]
   ponderaciones        PonderacionGrupo[]
   pesosCategoria       CategoriaPesoGrupo[]
+  avisos               Aviso[]
 
   @@unique([semestre, seccion, carreraId, periodo, modalidad])
 }

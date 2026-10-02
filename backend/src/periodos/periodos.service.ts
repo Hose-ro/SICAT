@@ -16,6 +16,7 @@ import {
 } from '../clases/clases.utils';
 import { getCurrentAcademicPeriod } from '../common/periodo.util';
 import { MODALIDADES, modalidadDeHorario } from '../common/modalidad.util';
+import { AvisosService } from '../avisos/avisos.service';
 
 /** Un periodo escolar no dura ni menos de un mes ni más de un año. */
 const DIAS_MINIMOS = 30;
@@ -78,7 +79,10 @@ export type SuspensionDeDocente = Omit<SuspensionVigente, 'id'> & {
 
 @Injectable()
 export class PeriodosService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private avisos: AvisosService,
+  ) {}
 
   /**
    * Fechas del periodo en curso para una modalidad. Mientras nadie las haya
@@ -467,6 +471,7 @@ export class PeriodosService {
         }),
       ),
     );
+    await this.avisos.avisarSuspensiones(docenteId, fechas, motivo);
     return this.listarSuspensiones(docenteId);
   }
 
@@ -475,9 +480,10 @@ export class PeriodosService {
     if (!parsed || formatearFechaClave(parsed) !== fecha) {
       throw new BadRequestException('Fecha inválida');
     }
-    await this.prisma.suspensionClase.deleteMany({
+    const { count } = await this.prisma.suspensionClase.deleteMany({
       where: { docenteId, fecha },
     });
+    if (count) await this.avisos.retirarAvisosDeSuspension(docenteId, fecha);
     return this.listarSuspensiones(docenteId);
   }
 

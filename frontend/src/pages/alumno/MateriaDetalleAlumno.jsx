@@ -2,6 +2,7 @@ import { Button } from '@/components/ui/button'
 import { useState, useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import TablaAsistenciasAlumno from './components/TablaAsistenciasAlumno'
+import AvisosAlumno from './components/AvisosAlumno'
 import { useTareaStore } from '../../store/tareaStore'
 import { useClaseStore } from '../../store/claseStore'
 
@@ -84,6 +85,8 @@ export default function MateriaDetalleAlumno() {
           </span>
         </div>
       )}
+
+      <AvisosAlumno materiaId={Number(id)} />
 
       <div className="flex gap-1 border-b border-border">
         {TABS.map((t) => (

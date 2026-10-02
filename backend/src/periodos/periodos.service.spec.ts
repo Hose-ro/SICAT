@@ -37,7 +37,11 @@ describe('PeriodosService', () => {
     },
     $transaction: jest.fn((operations) => Promise.all(operations)),
   } as unknown as PrismaService;
-  const service = new PeriodosService(prisma);
+  const avisos = {
+    avisarSuspensiones: jest.fn(),
+    retirarAvisosDeSuspension: jest.fn(),
+  };
+  const service = new PeriodosService(prisma, avisos as never);
   type PorModalidad = { where: { clave_modalidad: { modalidad: string } } };
   const REFERENCIA = new Date(2026, 8, 9);
   const ADMIN = { id: 7, rol: 'ADMIN' as const };

@@ -5,6 +5,7 @@ import api from '../api/axios'
 import { useAuthStore } from '../store/authStore'
 import UnidadesCard from './materia/UnidadesCard'
 import AlumnosMateriaCard from './materia/AlumnosMateriaCard'
+import AvisosMateriaCard from './materia/AvisosMateriaCard'
 
 function formatDate(value) {
   if (!value) return 'Sin fecha'
@@ -139,6 +140,8 @@ export default function MateriaDetalle() {
           </div>
         </section>
       )}
+
+      {puedeGestionar && <AvisosMateriaCard materia={materia} />}
 
       <section className="grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
         <UnidadesCard
