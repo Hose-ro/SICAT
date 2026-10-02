@@ -10,6 +10,7 @@ describe('UnidadesService (IDOR)', () => {
   const unidadFindUnique = jest.fn();
   const unidadFindFirst = jest.fn();
   const unidadUpdate = jest.fn();
+  const unidadUpdateMany = jest.fn();
   const unidadFindMany = jest.fn();
   const materiaCount = jest.fn();
   const horarioMateriaCount = jest.fn();
@@ -18,6 +19,7 @@ describe('UnidadesService (IDOR)', () => {
       findUnique: unidadFindUnique,
       findFirst: unidadFindFirst,
       update: unidadUpdate,
+      updateMany: unidadUpdateMany,
       findMany: unidadFindMany,
     },
     materia: { count: materiaCount },
@@ -47,6 +49,7 @@ describe('UnidadesService (IDOR)', () => {
     jest.clearAllMocks();
     unidadFindFirst.mockResolvedValue(null);
     unidadUpdate.mockResolvedValue({ id: unidadId, status: 'ACTIVA' });
+    unidadUpdateMany.mockResolvedValue({ count: 0 });
     unidadFindMany.mockResolvedValue([]);
     horarioMateriaCount.mockResolvedValue(0);
   });
@@ -282,7 +285,60 @@ describe('UnidadesService (IDOR)', () => {
       // Medianoche en Mexico_City (UTC-6 fijo) cae a las 06:00 UTC.
       expect(unidadUpdate).toHaveBeenCalledWith({
         where: { id: unidadId },
-        data: { fechaInicio: new Date('2026-08-01T06:00:00.000Z') },
+        data: {
+          fechaInicio: new Date('2026-08-01T06:00:00.000Z'),
+          status: 'FINALIZADA',
+        },
+      });
+    });
+
+    it('finaliza una unidad que recibe fecha de cierre y repara las anteriores', async () => {
+      unidadFindUnique.mockResolvedValue({
+        id: unidadId,
+        materiaId,
+        status: 'ACTIVA',
+        fechaInicio: new Date('2026-09-02T06:00:00.000Z'),
+        fechaFin: null,
+      });
+
+      await service.editarFechas(
+        unidadId,
+        { id: 1, rol: 'ADMIN' },
+        { fechaFin: '2026-09-30T00:00' },
+      );
+
+      expect(unidadUpdate).toHaveBeenCalledWith({
+        where: { id: unidadId },
+        data: {
+          fechaFin: new Date('2026-09-30T06:00:00.000Z'),
+          status: 'FINALIZADA',
+        },
+      });
+      expect(unidadUpdateMany).toHaveBeenCalled();
+    });
+
+    it('activa una unidad con inicio y sin cierre', async () => {
+      unidadFindUnique.mockResolvedValue({
+        id: unidadId,
+        materiaId,
+        status: 'PENDIENTE',
+        fechaInicio: null,
+        fechaFin: null,
+      });
+      unidadFindFirst.mockResolvedValue(null);
+
+      await service.editarFechas(
+        unidadId,
+        { id: 1, rol: 'ADMIN' },
+        { fechaInicio: '2026-10-01T00:00' },
+      );
+
+      expect(unidadUpdate).toHaveBeenCalledWith({
+        where: { id: unidadId },
+        data: {
+          fechaInicio: new Date('2026-10-01T06:00:00.000Z'),
+          status: 'ACTIVA',
+        },
       });
     });
 
@@ -329,6 +385,38 @@ describe('UnidadesService (IDOR)', () => {
       ).resolves.toEqual([]);
 
       expect(unidadFindMany).toHaveBeenCalled();
+    });
+
+    it('sincroniza al consultar los estados que no coinciden con sus fechas', async () => {
+      unidadFindMany.mockResolvedValue([
+        {
+          id: 1,
+          materiaId,
+          orden: 1,
+          status: 'ACTIVA',
+          fechaInicio: new Date('2026-09-02T06:00:00.000Z'),
+          fechaFin: new Date('2026-09-30T06:00:00.000Z'),
+        },
+        {
+          id: 2,
+          materiaId,
+          orden: 2,
+          status: 'PENDIENTE',
+          fechaInicio: new Date('2026-10-01T06:00:00.000Z'),
+          fechaFin: null,
+        },
+      ]);
+
+      const result = await service.findByMateria(materiaId, {
+        id: 1,
+        rol: 'ADMIN',
+      });
+
+      expect(result.map((unidad) => unidad.status)).toEqual([
+        'FINALIZADA',
+        'ACTIVA',
+      ]);
+      expect(unidadUpdate).toHaveBeenCalledTimes(2);
     });
   });
 });

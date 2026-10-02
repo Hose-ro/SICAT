@@ -11,6 +11,16 @@ import {
 } from '../common/materia-ownership';
 import { EditarFechasUnidadDto } from './dto/editar-fechas-unidad.dto';
 import { resolverFechaHoraLimite } from '../common/zona-horaria.util';
+import type { EstadoUnidad } from '@prisma/client';
+
+function estadoSegunFechas(
+  fechaInicio: Date | null,
+  fechaFin: Date | null,
+): EstadoUnidad {
+  if (fechaFin) return 'FINALIZADA';
+  if (fechaInicio) return 'ACTIVA';
+  return 'PENDIENTE';
+}
 
 @Injectable()
 export class UnidadesService {
@@ -128,11 +138,46 @@ export class UnidadesService {
       );
     }
 
+    // Las fechas definen el estado real de una unidad. Antes este endpoint
+    // sólo guardaba las fechas, de modo que una unidad con cierre podía seguir
+    // ACTIVA y la siguiente, aun con inicio, permanecer PENDIENTE.
+    const status = estadoSegunFechas(fechaInicio, fechaFin);
+
+    if (status === 'ACTIVA') {
+      const otraActiva = await this.prisma.unidad.findFirst({
+        where: {
+          materiaId: unidad.materiaId,
+          id: { not: id },
+          fechaInicio: { not: null },
+          fechaFin: null,
+        },
+        select: { nombre: true },
+      });
+      if (otraActiva) {
+        throw new ConflictException(
+          `Primero finaliza o cancela ${otraActiva.nombre}`,
+        );
+      }
+    }
+
+    // Repara estados antiguos que ya tenían fecha de cierre pero quedaron
+    // marcados como activos antes de que fecha y estado se sincronizaran.
+    await this.prisma.unidad.updateMany({
+      where: {
+        materiaId: unidad.materiaId,
+        id: { not: id },
+        fechaFin: { not: null },
+        status: { not: 'FINALIZADA' },
+      },
+      data: { status: 'FINALIZADA' },
+    });
+
     return this.prisma.unidad.update({
       where: { id },
       data: {
         ...(dto.fechaInicio !== undefined ? { fechaInicio } : {}),
         ...(dto.fechaFin !== undefined ? { fechaFin } : {}),
+        status,
       },
     });
   }
@@ -151,9 +196,35 @@ export class UnidadesService {
 
   async findByMateria(materiaId: number, actor: ActorMateria) {
     await asegurarAccesoMateria(this.prisma, actor, materiaId);
-    return this.prisma.unidad.findMany({
+    const unidades = await this.prisma.unidad.findMany({
       where: { materiaId },
       orderBy: { orden: 'asc' },
     });
+
+    // Corrige registros creados antes de sincronizar estado y fechas. Así la
+    // pantalla se repara al recargarse, sin obligar al docente a editar de
+    // nuevo cada unidad inconsistente.
+    const correcciones = unidades
+      .map((unidad) => ({
+        unidad,
+        status: estadoSegunFechas(unidad.fechaInicio, unidad.fechaFin),
+      }))
+      .filter(({ unidad, status }) => unidad.status !== status);
+    await Promise.all(
+      correcciones.map(({ unidad, status }) =>
+        this.prisma.unidad.update({
+          where: { id: unidad.id },
+          data: { status },
+        }),
+      ),
+    );
+
+    const statusPorId = new Map(
+      correcciones.map(({ unidad, status }) => [unidad.id, status]),
+    );
+    return unidades.map((unidad) => ({
+      ...unidad,
+      status: statusPorId.get(unidad.id) ?? unidad.status,
+    }));
   }
 }
