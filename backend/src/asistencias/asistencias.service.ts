@@ -162,10 +162,14 @@ export class AsistenciasService {
           },
           orderBy: { alumno: { nombre: 'asc' } },
         },
+        participaciones: { select: { alumnoId: true, puntos: true } },
       },
     });
     if (!sesion) throw new NotFoundException('Sesión no encontrada');
     this.validarAccesoSesion(actor, sesion.docenteId);
+    const puntos = new Map(
+      sesion.participaciones.map((item) => [item.alumnoId, item.puntos]),
+    );
 
     // La lista la forman los inscritos en la materia: los que pertenecen al
     // grupo de la sesión y los que el docente agregó a esta clase en concreto
@@ -240,6 +244,7 @@ export class AsistenciasService {
         estado: mapaAsistencias.get(alumno.id)?.estado ?? null,
         observacion: mapaAsistencias.get(alumno.id)?.observacion ?? null,
         asistenciaId: mapaAsistencias.get(alumno.id)?.id ?? null,
+        participacion: puntos.get(alumno.id) ?? 0,
         manual: false,
       })),
       ...manualesGuardados.map((item) => ({
@@ -250,6 +255,7 @@ export class AsistenciasService {
         estado: item.asistencia.estado,
         observacion: item.asistencia.observacion ?? null,
         asistenciaId: item.asistencia.id,
+        participacion: puntos.get(item.alumno.id) ?? 0,
         manual: true,
       })),
     ].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
@@ -276,6 +282,54 @@ export class AsistenciasService {
       alumnos,
       alumnosDisponiblesAgregar,
     };
+  }
+
+  /**
+   * Suma (o resta, para corregir) puntos de participación de un alumno en la
+   * sesión. Es informativo: no cambia la calificación calculada.
+   */
+  async registrarParticipacion(
+    claseSesionId: number,
+    actor: Actor,
+    dto: { alumnoId: number; delta: number; nota?: string },
+  ) {
+    const sesion = await this.prisma.claseSesion.findUnique({
+      where: { id: claseSesionId },
+      select: { docenteId: true },
+    });
+    if (!sesion) throw new NotFoundException('Sesión no encontrada');
+    this.validarAccesoSesion(actor, sesion.docenteId);
+    const permitidos =
+      await this.obtenerAlumnoIdsPermitidosSesion(claseSesionId);
+    if (!permitidos.includes(dto.alumnoId)) {
+      throw new BadRequestException('El alumno no pertenece a esta clase');
+    }
+
+    const clave = {
+      claseSesionId_alumnoId: { claseSesionId, alumnoId: dto.alumnoId },
+    };
+    const actual = await this.prisma.participacion.findUnique({ where: clave });
+    const puntos = Math.max(0, (actual?.puntos ?? 0) + dto.delta);
+    const nota =
+      dto.nota !== undefined ? dto.nota.trim() || null : (actual?.nota ?? null);
+
+    if (!puntos && !nota) {
+      if (actual) await this.prisma.participacion.delete({ where: clave });
+      return { alumnoId: dto.alumnoId, puntos: 0, nota: null };
+    }
+    const guardada = await this.prisma.participacion.upsert({
+      where: clave,
+      create: {
+        claseSesionId,
+        alumnoId: dto.alumnoId,
+        docenteId: sesion.docenteId,
+        puntos,
+        nota,
+      },
+      update: { puntos, nota },
+      select: { alumnoId: true, puntos: true, nota: true },
+    });
+    return guardada;
   }
 
   async obtenerResumenMateria(

@@ -64,6 +64,12 @@ export const useAsistenciaStore = create((set) => ({
     }
   },
 
+  // Informativa: se guarda al momento y no depende de "Guardar asistencia".
+  registrarParticipacion: async (claseSesionId, alumnoId, delta) => {
+    const response = await api.patch(`/asistencias/sesion/${claseSesionId}/participacion`, { alumnoId, delta })
+    return response.data
+  },
+
   obtenerListaSesion: async (claseSesionId) => {
     set({ loading: true, error: null })
     try {

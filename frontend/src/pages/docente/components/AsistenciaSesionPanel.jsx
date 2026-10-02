@@ -1,5 +1,7 @@
 import { Button } from '@/components/ui/button'
 import { useEffect, useState } from 'react'
+import { Hand, Minus } from 'lucide-react'
+import { notify } from '@/lib/feedback'
 import SexoBadge from '../../../components/SexoBadge'
 import { useAsistenciaStore } from '../../../store/asistenciaStore'
 
@@ -33,7 +35,7 @@ export default function AsistenciaSesionPanel({
   onSaved,
   compact = false,
 }) {
-  const { obtenerListaSesion, pasarLista } = useAsistenciaStore()
+  const { obtenerListaSesion, pasarLista, registrarParticipacion } = useAsistenciaStore()
   const [cargando, setCargando] = useState(true)
   const [guardando, setGuardando] = useState(false)
   const [feedback, setFeedback] = useState('')
@@ -42,6 +44,7 @@ export default function AsistenciaSesionPanel({
   const [alumnosDisponibles, setAlumnosDisponibles] = useState([])
   const [registros, setRegistros] = useState({})
   const [alumnoManualId, setAlumnoManualId] = useState('')
+  const [participacion, setParticipacion] = useState({})
 
   useEffect(() => {
     if (!sesionId) return undefined
@@ -61,6 +64,7 @@ export default function AsistenciaSesionPanel({
           if (alumno.estado) initialRegistros[alumno.alumnoId] = alumno.estado
         })
         setRegistros(initialRegistros)
+        setParticipacion(Object.fromEntries(data.alumnos.map((alumno) => [alumno.alumnoId, alumno.participacion ?? 0])))
       })
       .finally(() => {
         if (mounted) setCargando(false)
@@ -80,6 +84,19 @@ export default function AsistenciaSesionPanel({
     const estado = registros[alumno.alumnoId]
     if (estado && conteos[estado] !== undefined) conteos[estado] += 1
   })
+
+  // Se aplica al instante y, si el servidor la rechaza, se regresa.
+  const cambiarParticipacion = async (alumno, delta) => {
+    const anterior = participacion[alumno.alumnoId] ?? 0
+    setParticipacion((prev) => ({ ...prev, [alumno.alumnoId]: Math.max(0, anterior + delta) }))
+    try {
+      const guardada = await registrarParticipacion(sesionId, alumno.alumnoId, delta)
+      setParticipacion((prev) => ({ ...prev, [alumno.alumnoId]: guardada.puntos }))
+    } catch (error) {
+      setParticipacion((prev) => ({ ...prev, [alumno.alumnoId]: anterior }))
+      notify(error.response?.data?.message || `No se pudo registrar la participación de ${alumno.nombre}.`)
+    }
+  }
 
   const setEstado = (alumnoId, estado) => {
     setRegistros((prev) => ({ ...prev, [alumnoId]: estado }))
@@ -276,7 +293,7 @@ export default function AsistenciaSesionPanel({
         <div className="hidden gap-3 bg-background px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground sm:grid sm:grid-cols-[minmax(0,1.8fr)_minmax(0,0.8fr)_minmax(0,1.5fr)]">
           <span>Alumno</span>
           <span>Control</span>
-          <span>Estado</span>
+          <span>Estado y participación</span>
         </div>
 
         <div className="divide-y divide-border">
@@ -293,6 +310,7 @@ export default function AsistenciaSesionPanel({
                 )}
               </div>
               <p className="hidden truncate text-sm text-muted-foreground sm:block">{alumno.numeroControl || 'Sin control'}</p>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
               <div className="flex flex-wrap gap-2" role="group" aria-label={`Estado de ${alumno.nombre}`}>
                 {ESTADOS.map((estado) => {
                   const active = registros[alumno.alumnoId] === estado
@@ -312,6 +330,25 @@ export default function AsistenciaSesionPanel({
                     </Button>
                   )
                 })}
+              </div>
+              <div className="flex items-center gap-1" role="group" aria-label={`Participación de ${alumno.nombre}`}>
+                {(participacion[alumno.alumnoId] ?? 0) > 0 && (
+                  <Button variant="ghost" type="button" size="icon" className="size-8 rounded-full"
+                    aria-label={`Quitar un punto de participación a ${alumno.nombre}`}
+                    onClick={() => cambiarParticipacion(alumno, -1)}>
+                    <Minus className="size-3.5" aria-hidden="true" />
+                  </Button>
+                )}
+                <Button variant="outline" type="button"
+                  aria-label={`Sumar participación a ${alumno.nombre} (lleva ${participacion[alumno.alumnoId] ?? 0})`}
+                  onClick={() => cambiarParticipacion(alumno, 1)}
+                  className={`h-8 gap-1.5 rounded-full px-3 text-xs font-semibold ${(participacion[alumno.alumnoId] ?? 0) > 0 ? 'border-primary/40 bg-primary/10 text-primary-ink' : 'text-muted-foreground'}`}>
+                  <Hand className="size-3.5" aria-hidden="true" />
+                  {(participacion[alumno.alumnoId] ?? 0) > 0
+                    ? `${participacion[alumno.alumnoId]} ${participacion[alumno.alumnoId] === 1 ? 'pt' : 'pts'}`
+                    : '+1'}
+                </Button>
+              </div>
               </div>
             </div>
           ))}

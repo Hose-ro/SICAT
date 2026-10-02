@@ -1,4 +1,6 @@
 import { JustificarFaltaDto } from './dto/justificar-falta.dto';
+import { RegistrarParticipacionDto } from './dto/participacion.dto';
+import type { AuthenticatedRequest } from '../auth/auth.types';
 import {
   Controller,
   Post,
@@ -39,6 +41,16 @@ export class AsistenciasController {
   @Roles('DOCENTE', 'ADMIN')
   pasarLista(@Req() req, @Body() dto: PasarListaDto) {
     return this.asistenciasService.pasarLista(req.user, dto);
+  }
+
+  @Patch('sesion/:claseSesionId/participacion')
+  @Roles('DOCENTE', 'ADMIN')
+  participacion(
+    @Param('claseSesionId', ParseIntPipe) id: number,
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: RegistrarParticipacionDto,
+  ) {
+    return this.asistenciasService.registrarParticipacion(id, req.user, dto);
   }
 
   @Get('sesion/:claseSesionId')

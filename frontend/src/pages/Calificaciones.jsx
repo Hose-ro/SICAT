@@ -449,7 +449,8 @@ function resumenAvance(row) {
   const tareas = `Tareas ${row.tareas?.calificadas ?? 0}/${row.tareas?.total ?? 0}`
   const promedioTareas = typeof row.promedioTareas === 'number' ? ` (prom. ${row.promedioTareas})` : ''
   const desglose = desglosePorCategoria(row)
-  return `${tareas}${promedioTareas}${desglose ? ` [${desglose}]` : ''} · Asistencia ${row.asistencia?.porcentaje ?? 0}%`
+  const participacion = row.participacion ? ` · Participación ${row.participacion} ${row.participacion === 1 ? 'pt' : 'pts'}` : ''
+  return `${tareas}${promedioTareas}${desglose ? ` [${desglose}]` : ''} · Asistencia ${row.asistencia?.porcentaje ?? 0}%${participacion}`
 }
 
 function PromedioBadge({ value }) {
@@ -509,6 +510,7 @@ function CapturaTable({ rows, drafts, showGrupo, showUnidad, onDraftChange }) {
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 align-top text-muted-foreground">
                     {row.asistencia?.porcentaje ?? 0}%
+                    {row.participacion > 0 && <p className="text-xs">Participación {row.participacion} {row.participacion === 1 ? 'pt' : 'pts'}</p>}
                   </td>
                 </tr>
               )

@@ -515,6 +515,17 @@ export class CalificacionesService {
       ),
     );
 
+    // Participación: informativa, se muestra junto a la nota pero no la mueve.
+    const participaciones = sesiones.length
+      ? await this.prisma.participacion.findMany({
+          where: {
+            claseSesionId: { in: sesiones.map((sesion) => sesion.id) },
+            ...(alumnoIds.length ? { alumnoId: { in: alumnoIds } } : {}),
+          },
+          select: { alumnoId: true, claseSesionId: true, puntos: true },
+        })
+      : [];
+
     const asistencias = sesiones.length
       ? await this.prisma.asistencia.findMany({
           where: {
@@ -586,6 +597,14 @@ export class CalificacionesService {
           asistenciasPorSesionAlumno,
         );
         const tareasResumen = this.resumirTareasAlumno(entregasAlumno);
+        const idsSesionesAlumno = new Set(sesionesAlumno.map((s) => s.id));
+        const participacion = participaciones
+          .filter(
+            (item) =>
+              item.alumnoId === alumno.id &&
+              idsSesionesAlumno.has(item.claseSesionId),
+          )
+          .reduce((suma, item) => suma + item.puntos, 0);
         const calificacionCalculada = this.calcularCalificacionCalculada(
           promedioTareas,
           asistencia,
@@ -639,6 +658,7 @@ export class CalificacionesService {
           estado: this.obtenerEstadoCalificacion(calificacionFinal),
           tareas: tareasResumen,
           asistencia,
+          participacion,
           observacionManual,
           observaciones: [observacionManual, ...observacionesEntregas]
             .filter(Boolean)

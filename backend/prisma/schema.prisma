@@ -249,6 +249,8 @@ model Usuario {
   bloquesImportados     BloqueImportacionHorario[] @relation("BloqueImportacionDocente")
   avisosEnviados        Aviso[]                    @relation("AvisoDocente")
   avisosRecibidos       Aviso[]                    @relation("AvisoAlumno")
+  participaciones       Participacion[]            @relation("ParticipacionAlumno")
+  participacionesDadas  Participacion[]            @relation("ParticipacionDocente")
 }
 
 model AuthToken {
@@ -613,6 +615,26 @@ model Aviso {
   @@index([docenteId, suspensionFecha])
 }
 
+/// Puntos de participación de un alumno en una clase (lo que muchos docentes
+/// llevan en libreta). Sólo se registra y se muestra: no entra en el cálculo
+/// de la calificación.
+model Participacion {
+  id            Int         @id @default(autoincrement())
+  claseSesionId Int
+  alumnoId      Int
+  docenteId     Int
+  puntos        Int         @default(0)
+  nota          String?     @db.VarChar(300)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  claseSesion   ClaseSesion @relation(fields: [claseSesionId], references: [id], onDelete: Cascade)
+  alumno        Usuario     @relation("ParticipacionAlumno", fields: [alumnoId], references: [id], onDelete: Cascade)
+  docente       Usuario     @relation("ParticipacionDocente", fields: [docenteId], references: [id], onDelete: Cascade)
+
+  @@unique([claseSesionId, alumnoId])
+  @@index([alumnoId])
+}
+
 model CalificacionUnidad {
   id                 Int      @id @default(autoincrement())
   alumnoId           Int
@@ -676,6 +698,7 @@ model ClaseSesion {
   grupo               Grupo?          @relation("ClaseSesionGrupo", fields: [grupoId], references: [id])
   unidadRef           Unidad?         @relation(fields: [unidadId], references: [id])
   asistencias         Asistencia[]
+  participaciones     Participacion[]
 
   @@index([docenteId, fecha])
   @@index([horarioMateriaId, fecha])
