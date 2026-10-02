@@ -88,7 +88,7 @@ test('el mixto se cuenta en sábados y avisa cuando un festivo lo deja corto', a
   expect(screen.getByRole('article', { name: 'Periodo escolarizado' }).textContent).toMatch(/días para terminar|comienza en|terminó hace/)
 })
 
-test('en modo compacto hay una línea por calendario que aplica', async () => {
+test('en modo compacto cada calendario se ve como hojas de inicio y fin con su avance', async () => {
   const sabados = { requeridos: 16, total: 16, conClase: 16, transcurridos: 5, sinClases: [], finSugerido: null }
   api.get.mockResolvedValue({ data: respuesta({
     mixto: { ...mixto, fechaInicio: '2026-09-05', fechaFin: '2026-12-19', configurado: true, sabados },
@@ -98,4 +98,8 @@ test('en modo compacto hay una línea por calendario que aplica', async () => {
   expect(await screen.findByText(/Semestre escolarizado del 31 de agosto al 18 de diciembre de 2026/)).toBeTruthy()
   expect(screen.getByText(/Semestre mixto del 5 de septiembre al 19 de diciembre de 2026/)).toBeTruthy()
   expect(screen.getByText('van 5 de 16 sábados')).toBeTruthy()
+  // El mixto avanza por sábados de clase: 5 de 16.
+  expect(screen.getByRole('progressbar', { name: 'Avance del semestre mixto' }).getAttribute('aria-valuenow')).toBe('31')
+  // Cada calendario lleva su propia barra.
+  expect(screen.getAllByRole('progressbar')).toHaveLength(2)
 })

@@ -90,6 +90,42 @@ function notaLarga(periodo) {
   return `El periodo terminó hace ${plural(Math.abs(restantes), 'día')}.`
 }
 
+/**
+ * Porcentaje del semestre transcurrido: en sábados de clase para el mixto y
+ * en días para el escolarizado. Sobre fechas estimadas no se muestra.
+ */
+function avanceSemestre(periodo) {
+  if (!periodo.configurado) return null
+  if (periodo.sabados?.conClase) {
+    return Math.min(100, Math.round((periodo.sabados.transcurridos / periodo.sabados.conClase) * 100))
+  }
+  const inicio = aFecha(periodo.fechaInicio)
+  const fin = aFecha(periodo.fechaFin)
+  if (!inicio || !fin || fin <= inicio) return null
+  const hoy = new Date()
+  hoy.setHours(0, 0, 0, 0)
+  return Math.min(100, Math.max(0, Math.round(((hoy - inicio) / (fin - inicio)) * 100)))
+}
+
+/** Hoja de calendario: mes arriba, día grande y día de la semana. */
+function HojaCalendario({ clave, etiqueta }) {
+  const fecha = aFecha(clave)
+  return (
+    <div className="flex shrink-0 flex-col items-center gap-1">
+      <div className="w-14 overflow-hidden rounded-xl border border-border bg-background text-center">
+        <p className="bg-primary/10 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-primary-ink">
+          {fecha ? fecha.toLocaleDateString('es-MX', { month: 'short' }).replace('.', '') : '—'}
+        </p>
+        <p className="pt-1 text-xl font-semibold leading-none tabular-nums text-foreground">{fecha?.getDate() ?? '—'}</p>
+        <p className="pb-1.5 pt-0.5 text-[11px] text-muted-foreground">
+          {fecha ? fecha.toLocaleDateString('es-MX', { weekday: 'short' }).replace('.', '') : ''}
+        </p>
+      </div>
+      <span className="text-[11px] text-muted-foreground">{etiqueta}</span>
+    </div>
+  )
+}
+
 /** Los festivos en sábado dejan el semestre corto: se avisa y se propone el nuevo fin. */
 function avisoSabados(periodo) {
   const sabados = periodo.sabados
@@ -155,20 +191,56 @@ export default function PeriodoEscolarCard({ editable = false, compacto = false 
     }
   }
 
-  // En modo referencia basta una línea por calendario: las fechas y cuánto falta.
+  // En modo referencia cada calendario se ve como dos hojas de calendario
+  // (inicio y fin) con el avance del semestre y cuánto falta.
   if (compacto) {
     return (
-      <div className="space-y-1">
-        {calendarios.map((periodo) => (
-          <p key={periodo.modalidad} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
-            <CalendarRange className="h-4 w-4 shrink-0 text-primary-ink" />
-            <span className="text-foreground">
-              Semestre{nombreCalendario(periodo, conEtiqueta)} del {formatearRango(periodo.fechaInicio, periodo.fechaFin)}
-            </span>
-            <span aria-hidden="true">·</span>
-            <span>{notaCorta(periodo)}</span>
-          </p>
-        ))}
+      <div className="space-y-5">
+        {calendarios.map((periodo) => {
+          const avance = avanceSemestre(periodo)
+          const nombre = `Semestre${nombreCalendario(periodo, conEtiqueta)}`
+          const anioInicio = aFecha(periodo.fechaInicio)?.getFullYear()
+          const anioFin = aFecha(periodo.fechaFin)?.getFullYear()
+          return (
+            <article key={periodo.modalidad} aria-label={nombre} className="min-w-0">
+              <p className="text-sm font-medium text-foreground">
+                {nombre}
+                <span className="font-normal text-muted-foreground">
+                  {' · '}{periodo.modalidad === 'MIXTO' ? 'sábados' : 'lunes a viernes'}
+                </span>
+              </p>
+              <p className="sr-only">{nombre} del {formatearRango(periodo.fechaInicio, periodo.fechaFin)}</p>
+
+              <div className="mt-3 flex items-center gap-2" aria-hidden="true">
+                <HojaCalendario clave={periodo.fechaInicio} etiqueta="Inicio" />
+                <div className="flex min-w-0 flex-1 flex-col items-center gap-1 text-[11px] text-muted-foreground">
+                  <span className="h-px w-full bg-border" />
+                  <span className="tabular-nums">
+                    {anioInicio === anioFin ? anioInicio : `${anioInicio}–${anioFin}`}
+                  </span>
+                </div>
+                <HojaCalendario clave={periodo.fechaFin} etiqueta="Fin" />
+              </div>
+
+              {avance != null && (
+                <div
+                  role="progressbar"
+                  aria-label={`Avance del ${nombre.toLowerCase()}`}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={avance}
+                  className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted"
+                >
+                  <div className="h-full rounded-full bg-primary" style={{ width: `${avance}%` }} />
+                </div>
+              )}
+              <p className="mt-1.5 flex flex-wrap justify-between gap-x-3 text-xs text-muted-foreground">
+                <span>{notaCorta(periodo)}</span>
+                {avance != null && <span className="tabular-nums">{avance} %</span>}
+              </p>
+            </article>
+          )
+        })}
       </div>
     )
   }
