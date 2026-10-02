@@ -1,6 +1,6 @@
 import { useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FileDown, FileSpreadsheet, FolderDown, Lock, LockOpen, PenLine, Send } from 'lucide-react'
+import { Copy, FileDown, FileSpreadsheet, FolderDown, Lock, LockOpen, PenLine, Send } from 'lucide-react'
 import { notify } from '@/lib/feedback'
 import { taskError } from '@/lib/tareas'
 import { useTareaStore } from '@/store/tareaStore'
@@ -40,10 +40,23 @@ export default function useAccionesTarea({ onCambio } = {}) {
     const reabrir = () => ejecutar(() => store.reabrir(tarea.id), 'La tarea vuelve a recibir entregas.',
       { label: 'Deshacer', onClick: () => ejecutar(() => store.cerrar(tarea.id), 'La tarea ya no recibe entregas.') })
 
+    const duplicar = async () => {
+      try {
+        const copia = await store.duplicar(tarea.id)
+        onCambio?.(copia)
+        notify(`Creaste «${copia.titulo}» como borrador.`, 'success', {
+          action: { label: 'Editar', onClick: () => navigate(`/docente/tareas/crear?editarId=${copia.id}`) },
+        })
+      } catch (error) {
+        notify(taskError(error))
+      }
+    }
+
     const publicada = tarea.estado !== 'BORRADOR'
     return [
       ...extra,
       { label: 'Editar tarea', icon: PenLine, onSelect: () => navigate(`/docente/tareas/crear?editarId=${tarea.id}`) },
+      { label: 'Duplicar', icon: Copy, onSelect: duplicar },
       tarea.estado === 'BORRADOR' && {
         label: 'Publicar', icon: Send,
         onSelect: () => ejecutar(() => store.publicar(tarea.id), `Publicaste «${tarea.titulo}». El grupo ya puede verla.`),

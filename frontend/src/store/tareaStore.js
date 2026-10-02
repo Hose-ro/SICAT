@@ -103,6 +103,22 @@ export const useTareaStore = create((set, get) => ({
     }
   },
 
+  // Las copias nacen en borrador; responden con la tarea nueva (o las nuevas).
+  duplicar: async (id, opciones = {}) => {
+    const res = await api.post(`/tareas/${id}/duplicar`, opciones)
+    return res.data
+  },
+
+  obtenerImportables: async (materiaId, grupoId) => {
+    const res = await api.get('/tareas/importables', { params: { materiaId, grupoId } })
+    return res.data
+  },
+
+  importar: async (payload) => {
+    const res = await api.post('/tareas/importar', payload)
+    return res.data
+  },
+
   publicar: async (id) => {
     const res = await api.patch(`/tareas/${id}/publicar`)
     return res.data

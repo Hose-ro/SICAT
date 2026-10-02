@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { FileDown, FileSpreadsheet, FolderDown, Plus, Search } from 'lucide-react'
+import { CopyPlus, FileDown, FileSpreadsheet, FolderDown, Plus, Search } from 'lucide-react'
 import api from '@/api/axios'
 import TaskNotice from '@/components/TaskNotice'
 import { buttonVariants } from '@/components/ui/buttonVariants'
@@ -12,6 +12,7 @@ import { useAuthStore } from '@/store/authStore'
 import { useTareaStore } from '@/store/tareaStore'
 import { MenuAcciones, Segmentado } from './components/tareas/Controles'
 import UnidadTareas from './components/tareas/UnidadTareas'
+import ImportarTareasDialog from './components/tareas/ImportarTareasDialog'
 import useAccionesTarea from './components/tareas/useAccionesTarea'
 
 function normalizar(texto) {
@@ -57,6 +58,7 @@ export default function TareasDocente() {
   const [params, setParams] = useSearchParams()
   const [busqueda, setBusqueda] = useState('')
   const [procesando, setProcesando] = useState(null)
+  const [importarAbierto, setImportarAbierto] = useState(false)
   const pestanasRef = useRef([])
 
   const cargarMaterias = useCallback(() => api.get('/materias/mis-materias')
@@ -194,6 +196,15 @@ export default function TareasDocente() {
     }
   }
 
+  const onImportadas = async ({ creadas, adjuntosOmitidos }) => {
+    setImportarAbierto(false)
+    await cargarTareas()
+    const n = creadas.length
+    notify(`Importaste ${n} ${n === 1 ? 'tarea' : 'tareas'} en borrador a ${grupo.nombre}.${adjuntosOmitidos
+      ? ` ${adjuntosOmitidos} ${adjuntosOmitidos === 1 ? 'adjunto ya no existía y no se copió' : 'adjuntos ya no existían y no se copiaron'}.`
+      : ''}`, 'success')
+  }
+
   const reporte = async (formato, filtros) => {
     try {
       await useTareaStore.getState().exportarReporte(filtros, formato)
@@ -266,6 +277,12 @@ export default function TareasDocente() {
                 <Segmentado label="Grupo" value={grupo?.id} onChange={(id) => elegir({ grupo: id })}
                   options={grupos.map((g) => ({ value: g.id, label: g.nombre }))} />
               )}
+              {grupo && visibles.length > 0 && (
+                <button type="button" onClick={() => setImportarAbierto(true)}
+                  className={cn(buttonVariants({ variant: 'outline' }), 'h-9 gap-2 px-3')}>
+                  <CopyPlus className="size-4" aria-hidden="true" />Importar tareas
+                </button>
+              )}
               <label className="relative">
                 <span className="sr-only">Buscar tarea en {materia.nombre}</span>
                 <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
@@ -276,6 +293,18 @@ export default function TareasDocente() {
           </div>
 
           {errorMaterias && <div className="mt-4"><TaskNotice error={errorMaterias} onRetry={() => cargarMaterias()} /></div>}
+
+          {grupo && !visibles.length && !needle && (
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-card)] border border-dashed border-border px-5 py-4">
+              <p className="text-sm text-muted-foreground">
+                <span className="font-medium text-foreground">{grupo.nombre} todavía no tiene tareas.</span>{' '}
+                Si ya diste {materia.nombre} en otro grupo, puedes traer esas tareas en vez de crearlas de nuevo.
+              </p>
+              <button type="button" onClick={() => setImportarAbierto(true)} className={cn(buttonVariants(), 'h-9 gap-2 px-3')}>
+                <CopyPlus className="size-4" aria-hidden="true" />Importar tareas
+              </button>
+            </div>
+          )}
 
           {bloques.length ? (
             <ol className="mt-5 space-y-3">
@@ -324,6 +353,9 @@ export default function TareasDocente() {
         </div>
       </header>
       {contenido}
+      {importarAbierto && materia && grupo && (
+        <ImportarTareasDialog open onClose={() => setImportarAbierto(false)} materia={materia} grupo={grupo} onImportadas={onImportadas} />
+      )}
     </div>
   )
 }

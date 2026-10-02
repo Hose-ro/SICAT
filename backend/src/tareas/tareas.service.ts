@@ -211,6 +211,12 @@ export class TareasService {
 
   async publicar(tareaId: number, actor: Actor) {
     const tarea = await this.obtenerTareaDocente(tareaId, actor);
+    // Una copia sin fecha (importada de otro periodo) no se publica a ciegas.
+    if (tarea.tieneFechaLimite && !tarea.fechaLimite) {
+      throw new BadRequestException(
+        'Ponle fecha límite a la tarea antes de publicarla',
+      );
+    }
     const estado = this.resolverEstadoPublico(
       tarea.fechaLimite,
       tarea.tieneFechaLimite,

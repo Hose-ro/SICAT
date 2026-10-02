@@ -8,6 +8,7 @@ import {
   RecordarEntregaDto,
 } from './dto/acciones-entrega.dto';
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -26,6 +27,8 @@ import {
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { TipoNotificacion } from '@prisma/client';
 import { TareasService } from './tareas.service';
+import { TareasCopiaService } from './tareas-copia.service';
+import { DuplicarTareaDto, ImportarTareasDto } from './dto/copiar-tarea.dto';
 import { ReportesService } from '../reportes/reportes.service';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -52,6 +55,7 @@ export class TareasController {
     private readonly tareasService: TareasService,
     private readonly reportesService: ReportesService,
     private readonly notificacionesService: NotificacionesService,
+    private readonly tareasCopia: TareasCopiaService,
   ) {}
 
   @Post()
@@ -77,6 +81,39 @@ export class TareasController {
       collectUploadedFiles(files),
       req.user.rol,
     );
+  }
+
+  @Get('importables')
+  @Roles('DOCENTE', 'ADMIN')
+  importables(
+    @Req() req: AuthenticatedRequest,
+    @Query('materiaId') materiaId?: string,
+    @Query('grupoId') grupoId?: string,
+  ) {
+    if (!materiaId || !grupoId) {
+      throw new BadRequestException('La materia y el grupo son obligatorios');
+    }
+    return this.tareasCopia.listarImportables(
+      req.user,
+      Number(materiaId),
+      Number(grupoId),
+    );
+  }
+
+  @Post('importar')
+  @Roles('DOCENTE', 'ADMIN')
+  importar(@Req() req: AuthenticatedRequest, @Body() dto: ImportarTareasDto) {
+    return this.tareasCopia.importar(req.user, dto);
+  }
+
+  @Post(':id/duplicar')
+  @Roles('DOCENTE', 'ADMIN')
+  duplicar(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: DuplicarTareaDto,
+  ) {
+    return this.tareasCopia.duplicar(id, req.user, dto);
   }
 
   @Get('docente')
