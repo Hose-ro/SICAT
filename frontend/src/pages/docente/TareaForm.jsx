@@ -181,7 +181,9 @@ export default function TareaForm() {
         ? await editar(Number(editId), payload, newFiles)
         : await crear(payload, newFiles)
 
-      navigate(`/docente/tareas/${result.id}`)
+      // Recién publicada: el detalle abre el diálogo para mandarla al grupo de WhatsApp.
+      const recienPublicada = estado === 'PUBLICADA' && (!isEditing || originalState === 'BORRADOR')
+      navigate(`/docente/tareas/${result.id}`, recienPublicada ? { state: { compartir: true } } : undefined)
     } catch (error) { setLocalError(taskError(error, 'No se pudo guardar la tarea. Tus cambios siguen en el formulario.')) }
   }
 

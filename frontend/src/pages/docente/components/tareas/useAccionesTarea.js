@@ -1,6 +1,7 @@
 import { useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Copy, FileDown, FileSpreadsheet, FolderDown, Lock, LockOpen, PenLine, Send } from 'lucide-react'
+import { Copy, FileDown, FileSpreadsheet, FolderDown, Lock, LockOpen, MessageCircle, PenLine, Send } from 'lucide-react'
+import { compartirTareaPorWhatsapp } from '@/components/whatsapp/compartirTarea'
 import { notify } from '@/lib/feedback'
 import { taskError } from '@/lib/tareas'
 import { useTareaStore } from '@/store/tareaStore'
@@ -59,8 +60,10 @@ export default function useAccionesTarea({ onCambio } = {}) {
       { label: 'Duplicar', icon: Copy, onSelect: duplicar },
       tarea.estado === 'BORRADOR' && {
         label: 'Publicar', icon: Send,
-        onSelect: () => ejecutar(() => store.publicar(tarea.id), `Publicaste «${tarea.titulo}». El grupo ya puede verla.`),
+        onSelect: () => ejecutar(() => store.publicar(tarea.id), `Publicaste «${tarea.titulo}». El grupo ya puede verla.`,
+          { label: 'Mandar por WhatsApp', onClick: () => compartirTareaPorWhatsapp(tarea.id) }),
       },
+      publicada && { label: 'Compartir por WhatsApp', icon: MessageCircle, onSelect: () => compartirTareaPorWhatsapp(tarea.id) },
       (tarea.estado === 'PUBLICADA' || tarea.estado === 'VENCIDA') && { label: 'Cerrar tarea', icon: Lock, onSelect: cerrar },
       tarea.estado === 'CERRADA' && { label: 'Reabrir', icon: LockOpen, onSelect: reabrir },
       { separator: true },

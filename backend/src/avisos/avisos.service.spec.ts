@@ -2,7 +2,7 @@ import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { TipoNotificacion } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
-import { AvisosService } from './avisos.service';
+import { AvisosService, normalizarEnlaceWhatsapp } from './avisos.service';
 
 describe('AvisosService', () => {
   const materiaCount = jest.fn();
@@ -18,6 +18,9 @@ describe('AvisosService', () => {
   const avisoUpdate = jest.fn();
   const avisoDeleteMany = jest.fn();
   const crearParaVarios = jest.fn();
+  const whatsappFindUnique = jest.fn();
+  const whatsappUpsert = jest.fn();
+  const whatsappDeleteMany = jest.fn();
   const prisma = {
     materia: { count: materiaCount, findFirst: materiaFindFirst },
     horarioMateria: {
@@ -33,6 +36,11 @@ describe('AvisosService', () => {
       findMany: avisoFindMany,
       update: avisoUpdate,
       deleteMany: avisoDeleteMany,
+    },
+    grupoWhatsapp: {
+      findUnique: whatsappFindUnique,
+      upsert: whatsappUpsert,
+      deleteMany: whatsappDeleteMany,
     },
   } as unknown as PrismaService;
   const service = new AvisosService(prisma, {
@@ -221,6 +229,89 @@ describe('AvisosService', () => {
       await expect(
         service.avisarSuspensiones(31, ['2026-10-05'], 'x'),
       ).resolves.toBeUndefined();
+    });
+  });
+
+  describe('grupo de WhatsApp', () => {
+    it('normaliza el enlace que se pega desde WhatsApp', () => {
+      expect(
+        normalizarEnlaceWhatsapp(
+          ' chat.whatsapp.com/AbCdEfGhIj1234567890xY?mode=ac_t ',
+        ),
+      ).toBe('https://chat.whatsapp.com/AbCdEfGhIj1234567890xY');
+      expect(
+        normalizarEnlaceWhatsapp(
+          'https://chat.whatsapp.com/invite/AbCdEfGhIj12/',
+        ),
+      ).toBe('https://chat.whatsapp.com/AbCdEfGhIj12');
+      expect(
+        normalizarEnlaceWhatsapp('https://wa.me/5215512345678'),
+      ).toBeNull();
+      expect(
+        normalizarEnlaceWhatsapp(
+          'https://chat.whatsapp.com.evil.com/AbCdEfGhIj12',
+        ),
+      ).toBeNull();
+    });
+
+    it('guarda el enlace normalizado y lo quita si viene vacío', async () => {
+      await expect(
+        service.guardarWhatsapp(docente, {
+          materiaId: 12,
+          grupoId: 3,
+          enlace: 'https://chat.whatsapp.com/AbCdEfGhIj12?x=1',
+        }),
+      ).resolves.toEqual({ enlace: 'https://chat.whatsapp.com/AbCdEfGhIj12' });
+      expect(whatsappUpsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { materiaId_grupoId: { materiaId: 12, grupoId: 3 } },
+          update: { enlace: 'https://chat.whatsapp.com/AbCdEfGhIj12' },
+        }),
+      );
+
+      await expect(
+        service.guardarWhatsapp(docente, {
+          materiaId: 12,
+          grupoId: 3,
+          enlace: '  ',
+        }),
+      ).resolves.toEqual({ enlace: null });
+      expect(whatsappDeleteMany).toHaveBeenCalledWith({
+        where: { materiaId: 12, grupoId: 3 },
+      });
+    });
+
+    it('rechaza lo que no es un enlace de grupo', async () => {
+      await expect(
+        service.guardarWhatsapp(docente, {
+          materiaId: 12,
+          grupoId: 3,
+          enlace: 'mi grupo de redes',
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(whatsappUpsert).not.toHaveBeenCalled();
+    });
+
+    it('un docente ajeno no ve ni cambia el enlace', async () => {
+      horarioMateriaCount.mockResolvedValue(0);
+      await expect(
+        service.obtenerWhatsapp(docente, 12, 3),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(
+        service.guardarWhatsapp(docente, {
+          materiaId: 12,
+          grupoId: 3,
+          enlace: 'https://chat.whatsapp.com/AbCdEfGhIj12',
+        }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(whatsappFindUnique).not.toHaveBeenCalled();
+    });
+
+    it('devuelve null si no hay enlace guardado', async () => {
+      whatsappFindUnique.mockResolvedValue(null);
+      await expect(service.obtenerWhatsapp(docente, 12, 3)).resolves.toEqual({
+        enlace: null,
+      });
     });
   });
 });

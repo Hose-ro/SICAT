@@ -2,6 +2,7 @@ import useDesktop from '@/hooks/useDesktop'
 import { LogOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import FeedbackDialogs from '@/components/FeedbackDialogs'
+import CompartirWhatsapp from '@/components/whatsapp/CompartirWhatsapp'
 import { useState, useRef } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { Boxes as CiBoxes, Calendar as CiCalendar, CalendarDays as CiCalendarDate, Moon as CiDark, House as CiHome, LockKeyhole as CiLock, LogOut as CiLogout, Menu as CiMenuBurger, BookOpen as CiRead, Search as CiSearch, School as CiShop, Sun as CiSun, UserRound as CiUser, List as CiViewList } from 'lucide-react'
@@ -282,6 +283,7 @@ export function BaseLayout({ children }) {
       </div>
 
       <FeedbackDialogs />
+      <CompartirWhatsapp />
       {/* ── Main content ── */}
       <div className={`layout-main${collapsed ? ' collapsed' : ''}`}>
         <div className="print-hidden hidden items-center justify-end px-4 pt-4 sm:px-6 lg:flex lg:px-7">

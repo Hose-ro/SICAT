@@ -426,6 +426,7 @@ model Materia {
   categorias     CategoriaEvaluacion[]
   ponderaciones  PonderacionGrupo[]
   avisos         Aviso[]
+  whatsapp       GrupoWhatsapp[]
 
   @@unique([clave, carreraId])
 }
@@ -583,6 +584,21 @@ model PonderacionGrupo {
   updatedAt      DateTime @updatedAt
   materia        Materia  @relation(fields: [materiaId], references: [id], onDelete: Cascade)
   grupo          Grupo    @relation(fields: [grupoId], references: [id], onDelete: Cascade)
+
+  @@id([materiaId, grupoId])
+  @@index([grupoId])
+}
+
+/// Enlace de invitación (chat.whatsapp.com/…) del grupo de WhatsApp de una
+/// clase. Mientras los alumnos no usan la app, el docente comparte ahí las
+/// tareas y los avisos.
+model GrupoWhatsapp {
+  materiaId Int
+  grupoId   Int
+  enlace    String   @db.VarChar(200)
+  updatedAt DateTime @updatedAt
+  materia   Materia  @relation(fields: [materiaId], references: [id], onDelete: Cascade)
+  grupo     Grupo    @relation(fields: [grupoId], references: [id], onDelete: Cascade)
 
   @@id([materiaId, grupoId])
   @@index([grupoId])
@@ -852,6 +868,7 @@ model Grupo {
   ponderaciones        PonderacionGrupo[]
   pesosCategoria       CategoriaPesoGrupo[]
   avisos               Aviso[]
+  whatsapp             GrupoWhatsapp[]
 
   @@unique([semestre, seccion, carreraId, periodo, modalidad])
 }

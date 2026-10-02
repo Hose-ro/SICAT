@@ -14,7 +14,11 @@ import {
   horarioAplicaEnFecha,
   parsearFechaClave,
 } from '../clases/clases.utils';
-import { CrearAvisoDto, EditarAvisoDto } from './dto/aviso.dto';
+import {
+  CrearAvisoDto,
+  EditarAvisoDto,
+  GuardarWhatsappDto,
+} from './dto/aviso.dto';
 
 type Actor = { id: number; rol: string };
 
@@ -32,6 +36,20 @@ function fechaLarga(clave: string) {
         })
         .replace(',', '')
     : clave;
+}
+
+/**
+ * Deja el enlace de invitación como `https://chat.whatsapp.com/<código>`, sin
+ * parámetros. Acepta lo que el docente pega de WhatsApp (con o sin https).
+ * Devuelve null si no es un enlace de grupo.
+ */
+export function normalizarEnlaceWhatsapp(valor: string): string | null {
+  const limpio = valor.trim().split(/[?#]/)[0].replace(/\/+$/, '');
+  const match =
+    /^(?:https?:\/\/)?chat\.whatsapp\.com\/(?:invite\/)?([A-Za-z0-9]{10,40})$/i.exec(
+      limpio,
+    );
+  return match ? `https://chat.whatsapp.com/${match[1]}` : null;
 }
 
 @Injectable()
@@ -101,6 +119,40 @@ export class AvisosService {
       orderBy: [{ fijado: 'desc' }, { createdAt: 'desc' }],
       take: 50,
     });
+  }
+
+  /** Enlace del grupo de WhatsApp de la clase, si el docente lo guardó. */
+  async obtenerWhatsapp(actor: Actor, materiaId: number, grupoId: number) {
+    await asegurarAccesoMateria(this.prisma, actor, materiaId, grupoId);
+    const guardado = await this.prisma.grupoWhatsapp.findUnique({
+      where: { materiaId_grupoId: { materiaId, grupoId } },
+    });
+    return { enlace: guardado?.enlace ?? null };
+  }
+
+  /** Guarda el enlace del grupo de WhatsApp; vacío lo quita. */
+  async guardarWhatsapp(actor: Actor, dto: GuardarWhatsappDto) {
+    const { materiaId, grupoId } = dto;
+    await asegurarAccesoMateria(this.prisma, actor, materiaId, grupoId);
+    const id = { materiaId_grupoId: { materiaId, grupoId } };
+    if (!dto.enlace.trim()) {
+      await this.prisma.grupoWhatsapp.deleteMany({
+        where: { materiaId, grupoId },
+      });
+      return { enlace: null };
+    }
+    const enlace = normalizarEnlaceWhatsapp(dto.enlace);
+    if (!enlace) {
+      throw new BadRequestException(
+        'Pega el enlace de invitación del grupo (https://chat.whatsapp.com/…)',
+      );
+    }
+    await this.prisma.grupoWhatsapp.upsert({
+      where: id,
+      create: { materiaId, grupoId, enlace },
+      update: { enlace },
+    });
+    return { enlace };
   }
 
   /** Lo que ve el alumno en la materia: avisos de su grupo y los suyos. */

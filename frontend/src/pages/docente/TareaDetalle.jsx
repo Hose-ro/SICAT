@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useEffectEvent, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, BellRing, Check, CheckCheck, FileText, Paperclip, Presentation } from 'lucide-react'
+import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { ArrowLeft, BellRing, Check, CheckCheck, FileText, MessageCircle, Paperclip, Presentation } from 'lucide-react'
 import api from '@/api/axios'
 import TaskNotice from '@/components/TaskNotice'
+import { compartirTareaPorWhatsapp } from '@/components/whatsapp/compartirTarea'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { confirmAction, notify } from '@/lib/feedback'
@@ -80,6 +81,17 @@ function TareaDetalle({ tareaId }) {
   }, [tareaId])
 
   useEffect(() => { cargar() }, [cargar])
+
+  // Al llegar recién publicada desde el formulario, se ofrece mandarla al grupo de WhatsApp.
+  const location = useLocation()
+  const navigate = useNavigate()
+  const compartirPendiente = useRef(Boolean(location.state?.compartir))
+  useEffect(() => {
+    if (!compartirPendiente.current) return
+    compartirPendiente.current = false
+    navigate(location.pathname + location.search, { replace: true, state: null })
+    compartirTareaPorWhatsapp(tareaId)
+  }, [tareaId, navigate, location.pathname, location.search])
 
   const filas = useMemo(() => entregas.map((entrega) => ({ entrega, alumno: entrega.alumno, estado: estadoDocente(entrega) })), [entregas])
   const r = useMemo(() => conteoEntregas(entregas), [entregas])
@@ -304,6 +316,7 @@ function TareaDetalle({ tareaId }) {
     !presencial && r.porCalificar > 0 && { label: `Marcar las ${r.porCalificar} por calificar como revisadas`, icon: CheckCheck, onSelect: revisarPendientes },
     presencial && abierta && r.sinEntregar > 0 && { label: `Registrar en clase a los ${r.sinEntregar} que faltan`, icon: Presentation, onSelect: registrarTodos },
     !presencial && abierta && r.sinEntregar > 0 && { label: 'Recordar a quienes faltan', icon: BellRing, onSelect: () => recordar() },
+    abierta && { label: 'Recordatorio por WhatsApp', icon: MessageCircle, onSelect: () => compartirTareaPorWhatsapp(tareaId, { recordatorio: true }) },
     { separator: true },
   ])
 

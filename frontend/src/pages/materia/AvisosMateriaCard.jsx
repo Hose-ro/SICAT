@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Megaphone, Pin, PinOff, Trash2 } from 'lucide-react'
+import { Megaphone, MessageCircle, Pin, PinOff, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { confirmAction, notify } from '@/lib/feedback'
 import { fechaAviso, mensajeError } from '@/lib/avisos'
+import { mensajeAviso } from '@/lib/whatsapp'
+import { abrirCompartirWhatsapp } from '@/store/compartirWhatsappStore'
 import api from '../../api/axios'
 
 const FIELD = 'w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40'
@@ -31,6 +33,13 @@ export default function AvisosMateriaCard({ materia }) {
   const lista = avisos.grupoId === grupoId ? avisos : { items: [], error: '' }
   const grupo = grupos.find((g) => g.id === grupoId)
 
+  const compartir = (aviso) => abrirCompartirWhatsapp({
+    titulo: 'Compartir aviso por WhatsApp',
+    materiaId: materia.id,
+    grupoId,
+    texto: mensajeAviso(aviso, materia.nombre, grupo?.nombre),
+  })
+
   const publicar = async (event) => {
     event.preventDefault()
     if (enviando || !form.titulo.trim() || !form.cuerpo.trim()) return
@@ -41,7 +50,8 @@ export default function AvisosMateriaCard({ materia }) {
       await cargar(grupoId)
       notify(data.destinatarios
         ? `Se avisó a ${data.destinatarios} ${data.destinatarios === 1 ? 'alumno' : 'alumnos'} de ${grupo.nombre}.`
-        : `Aviso publicado en ${grupo.nombre}. Todavía no hay alumnos inscritos que lo reciban.`, 'success')
+        : `Aviso publicado en ${grupo.nombre}. Todavía no hay alumnos inscritos que lo reciban.`, 'success',
+      { action: { label: 'Mandar por WhatsApp', onClick: () => compartir(data) }, duration: 9000 })
     } catch (error) {
       notify(mensajeError(error, 'No se pudo publicar el aviso.'))
     } finally {
@@ -111,7 +121,7 @@ export default function AvisosMateriaCard({ materia }) {
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">
-          Les llega como notificación a los alumnos inscritos. Para un día sin clase, márcalo en el calendario: el aviso se manda solo.
+          Les llega como notificación a los alumnos inscritos; con el botón de WhatsApp lo mandas también al grupo. Para un día sin clase, márcalo en el calendario: el aviso se manda solo.
         </p>
       </form>
 
@@ -129,6 +139,9 @@ export default function AvisosMateriaCard({ materia }) {
                 <p className="mt-1 text-xs text-muted-foreground">{fechaAviso(aviso.createdAt)}{aviso.suspensionFecha && ' · desde el calendario'}</p>
               </div>
               <div className="flex shrink-0 gap-1">
+                <Button variant="ghost" size="icon" aria-label={`Compartir ${aviso.titulo} por WhatsApp`} onClick={() => compartir(aviso)}>
+                  <MessageCircle aria-hidden="true" />
+                </Button>
                 <Button variant="ghost" size="icon" aria-label={aviso.fijado ? `Desfijar ${aviso.titulo}` : `Fijar ${aviso.titulo}`} onClick={() => alternarFijado(aviso)}>
                   {aviso.fijado ? <PinOff aria-hidden="true" /> : <Pin aria-hidden="true" />}
                 </Button>

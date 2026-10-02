@@ -8,6 +8,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Put,
   Query,
   Req,
   UseGuards,
@@ -17,7 +18,11 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { AvisosService } from './avisos.service';
-import { CrearAvisoDto, EditarAvisoDto } from './dto/aviso.dto';
+import {
+  CrearAvisoDto,
+  EditarAvisoDto,
+  GuardarWhatsappDto,
+} from './dto/aviso.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('avisos')
@@ -50,6 +55,32 @@ export class AvisosController {
   ) {
     if (!materiaId) throw new BadRequestException('La materia es obligatoria');
     return this.avisos.listarAlumno(req.user.id, Number(materiaId));
+  }
+
+  @Get('whatsapp')
+  @Roles('DOCENTE', 'ADMIN')
+  whatsapp(
+    @Req() req: AuthenticatedRequest,
+    @Query('materiaId') materiaId?: string,
+    @Query('grupoId') grupoId?: string,
+  ) {
+    if (!materiaId || !grupoId) {
+      throw new BadRequestException('La materia y el grupo son obligatorios');
+    }
+    return this.avisos.obtenerWhatsapp(
+      req.user,
+      Number(materiaId),
+      Number(grupoId),
+    );
+  }
+
+  @Put('whatsapp')
+  @Roles('DOCENTE', 'ADMIN')
+  guardarWhatsapp(
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: GuardarWhatsappDto,
+  ) {
+    return this.avisos.guardarWhatsapp(req.user, dto);
   }
 
   @Post()

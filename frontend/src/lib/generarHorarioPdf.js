@@ -1,3 +1,5 @@
+import { sanitizarNombreArchivo } from './nombreArchivo'
+
 const DIAS = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado']
 const DIAS_LOWER = DIAS.map((d) => d.toLowerCase())
 
@@ -20,10 +22,6 @@ const COLORES = [
 function aMinutos(hora) {
   const [h, m] = hora.split(':').map(Number)
   return h * 60 + m
-}
-
-function sanitizarNombreArchivo(nombre) {
-  return nombre.replace(/[\\/:*?"<>|]/g, '').trim() || 'horario'
 }
 
 function dibujarBloque(doc, x, y, w, h, color, horario) {
@@ -134,5 +132,5 @@ export async function generarHorarioPdf({ nombreArchivo, titulo, subtitulo, hora
     })
   })
 
-  doc.save(`${sanitizarNombreArchivo(nombreArchivo)}.pdf`)
+  doc.save(`${sanitizarNombreArchivo(nombreArchivo, 'horario')}.pdf`)
 }

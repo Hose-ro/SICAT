@@ -66,3 +66,22 @@ export class EditarAvisoDto {
   @Transform(toBoolean)
   fijado?: boolean;
 }
+
+export class GuardarWhatsappDto {
+  @V.Min(1)
+  @V.Max(2147483647)
+  @ToNumber()
+  @IsInt()
+  materiaId: number;
+
+  @V.Min(1)
+  @V.Max(2147483647)
+  @ToNumber()
+  @IsInt()
+  grupoId: number;
+
+  // Vacío quita el enlace guardado.
+  @V.MaxLength(300)
+  @IsString()
+  enlace: string;
+}
