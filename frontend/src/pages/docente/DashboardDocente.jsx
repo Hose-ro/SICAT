@@ -142,7 +142,7 @@ export default function DashboardDocente() {
       (materia) =>
         materia.nombre.toLowerCase().includes(texto) ||
         (materia.clave ?? '').toLowerCase().includes(texto) ||
-        materia.grupos.some((grupo) => grupo.toLowerCase().includes(texto)),
+        (materia.grupo?.nombre ?? '').toLowerCase().includes(texto),
     )
   }, [busqueda, panel?.materias])
 
@@ -624,17 +624,21 @@ function Materias({ materias, total, busqueda, onBuscar }) {
       ) : (
         <ul className="mt-2 divide-y divide-border">
           {materias.map((materia) => (
-            <li key={materia.id}>
+            <li key={`${materia.id}-${materia.grupo?.id ?? 'sin-grupo'}`}>
               <Link
-                to={`/materias/${materia.id}`}
+                to={
+                  materia.grupo
+                    ? `/materias/${materia.id}?grupo=${materia.grupo.id}`
+                    : `/materias/${materia.id}`
+                }
                 className="-mx-2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl px-2 py-2.5 transition hover:bg-muted/50"
               >
                 <span className="min-w-0 flex-1 basis-48 text-sm leading-relaxed text-foreground">
                   {materia.nombre}
-                  {materia.grupos.length > 0 && (
+                  {materia.grupo && (
                     <span className="text-muted-foreground">
                       {' '}
-                      · {materia.grupos.join(', ')}
+                      · {materia.grupo.nombre}
                     </span>
                   )}
                 </span>

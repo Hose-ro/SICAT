@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
 import api from '../api/axios'
 import { useAuthStore } from '../store/authStore'
@@ -18,6 +18,10 @@ function formatDate(value) {
 
 export default function MateriaDetalle() {
   const { id } = useParams()
+  // Una materia puede darse a varios grupos: ?grupo= deja ver sólo uno, sin
+  // revolver alumnos, sesiones ni avisos de los demás.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const grupoParam = Number(searchParams.get('grupo')) || null
   const { user } = useAuthStore()
   // El backend ya limita al docente a las materias que imparte: si abrió la
   // página, la materia es suya.
@@ -37,17 +41,14 @@ export default function MateriaDetalle() {
       setError('')
 
       try {
-        const [materiaRes, historialRes, tareasRes] = await Promise.all([
+        const [materiaRes, tareasRes] = await Promise.all([
           api.get(`/materias/${id}`),
-          api.get('/asistencias/historial', { params: { materiaId: id } }),
           api.get(`/tareas/materia/${id}`),
         ])
 
         if (!active) return
 
         setMateria(materiaRes.data)
-        setHistorial(historialRes.data?.items ?? [])
-        setEstadisticas(historialRes.data?.estadisticas ?? null)
         setTareas(tareasRes.data ?? [])
       } catch (err) {
         if (!active) return
@@ -63,18 +64,73 @@ export default function MateriaDetalle() {
     }
   }, [id])
 
+  const grupos = useMemo(
+    () => [...(materia?.grupos ?? [])].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
+    [materia?.grupos],
+  )
+  // Un ?grupo= que no es de la materia se ignora: se ve la materia completa.
+  const grupo = grupos.find((item) => item.id === grupoParam) ?? null
+  const grupoId = grupo?.id ?? null
+
+  // Las sesiones se piden aparte para que cambiar de grupo no recargue la página.
+  const materiaCargada = Boolean(materia)
+  useEffect(() => {
+    if (!materiaCargada) return undefined
+    let active = true
+    api
+      .get('/asistencias/historial', {
+        params: { materiaId: id, ...(grupoId ? { grupoId } : {}) },
+      })
+      .then((res) => {
+        if (!active) return
+        setHistorial(res.data?.items ?? [])
+        setEstadisticas(res.data?.estadisticas ?? null)
+      })
+      .catch(() => {
+        if (!active) return
+        setHistorial([])
+        setEstadisticas(null)
+      })
+    return () => {
+      active = false
+    }
+  }, [id, grupoId, materiaCargada])
+
   /** Tras cambiar unidades o el padrón basta con releer la materia. */
   const recargarMateria = useCallback(async () => {
     const { data } = await api.get(`/materias/${id}`)
     setMateria(data)
   }, [id])
 
+  /** La materia vista desde el grupo elegido: padrón y grupos de ese grupo. */
+  const materiaDelGrupo = useMemo(() => {
+    if (!materia || !grupo) return materia
+    return {
+      ...materia,
+      grupos: [grupo],
+      inscripciones: (materia.inscripciones ?? []).filter((inscripcion) => inscripcion.grupoId === grupo.id),
+    }
+  }, [grupo, materia])
+
+  // Una tarea sin grupo es para toda la materia: se ve en cada grupo.
+  const tareasDelGrupo = useMemo(
+    () => (grupo ? tareas.filter((tarea) => !tarea.grupoId || tarea.grupoId === grupo.id) : tareas),
+    [grupo, tareas],
+  )
+
   const resumen = useMemo(() => ({
-    unidades: materia?.unidades?.length ?? 0,
-    alumnos: materia?.inscripciones?.length ?? 0,
+    unidades: materiaDelGrupo?.unidades?.length ?? 0,
+    alumnos: materiaDelGrupo?.inscripciones?.length ?? 0,
     clases: historial.length,
-    tareas: tareas.length,
-  }), [historial.length, materia?.inscripciones?.length, materia?.unidades?.length, tareas.length])
+    tareas: tareasDelGrupo.length,
+  }), [historial.length, materiaDelGrupo?.inscripciones?.length, materiaDelGrupo?.unidades?.length, tareasDelGrupo.length])
+
+  const elegirGrupo = (grupoId) => {
+    const siguiente = new URLSearchParams(searchParams)
+    if (grupoId) siguiente.set('grupo', String(grupoId))
+    else siguiente.delete('grupo')
+    setSearchParams(siguiente, { replace: true })
+  }
 
   if (loading) {
     return <div className="py-16 text-center text-sm text-muted-foreground">Cargando materia...</div>
@@ -87,7 +143,7 @@ export default function MateriaDetalle() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={materia.nombre}
+        title={grupo ? `${materia.nombre} · ${grupo.nombre}` : materia.nombre}
         subtitle={
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
             <span className="font-semibold text-primary-ink">{materia.clave}</span>
@@ -113,6 +169,29 @@ export default function MateriaDetalle() {
           </div>
         }
       />
+
+      {grupos.length > 1 && (
+        <nav aria-label="Grupo" className="flex flex-wrap gap-2">
+          {[{ id: null, nombre: 'Todos los grupos' }, ...grupos].map((item) => {
+            const activo = (grupo?.id ?? null) === item.id
+            return (
+              <button
+                key={item.id ?? 'todos'}
+                type="button"
+                aria-pressed={activo}
+                onClick={() => elegirGrupo(item.id)}
+                className={`min-h-9 rounded-full border px-4 text-sm font-medium transition ${
+                  activo
+                    ? 'border-primary bg-primary text-primary-foreground'
+                    : 'border-border bg-card text-foreground hover:bg-muted'
+                }`}
+              >
+                {item.nombre}
+              </button>
+            )
+          })}
+        </nav>
+      )}
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {[
@@ -141,16 +220,17 @@ export default function MateriaDetalle() {
         </section>
       )}
 
-      {puedeGestionar && <AvisosMateriaCard materia={materia} />}
+      {puedeGestionar && <AvisosMateriaCard key={grupo?.id ?? 'todos'} materia={materiaDelGrupo} />}
 
       <section className="grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
         <UnidadesCard
-          materia={materia}
+          materia={materiaDelGrupo}
           puedeEditar={puedeGestionar}
           onActualizado={recargarMateria}
         />
         <AlumnosMateriaCard
-          materia={materia}
+          key={grupo?.id ?? 'todos'}
+          materia={materiaDelGrupo}
           puedeEditar={puedeGestionar}
           onActualizado={recargarMateria}
         />
@@ -187,10 +267,10 @@ export default function MateriaDetalle() {
         <article className="min-w-0 rounded-2xl border border-border bg-card p-5 shadow-sm">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-lg font-semibold text-foreground">Tareas recientes</h2>
-            <span className="text-xs text-muted-foreground">{tareas.length} tarea(s)</span>
+            <span className="text-xs text-muted-foreground">{tareasDelGrupo.length} tarea(s)</span>
           </div>
           <div className="mt-4 space-y-3">
-            {tareas.slice(0, 8).map((item) => (
+            {tareasDelGrupo.slice(0, 8).map((item) => (
               <div key={item.id} className="rounded-xl border border-border bg-background px-4 py-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
@@ -208,7 +288,7 @@ export default function MateriaDetalle() {
                 </div>
               </div>
             ))}
-            {tareas.length === 0 && (
+            {tareasDelGrupo.length === 0 && (
               <p className="text-sm text-muted-foreground">No hay tareas publicadas para esta materia.</p>
             )}
           </div>

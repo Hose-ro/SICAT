@@ -74,8 +74,9 @@ export class DashboardService {
           },
           orderBy: { nombre: 'asc' },
         }),
-        // El riesgo se aplica por materia (el mismo alumno puede ir bien en
-        // una y mal en otra) y sólo con lo registrado en el periodo en curso.
+        // El riesgo se aplica por clase (materia + grupo: el mismo alumno
+        // puede ir bien en una y mal en otra) y sólo con lo registrado en el
+        // periodo en curso.
         this.prisma.asistencia.findMany({
           where: {
             claseSesion: {
@@ -86,7 +87,7 @@ export class DashboardService {
           select: {
             estado: true,
             alumnoId: true,
-            claseSesion: { select: { materiaId: true } },
+            claseSesion: { select: { materiaId: true, grupoId: true } },
           },
         }),
         this.prisma.entregaTarea.findMany({
@@ -94,16 +95,18 @@ export class DashboardService {
             tarea: { docenteId },
             estadoRevision: { in: REVISIONES_SIN_CALIFICAR },
           },
-          select: { tarea: { select: { materiaId: true } } },
+          select: {
+            alumnoId: true,
+            tarea: { select: { materiaId: true, grupoId: true } },
+          },
         }),
-        this.prisma.inscripcion.groupBy({
-          by: ['materiaId'],
+        this.prisma.inscripcion.findMany({
           where: {
             estado: 'ACEPTADA',
             periodo,
             materia: materiasDelDocente,
           },
-          _count: { _all: true },
+          select: { materiaId: true, grupoId: true, alumnoId: true },
         }),
         // Sin filtro de periodo, igual que InscripcionesService.obtenerPendientes,
         // para que el contador coincida con la lista de solicitudes.
@@ -112,31 +115,51 @@ export class DashboardService {
         }),
       ]);
 
-    const asistenciaPorMateria = new Map<
-      number,
+    /** Cada (materia, grupo) es una clase distinta en el panel. */
+    const claveClase = (materiaId: number, grupoId: number | null) =>
+      `${materiaId}:${grupoId ?? '-'}`;
+
+    // Una tarea sin grupo es para toda la materia: su entrega cuenta en el
+    // grupo en el que está inscrito el alumno.
+    const grupoDelAlumno = new Map<string, number | null>();
+    const inscritosPorClase = new Map<string, number>();
+    for (const inscripcion of inscritos) {
+      grupoDelAlumno.set(
+        `${inscripcion.materiaId}:${inscripcion.alumnoId}`,
+        inscripcion.grupoId,
+      );
+      const clave = claveClase(inscripcion.materiaId, inscripcion.grupoId);
+      inscritosPorClase.set(clave, (inscritosPorClase.get(clave) ?? 0) + 1);
+    }
+
+    const asistenciaPorClase = new Map<
+      string,
       { asistencias: number; total: number }
     >();
     const registrosPorAlumno = new Map<
       string,
-      { materiaId: number; alumnoId: number; total: number; ausencias: number }
+      { clase: string; alumnoId: number; total: number; ausencias: number }
     >();
 
     for (const registro of registros) {
-      const materiaId = registro.claseSesion.materiaId;
+      const clase = claveClase(
+        registro.claseSesion.materiaId,
+        registro.claseSesion.grupoId,
+      );
 
-      const materia = asistenciaPorMateria.get(materiaId) ?? {
+      const asistencia = asistenciaPorClase.get(clase) ?? {
         asistencias: 0,
         total: 0,
       };
-      materia.total += 1;
+      asistencia.total += 1;
       if (registro.estado === EstadoAsistencia.ASISTENCIA) {
-        materia.asistencias += 1;
+        asistencia.asistencias += 1;
       }
-      asistenciaPorMateria.set(materiaId, materia);
+      asistenciaPorClase.set(clase, asistencia);
 
-      const clave = `${materiaId}:${registro.alumnoId}`;
+      const clave = `${clase}:${registro.alumnoId}`;
       const alumno = registrosPorAlumno.get(clave) ?? {
-        materiaId,
+        clase,
         alumnoId: registro.alumnoId,
         total: 0,
         ausencias: 0,
@@ -146,63 +169,69 @@ export class DashboardService {
       registrosPorAlumno.set(clave, alumno);
     }
 
-    const riesgoPorMateria = new Map<number, number>();
+    const riesgoPorClase = new Map<string, number>();
     const alumnosEnRiesgo = new Set<number>();
     for (const alumno of registrosPorAlumno.values()) {
       if (!estaEnRiesgo(alumno.total, alumno.ausencias)) continue;
-      riesgoPorMateria.set(
-        alumno.materiaId,
-        (riesgoPorMateria.get(alumno.materiaId) ?? 0) + 1,
+      riesgoPorClase.set(
+        alumno.clase,
+        (riesgoPorClase.get(alumno.clase) ?? 0) + 1,
       );
       alumnosEnRiesgo.add(alumno.alumnoId);
     }
 
-    const entregasPorMateria = new Map<number, number>();
+    const entregasPorClase = new Map<string, number>();
     for (const entrega of entregas) {
-      const materiaId = entrega.tarea.materiaId;
-      entregasPorMateria.set(
-        materiaId,
-        (entregasPorMateria.get(materiaId) ?? 0) + 1,
-      );
+      const { materiaId } = entrega.tarea;
+      const grupoId =
+        entrega.tarea.grupoId ??
+        grupoDelAlumno.get(`${materiaId}:${entrega.alumnoId}`) ??
+        null;
+      const clave = claveClase(materiaId, grupoId);
+      entregasPorClase.set(clave, (entregasPorClase.get(clave) ?? 0) + 1);
     }
 
-    const inscritosPorMateria = new Map(
-      inscritos.map((item) => [item.materiaId, item._count._all]),
-    );
-
-    const resumenMaterias = materias.map((materia) => {
-      const asistencia = asistenciaPorMateria.get(materia.id);
+    // Una fila por grupo en el que el docente da la materia; si todavía no
+    // tiene horario con grupo, la materia aparece sola.
+    const resumenMaterias = materias.flatMap((materia) => {
       const grupos = [
-        ...new Set(
+        ...new Map(
           materia.horarios
-            .map((horario) => horario.grupo?.nombre)
-            .filter((nombre): nombre is string => Boolean(nombre)),
-        ),
-      ];
+            .map((horario) => horario.grupo)
+            .filter((grupo): grupo is { id: number; nombre: string } =>
+              Boolean(grupo),
+            )
+            .map((grupo) => [grupo.id, grupo]),
+        ).values(),
+      ].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
 
-      return {
-        id: materia.id,
-        nombre: materia.nombre,
-        clave: materia.clave,
-        grupos,
-        alumnos: inscritosPorMateria.get(materia.id) ?? 0,
-        unidadActiva: materia.unidades[0] ?? null,
-        // null (y no 0) mientras no haya registros: no es lo mismo "nadie
-        // asiste" que "todavía no pasas lista".
-        porcentajeAsistencia:
-          asistencia && asistencia.total > 0
-            ? Math.round((asistencia.asistencias / asistencia.total) * 100)
-            : null,
-        entregasSinCalificar: entregasPorMateria.get(materia.id) ?? 0,
-        alumnosEnRiesgo: riesgoPorMateria.get(materia.id) ?? 0,
-      };
+      return (grupos.length ? grupos : [null]).map((grupo) => {
+        const clave = claveClase(materia.id, grupo?.id ?? null);
+        const asistencia = asistenciaPorClase.get(clave);
+        return {
+          id: materia.id,
+          nombre: materia.nombre,
+          clave: materia.clave,
+          grupo,
+          alumnos: inscritosPorClase.get(clave) ?? 0,
+          unidadActiva: materia.unidades[0] ?? null,
+          // null (y no 0) mientras no haya registros: no es lo mismo "nadie
+          // asiste" que "todavía no pasas lista".
+          porcentajeAsistencia:
+            asistencia && asistencia.total > 0
+              ? Math.round((asistencia.asistencias / asistencia.total) * 100)
+              : null,
+          entregasSinCalificar: entregasPorClase.get(clave) ?? 0,
+          alumnosEnRiesgo: riesgoPorClase.get(clave) ?? 0,
+        };
+      });
     });
 
     return {
       ...clases,
       periodo,
       resumen: {
-        materias: resumenMaterias.length,
+        materias: materias.length,
         clasesHoy: clases.clasesHoy.filter(
           (clase) => clase.estado !== 'SUSPENDIDA',
         ).length,
