@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../prisma.service';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import { MateriasService } from './materias.service';
+import { materiasActivasDelDocenteWhere } from '../common/materia-ownership';
 
 describe('MateriasService', () => {
   const materiaFindUnique = jest.fn();
@@ -23,6 +24,8 @@ describe('MateriasService', () => {
   const calificacionCount = jest.fn();
   const tareaCount = jest.fn();
   const sesionCount = jest.fn();
+  const pausaUpsert = jest.fn();
+  const pausaDeleteMany = jest.fn();
   const prisma = {
     materia: {
       findUnique: materiaFindUnique,
@@ -39,6 +42,7 @@ describe('MateriasService', () => {
     calificacionUnidad: { count: calificacionCount },
     tarea: { count: tareaCount },
     claseSesion: { count: sesionCount },
+    materiaPausada: { upsert: pausaUpsert, deleteMany: pausaDeleteMany },
     $transaction: transaction,
   } as unknown as PrismaService;
   const notificaciones = {
@@ -387,6 +391,67 @@ describe('MateriasService', () => {
         }) as Record<string, number>,
       }),
     );
+  });
+
+  describe('pausar materias por docente', () => {
+    it('sólo el docente que la imparte puede pausarla', async () => {
+      materiaCount.mockResolvedValueOnce(1).mockResolvedValue(0);
+      horarioCount.mockResolvedValue(0);
+
+      await expect(
+        service.cambiarPausa(7, { id: 99, rol: 'DOCENTE' }, true),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(pausaUpsert).not.toHaveBeenCalled();
+    });
+
+    it('pausa y reanuda sólo para ese docente', async () => {
+      materiaCount.mockResolvedValue(1);
+
+      await expect(
+        service.cambiarPausa(7, { id: 5, rol: 'DOCENTE' }, true),
+      ).resolves.toEqual({ materiaId: 7, pausada: true });
+      expect(pausaUpsert).toHaveBeenCalledWith({
+        where: { docenteId_materiaId: { docenteId: 5, materiaId: 7 } },
+        create: { docenteId: 5, materiaId: 7 },
+        update: {},
+      });
+
+      await service.cambiarPausa(7, { id: 5, rol: 'DOCENTE' }, false);
+      expect(pausaDeleteMany).toHaveBeenCalledWith({
+        where: { docenteId: 5, materiaId: 7 },
+      });
+    });
+
+    it('mis materias excluye las pausadas salvo que se pidan, y entonces las marca', async () => {
+      materiaFindMany.mockResolvedValue([
+        { ...materia, pausas: [{ docenteId: 5 }] },
+        { ...materia, id: 8, pausas: [] },
+      ]);
+
+      await service.findByDocente(5);
+      expect(materiaFindMany).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          where: materiasActivasDelDocenteWhere(5),
+        }),
+      );
+
+      const todas = await service.findByDocente(5, true);
+      expect(materiaFindMany).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          include: expect.objectContaining({
+            pausas: { where: { docenteId: 5 }, select: { docenteId: true } },
+          }) as unknown,
+        }),
+      );
+      expect(
+        todas.map((m: { id: number; pausada?: boolean }) => [m.id, m.pausada]),
+      ).toEqual([
+        [7, true],
+        [8, false],
+      ]);
+    });
   });
 
   it('el detalle muestra el estado de cada unidad según sus fechas', async () => {

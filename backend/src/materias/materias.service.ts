@@ -12,6 +12,7 @@ import {
   ActorMateria,
   asegurarAccesoMateria,
   esDocenteDeMateria,
+  materiasActivasDelDocenteWhere,
   materiasDelDocenteWhere,
 } from '../common/materia-ownership';
 import { estadoSegunFechas, unidadesIniciales } from '../common/unidades.util';
@@ -210,9 +211,18 @@ export class MateriasService {
     });
   }
 
-  findByDocente(docenteId?: number) {
-    return this.prisma.materia.findMany({
-      where: docenteId ? materiasDelDocenteWhere(docenteId) : undefined,
+  /**
+   * Materias del docente para su trabajo diario: sin las que pausó. Con
+   * `incluirPausadas` (página Materias) vienen todas, marcadas con `pausada`.
+   */
+  async findByDocente(docenteId?: number, incluirPausadas = false) {
+    const where = !docenteId
+      ? undefined
+      : incluirPausadas
+        ? materiasDelDocenteWhere(docenteId)
+        : materiasActivasDelDocenteWhere(docenteId);
+    const materias = await this.prisma.materia.findMany({
+      where,
       include: {
         unidades: { orderBy: { orden: 'asc' } },
         carrera: { select: { id: true, nombre: true } },
@@ -227,8 +237,32 @@ export class MateriasService {
           },
         },
         _count: { select: { inscripciones: true } },
+        ...(docenteId && incluirPausadas
+          ? { pausas: { where: { docenteId }, select: { docenteId: true } } }
+          : {}),
       },
     });
+    if (!docenteId || !incluirPausadas) return materias;
+    return materias.map(({ pausas, ...materia }) => ({
+      ...materia,
+      pausada: pausas.length > 0,
+    }));
+  }
+
+  /** Pausa o reanuda la materia sólo para este docente; no borra nada. */
+  async cambiarPausa(materiaId: number, actor: ActorMateria, pausar: boolean) {
+    await asegurarAccesoMateria(this.prisma, actor, materiaId);
+    const id = { docenteId: actor.id, materiaId };
+    if (pausar) {
+      await this.prisma.materiaPausada.upsert({
+        where: { docenteId_materiaId: id },
+        create: id,
+        update: {},
+      });
+    } else {
+      await this.prisma.materiaPausada.deleteMany({ where: id });
+    }
+    return { materiaId, pausada: pausar };
   }
 
   async findOne(id: number, actor?: { id: number; rol: string }) {
@@ -295,7 +329,7 @@ export class MateriasService {
     };
   }
 
-async findByClave(clave: string) {
+  async findByClave(clave: string) {
     const materia = await this.prisma.materia.findFirst({
       where: { clave },
       include: {

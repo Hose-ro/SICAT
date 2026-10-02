@@ -296,7 +296,12 @@ export class ClasesService {
     );
 
     const horarios = await this.prisma.horarioMateria.findMany({
-      where: { docenteId, activo: true },
+      // Sin las materias que el docente pausó: no aparecen en su día.
+      where: {
+        docenteId,
+        activo: true,
+        materia: { pausas: { none: { docenteId } } },
+      },
       include: {
         materia: {
           select: {

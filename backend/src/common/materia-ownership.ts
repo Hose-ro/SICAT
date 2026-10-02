@@ -46,6 +46,22 @@ export function materiasDelDocenteWhere(
   };
 }
 
+/**
+ * Igual que `materiasDelDocenteWhere`, sin las materias que el docente pausó.
+ * Sirve para su trabajo diario (inicio, pasar lista, tareas, calificaciones);
+ * el acceso a la materia no cambia, así puede abrirla y reanudarla.
+ */
+export function materiasActivasDelDocenteWhere(
+  docenteId: number,
+): Prisma.MateriaWhereInput {
+  return {
+    AND: [
+      materiasDelDocenteWhere(docenteId),
+      { pausas: { none: { docenteId } } },
+    ],
+  };
+}
+
 export async function asegurarAccesoMateria(
   prisma: PrismaLike,
   actor: ActorMateria | undefined,

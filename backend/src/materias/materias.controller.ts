@@ -4,6 +4,7 @@ import {
   Post,
   Patch,
   Delete,
+  Put,
   Body,
   Param,
   ParseIntPipe,
@@ -59,9 +60,13 @@ export class MateriasController {
   @Get('mis-materias')
   @Roles('DOCENTE', 'ADMIN')
   @ApiOperation({ summary: 'Materias del docente autenticado' })
-  misMaterias(@Req() req: AuthenticatedRequest) {
+  misMaterias(
+    @Req() req: AuthenticatedRequest,
+    @Query('incluirPausadas') incluirPausadas?: string,
+  ) {
     return this.materias.findByDocente(
       req.user.rol === 'ADMIN' ? undefined : req.user.id,
+      incluirPausadas === 'true',
     );
   }
 
@@ -137,6 +142,28 @@ export class MateriasController {
     @Req() req: AuthenticatedRequest,
   ) {
     return this.materias.actualizarUnidades(id, dto, req.user);
+  }
+
+  @Put(':id/pausa')
+  @Roles('DOCENTE')
+  @ApiOperation({
+    summary: 'Pausar una materia sólo para el docente que la imparte',
+  })
+  pausar(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.materias.cambiarPausa(id, req.user, true);
+  }
+
+  @Delete(':id/pausa')
+  @Roles('DOCENTE')
+  @ApiOperation({ summary: 'Reanudar una materia pausada por el docente' })
+  reanudar(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.materias.cambiarPausa(id, req.user, false);
   }
 
   @Delete('lote')

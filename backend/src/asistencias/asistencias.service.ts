@@ -711,6 +711,10 @@ export class AsistenciasService {
               },
               { claseSesiones: { some: { docenteId } } },
             ],
+            // El docente no ve en sus filtros las materias que pausó.
+            ...(actor.rol === 'DOCENTE'
+              ? { pausas: { none: { docenteId } } }
+              : {}),
           }
         : undefined,
       select: { id: true, nombre: true, clave: true },

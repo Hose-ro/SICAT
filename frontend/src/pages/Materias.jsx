@@ -1,10 +1,11 @@
 import { Button } from '@/components/ui/button'
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { CalendarDays as CiCalendarDate, Clock as CiClock2, Pencil as CiEdit, BookOpen as CiRead, ListChecks as CiSelect, Trash2 as CiTrash, UserRound as CiUser } from 'lucide-react'
+import { CalendarDays as CiCalendarDate, Clock as CiClock2, Pencil as CiEdit, BookOpen as CiRead, ListChecks as CiSelect, Pause, Play, Trash2 as CiTrash, UserRound as CiUser } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import Modal from '../components/Modal'
 import api from '../api/axios'
+import { confirmAction, notify } from '@/lib/feedback'
 import { useAuthStore } from '../store/authStore'
 
 const FORM_VACIO = {
@@ -59,10 +60,15 @@ export default function Materias() {
   // Admin y docente crean, editan y eliminan; el backend limita al docente a
   // las materias que imparte.
   const canManage = esAdmin || user?.rol === 'DOCENTE'
+  // La pausa es personal del docente: aparta la materia de su trabajo diario.
+  const puedePausar = user?.rol === 'DOCENTE'
+  const [pausandoId, setPausandoId] = useState(null)
 
   const fetchMaterias = useCallback(() => {
     const endpoint = esAlumno ? '/materias/para-alumno' : user?.rol === 'DOCENTE' ? '/materias/mis-materias' : '/materias'
-    return api.get(endpoint).then((r) => setMaterias(r.data))
+    // Aquí el docente ve también las que pausó, para poder reanudarlas.
+    const params = user?.rol === 'DOCENTE' ? { incluirPausadas: true } : undefined
+    return api.get(endpoint, { params }).then((r) => setMaterias(r.data))
   }, [esAlumno, user?.rol])
 
   useEffect(() => {
@@ -132,6 +138,26 @@ export default function Materias() {
     }
   }
 
+  const cambiarPausa = async (materia) => {
+    const pausar = !materia.pausada
+    if (pausar && !(await confirmAction({
+      title: `Pausar ${materia.nombre}`,
+      description: 'Dejará de aparecer en tu inicio, pasar lista, tareas y calificaciones. No se borra nada y la puedes reanudar cuando quieras.',
+      confirmLabel: 'Pausar materia',
+    }))) return
+    setPausandoId(materia.id)
+    try {
+      if (pausar) await api.put(`/materias/${materia.id}/pausa`)
+      else await api.delete(`/materias/${materia.id}/pausa`)
+      setMaterias((actual) => actual.map((m) => (m.id === materia.id ? { ...m, pausada: pausar } : m)))
+      setAviso(pausar ? `${materia.nombre} quedó pausada.` : `${materia.nombre} se reanudó.`)
+    } catch (err) {
+      notify(mensajeError(err, pausar ? 'No se pudo pausar la materia' : 'No se pudo reanudar la materia'))
+    } finally {
+      setPausandoId(null)
+    }
+  }
+
   const pedirEliminar = (materia) => {
     setConfirmacion({ open: true, materia, loading: false, error: '' })
   }
@@ -158,13 +184,14 @@ export default function Materias() {
     }
   }
 
+  // Las pausadas van al final; `sort` es estable y conserva el orden del resto.
   const materiasFiltradas = materias.filter((m) => {
     const q = busqueda.toLowerCase()
     const matchBusqueda = !q || m.nombre.toLowerCase().includes(q) || m.clave.toLowerCase().includes(q)
     const matchCarrera = !filtroCarrera || m.carrera?.id === parseInt(filtroCarrera)
     const matchSemestre = !filtroSemestre || m.semestre === parseInt(filtroSemestre)
     return matchBusqueda && matchCarrera && matchSemestre
-  })
+  }).sort((a, b) => Number(Boolean(a.pausada)) - Number(Boolean(b.pausada)))
 
   const hayFiltros = busqueda || filtroCarrera || filtroSemestre
 
@@ -244,7 +271,7 @@ export default function Materias() {
       key={m.id}
       className={`bg-card rounded-2xl border shadow-sm p-5 flex cursor-pointer flex-col gap-3 transition hover:shadow-md ${
         seleccionada ? 'border-primary ring-2 ring-primary/30' : 'border-border'
-      }`}
+      } ${m.pausada ? 'border-dashed' : ''}`}
     >
       <div className="flex items-start justify-between">
         {modoSeleccion && (
@@ -258,6 +285,9 @@ export default function Materias() {
         )}
         <div className="flex-1 min-w-0">
           <span className="text-xs font-bold text-primary-ink bg-accent px-2 py-0.5 rounded-lg">{m.clave}</span>
+          {m.pausada && (
+            <span className="ml-2 rounded-lg bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">Pausada</span>
+          )}
           <h2 className="font-semibold text-foreground mt-1">
             {modoSeleccion
               ? m.nombre
@@ -294,9 +324,27 @@ export default function Materias() {
               Eliminar
             </Button>
           )}
+          {puedePausar && !modoSeleccion && (
+            <Button variant="outline"
+              type="button"
+              disabled={pausandoId === m.id}
+              onClick={(event) => {
+                event.stopPropagation()
+                cambiarPausa(m)
+              }}
+              className="inline-flex min-h-9 items-center gap-1.5 border border-input px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
+              aria-label={`${m.pausada ? 'Reanudar' : 'Pausar'} ${m.nombre}`}
+            >
+              {m.pausada ? <Play className="h-4 w-4" aria-hidden="true" /> : <Pause className="h-4 w-4" aria-hidden="true" />}
+              {m.pausada ? 'Reanudar' : 'Pausar'}
+            </Button>
+          )}
         </div>
       </div>
-      <div className="text-xs text-muted-foreground space-y-1">
+      <div className={`text-xs text-muted-foreground space-y-1 ${m.pausada ? 'opacity-60' : ''}`}>
+        {m.pausada && (
+          <p className="text-foreground">No aparece en tu inicio, pasar lista, tareas ni calificaciones.</p>
+        )}
         <p className="flex items-center gap-2">
           <CiUser className="shrink-0" />
           <span>{m.docente?.nombre ? m.docente.nombre : 'Por asignar desde horarios'}</span>

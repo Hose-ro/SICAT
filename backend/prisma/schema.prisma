@@ -225,6 +225,7 @@ model Usuario {
   grupo   Grupo? @relation("AlumnoGrupo", fields: [grupoId], references: [id])
 
   docenteMaterias       Materia[]                  @relation("DocenteMateria")
+  materiasPausadas      MateriaPausada[]
   gruposDocente         Grupo[]                    @relation("DocenteGrupo")
   horariosDocente       HorarioMateria[]           @relation("HorarioDocente")
   suspensionesClase     SuspensionClase[]          @relation("SuspensionesDocente")
@@ -427,8 +428,23 @@ model Materia {
   ponderaciones  PonderacionGrupo[]
   avisos         Aviso[]
   whatsapp       GrupoWhatsapp[]
+  pausas         MateriaPausada[]
 
   @@unique([clave, carreraId])
+}
+
+/// Materia que un docente apartó de su trabajo diario (inicio, pasar lista,
+/// tareas, calificaciones). Es personal: no afecta a otros docentes que la
+/// imparten ni a los alumnos, y no borra datos.
+model MateriaPausada {
+  docenteId Int
+  docente   Usuario  @relation(fields: [docenteId], references: [id], onDelete: Cascade)
+  materiaId Int
+  materia   Materia  @relation(fields: [materiaId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([docenteId, materiaId])
+  @@index([materiaId])
 }
 
 model HorarioMateria {

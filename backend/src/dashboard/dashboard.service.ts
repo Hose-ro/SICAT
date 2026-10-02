@@ -9,7 +9,10 @@ import {
 } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { ClasesService } from '../clases/clases.service';
-import { materiasDelDocenteWhere } from '../common/materia-ownership';
+import {
+  materiasActivasDelDocenteWhere,
+  materiasDelDocenteWhere,
+} from '../common/materia-ownership';
 import {
   getAcademicPeriodStart,
   getCurrentAcademicPeriod,
@@ -52,12 +55,15 @@ export class DashboardService {
   async obtenerPanelDocente(docenteId: number) {
     const periodo = getCurrentAcademicPeriod();
     const materiasDelDocente = materiasDelDocenteWhere(docenteId);
+    // Las materias pausadas por el docente no entran a su panel; las
+    // solicitudes pendientes sí se cuentan para que nadie quede sin respuesta.
+    const materiasActivas = materiasActivasDelDocenteWhere(docenteId);
 
     const [clases, materias, registros, entregas, inscritos, solicitudes] =
       await Promise.all([
         this.clases.obtenerPanelDocente(docenteId),
         this.prisma.materia.findMany({
-          where: materiasDelDocente,
+          where: materiasActivas,
           select: {
             id: true,
             nombre: true,
@@ -104,7 +110,7 @@ export class DashboardService {
           where: {
             estado: 'ACEPTADA',
             periodo,
-            materia: materiasDelDocente,
+            materia: materiasActivas,
           },
           select: { materiaId: true, grupoId: true, alumnoId: true },
         }),
