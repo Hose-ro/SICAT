@@ -14,7 +14,7 @@ import {
   esDocenteDeMateria,
   materiasDelDocenteWhere,
 } from '../common/materia-ownership';
-import { unidadesIniciales } from '../common/unidades.util';
+import { estadoSegunFechas, unidadesIniciales } from '../common/unidades.util';
 import { ActualizarUnidadesDto } from './dto/actualizar-unidades.dto';
 import { CreateMateriaDto } from './dto/create-materia.dto';
 import { UpdateMateriaDto } from './dto/update-materia.dto';
@@ -284,10 +284,18 @@ export class MateriasService {
         throw new ForbiddenException('No puedes consultar esta materia');
       }
     }
-    return materia;
+    // El detalle de la materia muestra el estado de cada unidad: se deriva de
+    // sus fechas, igual que en UnidadesService, para que nunca se contradigan.
+    return {
+      ...materia,
+      unidades: materia.unidades?.map((unidad) => ({
+        ...unidad,
+        status: estadoSegunFechas(unidad.fechaInicio, unidad.fechaFin),
+      })),
+    };
   }
 
-  async findByClave(clave: string) {
+async findByClave(clave: string) {
     const materia = await this.prisma.materia.findFirst({
       where: { clave },
       include: {

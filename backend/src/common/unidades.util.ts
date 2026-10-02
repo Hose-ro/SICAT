@@ -1,3 +1,5 @@
+import type { EstadoUnidad } from '@prisma/client';
+
 /**
  * Toda materia nace con sus unidades de evaluación. Una materia sin unidades no
  * puede iniciar clase ni registrar calificaciones, así que los cuatro caminos
@@ -9,4 +11,17 @@ export function unidadesIniciales(numUnidades = 3) {
     nombre: `Unidad ${indice + 1}`,
     orden: indice + 1,
   }));
+}
+
+/**
+ * Las fechas son la fuente de verdad del estado de una unidad: con cierre
+ * está finalizada, iniciada sin cierre está activa y sin inicio, pendiente.
+ */
+export function estadoSegunFechas(
+  fechaInicio: Date | null,
+  fechaFin: Date | null,
+): EstadoUnidad {
+  if (fechaFin) return 'FINALIZADA';
+  if (fechaInicio) return 'ACTIVA';
+  return 'PENDIENTE';
 }

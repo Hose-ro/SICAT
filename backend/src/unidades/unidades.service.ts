@@ -11,16 +11,7 @@ import {
 } from '../common/materia-ownership';
 import { EditarFechasUnidadDto } from './dto/editar-fechas-unidad.dto';
 import { resolverFechaHoraLimite } from '../common/zona-horaria.util';
-import type { EstadoUnidad } from '@prisma/client';
-
-function estadoSegunFechas(
-  fechaInicio: Date | null,
-  fechaFin: Date | null,
-): EstadoUnidad {
-  if (fechaFin) return 'FINALIZADA';
-  if (fechaInicio) return 'ACTIVA';
-  return 'PENDIENTE';
-}
+import { estadoSegunFechas } from '../common/unidades.util';
 
 @Injectable()
 export class UnidadesService {

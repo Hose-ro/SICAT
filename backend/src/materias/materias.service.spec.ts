@@ -388,4 +388,35 @@ describe('MateriasService', () => {
       }),
     );
   });
+
+  it('el detalle muestra el estado de cada unidad según sus fechas', async () => {
+    materiaFindUnique.mockResolvedValue({
+      ...materia,
+      unidades: [
+        // Terminó, pero quedó guardada como activa.
+        {
+          id: 1,
+          status: 'ACTIVA',
+          fechaInicio: new Date(2026, 8, 2),
+          fechaFin: new Date(2026, 8, 30),
+        },
+        // El docente la inició, pero quedó como pendiente.
+        {
+          id: 2,
+          status: 'PENDIENTE',
+          fechaInicio: new Date(2026, 9, 1),
+          fechaFin: null,
+        },
+        { id: 3, status: 'PENDIENTE', fechaInicio: null, fechaFin: null },
+      ],
+    });
+
+    const detalle = await service.findOne(7);
+
+    expect(detalle.unidades.map((u) => [u.id, u.status])).toEqual([
+      [1, 'FINALIZADA'],
+      [2, 'ACTIVA'],
+      [3, 'PENDIENTE'],
+    ]);
+  });
 });
