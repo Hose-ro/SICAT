@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   // Las migraciones necesitan conexión directa, sin el pooler: los advisory
   // locks de Postgres son por sesión y PgBouncer en modo transacción reparte
   // cada transacción entre conexiones distintas, así que `migrate deploy` se
@@ -409,13 +409,15 @@ model Materia {
   createdAt      DateTime @default(now())
 
   unidades       Unidad[]
-  academias      Academia[]           @relation("MateriaAcademia")
-  grupos         Grupo[]              @relation("GrupoMateria")
+  academias      Academia[]            @relation("MateriaAcademia")
+  grupos         Grupo[]               @relation("GrupoMateria")
   horarios       HorarioMateria[]
   inscripciones  Inscripcion[]
   claseSesiones  ClaseSesion[]
   tareas         Tarea[]
   calificaciones CalificacionUnidad[]
+  categorias     CategoriaEvaluacion[]
+  ponderaciones  PonderacionGrupo[]
 
   @@unique([clave, carreraId])
 }
@@ -534,6 +536,50 @@ model Unidad {
   calificaciones CalificacionUnidad[]
 }
 
+/// Catálogo de categorías de evaluación (examen, prácticas, proyecto…) de una
+/// materia. El catálogo es de la materia para que una tarea sin grupo también
+/// pueda tener categoría; el peso de cada una lo pone cada grupo.
+model CategoriaEvaluacion {
+  id        Int                  @id @default(autoincrement())
+  materiaId Int
+  nombre    String               @db.VarChar(60)
+  orden     Int                  @default(0)
+  createdAt DateTime             @default(now())
+  materia   Materia              @relation(fields: [materiaId], references: [id], onDelete: Cascade)
+  pesos     CategoriaPesoGrupo[]
+  tareas    Tarea[]
+
+  @@unique([materiaId, nombre])
+}
+
+/// Peso de una categoría en un grupo. Los pesos de un grupo suman 100; si el
+/// grupo no tiene ninguno, las tareas se promedian por igual.
+model CategoriaPesoGrupo {
+  categoriaId Int
+  grupoId     Int
+  peso        Int
+  categoria   CategoriaEvaluacion @relation(fields: [categoriaId], references: [id], onDelete: Cascade)
+  grupo       Grupo               @relation(fields: [grupoId], references: [id], onDelete: Cascade)
+
+  @@id([categoriaId, grupoId])
+  @@index([grupoId])
+}
+
+/// Ponderación tareas / asistencia propia de un grupo. Sin fila, el grupo usa
+/// la de la materia (`Materia.pesoTareas` / `pesoAsistencia`).
+model PonderacionGrupo {
+  materiaId      Int
+  grupoId        Int
+  pesoTareas     Int
+  pesoAsistencia Int
+  updatedAt      DateTime @updatedAt
+  materia        Materia  @relation(fields: [materiaId], references: [id], onDelete: Cascade)
+  grupo          Grupo    @relation(fields: [grupoId], references: [id], onDelete: Cascade)
+
+  @@id([materiaId, grupoId])
+  @@index([grupoId])
+}
+
 model CalificacionUnidad {
   id                 Int      @id @default(autoincrement())
   alumnoId           Int
@@ -624,7 +670,7 @@ model Asistencia {
 }
 
 model Tarea {
-  id               Int            @id @default(autoincrement())
+  id               Int                  @id @default(autoincrement())
   materiaId        Int
   grupoId          Int?
   docenteId        Int
@@ -633,22 +679,24 @@ model Tarea {
   unidad           Int?
   unidadId         Int?
   tipoEntrega      TipoEntrega
-  tipoEvaluacion   TipoEvaluacion @default(DIRECTA)
-  permiteReenvio   Boolean        @default(false)
-  tieneFechaLimite Boolean        @default(true)
+  tipoEvaluacion   TipoEvaluacion       @default(DIRECTA)
+  permiteReenvio   Boolean              @default(false)
+  tieneFechaLimite Boolean              @default(true)
   fechaPublicacion DateTime?
   fechaLimite      DateTime?
   horaLimite       String?
-  estado           EstadoTarea    @default(BORRADOR)
+  estado           EstadoTarea          @default(BORRADOR)
   rubricJson       String?
   archivosAdjuntos String?
-  activa           Boolean        @default(true)
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
-  materia          Materia        @relation(fields: [materiaId], references: [id])
-  grupo            Grupo?         @relation(fields: [grupoId], references: [id])
-  docente          Usuario        @relation("TareaDocente", fields: [docenteId], references: [id])
-  unidadRef        Unidad?        @relation("TareaUnidad", fields: [unidadId], references: [id])
+  activa           Boolean              @default(true)
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  materia          Materia              @relation(fields: [materiaId], references: [id])
+  grupo            Grupo?               @relation(fields: [grupoId], references: [id])
+  docente          Usuario              @relation("TareaDocente", fields: [docenteId], references: [id])
+  unidadRef        Unidad?              @relation("TareaUnidad", fields: [unidadId], references: [id])
+  categoriaId      Int?
+  categoria        CategoriaEvaluacion? @relation(fields: [categoriaId], references: [id], onDelete: SetNull)
   entregas         EntregaTarea[]
   archivos         TareaArchivo[]
 
@@ -745,6 +793,8 @@ model Grupo {
   tareas               Tarea[]
   importacionesHorario ImportacionHorario[]
   calificaciones       CalificacionUnidad[]
+  ponderaciones        PonderacionGrupo[]
+  pesosCategoria       CategoriaPesoGrupo[]
 
   @@unique([semestre, seccion, carreraId, periodo, modalidad])
 }

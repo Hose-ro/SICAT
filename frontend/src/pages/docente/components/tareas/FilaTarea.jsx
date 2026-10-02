@@ -62,6 +62,7 @@ export default function FilaTarea({ tarea, items, publicando, onPublicar }) {
           </h4>
           <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[13px] text-muted-foreground">
             {TASK_TYPE_LABEL[tarea.tipoEntrega] ?? tarea.tipoEntrega}{tarea.tipoEvaluacion === 'RUBRICA' && <> · Rúbrica</>}
+            {tarea.categoria?.nombre && <> · {tarea.categoria.nombre}</>}
             {borrador && <Chip tone="muted" className="ml-1 h-5">Borrador</Chip>}
             {cerrada && <Chip tone="neutral" className="ml-1 h-5">Cerrada</Chip>}
           </p>

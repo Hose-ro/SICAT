@@ -11,7 +11,7 @@ function getErrorMessage(error, fallback) {
 
 function appendFormData(fd, data = {}) {
   Object.entries(data).forEach(([key, value]) => {
-    if (value === undefined || value === null || (value === '' && !['comentario', 'rubricJson'].includes(key))) return
+    if (value === undefined || value === null || (value === '' && !['comentario', 'rubricJson', 'categoriaId'].includes(key))) return
     if (Array.isArray(value)) {
       fd.append(key, JSON.stringify(value))
       return

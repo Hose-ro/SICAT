@@ -13,7 +13,7 @@ import { useFeedbackStore } from '../src/lib/feedback'
 
 const materia = { id: 410, nombre: 'Programación Lógica', grupos: [{ id: 6, nombre: '8A' }], unidades: [{ id: 1, nombre: 'Unidad 1' }] }
 const otraMateria = { id: 411, nombre: 'Redes', grupos: [], unidades: [] }
-const reporte = (tareas, asistencia, rows = [], metrics = {}) => ({ rows, metrics, ponderacion: { tareas, asistencia } })
+const reporte = (tareas, asistencia, rows = [], metrics = {}, extra = {}) => ({ rows, metrics, ponderacion: { tareas, asistencia, categorias: [], origen: 'MATERIA', ...extra.ponderacion }, tareasSinCategoria: extra.tareasSinCategoria ?? 0 })
 const fila = (id, nombre, { manual = null, calculada = null, estado = 'PENDIENTE', unidad = 1 } = {}) => ({
  alumno: { id, nombre, numeroControl: `C${id}` }, materia: { id: 410, nombre: materia.nombre }, grupo: { id: 6, nombre: '8A' },
  unidad: { id: unidad, nombre: `Unidad ${unidad}`, orden: unidad }, calificacionManual: manual, calificacionCalculada: calculada,
@@ -24,10 +24,10 @@ const renderPage = (url = '/calificaciones') =>
  render(<MemoryRouter initialEntries={[url]}><Calificaciones /><FeedbackDialogs /></MemoryRouter>)
 const docenteParams = () => api.get.mock.calls.filter(([url]) => url === '/calificaciones/docente').map(([, config]) => config.params)
 
-function servir({ materias = [materia, otraMateria], rows = [], metrics = {}, pesos = [80, 20] } = {}) {
+function servir({ materias = [materia, otraMateria], rows = [], metrics = {}, pesos = [80, 20], extra = {} } = {}) {
  api.get.mockImplementation((url) => {
   if (url === '/materias/mis-materias') return Promise.resolve({ data: materias })
-  if (url === '/calificaciones/docente') return Promise.resolve({ data: reporte(...pesos, rows, metrics) })
+  if (url === '/calificaciones/docente') return Promise.resolve({ data: reporte(...pesos, rows, metrics, extra) })
   return Promise.reject(new Error(`unexpected ${url}`))
  })
 }
@@ -74,8 +74,36 @@ test('la ponderación viene del servidor, se completa a 100 y se guarda por mate
  servir({ pesos: [70, 30] })
  await user.click(guardar)
  expect(api.patch).toHaveBeenCalledWith('/calificaciones/ponderacion', { materiaId: 410, pesoTareas: 70, pesoAsistencia: 30 })
- expect((await screen.findByText(/Ponderación guardada/))).toBeTruthy()
+ expect((await screen.findByText(/Ponderación de la materia guardada/))).toBeTruthy()
  await waitFor(()=>expect(guardar.disabled).toBe(true))
+})
+
+test('con un grupo elegido se ponderan las tareas por categoría y se guardan para ese grupo', async () => {
+ const user=userEvent.setup()
+ servir({ extra: { tareasSinCategoria: 2 } })
+ renderPage('/calificaciones?materia=410&grupo=6')
+ await user.click(await screen.findByText('Ponderación'))
+ expect(screen.getByText(/8A usa la ponderación de la materia/)).toBeTruthy()
+ expect(screen.getByText(/2 tareas no tienen categoría/)).toBeTruthy()
+
+ await user.click(screen.getByRole('button', { name: 'Agregar categoría' }))
+ await user.type(screen.getByLabelText('Nombre de la categoría 1'), 'Examen')
+ expect(screen.getByLabelText('Peso de Examen en %').value).toBe('100')
+ await user.clear(screen.getByLabelText('Peso de Examen en %')); await user.type(screen.getByLabelText('Peso de Examen en %'), '60')
+ const guardar=screen.getByRole('button',{name:'Guardar ponderación'})
+ expect(screen.getByRole('alert').textContent).toMatch(/deben sumar 100 % \(ahora suman 60 %\)/)
+ expect(guardar.disabled).toBe(true)
+
+ await user.click(screen.getByRole('button', { name: 'Agregar categoría' }))
+ expect(screen.getByLabelText('Peso de la categoría 2 en %').value).toBe('40')
+ await user.type(screen.getByLabelText('Nombre de la categoría 2'), 'Prácticas')
+ api.patch.mockResolvedValueOnce({ data: {} })
+ await user.click(guardar)
+ expect(api.patch).toHaveBeenCalledWith('/calificaciones/ponderacion', {
+  materiaId: 410, grupoId: 6, pesoTareas: 80, pesoAsistencia: 20,
+  categorias: [{ nombre: 'Examen', peso: 60 }, { nombre: 'Prácticas', peso: 40 }],
+ })
+ expect((await screen.findByText(/Ponderación de 8A guardada/))).toBeTruthy()
 })
 
 test('si el servidor rechaza la ponderación se muestra el motivo', async () => {

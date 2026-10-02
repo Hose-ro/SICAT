@@ -145,6 +145,8 @@ export class TareasService {
       horaLimite: dto.horaLimite ?? tarea.horaLimite ?? undefined,
       estado: dto.estado ?? tarea.estado,
       rubricJson: dto.rubricJson ?? tarea.rubricJson ?? undefined,
+      categoriaId:
+        dto.categoriaId !== undefined ? dto.categoriaId : tarea.categoriaId,
       removerArchivoIds: dto.removerArchivoIds,
     } satisfies Partial<CrearTareaDto>;
 
@@ -1360,6 +1362,17 @@ export class TareasService {
       );
     }
 
+    if (dto.categoriaId) {
+      const categoria = await this.prisma.categoriaEvaluacion.count({
+        where: { id: dto.categoriaId, materiaId: dto.materiaId },
+      });
+      if (!categoria) {
+        throw new BadRequestException(
+          'La categoría no pertenece a la materia seleccionada',
+        );
+      }
+    }
+
     return { materia, grupo, unidad };
   }
 
@@ -1393,6 +1406,7 @@ export class TareasService {
       fechaPublicacion: this.esEstadoPublicada(estado) ? new Date() : null,
       estado,
       rubricJson: this.normalizarRubrica(dto.rubricJson),
+      categoriaId: dto.categoriaId ?? null,
       activa: estado !== EstadoTarea.CERRADA,
     };
   }
@@ -1406,6 +1420,7 @@ export class TareasService {
       unidadRef: {
         select: { id: true, nombre: true, orden: true, status: true },
       },
+      categoria: { select: { id: true, nombre: true } },
       archivos: true,
     };
   }

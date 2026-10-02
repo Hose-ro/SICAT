@@ -1,6 +1,10 @@
 import * as V from 'class-validator';
-import { toBoolean, SanitizeText } from '../../common/validation/transforms';
-import { ToNumber } from '../../common/validation/transforms';
+import {
+  toBoolean,
+  toNumber,
+  SanitizeText,
+  ToNumber,
+} from '../../common/validation/transforms';
 import { Transform } from 'class-transformer';
 import {
   IsDateString,
@@ -76,6 +80,18 @@ export class CrearTareaDto {
   @V.ValidateIf((_object, value: unknown) => value !== undefined)
   @IsEnum(EstadoTarea)
   estado?: EstadoTarea;
+
+  // Vacío o "null" quita la categoría; llega como texto si viene en FormData.
+  @V.Min(1)
+  @V.Max(2147483647)
+  @V.ValidateIf(
+    (_object, value: unknown) => value !== undefined && value !== null,
+  )
+  @Transform(({ value }: { value: unknown }) =>
+    value === '' || value === 'null' ? null : toNumber(value),
+  )
+  @IsInt()
+  categoriaId?: number | null;
 
   @V.MaxLength(100000)
   @V.ValidateIf((_object, value: unknown) => value !== undefined)

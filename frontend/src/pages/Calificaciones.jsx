@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import {
   AlertTriangle,
   CheckCircle2,
@@ -13,10 +13,12 @@ import {
   GraduationCap,
   LayoutGrid,
   List,
+  Plus,
   RefreshCcw,
   RotateCcw,
   Save,
   Search,
+  Trash2,
   X,
 } from 'lucide-react'
 import api from '../api/axios'
@@ -26,6 +28,7 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import { confirmAction, notify } from '@/lib/feedback'
 import { useAuthStore } from '../store/authStore'
 import { useCalificacionStore } from '../store/calificacionStore'
+import { desglosePorCategoria } from '../lib/calificaciones'
 
 const STATUS_META = {
   APROBADO: {
@@ -271,6 +274,9 @@ function CalificacionesTable({ rows, showMateria = false }) {
                   {typeof row.promedioTareas === 'number' && (
                     <p className="text-xs text-muted-foreground">Tareas {row.promedioTareas}</p>
                   )}
+                  {desglosePorCategoria(row) && (
+                    <p className="text-xs text-muted-foreground">{desglosePorCategoria(row)}</p>
+                  )}
                 </td>
                 <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
                   {getFuenteLabel(row.fuenteCalificacion)}
@@ -442,7 +448,8 @@ function ObservacionInput({ row, drafts, conUnidad, onDraftChange }) {
 function resumenAvance(row) {
   const tareas = `Tareas ${row.tareas?.calificadas ?? 0}/${row.tareas?.total ?? 0}`
   const promedioTareas = typeof row.promedioTareas === 'number' ? ` (prom. ${row.promedioTareas})` : ''
-  return `${tareas}${promedioTareas} · Asistencia ${row.asistencia?.porcentaje ?? 0}%`
+  const desglose = desglosePorCategoria(row)
+  return `${tareas}${promedioTareas}${desglose ? ` [${desglose}]` : ''} · Asistencia ${row.asistencia?.porcentaje ?? 0}%`
 }
 
 function PromedioBadge({ value }) {
@@ -498,6 +505,7 @@ function CapturaTable({ rows, drafts, showGrupo, showUnidad, onDraftChange }) {
                   <td className="whitespace-nowrap px-4 py-3 align-top text-muted-foreground">
                     {row.tareas?.calificadas ?? 0}/{row.tareas?.total ?? 0} calificadas
                     {typeof row.promedioTareas === 'number' && <p className="text-xs">Promedio {row.promedioTareas}</p>}
+                    {desglosePorCategoria(row) && <p className="text-xs">{desglosePorCategoria(row)}</p>}
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 align-top text-muted-foreground">
                     {row.asistencia?.porcentaje ?? 0}%
@@ -637,6 +645,224 @@ function MatrizCards({ alumnos, unidades, drafts, showGrupo, onDraftChange }) {
   )
 }
 
+let siguienteClave = 0
+const nuevaClave = () => `categoria-${(siguienteClave += 1)}`
+
+function borradorDesde(ponderacion) {
+  return {
+    pesoTareas: String(ponderacion.tareas),
+    pesoAsistencia: String(ponderacion.asistencia),
+    categorias: (ponderacion.categorias ?? []).map((item) => ({
+      key: nuevaClave(),
+      id: item.id,
+      nombre: item.nombre,
+      peso: String(item.peso),
+    })),
+  }
+}
+
+const firmaBorrador = (draft) => JSON.stringify([
+  draft.pesoTareas,
+  draft.pesoAsistencia,
+  draft.categorias.map((item) => [item.id ?? null, item.nombre.trim(), item.peso]),
+])
+
+const esPesoValido = (value) => /^\d+$/.test(String(value)) && Number(value) <= 100
+
+// Con un grupo elegido la ponderación es de ese grupo y admite categorías
+// (examen, prácticas, proyecto…); sin grupo es la de la materia.
+function PonderacionPanel({ ponderacion, materiaId, grupo, onGuardar }) {
+  const [draft, setDraft] = useState(() => borradorDesde(ponderacion))
+  const [saving, setSaving] = useState(false)
+  const [notice, setNotice] = useState('')
+  const [base, setBase] = useState(ponderacion)
+  // Tras guardar llega la ponderación nueva del servidor: se toma como base.
+  if (base !== ponderacion) {
+    setBase(ponderacion)
+    setDraft(borradorDesde(ponderacion))
+  }
+
+  const conGrupo = Boolean(grupo)
+  const sumaGeneral = Number(draft.pesoTareas || 0) + Number(draft.pesoAsistencia || 0)
+  const sumaCategorias = draft.categorias.reduce((suma, item) => suma + Number(item.peso || 0), 0)
+  const nombres = draft.categorias.map((item) => item.nombre.trim().toLowerCase())
+  const errores = [
+    sumaGeneral !== 100 && `Tareas y asistencia deben sumar 100 % (ahora suman ${sumaGeneral} %).`,
+    !esPesoValido(draft.pesoTareas) || !esPesoValido(draft.pesoAsistencia) ? 'Usa porcentajes enteros entre 0 y 100.' : null,
+    nombres.some((nombre) => !nombre) && 'Cada categoría necesita un nombre.',
+    new Set(nombres).size !== nombres.length && 'Hay categorías con el mismo nombre.',
+    draft.categorias.some((item) => !esPesoValido(item.peso) || Number(item.peso) < 1) && 'Cada categoría pesa entre 1 y 100 %.',
+    draft.categorias.length > 0 && sumaCategorias !== 100 && `Las categorías deben sumar 100 % (ahora suman ${sumaCategorias} %).`,
+  ].filter(Boolean)
+  const dirty = firmaBorrador(draft) !== firmaBorrador(borradorDesde(ponderacion))
+
+  // Al escribir un peso se completa el otro para que siempre sumen 100.
+  const handleWeightChange = (field) => (event) => {
+    const { value } = event.target
+    const other = field === 'pesoTareas' ? 'pesoAsistencia' : 'pesoTareas'
+    const complemento = esPesoValido(value) ? { [other]: String(100 - Number(value)) } : {}
+    setNotice('')
+    setDraft((prev) => ({ ...prev, [field]: value, ...complemento }))
+  }
+  const updateCategoria = (key, field, value) => {
+    setNotice('')
+    setDraft((prev) => ({
+      ...prev,
+      categorias: prev.categorias.map((item) => (item.key === key ? { ...item, [field]: value } : item)),
+    }))
+  }
+  const addCategoria = () => {
+    setNotice('')
+    setDraft((prev) => ({
+      ...prev,
+      categorias: [
+        ...prev.categorias,
+        { key: nuevaClave(), nombre: '', peso: String(Math.max(100 - sumaCategorias, 0) || '') },
+      ],
+    }))
+  }
+  const removeCategoria = (key) => {
+    setNotice('')
+    setDraft((prev) => ({ ...prev, categorias: prev.categorias.filter((item) => item.key !== key) }))
+  }
+
+  const handleSave = async () => {
+    if (!dirty || errores.length || saving) return
+    setSaving(true)
+    setNotice('')
+    try {
+      await onGuardar({
+        materiaId: Number(materiaId),
+        ...(conGrupo
+          ? {
+              grupoId: grupo.id,
+              categorias: draft.categorias.map((item) => ({
+                ...(item.id ? { id: item.id } : {}),
+                nombre: item.nombre.trim(),
+                peso: Number(item.peso),
+              })),
+            }
+          : {}),
+        pesoTareas: Number(draft.pesoTareas),
+        pesoAsistencia: Number(draft.pesoAsistencia),
+      })
+      setNotice(conGrupo
+        ? `Ponderación de ${grupo.nombre} guardada. Se aplica a reportes, exportaciones y a la vista de los alumnos del grupo.`
+        : 'Ponderación de la materia guardada. La usan los grupos que no tienen una propia.')
+    } catch {
+      // El store ya expone el mensaje en `error`.
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const resumenCategorias = (ponderacion.categorias ?? []).map((item) => `${item.nombre} ${item.peso} %`).join(' / ')
+
+  return (
+    <details className="group rounded-[2rem] border border-border bg-card p-5">
+      <summary className="flex cursor-pointer list-none flex-wrap items-center gap-2 text-foreground [&::-webkit-details-marker]:hidden">
+        <GraduationCap className="h-4 w-4" aria-hidden="true" />
+        <span className="text-sm font-semibold uppercase tracking-[0.14em]">Ponderación</span>
+        <span className="text-sm text-muted-foreground">
+          · Tareas {ponderacion.tareas} % · Asistencia {ponderacion.asistencia} %
+          {resumenCategorias && ` · ${resumenCategorias}`}
+        </span>
+        <ChevronDown className="ml-auto h-4 w-4 transition group-open:rotate-180" aria-hidden="true" />
+      </summary>
+      <p className="mt-3 text-sm text-muted-foreground">
+        {conGrupo
+          ? ponderacion.origen === 'GRUPO'
+            ? `${grupo.nombre} tiene su propia ponderación. La usan esta lista, las exportaciones y la vista de los alumnos.`
+            : `${grupo.nombre} usa la ponderación de la materia. Al guardar, ${grupo.nombre} tendrá la suya.`
+          : 'Ponderación de la materia: la usan los grupos que no tienen una propia. Para ponderar por categoría (examen, prácticas, proyecto), elige un grupo.'}
+        {' '}Al cambiarla se recalculan las calificaciones calculadas; las que capturaste a mano no cambian.
+      </p>
+      <div className="mt-4 flex flex-wrap gap-4">
+        <NumberField label="Tareas %" value={draft.pesoTareas} onChange={handleWeightChange('pesoTareas')} />
+        <NumberField label="Asistencia %" value={draft.pesoAsistencia} onChange={handleWeightChange('pesoAsistencia')} />
+      </div>
+
+      {conGrupo && (
+        <fieldset className="mt-5">
+          <legend className={FIELD_LABEL}>Categorías de tareas</legend>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {draft.categorias.length
+              ? 'Cada categoría se promedia por separado y luego se pondera. Las tareas sin categoría no cuentan.'
+              : 'Sin categorías, todas las tareas pesan lo mismo.'}
+          </p>
+          {draft.categorias.length > 0 && (
+            <ul className="mt-3 space-y-2">
+              {draft.categorias.map((item, index) => (
+                <li key={item.key} className="flex items-center gap-2 sm:gap-3">
+                  <label className="flex min-w-0 flex-1 flex-col gap-1">
+                    <span className="sr-only">Nombre de la categoría {index + 1}</span>
+                    <input
+                      type="text"
+                      value={item.nombre}
+                      maxLength={60}
+                      placeholder="Examen, Prácticas, Proyecto…"
+                      onChange={(event) => updateCategoria(item.key, 'nombre', event.target.value)}
+                      className={`${FIELD_INPUT} w-full min-w-0`}
+                    />
+                  </label>
+                  <div className="relative w-24 shrink-0 sm:w-28">
+                      <input
+                        aria-label={`Peso de ${item.nombre.trim() || `la categoría ${index + 1}`} en %`}
+                        type="number"
+                        inputMode="numeric"
+                        min={1}
+                        max={100}
+                        value={item.peso}
+                        onChange={(event) => updateCategoria(item.key, 'peso', event.target.value)}
+                        className={`${FIELD_INPUT} w-full pr-8`}
+                      />
+                      <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm text-muted-foreground" aria-hidden="true">%</span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    type="button"
+                    aria-label={`Quitar ${item.nombre || `categoría ${index + 1}`}`}
+                    onClick={() => removeCategoria(item.key)}
+                    className="h-11 w-11 shrink-0 p-0"
+                  >
+                    <Trash2 className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <Button
+            variant="outline"
+            type="button"
+            onClick={addCategoria}
+            disabled={draft.categorias.length >= 12}
+            className="mt-3 inline-flex items-center gap-2 border px-4 py-2 text-sm font-semibold"
+          >
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            Agregar categoría
+          </Button>
+        </fieldset>
+      )}
+
+      <div className="mt-5 flex flex-wrap items-center gap-3">
+        <Button variant="default"
+          type="button"
+          disabled={!dirty || errores.length > 0 || saving}
+          onClick={handleSave}
+          className="inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <Save className="h-4 w-4" />
+          {saving ? 'Guardando...' : 'Guardar ponderación'}
+        </Button>
+      </div>
+      {dirty && errores.length > 0 && (
+        <p role="alert" className="mt-2 text-sm text-destructive-foreground">{errores[0]}</p>
+      )}
+      {notice && <p role="status" className="mt-2 text-sm text-muted-foreground">{notice}</p>}
+    </details>
+  )
+}
+
 function DocenteCalificaciones() {
   const {
     reporteDocente,
@@ -671,10 +897,6 @@ function DocenteCalificaciones() {
   const [downloading, setDownloading] = useState(null)
   const [drafts, setDrafts] = useState({})
   const [saving, setSaving] = useState(false)
-  // La ponderación se guarda en la materia (servidor); aquí sólo el borrador.
-  const [weights, setWeights] = useState({ pesoTareas: '', pesoAsistencia: '' })
-  const [savingWeights, setSavingWeights] = useState(false)
-  const [weightsNotice, setWeightsNotice] = useState('')
 
   useEffect(() => {
     api.get('/materias/mis-materias')
@@ -695,50 +917,6 @@ function DocenteCalificaciones() {
   }, [reportQuery, obtenerDocente])
 
   const ponderacion = filters.materiaId ? reporteDocente?.ponderacion : null
-  useEffect(() => {
-    setWeights({
-      pesoTareas: ponderacion ? String(ponderacion.tareas) : '',
-      pesoAsistencia: ponderacion ? String(ponderacion.asistencia) : '',
-    })
-  }, [ponderacion])
-  useEffect(() => { setWeightsNotice('') }, [filters.materiaId])
-
-  // Al escribir un peso se completa el otro para que siempre sumen 100.
-  const handleWeightChange = (field) => (event) => {
-    const { value } = event.target
-    const other = field === 'pesoTareas' ? 'pesoAsistencia' : 'pesoTareas'
-    const number = Number(value)
-    const complemento = value !== '' && Number.isInteger(number) && number >= 0 && number <= 100
-      ? { [other]: String(100 - number) }
-      : {}
-    setWeightsNotice('')
-    setWeights((prev) => ({ ...prev, [field]: value, ...complemento }))
-  }
-
-  const weightsDirty = Boolean(ponderacion) && (
-    weights.pesoTareas !== String(ponderacion.tareas) || weights.pesoAsistencia !== String(ponderacion.asistencia)
-  )
-  const weightsSum = Number(weights.pesoTareas || 0) + Number(weights.pesoAsistencia || 0)
-
-  const handleSaveWeights = async () => {
-    if (!filters.materiaId || savingWeights) return
-    setSavingWeights(true)
-    setWeightsNotice('')
-    try {
-      await guardarPonderacion({
-        materiaId: Number(filters.materiaId),
-        pesoTareas: Number(weights.pesoTareas),
-        pesoAsistencia: Number(weights.pesoAsistencia),
-      })
-      await obtenerDocente(reportQuery, { silent: true })
-      setWeightsNotice('Ponderación guardada. Se aplica a reportes, exportaciones y a la vista de los alumnos.')
-    } catch {
-      // El store ya expone el mensaje en `error`.
-    } finally {
-      setSavingWeights(false)
-    }
-  }
-
   const selectedMateria = useMemo(
     () => materias.find((materia) => materia.id === Number(filters.materiaId)),
     [materias, filters.materiaId],
@@ -987,37 +1165,24 @@ function DocenteCalificaciones() {
       </section>
 
       {ponderacion && (
-        <details className="group rounded-[2rem] border border-border bg-card p-5">
-          <summary className="flex cursor-pointer list-none items-center gap-2 text-foreground [&::-webkit-details-marker]:hidden">
-            <GraduationCap className="h-4 w-4" aria-hidden="true" />
-            <span className="text-sm font-semibold uppercase tracking-[0.14em]">Ponderación</span>
-            <span className="text-sm text-muted-foreground">
-              · Tareas {ponderacion.tareas} % · Asistencia {ponderacion.asistencia} %
-            </span>
-            <ChevronDown className="ml-auto h-4 w-4 transition group-open:rotate-180" aria-hidden="true" />
-          </summary>
-          <p className="mt-3 text-sm text-muted-foreground">
-            Se guarda en la materia y la usan por igual esta lista, las exportaciones y la vista de los alumnos.
-            Al cambiarla se recalculan las calificaciones calculadas; las que capturaste a mano no cambian.
-          </p>
-          <div className="mt-4 flex flex-wrap gap-4">
-            <NumberField label="Tareas %" value={weights.pesoTareas} onChange={handleWeightChange('pesoTareas')} />
-            <NumberField label="Asistencia %" value={weights.pesoAsistencia} onChange={handleWeightChange('pesoAsistencia')} />
-            <Button variant="default"
-              type="button"
-              disabled={!weightsDirty || weightsSum !== 100 || savingWeights}
-              onClick={handleSaveWeights}
-              className="mt-auto inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <Save className="h-4 w-4" />
-              {savingWeights ? 'Guardando...' : 'Guardar ponderación'}
-            </Button>
-          </div>
-          {weightsSum !== 100 && (
-            <p role="alert" className="mt-2 text-sm text-destructive-foreground">Tareas y asistencia deben sumar 100 % (ahora suman {weightsSum} %).</p>
-          )}
-          {weightsNotice && <p role="status" className="mt-2 text-sm text-muted-foreground">{weightsNotice}</p>}
-        </details>
+        <PonderacionPanel
+          key={`${filters.materiaId}:${filters.grupoId}`}
+          ponderacion={ponderacion}
+          materiaId={filters.materiaId}
+          grupo={(selectedMateria?.grupos ?? []).find((grupo) => String(grupo.id) === filters.grupoId)}
+          onGuardar={async (payload) => {
+            await guardarPonderacion(payload)
+            await obtenerDocente(reportQuery, { silent: true })
+          }}
+        />
+      )}
+
+      {filters.materiaId && reporteDocente?.tareasSinCategoria > 0 && (
+        <div role="status" className="rounded-2xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning-foreground">
+          {plural(reporteDocente.tareasSinCategoria, 'tarea no tiene', 'tareas no tienen')} categoría y no
+          {reporteDocente.tareasSinCategoria === 1 ? ' cuenta' : ' cuentan'} en el promedio de tareas.{' '}
+          <Link to="/tareas" className="font-semibold underline underline-offset-2">Asignar categoría en Tareas</Link>
+        </div>
       )}
 
       {error && (

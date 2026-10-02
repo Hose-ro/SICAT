@@ -15,6 +15,7 @@ const DEFAULT_FORM = {
   materiaId: '',
   grupoId: '',
   unidadId: '',
+  categoriaId: '',
   tipoEntrega: 'EN_LINEA',
   tipoEvaluacion: 'DIRECTA',
   permiteReenvio: false,
@@ -63,6 +64,8 @@ export default function TareaForm() {
   const [removeFileIds, setRemoveFileIds] = useState([])
   const [newFiles, setNewFiles] = useState([])
   const [loadingInitial, setLoadingInitial] = useState(isEditing)
+  // Categorías de la materia y su peso en el grupo elegido.
+  const [ponderacionCargada, setPonderacionCargada] = useState({ clave: '', datos: null })
 
   useEffect(() => {
     clearError()
@@ -83,6 +86,7 @@ export default function TareaForm() {
           materiaId: task.materiaId ? String(task.materiaId) : '',
           grupoId: task.grupoId ? String(task.grupoId) : '',
           unidadId: task.unidadId ? String(task.unidadId) : '',
+          categoriaId: task.categoriaId ? String(task.categoriaId) : '',
           tipoEntrega: task.tipoEntrega || 'EN_LINEA',
           tipoEvaluacion: task.tipoEvaluacion || 'DIRECTA',
           permiteReenvio: Boolean(task.permiteReenvio),
@@ -97,6 +101,24 @@ export default function TareaForm() {
       .finally(() => setLoadingInitial(false))
   }, [editId, isEditing, obtenerDetalle])
 
+  const clavePonderacion = form.materiaId && form.grupoId ? `${form.materiaId}:${form.grupoId}` : ''
+  useEffect(() => {
+    if (!clavePonderacion) return
+    const [materiaId, grupoId] = clavePonderacion.split(':')
+    let vigente = true
+    api.get('/calificaciones/ponderacion', { params: { materiaId, grupoId } })
+      .then((res) => { if (vigente) setPonderacionCargada({ clave: clavePonderacion, datos: res.data }) })
+      .catch(() => { if (vigente) setPonderacionCargada({ clave: clavePonderacion, datos: null }) })
+    return () => { vigente = false }
+  }, [clavePonderacion])
+  const ponderacion = ponderacionCargada.clave === clavePonderacion ? ponderacionCargada.datos : null
+
+  const categoriasGrupo = ponderacion?.categorias ?? []
+  // Si el grupo pondera por categoría se elige entre las suyas; si no, entre
+  // las del catálogo de la materia (no cambian la nota de este grupo).
+  const opcionesCategoria = categoriasGrupo.length ? categoriasGrupo : ponderacion?.catalogo ?? []
+  const categoriaObligatoria = categoriasGrupo.length > 0
+
   const selectedMateria = useMemo(
     () => materias.find((materia) => materia.id === Number(form.materiaId)),
     [materias, form.materiaId],
@@ -107,7 +129,7 @@ export default function TareaForm() {
     setForm((prev) => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
-      ...(name === 'materiaId' ? { grupoId: '', unidadId: '' } : {}),
+      ...(name === 'materiaId' ? { grupoId: '', unidadId: '', categoriaId: '' } : {}),
     }))
   }
 
@@ -147,6 +169,8 @@ export default function TareaForm() {
       materiaId: Number(form.materiaId),
       grupoId: Number(form.grupoId),
       unidadId: form.unidadId ? Number(form.unidadId) : undefined,
+      // Vacío quita la categoría al editar.
+      categoriaId: form.categoriaId ? Number(form.categoriaId) : isEditing ? '' : undefined,
       removerArchivoIds: removeFileIds,
       fechaLimite: form.tieneFechaLimite && form.fechaLimite ? `${form.fechaLimite}T${form.horaLimite || '23:59'}` : undefined,
       horaLimite: form.tieneFechaLimite ? form.horaLimite : undefined,
@@ -271,6 +295,35 @@ export default function TareaForm() {
                 </select>
               </label>
             </div>
+
+            {opcionesCategoria.length > 0 && (
+              <div>
+                <label className="flex flex-col gap-2">
+                  <span className="text-sm font-semibold text-foreground">
+                    Categoría {categoriaObligatoria ? '*' : '(opcional)'}
+                  </span>
+                  <select
+                    name="categoriaId"
+                    required={categoriaObligatoria}
+                    value={form.categoriaId}
+                    onChange={handleChange}
+                    className="w-full min-w-0 rounded-2xl border border-border px-4 py-3 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring lg:max-w-sm"
+                  >
+                    <option value="">{categoriaObligatoria ? 'Selecciona una categoría' : 'Sin categoría'}</option>
+                    {opcionesCategoria.map((categoria) => (
+                      <option key={categoria.id} value={categoria.id}>
+                        {categoria.peso ? `${categoria.nombre} (${categoria.peso} %)` : categoria.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {categoriaObligatoria
+                    ? 'Este grupo pondera las tareas por categoría; sin categoría la tarea no cuenta en el promedio.'
+                    : 'Este grupo promedia todas las tareas por igual. Los pesos se configuran en Calificaciones → Ponderación.'}
+                </p>
+              </div>
+            )}
 
             <div className="grid gap-4 lg:grid-cols-2">
               <label className="flex flex-col gap-2">

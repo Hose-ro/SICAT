@@ -48,6 +48,23 @@ export class CalificacionesController {
     });
   }
 
+  @Get('ponderacion')
+  @Roles('DOCENTE', 'ADMIN')
+  ponderacion(
+    @Req() req: AuthenticatedRequest,
+    @Query('materiaId') materiaId?: string,
+    @Query('grupoId') grupoId?: string,
+  ) {
+    if (!materiaId) {
+      throw new BadRequestException('La materia es obligatoria');
+    }
+    return this.calificacionesService.obtenerPonderacion(
+      req.user,
+      Number(materiaId),
+      grupoId ? Number(grupoId) : undefined,
+    );
+  }
+
   @Patch('ponderacion')
   @Roles('DOCENTE', 'ADMIN')
   guardarPonderacion(
