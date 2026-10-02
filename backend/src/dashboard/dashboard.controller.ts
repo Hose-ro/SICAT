@@ -1,4 +1,4 @@
-import { Controller, Get, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { DashboardService } from './dashboard.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -19,6 +19,23 @@ export class DashboardController {
   })
   docente(@Req() req: AuthenticatedRequest) {
     return this.dashboard.obtenerPanelDocente(req.user.id);
+  }
+
+  @Get('docente/riesgo')
+  @Roles('DOCENTE')
+  @ApiOperation({
+    summary:
+      'Alumnos en riesgo del docente con faltas, tendencia, tareas sin entregar y último aviso',
+  })
+  riesgo(
+    @Req() req: AuthenticatedRequest,
+    @Query('materiaId') materiaId?: string,
+    @Query('grupoId') grupoId?: string,
+  ) {
+    return this.dashboard.obtenerRiesgoDocente(req.user.id, {
+      materiaId: materiaId ? Number(materiaId) : undefined,
+      grupoId: grupoId ? Number(grupoId) : undefined,
+    });
   }
 
   @Get('admin')

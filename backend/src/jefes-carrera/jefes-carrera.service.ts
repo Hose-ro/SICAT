@@ -23,6 +23,8 @@ import {
   obtenerInicioDelDia,
 } from '../clases/clases.utils';
 import { ActualizarAlertaDto } from './dto/actualizar-alerta.dto';
+import { esAusencia, estaEnRiesgo } from '../common/riesgo.util';
+import { getAcademicPeriodStart } from '../common/periodo.util';
 
 type FiltrosDocente = { carreraId?: number; q?: string; estado?: string };
 type FiltrosHorario = {
@@ -836,7 +838,12 @@ export class JefesCarreraService {
 
   private async obtenerAlumnosRiesgo(carreraIds: number[]) {
     const registros = await this.prisma.asistencia.findMany({
-      where: { alumno: { carreraId: { in: carreraIds } } },
+      // Sólo el periodo en curso: las faltas de semestres pasados ya no son
+      // un riesgo que alguien pueda atender.
+      where: {
+        alumno: { carreraId: { in: carreraIds } },
+        claseSesion: { fecha: { gte: getAcademicPeriodStart() } },
+      },
       select: {
         estado: true,
         alumno: {
@@ -871,16 +878,11 @@ export class JefesCarreraService {
         riesgo: 0,
       };
       actual.total += 1;
-      if (
-        registro.estado === EstadoAsistencia.FALTA ||
-        registro.estado === EstadoAsistencia.RETARDO
-      ) {
-        actual.riesgo += 1;
-      }
+      if (esAusencia(registro.estado)) actual.riesgo += 1;
       mapa.set(registro.alumno.id, actual);
     }
     return [...mapa.values()]
-      .filter((item) => item.total >= 3 && item.riesgo / item.total >= 0.3)
+      .filter((item) => estaEnRiesgo(item.total, item.riesgo))
       .map((item) => ({
         ...item,
         porcentajeRiesgo: Math.round((item.riesgo / item.total) * 100),

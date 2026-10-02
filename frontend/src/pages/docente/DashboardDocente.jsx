@@ -538,7 +538,7 @@ function Pendientes({ pendientes }) {
       icono: AlertTriangle,
       tono: "text-destructive-foreground",
       texto: `${pendientes.alumnosEnRiesgo ?? 0} alumno${pendientes.alumnosEnRiesgo === 1 ? '' : 's'} en riesgo por inasistencias`,
-      to: '/asistencias',
+      to: '/docente/riesgo',
     },
     {
       icono: FileText,

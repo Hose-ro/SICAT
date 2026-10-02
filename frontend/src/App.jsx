@@ -43,6 +43,7 @@ const TareaDetalle = lazy(() => import("./pages/docente/TareaDetalle"));
 const MiHorario = lazy(() => import("./pages/docente/MiHorario"));
 const CalendarioEscolar = lazy(() => import("./pages/admin/CalendarioEscolar"));
 const MisGrupos = lazy(() => import("./pages/docente/MisGrupos"));
+const AlumnosRiesgo = lazy(() => import("./pages/docente/AlumnosRiesgo"));
 const DashboardDocente = lazy(() => import("./pages/docente/DashboardDocente"));
 const SolicitudesPendientes = lazy(() => import("./pages/docente/SolicitudesPendientes"));
 const JefeDashboard = lazy(() => import("./pages/jefe-carrera/JefeDashboard"));
@@ -198,6 +199,7 @@ function App() {
               />
               <Route path="/docente/horario" element={<MiHorario />} />
               <Route path="/docente/grupos" element={<MisGrupos />} />
+              <Route path="/docente/riesgo" element={<AlumnosRiesgo />} />
               <Route
                 path="/docente/solicitudes"
                 element={<SolicitudesPendientes />}

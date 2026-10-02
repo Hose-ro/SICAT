@@ -10,16 +10,26 @@ import {
 import { PrismaService } from '../prisma.service';
 import { ClasesService } from '../clases/clases.service';
 import { materiasDelDocenteWhere } from '../common/materia-ownership';
-import { getCurrentAcademicPeriod } from '../common/periodo.util';
+import {
+  getAcademicPeriodStart,
+  getCurrentAcademicPeriod,
+} from '../common/periodo.util';
+import {
+  esAusencia,
+  estaEnRiesgo,
+  MIN_REGISTROS_RIESGO,
+  UMBRAL_RIESGO,
+} from '../common/riesgo.util';
 
-/**
- * Mismo criterio que usa la jefatura de carrera para marcar a un alumno en
- * riesgo (ver JefesCarreraService): al menos 3 registros y 30% o más entre
- * faltas y retardos. Aquí se aplica por materia, que es lo accionable para el
- * docente: el mismo alumno puede ir bien en una y mal en otra.
- */
-const MIN_REGISTROS_RIESGO = 3;
-const UMBRAL_RIESGO = 0.3;
+/** Sesiones recientes que se muestran como tendencia de cada alumno en riesgo. */
+const SESIONES_TENDENCIA = 4;
+
+/** Tareas cuyo plazo ya pasó: si no hay entrega, ya no llegó a tiempo. */
+const ESTADOS_TAREA_CON_PLAZO: EstadoTarea[] = [
+  EstadoTarea.PUBLICADA,
+  EstadoTarea.VENCIDA,
+  EstadoTarea.CERRADA,
+];
 
 /** El alumno ya entregó pero el docente todavía no le puso calificación. */
 const REVISIONES_SIN_CALIFICAR: EstadoRevision[] = [
@@ -64,8 +74,15 @@ export class DashboardService {
           },
           orderBy: { nombre: 'asc' },
         }),
+        // El riesgo se aplica por materia (el mismo alumno puede ir bien en
+        // una y mal en otra) y sólo con lo registrado en el periodo en curso.
         this.prisma.asistencia.findMany({
-          where: { claseSesion: { docenteId } },
+          where: {
+            claseSesion: {
+              docenteId,
+              fecha: { gte: getAcademicPeriodStart() },
+            },
+          },
           select: {
             estado: true,
             alumnoId: true,
@@ -125,20 +142,14 @@ export class DashboardService {
         ausencias: 0,
       };
       alumno.total += 1;
-      if (
-        registro.estado === EstadoAsistencia.FALTA ||
-        registro.estado === EstadoAsistencia.RETARDO
-      ) {
-        alumno.ausencias += 1;
-      }
+      if (esAusencia(registro.estado)) alumno.ausencias += 1;
       registrosPorAlumno.set(clave, alumno);
     }
 
     const riesgoPorMateria = new Map<number, number>();
     const alumnosEnRiesgo = new Set<number>();
     for (const alumno of registrosPorAlumno.values()) {
-      if (alumno.total < MIN_REGISTROS_RIESGO) continue;
-      if (alumno.ausencias / alumno.total < UMBRAL_RIESGO) continue;
+      if (!estaEnRiesgo(alumno.total, alumno.ausencias)) continue;
       riesgoPorMateria.set(
         alumno.materiaId,
         (riesgoPorMateria.get(alumno.materiaId) ?? 0) + 1,
@@ -207,6 +218,180 @@ export class DashboardService {
       },
       materias: resumenMaterias,
     };
+  }
+
+  /**
+   * Alumnos en riesgo de cada clase del docente, con lo necesario para
+   * actuar: cuánto faltan, cómo van las últimas sesiones, qué tareas vencidas
+   * no entregaron y si ya se les avisó (un aviso individual queda registrado).
+   */
+  async obtenerRiesgoDocente(
+    docenteId: number,
+    filtros: { materiaId?: number; grupoId?: number } = {},
+  ) {
+    const desde = getAcademicPeriodStart();
+    const registros = await this.prisma.asistencia.findMany({
+      where: {
+        claseSesion: {
+          docenteId,
+          fecha: { gte: desde },
+          ...(filtros.materiaId ? { materiaId: filtros.materiaId } : {}),
+          ...(filtros.grupoId ? { grupoId: filtros.grupoId } : {}),
+        },
+      },
+      select: {
+        estado: true,
+        alumno: { select: { id: true, nombre: true, numeroControl: true } },
+        claseSesion: {
+          select: { materiaId: true, grupoId: true, fecha: true },
+        },
+      },
+      orderBy: { claseSesion: { fecha: 'asc' } },
+    });
+
+    type Fila = {
+      alumno: { id: number; nombre: string; numeroControl: string | null };
+      materiaId: number;
+      grupoId: number | null;
+      registros: number;
+      faltas: number;
+      retardos: number;
+      estados: EstadoAsistencia[];
+    };
+    const filas = new Map<string, Fila>();
+    for (const registro of registros) {
+      const { materiaId, grupoId } = registro.claseSesion;
+      const clave = `${materiaId}:${grupoId ?? '-'}:${registro.alumno.id}`;
+      const fila = filas.get(clave) ?? {
+        alumno: registro.alumno,
+        materiaId,
+        grupoId,
+        registros: 0,
+        faltas: 0,
+        retardos: 0,
+        estados: [],
+      };
+      fila.registros += 1;
+      if (registro.estado === EstadoAsistencia.FALTA) fila.faltas += 1;
+      if (registro.estado === EstadoAsistencia.RETARDO) fila.retardos += 1;
+      fila.estados.push(registro.estado);
+      filas.set(clave, fila);
+    }
+    const enRiesgo = [...filas.values()].filter((fila) =>
+      estaEnRiesgo(fila.registros, fila.faltas + fila.retardos),
+    );
+
+    const criterio = {
+      minRegistros: MIN_REGISTROS_RIESGO,
+      porcentaje: Math.round(UMBRAL_RIESGO * 100),
+    };
+    if (!enRiesgo.length) {
+      return { desde, criterio, alumnos: [] };
+    }
+
+    const materiaIds = [...new Set(enRiesgo.map((fila) => fila.materiaId))];
+    const alumnoIds = [...new Set(enRiesgo.map((fila) => fila.alumno.id))];
+    const grupoIds = [
+      ...new Set(
+        enRiesgo
+          .map((fila) => fila.grupoId)
+          .filter((id): id is number => id != null),
+      ),
+    ];
+    const [materias, grupos, tareas, avisos] = await Promise.all([
+      this.prisma.materia.findMany({
+        where: { id: { in: materiaIds } },
+        select: { id: true, nombre: true },
+      }),
+      this.prisma.grupo.findMany({
+        where: { id: { in: grupoIds } },
+        select: { id: true, nombre: true },
+      }),
+      this.prisma.tarea.findMany({
+        where: {
+          materiaId: { in: materiaIds },
+          estado: { in: ESTADOS_TAREA_CON_PLAZO },
+          tieneFechaLimite: true,
+          fechaLimite: { gte: desde, lt: new Date() },
+        },
+        select: {
+          id: true,
+          materiaId: true,
+          grupoId: true,
+          entregas: {
+            where: { alumnoId: { in: alumnoIds } },
+            select: { alumnoId: true },
+          },
+        },
+      }),
+      this.prisma.aviso.findMany({
+        where: { alumnoId: { in: alumnoIds }, materiaId: { in: materiaIds } },
+        select: {
+          id: true,
+          titulo: true,
+          createdAt: true,
+          materiaId: true,
+          grupoId: true,
+          alumnoId: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
+    const nombreMateria = new Map(materias.map((m) => [m.id, m.nombre]));
+    const nombreGrupo = new Map(grupos.map((g) => [g.id, g.nombre]));
+
+    const alumnos = enRiesgo.map((fila) => {
+      const tareasClase = tareas.filter(
+        (tarea) =>
+          tarea.materiaId === fila.materiaId &&
+          (tarea.grupoId == null || tarea.grupoId === fila.grupoId),
+      );
+      const ultimoAviso =
+        avisos.find(
+          (aviso) =>
+            aviso.alumnoId === fila.alumno.id &&
+            aviso.materiaId === fila.materiaId &&
+            aviso.grupoId === fila.grupoId,
+        ) ?? null;
+      return {
+        alumno: fila.alumno,
+        materia: {
+          id: fila.materiaId,
+          nombre: nombreMateria.get(fila.materiaId),
+        },
+        grupo: fila.grupoId
+          ? { id: fila.grupoId, nombre: nombreGrupo.get(fila.grupoId) }
+          : null,
+        registros: fila.registros,
+        faltas: fila.faltas,
+        retardos: fila.retardos,
+        porcentajeAusencias: Math.round(
+          ((fila.faltas + fila.retardos) / fila.registros) * 100,
+        ),
+        tendencia: fila.estados.slice(-SESIONES_TENDENCIA),
+        tareasVencidas: tareasClase.length,
+        tareasSinEntregar: tareasClase.filter(
+          (tarea) =>
+            !tarea.entregas.some(
+              (entrega) => entrega.alumnoId === fila.alumno.id,
+            ),
+        ).length,
+        ultimoAviso: ultimoAviso
+          ? {
+              id: ultimoAviso.id,
+              titulo: ultimoAviso.titulo,
+              createdAt: ultimoAviso.createdAt,
+            }
+          : null,
+      };
+    });
+
+    alumnos.sort(
+      (a, b) =>
+        b.porcentajeAusencias - a.porcentajeAusencias ||
+        a.alumno.nombre.localeCompare(b.alumno.nombre, 'es'),
+    );
+    return { desde, criterio, alumnos };
   }
 
   /**
