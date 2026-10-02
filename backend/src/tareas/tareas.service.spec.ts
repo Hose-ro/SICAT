@@ -1,5 +1,9 @@
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
-import { EstadoTarea } from '@prisma/client';
+import {
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
+import { EstadoTarea, TipoEntrega, TipoNotificacion } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import { TareasService } from './tareas.service';
@@ -320,5 +324,99 @@ describe('TareasService: fecha límite en la zona del plantel', () => {
       },
     });
     expect(privados.buildDateWhere('hoy')).toBeNull();
+  });
+});
+
+describe('TareasService.recordarPendientes', () => {
+  const tareaFindUnique = jest.fn();
+  const tareaUpdateMany = jest.fn();
+  const inscripcionFindMany = jest.fn();
+  const entregaFindMany = jest.fn();
+  const notificacionFindMany = jest.fn();
+  const crearParaVarios = jest.fn();
+  const prisma = {
+    tarea: { findUnique: tareaFindUnique, updateMany: tareaUpdateMany },
+    inscripcion: { findMany: inscripcionFindMany },
+    entregaTarea: { findMany: entregaFindMany },
+    notificacion: { findMany: notificacionFindMany },
+  } as unknown as PrismaService;
+  const service = new TareasService(prisma, {
+    crearParaVarios,
+  } as unknown as NotificacionesService);
+  const admin = { id: 1, rol: 'ADMIN' };
+  const tarea = {
+    id: 40,
+    titulo: 'Práctica 1',
+    materiaId: 12,
+    grupoId: 3,
+    docenteId: 31,
+    estado: EstadoTarea.PUBLICADA,
+    tipoEntrega: TipoEntrega.EN_LINEA,
+  };
+  const alumno = (id: number) => ({
+    alumno: { id, nombre: `Alumno ${id}`, grupoId: 3 },
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    tareaUpdateMany.mockResolvedValue({ count: 0 });
+    tareaFindUnique.mockResolvedValue(tarea);
+    inscripcionFindMany.mockResolvedValue([1, 2, 3, 4].map(alumno));
+    entregaFindMany.mockResolvedValue([{ alumnoId: 1 }]);
+    notificacionFindMany.mockResolvedValue([{ usuarioId: 3 }]);
+  });
+
+  it('avisa solo a quienes no entregaron y no repite el aviso de las últimas 12 horas', async () => {
+    await expect(service.recordarPendientes(40, admin)).resolves.toEqual({
+      enviados: 2,
+      omitidos: 1,
+    });
+    expect(crearParaVarios).toHaveBeenCalledWith(
+      [2, 4],
+      expect.objectContaining({
+        tipo: TipoNotificacion.RECORDATORIO_FECHA_LIMITE,
+        referenciaId: 40,
+        referenciaTipo: 'Tarea',
+      }),
+    );
+    expect(notificacionFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          usuarioId: { in: [2, 3, 4] },
+          referenciaId: 40,
+        }),
+      }),
+    );
+  });
+
+  it('con alumnos indicados avisa solo a esos, si todavía no entregan', async () => {
+    notificacionFindMany.mockResolvedValue([]);
+    await expect(
+      service.recordarPendientes(40, admin, [1, 4]),
+    ).resolves.toEqual({ enviados: 1, omitidos: 0 });
+    expect(crearParaVarios).toHaveBeenCalledWith([4], expect.anything());
+  });
+
+  it('en una tarea vencida el aviso explica que la entrega será tardía', async () => {
+    tareaFindUnique.mockResolvedValue({
+      ...tarea,
+      estado: EstadoTarea.VENCIDA,
+    });
+    await service.recordarPendientes(40, admin);
+    expect(crearParaVarios.mock.calls[0][1].mensaje).toMatch(/tardía/);
+  });
+
+  it('no avisa en tareas cerradas, borradores ni presenciales', async () => {
+    for (const cambio of [
+      { estado: EstadoTarea.CERRADA },
+      { estado: EstadoTarea.BORRADOR },
+      { tipoEntrega: TipoEntrega.PRESENCIAL },
+    ]) {
+      tareaFindUnique.mockResolvedValue({ ...tarea, ...cambio });
+      await expect(
+        service.recordarPendientes(40, admin),
+      ).rejects.toBeInstanceOf(ConflictException);
+    }
+    expect(crearParaVarios).not.toHaveBeenCalled();
   });
 });

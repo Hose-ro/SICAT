@@ -463,6 +463,81 @@ export class TareasService {
     return entrega;
   }
 
+  /**
+   * Recuerda la tarea a quienes aún no entregan. A un alumno que ya recibió
+   * un recordatorio de esta tarea en las últimas 12 horas no se le repite.
+   */
+  async recordarPendientes(
+    tareaId: number,
+    actor: Actor,
+    alumnoIds?: number[],
+  ) {
+    await this.sincronizarTareaVencida(tareaId);
+    const tarea = await this.obtenerTareaDocente(tareaId, actor);
+    if (
+      tarea.estado === EstadoTarea.BORRADOR ||
+      tarea.estado === EstadoTarea.CERRADA
+    ) {
+      throw new ConflictException('La tarea no está recibiendo entregas');
+    }
+    if (tarea.tipoEntrega === TipoEntrega.PRESENCIAL) {
+      throw new ConflictException(
+        'Las entregas presenciales se registran en clase',
+      );
+    }
+
+    const alumnos = await this.obtenerAlumnosDeTarea(tarea);
+    const conEntrega = new Set(
+      (
+        await this.prisma.entregaTarea.findMany({
+          where: { tareaId },
+          select: { alumnoId: true },
+        })
+      ).map((item) => item.alumnoId),
+    );
+    const solicitados = alumnoIds?.length ? new Set(alumnoIds) : null;
+    const faltan = alumnos.filter(
+      (alumno) =>
+        !conEntrega.has(alumno.id) &&
+        (!solicitados || solicitados.has(alumno.id)),
+    );
+    if (!faltan.length) return { enviados: 0, omitidos: 0 };
+
+    const recientes = new Set(
+      (
+        await this.prisma.notificacion.findMany({
+          where: {
+            usuarioId: { in: faltan.map((alumno) => alumno.id) },
+            tipo: TipoNotificacion.RECORDATORIO_FECHA_LIMITE,
+            referenciaId: tareaId,
+            createdAt: { gte: new Date(Date.now() - 12 * 3600 * 1000) },
+          },
+          select: { usuarioId: true },
+        })
+      ).map((item) => item.usuarioId),
+    );
+    const destinatarios = faltan.filter((alumno) => !recientes.has(alumno.id));
+
+    await this.notificaciones.crearParaVarios(
+      destinatarios.map((alumno) => alumno.id),
+      {
+        tipo: TipoNotificacion.RECORDATORIO_FECHA_LIMITE,
+        titulo: `Recordatorio: ${tarea.titulo}`,
+        mensaje:
+          tarea.estado === EstadoTarea.VENCIDA
+            ? `Tu docente te recuerda entregar «${tarea.titulo}». El plazo ya venció; si la envías se registrará como entrega tardía.`
+            : `Tu docente te recuerda entregar «${tarea.titulo}» antes de la fecha límite.`,
+        referenciaId: tareaId,
+        referenciaTipo: 'Tarea',
+      },
+    );
+
+    return {
+      enviados: destinatarios.length,
+      omitidos: faltan.length - destinatarios.length,
+    };
+  }
+
   async obtenerEntregas(
     tareaId: number,
     actor: Actor,
@@ -1409,6 +1484,12 @@ export class TareasService {
     const calificadas = items.filter(
       (item) => item.estadoRevision === EstadoRevision.CALIFICADA,
     ).length;
+    const revisadas = items.filter(
+      (item) => item.estadoRevision === EstadoRevision.REVISADA,
+    ).length;
+    const devueltas = items.filter(
+      (item) => item.estadoRevision === EstadoRevision.INCORRECTA,
+    ).length;
     const promedioItems = items
       .map((item) => item.calificacion)
       .filter((value) => typeof value === 'number');
@@ -1429,6 +1510,8 @@ export class TareasService {
       pendientesRevision,
       entregasTardias,
       calificadas,
+      revisadas,
+      devueltas,
       promedio,
       porcentajeEntrega: totalAlumnos
         ? Number(((entregadas / totalAlumnos) * 100).toFixed(2))

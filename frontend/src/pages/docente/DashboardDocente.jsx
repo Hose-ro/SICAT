@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   AlertTriangle,
+  ArrowRight,
   CalendarOff,
   CalendarPlus,
   Check,
@@ -18,6 +19,7 @@ import api from '../../api/axios'
 import { useAuthStore } from '../../store/authStore'
 import PeriodoEscolarCard from '../../components/PeriodoEscolarCard'
 import { fechaDeClave } from '../../lib/periodo'
+import './dashboard-agenda.css'
 
 const DIAS_LARGOS = [
   'Domingo',
@@ -139,7 +141,7 @@ export default function DashboardDocente() {
     return materias.filter(
       (materia) =>
         materia.nombre.toLowerCase().includes(texto) ||
-        materia.clave.toLowerCase().includes(texto) ||
+        (materia.clave ?? '').toLowerCase().includes(texto) ||
         materia.grupos.some((grupo) => grupo.toLowerCase().includes(texto)),
     )
   }, [busqueda, panel?.materias])
@@ -165,49 +167,32 @@ export default function DashboardDocente() {
     (pendientes.alumnosEnRiesgo ?? 0) + (panel?.resumen?.listasPendientes ?? 0)
 
   return (
-    <div className="space-y-5">
-      <Encabezado
-        nombre={user?.nombre?.split(' ')[0] ?? 'Docente'}
-        fecha={ahora}
-        resumen={panel?.resumen}
-        urgentes={urgentes}
-      />
-
-      <PeriodoEscolarCard compacto />
-
-      {panel?.suspensionHoy ? (
-        <DiaSinClases suspension={panel.suspensionHoy} />
-      ) : (
-        <ClaseDestacada
-          clase={claseDestacada}
-          ahora={ahora}
-          iniciando={iniciando}
-          error={errorClase}
-          onPasarLista={pasarLista}
-        />
-      )}
-
-      <AccesosRapidos
-        claseActual={panel?.claseActual}
-        onPasarLista={pasarLista}
-      />
-
-      <section className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
-        <AgendaHoy
-          clases={panel?.clasesHoy ?? []}
-          proximasSuspensiones={panel?.proximasSuspensiones ?? []}
-          iniciando={iniciando}
-          onPasarLista={pasarLista}
-        />
-        <Pendientes pendientes={pendientes} />
-      </section>
-
-      <Materias
-        materias={materiasFiltradas}
-        total={panel?.materias?.length ?? 0}
-        busqueda={busqueda}
-        onBuscar={setBusqueda}
-      />
+    <div className="docente-agenda">
+      <Encabezado nombre={user?.nombre?.split(' ')[0] ?? 'Docente'} fecha={ahora} resumen={panel?.resumen} urgentes={urgentes} />
+      {errorClase && <p role="alert" className="mb-4 rounded-xl bg-destructive/10 p-3 text-sm text-destructive-foreground">{errorClase}</p>}
+      <div className="docente-agenda-grid">
+        <div className="min-w-0 space-y-7">
+          <AgendaHoy
+            clases={panel?.clasesHoy ?? []}
+            proximasSuspensiones={panel?.proximasSuspensiones ?? []}
+            iniciando={iniciando}
+            onPasarLista={pasarLista}
+            destacada={claseDestacada}
+            suspension={panel?.suspensionHoy}
+            ahora={ahora}
+          />
+          <Materias materias={materiasFiltradas} total={panel?.materias?.length ?? 0} busqueda={busqueda} onBuscar={setBusqueda} />
+        </div>
+        <aside className="min-w-0 space-y-4" aria-label="Acciones y calendario docente">
+          <AccesosRapidos claseActual={panel?.claseActual} onPasarLista={pasarLista} iniciando={iniciando} />
+          <Pendientes pendientes={pendientes} />
+          <section className="agenda-periodos rounded-2xl border border-border bg-card p-5">
+            <p className="agenda-eyebrow">CALENDARIO ESCOLAR</p>
+            <h2 className="mb-5 text-base font-semibold">Periodos escolares</h2>
+            <PeriodoEscolarCard compacto />
+          </section>
+        </aside>
+      </div>
     </div>
   )
 }
@@ -219,11 +204,10 @@ function Encabezado({ nombre, fecha, resumen, urgentes }) {
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0">
-        <h1 className="text-xl font-bold text-foreground sm:text-2xl">
-          Hola, {nombre}
-        </h1>
+        <p className="agenda-eyebrow">{fechaLarga(fecha)}</p>
+        <h1 className="agenda-heading">Tu día de clases,<br />en orden.</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {fechaLarga(fecha)} · {clases} clase{clases === 1 ? '' : 's'} hoy
+          Hola, {nombre}. Tienes {clases} clase{clases === 1 ? '' : 's'} programada{clases === 1 ? '' : 's'} hoy.
           {listas > 0 &&
             ` · ${listas} lista${listas === 1 ? '' : 's'} sin pasar`}
         </p>
@@ -308,7 +292,7 @@ function ClaseDestacada({
   }
 
   return (
-    <section className="rounded-2xl border-2 border-primary/40 bg-card p-5">
+    <section className="agenda-clase rounded-xl bg-muted p-5">
       <div className="flex flex-wrap items-center gap-2">
         <span
           className={`rounded-full px-3 py-1 text-xs font-medium ${tonoEtiqueta}`}
@@ -318,9 +302,9 @@ function ClaseDestacada({
         <span className="text-xs text-muted-foreground">{detalleTiempo}</span>
       </div>
 
-      <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div className="mt-3 flex flex-col items-start gap-5">
         <div className="min-w-0">
-          <h2 className="truncate text-lg font-semibold text-foreground">
+          <h2 className="text-xl leading-snug font-semibold tracking-tight text-foreground">
             {clase.materia?.nombre}
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -346,9 +330,9 @@ function ClaseDestacada({
           )}
           <Link
             to={`/materias/${clase.materiaId}`}
-            className="inline-flex items-center rounded-xl border border-border px-4 py-2 text-sm font-medium text-foreground transition hover:bg-muted"
+            className={`inline-flex min-h-10 items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium ${puedeRegistrar ? 'border border-border text-foreground hover:bg-card' : 'bg-primary text-primary-foreground hover:bg-primary-strong'}`}
           >
-            Ver materia
+            Ver materia <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </Link>
         </div>
       </div>
@@ -362,7 +346,7 @@ function ClaseDestacada({
   )
 }
 
-function AccesosRapidos({ claseActual, onPasarLista }) {
+function AccesosRapidos({ claseActual, onPasarLista, iniciando }) {
   const navigate = useNavigate()
 
   const accesos = [
@@ -395,55 +379,66 @@ function AccesosRapidos({ claseActual, onPasarLista }) {
   ]
 
   return (
-    <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <section className="agenda-accesos rounded-2xl border border-border bg-card p-5">
+      <p className="agenda-eyebrow">EN UN CLIC</p>
+      <h2 className="mb-4 text-base font-semibold">Acciones rápidas</h2>
       {accesos.map((acceso) => (
         <Button variant="outline"
           key={acceso.titulo}
           type="button"
           onClick={acceso.onClick}
-          className="flex flex-col items-start gap-1.5 border p-4 text-left"
+          disabled={iniciando && acceso.titulo === 'Pasar lista'}
+          className="agenda-acceso"
         >
           <acceso.icono className="h-5 w-5 text-primary-ink" />
-          <span className="text-sm font-medium text-foreground">
-            {acceso.titulo}
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-medium text-foreground">{acceso.titulo}</span>
+            {acceso.detalle && <span className="mt-1 block whitespace-normal text-xs text-muted-foreground">{acceso.detalle}</span>}
           </span>
-          {acceso.detalle && (
-            <span className="text-xs text-muted-foreground">
-              {acceso.detalle}
-            </span>
-          )}
+          <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
         </Button>
       ))}
     </section>
   )
 }
 
-function AgendaHoy({ clases, proximasSuspensiones, iniciando, onPasarLista }) {
+function AgendaHoy({ clases, proximasSuspensiones, iniciando, onPasarLista, destacada, suspension, ahora }) {
+  const otrasClases = suspension ? clases : clases.filter(clase => clase.horarioId !== destacada?.horarioId)
   return (
     <article className="rounded-2xl border border-border bg-card p-5">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold text-foreground">Agenda de hoy</h2>
-        <Link to="/docente/horario" className="text-xs text-primary-ink">
-          Mi horario
+        <div><p className="agenda-eyebrow">{ahora.toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+          <h2 className="text-xl font-semibold tracking-tight text-foreground">Hoy, {DIAS_LARGOS[ahora.getDay()].toLowerCase()}</h2>
+        </div>
+        <Link to="/docente/horario" className="inline-flex items-center gap-2 text-xs font-medium text-primary-ink">
+          Ver horario completo <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </Link>
       </div>
 
-      {clases.length === 0 ? (
+      <div className="mt-6">
+        {suspension ? <DiaSinClases suspension={suspension} /> : destacada ? (
+          <div className="agenda-timeline">
+            <div className="agenda-horas"><strong>{destacada.horaInicio}</strong><span>{destacada.horaFin}</span></div>
+            <ClaseDestacada clase={destacada} ahora={ahora} iniciando={iniciando} onPasarLista={onPasarLista} />
+          </div>
+        ) : <ClaseDestacada clase={null} />}
+      </div>
+      {otrasClases.length === 0 ? (
         <p className="mt-4 text-sm text-muted-foreground">
-          Hoy no tienes clases programadas.
+          {clases.length === 0 ? 'Hoy no tienes clases programadas.' : 'No hay más clases en la agenda de hoy.'}
         </p>
       ) : (
         <ul className="mt-2 divide-y divide-border">
-          {clases.map((clase) => (
+          {otrasClases.map((clase) => (
             <li
               key={clase.horarioId}
-              className="flex items-center gap-3 py-2.5"
+              className="flex flex-wrap items-center gap-3 py-3"
             >
               <span className="w-11 shrink-0 text-xs tabular-nums text-muted-foreground">
                 {clase.horaInicio}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm text-foreground">
+                <p className="text-sm text-foreground">
                   {clase.materia?.nombre}
                 </p>
                 <p className="truncate text-xs text-muted-foreground">
@@ -561,6 +556,13 @@ function Pendientes({ pendientes }) {
 
   const sinPendientes = filas.every((fila) => fila.texto.startsWith('0 '))
 
+  if (sinPendientes) return (
+    <article className="flex items-center gap-3 rounded-2xl border border-border bg-success/10 p-5">
+      <Check className="h-5 w-5 shrink-0 text-success-foreground" aria-hidden="true" />
+      <div><h2 className="text-sm font-semibold">Estás al día</h2><p className="mt-1 text-xs text-muted-foreground">No hay pendientes por revisar.</p></div>
+    </article>
+  )
+
   return (
     <article className="rounded-2xl border border-border bg-card p-5">
       <h2 className="text-sm font-semibold text-foreground">
@@ -595,7 +597,7 @@ function Pendientes({ pendientes }) {
 
 function Materias({ materias, total, busqueda, onBuscar }) {
   return (
-    <article className="rounded-2xl border border-border bg-card p-5">
+    <article className="agenda-materias">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-sm font-semibold text-foreground">
           Mis materias{' '}
@@ -627,7 +629,7 @@ function Materias({ materias, total, busqueda, onBuscar }) {
                 to={`/materias/${materia.id}`}
                 className="-mx-2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl px-2 py-2.5 transition hover:bg-muted/50"
               >
-                <span className="min-w-0 flex-1 truncate text-sm text-foreground">
+                <span className="min-w-0 flex-1 basis-48 text-sm leading-relaxed text-foreground">
                   {materia.nombre}
                   {materia.grupos.length > 0 && (
                     <span className="text-muted-foreground">

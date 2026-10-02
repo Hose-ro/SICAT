@@ -199,6 +199,19 @@
 .task-hero-button-primary { background: var(--primary); border-color: var(--primary); color: var(--primary-foreground); }
 .task-hero-button-primary:hover { background: var(--primary-strong); }
 
+/* Avisos de FeedbackDialogs: entran desde abajo, sin retrasar al usuario. */
+.feedback-notice { transition: opacity var(--t) var(--ease), transform var(--t) var(--ease); }
+@starting-style { .feedback-notice { opacity: 0; transform: translateY(8px); } }
+
+/* Revisión de tareas: la nota recién guardada "asienta" en la lista, y la
+   palomita final se dibuja una sola vez (momento raro, puede lucirse). */
+@keyframes tarea-asentar { from { opacity: 0; transform: scale(0.92); } }
+.tarea-asentar { display: inline-block; animation: tarea-asentar var(--t) var(--ease); }
+@keyframes tarea-trazo { from { stroke-dashoffset: 24; } }
+.tarea-trazo path { stroke-dasharray: 24; animation: tarea-trazo 420ms var(--ease) 80ms backwards; }
+@keyframes tarea-aparecer { from { opacity: 0; transform: translateY(6px); } }
+.tarea-aparecer { animation: tarea-aparecer 260ms var(--ease) backwards; }
+
 .sidebar { position: fixed; top: 16px; left: 16px; bottom: 16px; width: var(--sidebar-w); display: flex; flex-direction: column; gap: 8px; padding: 18px 12px; border-radius: var(--radius-card); z-index: 100; overflow: hidden; background: var(--card); border: 1px solid var(--border); }
 /* Desktop changes density immediately; only the mobile drawer translates. */
 .sidebar.collapsed { width: var(--sidebar-collapsed); }

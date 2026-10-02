@@ -5,6 +5,7 @@ import {
   MarcarIncorrectaDto,
   DescargarEntregasDto,
   EntregaPresencialDto,
+  RecordarEntregaDto,
 } from './dto/acciones-entrega.dto';
 import {
   Body,
@@ -30,6 +31,7 @@ import { NotificacionesService } from '../notificaciones/notificaciones.service'
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
+import type { AuthenticatedRequest } from '../auth/auth.types';
 import { CrearTareaDto } from './dto/crear-tarea.dto';
 import { EntregarTareaDto } from './dto/entregar-tarea.dto';
 import { RevisarEntregaDto } from './dto/revisar-entrega.dto';
@@ -563,6 +565,16 @@ export class TareasController {
       dto.alumnoId,
       req.user.rol,
     );
+  }
+
+  @Post(':id/recordatorio')
+  @Roles('DOCENTE', 'ADMIN')
+  recordar(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: RecordarEntregaDto,
+  ) {
+    return this.tareasService.recordarPendientes(id, req.user, dto.alumnoIds);
   }
 
   @Get(':id/entregas')

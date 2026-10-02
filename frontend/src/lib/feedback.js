@@ -18,9 +18,15 @@ export function resolveConfirmation(confirmed) {
   pending.resolve(confirmed)
 }
 
-export function notify(message, tone = 'error') {
+/**
+ * Aviso en la esquina. Los de éxito se ocultan solos; los errores esperan a
+ * que la persona los descarte. `action` agrega un botón: { label, onClick }.
+ */
+export function notify(message, tone = 'error', { action, duration } = {}) {
   const id = crypto.randomUUID()
-  useFeedbackStore.setState(({ notices }) => ({ notices: [...notices, { id, message, tone }] }))
+  const espera = duration ?? (tone === 'success' ? 5000 : null)
+  useFeedbackStore.setState(({ notices }) => ({ notices: [...notices, { id, message, tone, action, duration: espera }] }))
+  return id
 }
 
 export function dismissNotice(id) {

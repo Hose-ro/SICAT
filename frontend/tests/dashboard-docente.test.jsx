@@ -1,6 +1,7 @@
 import { beforeEach, expect, test, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
+import userEvent from '@testing-library/user-event'
 
 vi.mock('../src/api/axios', () => ({ default: { get: vi.fn(), post: vi.fn() } }))
 vi.mock('../src/components/PeriodoEscolarCard', () => ({ default: () => null }))
@@ -45,4 +46,29 @@ test('un festivo institucional se anuncia arriba y deja la agenda sin pase de li
   expect(screen.getByText('Sin clases')).toBeTruthy()
   expect(screen.queryByRole('button', { name: 'Pasar lista' })).toBeNull()
   expect(screen.getByText(/Día de muertos/).textContent).toContain('institución')
+})
+
+test('la agenda destaca la próxima clase una sola vez y conserva las otras sesiones', async () => {
+  const siguiente = { ...clase, materiaId: 7, estado: 'PROGRAMADA' }
+  api.get.mockResolvedValue({ data: {
+    proximaClase: siguiente,
+    clasesHoy: [siguiente, { ...clase, horarioId: 6, materia: { nombre: 'Redes' }, estado: 'FINALIZADA' }],
+    resumen: { clasesHoy: 2 }, pendientes: {}, materias: [],
+  } })
+  render(<MemoryRouter><DashboardDocente /></MemoryRouter>)
+  expect(await screen.findByRole('heading', { name: 'Matemáticas' })).toBeTruthy()
+  expect(screen.getAllByText('Matemáticas')).toHaveLength(1)
+  expect(screen.getByText('Redes')).toBeTruthy()
+  expect(screen.getByText('Registrada')).toBeTruthy()
+  expect(screen.getByRole('link', { name: 'Ver materia' }).getAttribute('href')).toBe('/materias/7')
+})
+
+test('iniciar desde la agenda conserva la petición y muestra el error de captura', async () => {
+  const actual = { ...clase, materiaId: 7, estado: 'PROGRAMADA_AHORA', dentroDeHorario: true }
+  api.get.mockResolvedValue({ data: { claseActual: actual, clasesHoy: [actual], resumen: { clasesHoy: 1 }, pendientes: {}, materias: [] } })
+  api.post.mockRejectedValue({ response: { data: { message: 'No se pudo abrir la sesión' } } })
+  render(<MemoryRouter><DashboardDocente /></MemoryRouter>)
+  await userEvent.click(await screen.findByRole('button', { name: 'Iniciar y pasar lista' }))
+  expect(api.post).toHaveBeenCalledWith('/clases/iniciar', { horarioId: 5 })
+  expect((await screen.findByRole('alert')).textContent).toContain('No se pudo abrir la sesión')
 })

@@ -37,3 +37,15 @@ export class EntregaPresencialDto {
   @Max(2147483647)
   alumnoId: number;
 }
+
+export class RecordarEntregaDto {
+  // Sin alumnos: se recuerda a todos los que aún no entregan.
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
+  @IsArray()
+  @ArrayMaxSize(500)
+  @ArrayUnique()
+  @IsInt({ each: true })
+  @Min(1, { each: true })
+  @Max(2147483647, { each: true })
+  alumnoIds?: number[];
+}

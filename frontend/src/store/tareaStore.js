@@ -215,6 +215,12 @@ export const useTareaStore = create((set, get) => ({
     return res.data
   },
 
+  // Sin alumnoIds recuerda a todos los que aún no entregan. Devuelve { enviados, omitidos }.
+  recordar: async (tareaId, alumnoIds) => {
+    const res = await api.post(`/tareas/${tareaId}/recordatorio`, alumnoIds?.length ? { alumnoIds } : {})
+    return res.data
+  },
+
   obtenerMisTareas: async (materiaId) => {
     const request = ++latestRead
     set({ loading: true, error: null })

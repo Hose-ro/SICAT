@@ -223,6 +223,7 @@ export class MateriasService {
             semestre: true,
             seccion: true,
             periodo: true,
+            modalidad: true,
           },
         },
         _count: { select: { inscripciones: true } },
