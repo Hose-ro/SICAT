@@ -32,8 +32,9 @@ function DropdownMenuContent({
 }) {
   return (
     <MenuPrimitive.Portal>
+      {/* Por encima de los diálogos (z 201): un menú dentro de un diálogo debe verse. */}
       <MenuPrimitive.Positioner
-        className="isolate z-50 outline-none"
+        className="isolate z-[300] outline-none"
         align={align}
         alignOffset={alignOffset}
         side={side}

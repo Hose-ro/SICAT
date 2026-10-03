@@ -80,7 +80,7 @@ export class TareasCopiaService {
         tieneFechaLimite: true,
         fechaLimite: true,
         unidadRef: { select: { id: true, nombre: true, orden: true } },
-        categoria: { select: { id: true, nombre: true } },
+        categoria: { select: { id: true, nombre: true, tipo: true } },
         grupo: {
           select: { id: true, nombre: true, periodo: true, modalidad: true },
         },

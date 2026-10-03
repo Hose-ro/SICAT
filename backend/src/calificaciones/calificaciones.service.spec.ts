@@ -15,6 +15,8 @@ describe('CalificacionesService: política docente–materia–grupo', () => {
   const tareaFindMany = jest.fn();
   const claseSesionFindMany = jest.fn();
   const calificacionFindMany = jest.fn();
+  const categoriaPesoGrupoCount = jest.fn();
+  const ponderacionGrupoUpsert = jest.fn();
   const prisma = {
     materia: {
       findUnique: materiaFindUnique,
@@ -27,8 +29,12 @@ describe('CalificacionesService: política docente–materia–grupo', () => {
       upsert: calificacionUpsert,
       findMany: calificacionFindMany,
     },
-    ponderacionGrupo: { findMany: ponderacionGrupoFindMany },
+    ponderacionGrupo: {
+      findMany: ponderacionGrupoFindMany,
+      upsert: ponderacionGrupoUpsert,
+    },
     categoriaEvaluacion: { findMany: categoriaFindMany },
+    categoriaPesoGrupo: { count: categoriaPesoGrupoCount },
     tarea: { findMany: tareaFindMany },
     claseSesion: { findMany: claseSesionFindMany },
     $transaction: transaction,
@@ -61,6 +67,7 @@ describe('CalificacionesService: política docente–materia–grupo', () => {
     transaction.mockResolvedValue([]);
     ponderacionGrupoFindMany.mockResolvedValue([]);
     categoriaFindMany.mockResolvedValue([]);
+    categoriaPesoGrupoCount.mockResolvedValue(0);
   });
 
   it('el reporte se niega a un docente que no imparte la materia en el grupo pedido', async () => {
@@ -140,13 +147,15 @@ describe('CalificacionesService: política docente–materia–grupo', () => {
     });
   });
 
-  describe('categorías por grupo', () => {
+  describe('criterios por grupo', () => {
     const admin = { id: 1, rol: 'ADMIN' };
     type FilaReporte = {
-      alumno: { nombre: string };
+      alumno: { nombre: string; sexo: string | null };
       promedioTareas: number | null;
       calificacionCalculada: number | null;
       promedioPorCategoria: unknown[];
+      criterios: unknown[];
+      origenCriterios: string;
     };
     const tarea = (
       id: number,
@@ -165,6 +174,19 @@ describe('CalificacionesService: política docente–materia–grupo', () => {
         calificacion,
       })),
     });
+    const criterio = (
+      id: number,
+      nombre: string,
+      tipo: string,
+      pesos: Array<{ grupoId: number; peso: number }>,
+    ) => ({
+      id,
+      nombre,
+      tipo,
+      orden: id,
+      pesos: pesos.map((fila) => ({ ...fila, meta: null })),
+      pesosUnidad: [],
+    });
 
     beforeEach(() => {
       materiaFindUnique.mockResolvedValue({
@@ -177,13 +199,15 @@ describe('CalificacionesService: política docente–materia–grupo', () => {
         ],
       });
       inscripcionFindMany.mockResolvedValue([
-        { alumno: { id: 500, nombre: 'Ana', grupoId: 3 } },
-        { alumno: { id: 501, nombre: 'Beto', grupoId: 4 } },
-        { alumno: { id: 502, nombre: 'Carla', grupoId: 3 } },
+        { alumno: { id: 500, nombre: 'Ana', grupoId: 3, sexo: 'MUJER' } },
+        { alumno: { id: 501, nombre: 'Beto', grupoId: 4, sexo: 'HOMBRE' } },
+        { alumno: { id: 502, nombre: 'Carla', grupoId: 3, sexo: null } },
       ]);
+      // 8A: examen 48 + prácticas 32 + asistencia 20 = 100. 8B no tiene criterios.
       categoriaFindMany.mockResolvedValue([
-        { id: 1, nombre: 'Examen', pesos: [{ grupoId: 3, peso: 60 }] },
-        { id: 2, nombre: 'Prácticas', pesos: [{ grupoId: 3, peso: 40 }] },
+        criterio(1, 'Examen', 'EXAMEN', [{ grupoId: 3, peso: 48 }]),
+        criterio(2, 'Prácticas', 'PRACTICAS', [{ grupoId: 3, peso: 32 }]),
+        criterio(3, 'Asistencia', 'ASISTENCIA', [{ grupoId: 3, peso: 20 }]),
       ]);
       tareaFindMany.mockResolvedValue([
         tarea(10, 1, { 500: 100, 501: 100, 502: 90 }),
@@ -195,7 +219,7 @@ describe('CalificacionesService: política docente–materia–grupo', () => {
       calificacionFindMany.mockResolvedValue([]);
     });
 
-    it('pondera por categoría en el grupo que las tiene y promedia simple en el que no', async () => {
+    it('pondera por criterio en el grupo que los tiene y usa la predeterminada en el que no', async () => {
       const reporte = await service.obtenerReporteDocente(admin, {
         materiaId: 12,
       });
@@ -203,63 +227,124 @@ describe('CalificacionesService: política docente–materia–grupo', () => {
       const fila = (nombre: string) =>
         rows.find((row) => row.alumno.nombre === nombre) as FilaReporte;
 
-      // Examen 100 × 60 + prácticas (50 + 70) / 2 × 40; la tarea sin categoría no cuenta.
+      // Examen 100 × 48 + prácticas (50 + 70) / 2 × 32, repartido entre lo que
+      // tiene valor (sin clases todavía, la asistencia no cuenta).
       expect(fila('Ana').promedioTareas).toBe(84);
       expect(fila('Ana').calificacionCalculada).toBe(84);
+      expect(fila('Ana').alumno.sexo).toBe('MUJER');
+      expect(fila('Ana').origenCriterios).toBe('GRUPO');
+      expect(fila('Ana').criterios).toEqual([
+        expect.objectContaining({
+          nombre: 'Examen',
+          peso: 48,
+          valor: 100,
+          calificadas: 1,
+          total: 1,
+        }),
+        expect.objectContaining({
+          nombre: 'Prácticas',
+          peso: 32,
+          valor: 60,
+          calificadas: 2,
+          total: 2,
+        }),
+        expect.objectContaining({
+          nombre: 'Asistencia',
+          peso: 20,
+          valor: null,
+        }),
+      ]);
       expect(fila('Ana').promedioPorCategoria).toEqual([
-        expect.objectContaining({ nombre: 'Examen', peso: 60, promedio: 100 }),
+        expect.objectContaining({ nombre: 'Examen', peso: 48, promedio: 100 }),
         expect.objectContaining({ nombre: 'Prácticas', promedio: 60 }),
       ]);
       // Sólo hay examen calificado: su peso se reparte entre lo calificado.
       expect(fila('Carla').promedioTareas).toBe(90);
-      // 8B no tiene categorías: promedio simple, como siempre.
+      // 8B no tiene criterios: promedio simple de todo, como siempre.
       expect(fila('Beto').promedioTareas).toBe(75);
+      expect(fila('Beto').origenCriterios).toBe('PREDETERMINADA');
       expect(fila('Beto').promedioPorCategoria).toEqual([]);
       expect(reporte.tareasSinCategoria).toBe(1);
       expect(reporte.categorias).toEqual([
-        { id: 1, nombre: 'Examen' },
-        { id: 2, nombre: 'Prácticas' },
+        { id: 1, nombre: 'Examen', tipo: 'EXAMEN' },
+        { id: 2, nombre: 'Prácticas', tipo: 'PRACTICAS' },
       ]);
     });
 
-    it('usa la ponderación propia del grupo filtrado', async () => {
+    it('manda la ponderación anterior armada con los criterios del grupo', async () => {
       ponderacionGrupoFindMany.mockResolvedValue([
-        { materiaId: 12, grupoId: 3, pesoTareas: 50, pesoAsistencia: 50 },
+        { materiaId: 12, grupoId: 4, pesoTareas: 50, pesoAsistencia: 50 },
       ]);
-      const reporte = await service.obtenerReporteDocente(admin, {
+      const conCriterios = await service.obtenerReporteDocente(admin, {
         materiaId: 12,
         grupoId: 3,
       });
-      expect(reporte.ponderacion).toEqual({
-        tareas: 50,
-        asistencia: 50,
+      expect(conCriterios.ponderacion).toEqual({
+        tareas: 80,
+        asistencia: 20,
         categorias: [
-          { id: 1, nombre: 'Examen', peso: 60 },
-          { id: 2, nombre: 'Prácticas', peso: 40 },
+          { id: 1, nombre: 'Examen', peso: 48 },
+          { id: 2, nombre: 'Prácticas', peso: 32 },
         ],
         origen: 'GRUPO',
       });
+
+      const predeterminada = await service.obtenerReporteDocente(admin, {
+        materiaId: 12,
+        grupoId: 4,
+      });
+      expect(predeterminada.ponderacion).toEqual({
+        tareas: 50,
+        asistencia: 50,
+        categorias: [],
+        origen: 'GRUPO',
+      });
+      expect(predeterminada.criterios).toEqual(
+        expect.objectContaining({ origen: 'PREDETERMINADA', legado: 'GRUPO' }),
+      );
     });
 
-    it('exige grupo y que los pesos de las categorías sumen 100', async () => {
+    it('una pantalla vieja no puede guardar categorías ni pisar los criterios', async () => {
       const base = { materiaId: 12, pesoTareas: 80, pesoAsistencia: 20 };
       await expect(
         service.guardarPonderacion(admin, {
           ...base,
+          grupoId: 3,
           categorias: [{ nombre: 'Examen', peso: 100 }],
         }),
-      ).rejects.toThrow('Elige un grupo');
+      ).rejects.toThrow('Recarga la página');
+
+      categoriaPesoGrupoCount.mockResolvedValue(3);
+      await expect(
+        service.guardarPonderacion(admin, { ...base, grupoId: 3 }),
+      ).rejects.toThrow('Recarga la página');
+      expect(ponderacionGrupoUpsert).not.toHaveBeenCalled();
+
+      categoriaPesoGrupoCount.mockResolvedValue(0);
+      categoriaFindMany.mockResolvedValue([]);
+      materiaFindUnique.mockResolvedValue({
+        id: 12,
+        pesoTareas: 80,
+        pesoAsistencia: 20,
+      });
+      ponderacionGrupoFindMany.mockResolvedValue([
+        { materiaId: 12, grupoId: 4, pesoTareas: 60, pesoAsistencia: 40 },
+      ]);
       await expect(
         service.guardarPonderacion(admin, {
-          ...base,
-          grupoId: 3,
-          categorias: [
-            { nombre: 'Examen', peso: 60 },
-            { nombre: 'Prácticas', peso: 30 },
-          ],
+          materiaId: 12,
+          grupoId: 4,
+          pesoTareas: 60,
+          pesoAsistencia: 40,
         }),
-      ).rejects.toThrow('deben sumar 100');
-      expect(transaction).not.toHaveBeenCalled();
+      ).resolves.toEqual(
+        expect.objectContaining({
+          tareas: 60,
+          asistencia: 40,
+          origen: 'GRUPO',
+        }),
+      );
+      expect(ponderacionGrupoUpsert).toHaveBeenCalledTimes(1);
     });
   });
 

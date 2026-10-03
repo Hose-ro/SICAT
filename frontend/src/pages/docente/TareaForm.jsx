@@ -7,6 +7,9 @@ import { useTareaStore } from '../../store/tareaStore'
 
 import TaskNotice from '../../components/TaskNotice'
 import TaskRubric from '../../components/TaskRubric'
+import CriteriosModal from '@/components/calificaciones/CriteriosModal'
+import useCriterios from '@/hooks/useCriterios'
+import { criteriosDeActividad } from '@/lib/criterios'
 import { mergeTaskFiles, taskError, TASK_TYPE_HELP } from '../../lib/tareas'
 
 const DEFAULT_FORM = {
@@ -64,8 +67,9 @@ export default function TareaForm() {
   const [removeFileIds, setRemoveFileIds] = useState([])
   const [newFiles, setNewFiles] = useState([])
   const [loadingInitial, setLoadingInitial] = useState(isEditing)
-  // Categorías de la materia y su peso en el grupo elegido.
-  const [ponderacionCargada, setPonderacionCargada] = useState({ clave: '', datos: null })
+  // Criterio que ya tenía la tarea, por si no está en la lista de su unidad.
+  const [criterioGuardado, setCriterioGuardado] = useState(null)
+  const [criteriosAbierto, setCriteriosAbierto] = useState(false)
 
   useEffect(() => {
     clearError()
@@ -95,29 +99,26 @@ export default function TareaForm() {
           horaLimite: formatTimeInput(task.fechaLimite, task.horaLimite),
           rubricJson: task.rubricJson || '',
         })
+        setCriterioGuardado(task.categoria ?? null)
         setExistingFiles(task.archivos || [])
       })
       .catch((error) => setLocalError(taskError(error, 'No se pudo cargar la tarea. Vuelve a la lista e intenta de nuevo.')))
       .finally(() => setLoadingInitial(false))
   }, [editId, isEditing, obtenerDetalle])
 
-  const clavePonderacion = form.materiaId && form.grupoId ? `${form.materiaId}:${form.grupoId}` : ''
-  useEffect(() => {
-    if (!clavePonderacion) return
-    const [materiaId, grupoId] = clavePonderacion.split(':')
-    let vigente = true
-    api.get('/calificaciones/ponderacion', { params: { materiaId, grupoId } })
-      .then((res) => { if (vigente) setPonderacionCargada({ clave: clavePonderacion, datos: res.data }) })
-      .catch(() => { if (vigente) setPonderacionCargada({ clave: clavePonderacion, datos: null }) })
-    return () => { vigente = false }
-  }, [clavePonderacion])
-  const ponderacion = ponderacionCargada.clave === clavePonderacion ? ponderacionCargada.datos : null
-
-  const categoriasGrupo = ponderacion?.categorias ?? []
-  // Si el grupo pondera por categoría se elige entre las suyas; si no, entre
-  // las del catálogo de la materia (no cambian la nota de este grupo).
-  const opcionesCategoria = categoriasGrupo.length ? categoriasGrupo : ponderacion?.catalogo ?? []
-  const categoriaObligatoria = categoriasGrupo.length > 0
+  // Los tipos de actividad son los criterios del grupo (los de la unidad, si
+  // tiene porcentajes propios). Con la ponderación predeterminada todas las
+  // tareas valen igual y no hay que elegir.
+  const criterios = useCriterios(form.materiaId, form.grupoId)
+  const conCriterios = criterios.datos?.base.origen === 'GRUPO'
+  const opcionesCriterio = useMemo(() => {
+    const lista = criteriosDeActividad(criterios.datos, form.unidadId)
+    const actual = Number(form.categoriaId)
+    if (actual && !lista.some((item) => item.id === actual) && criterioGuardado?.id === actual) {
+      return [...lista, { ...criterioGuardado, peso: null, fueraDeLista: true }]
+    }
+    return lista
+  }, [criterios.datos, form.unidadId, form.categoriaId, criterioGuardado])
 
   const selectedMateria = useMemo(
     () => materias.find((materia) => materia.id === Number(form.materiaId)),
@@ -298,45 +299,50 @@ export default function TareaForm() {
               </label>
             </div>
 
-            {opcionesCategoria.length > 0 && (
+            {form.materiaId && form.grupoId && criterios.datos && (
               <div>
-                <label className="flex flex-col gap-2">
-                  <span className="text-sm font-semibold text-foreground">
-                    Categoría {categoriaObligatoria ? '*' : '(opcional)'}
-                  </span>
-                  <select
-                    name="categoriaId"
-                    required={categoriaObligatoria}
-                    value={form.categoriaId}
-                    onChange={handleChange}
-                    className="w-full min-w-0 rounded-2xl border border-border px-4 py-3 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring lg:max-w-sm"
-                  >
-                    <option value="">{categoriaObligatoria ? 'Selecciona una categoría' : 'Sin categoría'}</option>
-                    {opcionesCategoria.map((categoria) => (
-                      <option key={categoria.id} value={categoria.id}>
-                        {categoria.peso ? `${categoria.nombre} (${categoria.peso} %)` : categoria.nombre}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                {conCriterios ? (
+                  <label className="flex flex-col gap-2">
+                    <span className="text-sm font-semibold text-foreground">Tipo de actividad *</span>
+                    <select
+                      name="categoriaId"
+                      required
+                      value={form.categoriaId}
+                      onChange={handleChange}
+                      className="w-full min-w-0 rounded-2xl border border-border px-4 py-3 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring lg:max-w-sm"
+                    >
+                      <option value="">Selecciona el tipo</option>
+                      {opcionesCriterio.map((criterio) => (
+                        <option key={criterio.id} value={criterio.id}>
+                          {criterio.fueraDeLista ? `${criterio.nombre} (no cuenta en esta unidad)` : `${criterio.nombre} (${criterio.peso} %)`}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
                 <p className="mt-2 text-xs text-muted-foreground">
-                  {categoriaObligatoria
-                    ? 'Este grupo pondera las tareas por categoría; sin categoría la tarea no cuenta en el promedio.'
-                    : 'Este grupo promedia todas las tareas por igual. Los pesos se configuran en Calificaciones → Ponderación.'}
+                  {conCriterios
+                    ? 'El tipo es el criterio con el que cuenta esta actividad en la calificación del grupo.'
+                    : 'Este grupo usa la ponderación predeterminada: todas las tareas valen igual. Para calificar exámenes, prácticas o participación por separado,'}
+                  {' '}
+                  <Button variant="link" type="button" className="h-auto min-h-0 p-0 text-xs" onClick={() => setCriteriosAbierto(true)}>
+                    {conCriterios ? 'Editar criterios' : 'define sus criterios'}
+                  </Button>
+                  {conCriterios ? '' : '.'}
                 </p>
               </div>
             )}
 
             <div className="grid gap-4 lg:grid-cols-2">
               <label className="flex flex-col gap-2">
-                <span className="text-sm font-semibold text-foreground">Tipo de tarea</span>
+                <span className="text-sm font-semibold text-foreground">¿Cómo se entrega?</span>
                 <select
                   name="tipoEntrega"
                   value={form.tipoEntrega}
                   onChange={handleChange}
                   className="w-full min-w-0 rounded-2xl border border-border px-4 py-3 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  <option value="PRESENCIAL">Presencial</option>
+                  <option value="PRESENCIAL">En clase (sin entrega en línea)</option>
                   <option value="EN_LINEA">Entrega con archivo</option>
                   <option value="FIRMA">Entrega con foto de firma</option>
                   <option value="REVISION_EN_LINEA">Comentario o archivos</option>
@@ -470,7 +476,7 @@ export default function TareaForm() {
           </section>
 
           {form.tipoEvaluacion === 'RUBRICA' && <section className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
-            <h2 className="mb-3 text-lg font-semibold">Criterios de evaluación</h2>
+            <h2 className="mb-3 text-lg font-semibold">Rúbrica</h2>
             <TaskRubric value={form.rubricJson} onChange={(rubricJson) => setForm((prev) => ({ ...prev, rubricJson }))} />
           </section>}
 
@@ -499,6 +505,15 @@ export default function TareaForm() {
           </section>
         </aside>
       </form>
+      <CriteriosModal
+        open={criteriosAbierto}
+        onClose={() => setCriteriosAbierto(false)}
+        materiaId={form.materiaId}
+        grupo={(selectedMateria?.grupos ?? []).find((grupo) => String(grupo.id) === form.grupoId)}
+        materiaNombre={selectedMateria?.nombre}
+        alcanceInicial={form.unidadId ? Number(form.unidadId) : 'base'}
+        onGuardado={() => criterios.recargar()}
+      />
     </div>
   )
 }

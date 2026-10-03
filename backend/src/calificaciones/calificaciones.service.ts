@@ -1,15 +1,28 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { EstadoAsistencia, EstadoRevision, EstadoTarea } from '@prisma/client';
+import {
+  EstadoAsistencia,
+  EstadoRevision,
+  EstadoTarea,
+  EstadoUnidad,
+  TipoCriterio,
+} from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { getCurrentAcademicPeriod } from '../common/periodo.util';
 import { asegurarAccesoMateria } from '../common/materia-ownership';
 import { GuardarCalificacionManualDto } from './dto/guardar-calificacion-manual.dto';
 import { GuardarCalificacionesLoteDto } from './dto/guardar-calificaciones-lote.dto';
 import { GuardarPonderacionDto } from './dto/guardar-ponderacion.dto';
+import {
+  calcularUnidad,
+  cargarCriterios,
+  esCriterioDeActividad,
+  type ListaCriterios,
+} from './criterios';
 
 type Actor = {
   id: number;
@@ -23,15 +36,35 @@ type CalificacionesFiltros = {
   docenteId?: number;
 };
 
-type CategoriaPonderada = { id: number; nombre: string; peso: number };
-
-type PonderacionCalificacion = {
-  tareas: number;
-  asistencia: number;
-  /** Vacío: las tareas se promedian por igual, como antes de las categorías. */
-  categorias: CategoriaPonderada[];
-  origen: 'GRUPO' | 'MATERIA';
-};
+/**
+ * Forma anterior de la ponderación (tareas / asistencia + categorías de
+ * tareas). Se sigue mandando para las pantallas que aún no conocen los
+ * criterios; los pesos de las categorías ya son parte de la unidad.
+ */
+function ponderacionLegada(lista: ListaCriterios) {
+  const actividades = lista.criterios.filter((criterio) =>
+    esCriterioDeActividad(criterio.tipo),
+  );
+  return {
+    tareas: actividades.reduce((suma, criterio) => suma + criterio.peso, 0),
+    asistencia:
+      lista.criterios.find(
+        (criterio) => criterio.tipo === TipoCriterio.ASISTENCIA,
+      )?.peso ?? 0,
+    categorias:
+      lista.origen === 'PREDETERMINADA'
+        ? []
+        : actividades.map(({ id, nombre, peso }) => ({
+            id: id as number,
+            nombre,
+            peso,
+          })),
+    origen:
+      lista.origen === 'PREDETERMINADA'
+        ? (lista.legado ?? 'MATERIA')
+        : ('GRUPO' as const),
+  };
+}
 
 const ESTADOS_CON_ENTREGA = new Set<EstadoRevision>([
   EstadoRevision.PENDIENTE,
@@ -117,32 +150,15 @@ export class CalificacionesService {
   }
 
   /**
-   * La ponderación se guarda en el servidor para que el reporte del docente,
-   * la exportación y la vista del alumno calculen la misma nota. Sin grupo es
-   * la de la materia; con grupo, la propia de ese grupo (la misma materia puede
-   * darla otro docente en otro grupo), con sus categorías.
+   * Ponderación predeterminada tareas / asistencia, la de los grupos que aún no
+   * tienen criterios. Sin grupo es la de la materia; con grupo, la propia del
+   * grupo. Los criterios (examen, prácticas, participación…) se guardan con
+   * `CriteriosService`; una pantalla vieja que mande categorías recibe 409.
    */
   async guardarPonderacion(actor: Actor, dto: GuardarPonderacionDto) {
     if (dto.pesoTareas + dto.pesoAsistencia !== 100) {
       throw new BadRequestException(
         'La ponderación de tareas y asistencia debe sumar 100',
-      );
-    }
-    const categorias = dto.categorias?.map((item) => ({
-      ...item,
-      nombre: item.nombre.trim(),
-    }));
-    if (categorias?.length && !dto.grupoId) {
-      throw new BadRequestException(
-        'Elige un grupo para ponderar las tareas por categoría',
-      );
-    }
-    if (
-      categorias?.length &&
-      categorias.reduce((suma, item) => suma + item.peso, 0) !== 100
-    ) {
-      throw new BadRequestException(
-        'Los pesos de las categorías deben sumar 100',
       );
     }
     await asegurarAccesoMateria(this.prisma, actor, dto.materiaId, dto.grupoId);
@@ -168,88 +184,37 @@ export class CalificacionesService {
         'El grupo no esta vinculado a la materia seleccionada',
       );
     }
-
-    await this.prisma.$transaction(async (tx) => {
-      await tx.ponderacionGrupo.upsert({
-        where: { materiaId_grupoId: { materiaId: dto.materiaId, grupoId } },
-        create: {
-          materiaId: dto.materiaId,
-          grupoId,
-          pesoTareas: dto.pesoTareas,
-          pesoAsistencia: dto.pesoAsistencia,
-        },
-        update: {
-          pesoTareas: dto.pesoTareas,
-          pesoAsistencia: dto.pesoAsistencia,
-        },
-      });
-      if (!categorias) return;
-
-      const catalogo = await tx.categoriaEvaluacion.findMany({
-        where: { materiaId: dto.materiaId },
-        select: { id: true, nombre: true },
-      });
-      const porNombre = new Map(
-        catalogo.map((item) => [item.nombre.toLowerCase(), item]),
+    const conCriterios = await this.prisma.categoriaPesoGrupo.count({
+      where: { grupoId, categoria: { materiaId: dto.materiaId } },
+    });
+    if (dto.categorias?.length || conCriterios) {
+      throw new ConflictException(
+        'La ponderación ahora se arma con criterios de evaluación. Recarga la página para editarlos.',
       );
-      const pesos: { categoriaId: number; peso: number }[] = [];
-      for (const [orden, item] of categorias.entries()) {
-        const mismoNombre = porNombre.get(item.nombre.toLowerCase());
-        let categoriaId: number;
-        if (item.id) {
-          const actual = catalogo.find((categoria) => categoria.id === item.id);
-          if (!actual) {
-            throw new BadRequestException(
-              'La categoría no pertenece a la materia seleccionada',
-            );
-          }
-          if (mismoNombre && mismoNombre.id !== item.id) {
-            throw new BadRequestException(
-              `Ya existe la categoría "${item.nombre}" en esta materia`,
-            );
-          }
-          if (actual.nombre !== item.nombre) {
-            await tx.categoriaEvaluacion.update({
-              where: { id: item.id },
-              data: { nombre: item.nombre },
-            });
-          }
-          categoriaId = item.id;
-        } else if (mismoNombre) {
-          categoriaId = mismoNombre.id;
-        } else {
-          categoriaId = (
-            await tx.categoriaEvaluacion.create({
-              data: { materiaId: dto.materiaId, nombre: item.nombre, orden },
-              select: { id: true },
-            })
-          ).id;
-        }
-        pesos.push({ categoriaId, peso: item.peso });
-      }
+    }
 
-      await tx.categoriaPesoGrupo.deleteMany({
-        where: { grupoId, categoria: { materiaId: dto.materiaId } },
-      });
-      if (pesos.length) {
-        await tx.categoriaPesoGrupo.createMany({
-          data: pesos.map((item) => ({ ...item, grupoId })),
-        });
-      }
-      // Lo que ya no pesa en ningún grupo ni clasifica ninguna tarea sobra.
-      await tx.categoriaEvaluacion.deleteMany({
-        where: {
-          materiaId: dto.materiaId,
-          pesos: { none: {} },
-          tareas: { none: {} },
-        },
-      });
+    await this.prisma.ponderacionGrupo.upsert({
+      where: { materiaId_grupoId: { materiaId: dto.materiaId, grupoId } },
+      create: {
+        materiaId: dto.materiaId,
+        grupoId,
+        pesoTareas: dto.pesoTareas,
+        pesoAsistencia: dto.pesoAsistencia,
+      },
+      update: {
+        pesoTareas: dto.pesoTareas,
+        pesoAsistencia: dto.pesoAsistencia,
+      },
     });
 
     return this.obtenerPonderacion(actor, dto.materiaId, grupoId);
   }
 
-  /** Ponderación vigente y catálogo de categorías, p. ej. para el formulario de tareas. */
+  /**
+   * Ponderación en la forma anterior, para pantallas que aún no conocen los
+   * criterios (p. ej. un formulario de tareas abierto antes de actualizar).
+   * El catálogo sólo trae criterios de actividad.
+   */
   async obtenerPonderacion(actor: Actor, materiaId: number, grupoId?: number) {
     await asegurarAccesoMateria(this.prisma, actor, materiaId, grupoId);
     const materia = await this.prisma.materia.findUnique({
@@ -257,8 +222,13 @@ export class CalificacionesService {
       select: { id: true, pesoTareas: true, pesoAsistencia: true },
     });
     if (!materia) throw new NotFoundException('Materia no encontrada');
-    const { resolver, catalogo } = await this.cargarPonderaciones(materia);
-    return { ...resolver(grupoId), catalogo };
+    const { resolver, catalogo } = await cargarCriterios(this.prisma, materia);
+    return {
+      ...ponderacionLegada(resolver(grupoId)),
+      catalogo: catalogo
+        .filter((item) => esCriterioDeActividad(item.tipo))
+        .map(({ id, nombre }) => ({ id, nombre })),
+    };
   }
 
   guardarManual(
@@ -404,9 +374,11 @@ export class CalificacionesService {
         filtros.grupoId,
       );
     }
-    const { resolver: resolverPonderacion, catalogo } =
-      await this.cargarPonderaciones(materia);
-    const ponderacion = resolverPonderacion(filtros.grupoId);
+    const { resolver: resolverCriterios, catalogo } = await cargarCriterios(
+      this.prisma,
+      materia,
+    );
+    const criteriosBase = resolverCriterios(filtros.grupoId);
 
     const unidades = this.obtenerUnidadesReporte(materia, filtros.unidadId);
     const grupoSeleccionado = filtros.grupoId
@@ -582,15 +554,12 @@ export class CalificacionesService {
           }))
           .filter((item) => item.tarea);
 
-        const ponderacionAlumno = resolverPonderacion(
+        // Los criterios se resuelven por unidad: una unidad puede tener sus
+        // propios porcentajes.
+        const listaAlumno = resolverCriterios(
           filtros.grupoId ?? alumno.grupoId,
+          unidad.id,
         );
-        const {
-          promedio: promedioTareas,
-          porCategoria: promedioPorCategoria,
-          sinCategoria,
-        } = this.promediarTareas(entregasAlumno, ponderacionAlumno.categorias);
-        sinCategoria.forEach((id) => tareasSinCategoria.add(id));
         const asistencia = this.resumirAsistenciaAlumno(
           alumno.id,
           sesionesAlumno,
@@ -605,11 +574,34 @@ export class CalificacionesService {
               idsSesionesAlumno.has(item.claseSesionId),
           )
           .reduce((suma, item) => suma + item.puntos, 0);
-        const calificacionCalculada = this.calcularCalificacionCalculada(
-          promedioTareas,
+        const calculo = calcularUnidad(listaAlumno, {
+          actividades: entregasAlumno.map(({ tarea, entrega }) => ({
+            tareaId: tarea.id,
+            categoriaId: tarea.categoriaId,
+            calificacion: entrega?.calificacion,
+          })),
           asistencia,
-          ponderacionAlumno,
-        );
+          participacion: {
+            puntos: participacion,
+            sesiones: sesionesAlumno.length,
+          },
+        });
+        calculo.sinCriterio.forEach((id) => tareasSinCategoria.add(id));
+        const { calificacionCalculada, promedioTareas } = calculo;
+        // Forma anterior del desglose: sólo los criterios de actividad.
+        const promedioPorCategoria =
+          listaAlumno.origen === 'PREDETERMINADA'
+            ? []
+            : calculo.criterios
+                .filter((criterio) => esCriterioDeActividad(criterio.tipo))
+                .map((criterio) => ({
+                  categoriaId: criterio.id,
+                  nombre: criterio.nombre,
+                  peso: criterio.peso,
+                  promedio: criterio.valor,
+                  calificadas: criterio.calificadas,
+                  total: criterio.total,
+                }));
         const calificacionGuardada =
           unidad.id == null
             ? null
@@ -635,6 +627,7 @@ export class CalificacionesService {
             id: alumno.id,
             nombre: alumno.nombre,
             numeroControl: alumno.numeroControl,
+            sexo: alumno.sexo ?? null,
           },
           materia: {
             id: materia.id,
@@ -655,6 +648,32 @@ export class CalificacionesService {
                 : 'PENDIENTE',
           promedioTareas,
           promedioPorCategoria,
+          criterios: calculo.criterios.map(
+            ({
+              clave,
+              id,
+              nombre,
+              tipo,
+              peso,
+              meta,
+              valor,
+              calificadas,
+              total,
+              puntos,
+            }) => ({
+              clave,
+              id,
+              nombre,
+              tipo,
+              peso,
+              meta,
+              valor,
+              calificadas,
+              total,
+              ...(puntos !== undefined ? { puntos } : {}),
+            }),
+          ),
+          origenCriterios: listaAlumno.origen,
           estado: this.obtenerEstadoCalificacion(calificacionFinal),
           tareas: tareasResumen,
           asistencia,
@@ -686,8 +705,9 @@ export class CalificacionesService {
           a.alumno.nombre.localeCompare(b.alumno.nombre, 'es'),
       ),
       filters: filtros,
-      ponderacion,
-      categorias: catalogo,
+      ponderacion: ponderacionLegada(criteriosBase),
+      criterios: criteriosBase,
+      categorias: catalogo.filter((item) => esCriterioDeActividad(item.tipo)),
       tareasSinCategoria: tareasSinCategoria.size,
       metrics: this.calcularMetricas(rows, unidades.length),
     };
@@ -728,7 +748,23 @@ export class CalificacionesService {
     return materia;
   }
 
-  private obtenerUnidadesReporte(materia: any, unidadId?: number) {
+  private obtenerUnidadesReporte(
+    materia: {
+      numUnidades: number;
+      unidades: Array<{
+        id: number;
+        nombre: string;
+        orden: number;
+        status: EstadoUnidad;
+      }>;
+    },
+    unidadId?: number,
+  ): Array<{
+    id: number | null;
+    nombre: string;
+    orden: number;
+    status: EstadoUnidad | null;
+  }> {
     const unidades = unidadId
       ? materia.unidades.filter((unidad) => unidad.id === unidadId)
       : materia.unidades;
@@ -951,153 +987,6 @@ export class CalificacionesService {
       ? Math.round((resumen.asistencias / resumen.registradas) * 100)
       : 0;
     return resumen;
-  }
-
-  /**
-   * Devuelve un resolvedor por grupo: el grupo usa su propia ponderación y
-   * sus pesos por categoría si los tiene y, si no, la de la materia.
-   */
-  private async cargarPonderaciones(materia: {
-    id: number;
-    pesoTareas: number;
-    pesoAsistencia: number;
-  }) {
-    const [porGrupo, categorias] = await Promise.all([
-      this.prisma.ponderacionGrupo.findMany({
-        where: { materiaId: materia.id },
-      }),
-      this.prisma.categoriaEvaluacion.findMany({
-        where: { materiaId: materia.id },
-        include: { pesos: { select: { grupoId: true, peso: true } } },
-        orderBy: [{ orden: 'asc' }, { id: 'asc' }],
-      }),
-    ]);
-
-    const resolver = (grupoId?: number | null): PonderacionCalificacion => {
-      const propia = grupoId
-        ? porGrupo.find((item) => item.grupoId === grupoId)
-        : undefined;
-      const categoriasGrupo = grupoId
-        ? categorias.flatMap((categoria) => {
-            const peso = categoria.pesos.find(
-              (item) => item.grupoId === grupoId,
-            );
-            return peso
-              ? [
-                  {
-                    id: categoria.id,
-                    nombre: categoria.nombre,
-                    peso: peso.peso,
-                  },
-                ]
-              : [];
-          })
-        : [];
-      return {
-        tareas: propia?.pesoTareas ?? materia.pesoTareas,
-        asistencia: propia?.pesoAsistencia ?? materia.pesoAsistencia,
-        categorias: categoriasGrupo,
-        origen: propia || categoriasGrupo.length ? 'GRUPO' : 'MATERIA',
-      };
-    };
-
-    return {
-      resolver,
-      catalogo: categorias.map(({ id, nombre }) => ({ id, nombre })),
-    };
-  }
-
-  /**
-   * Sin categorías es el promedio simple de lo calificado. Con categorías se
-   * promedia cada una y luego se ponderan, repartiendo el peso sólo entre las
-   * que ya tienen calificaciones (igual que tareas/asistencia). Las tareas sin
-   * categoría del grupo no cuentan y se devuelven para avisar al docente.
-   */
-  private promediarTareas(
-    items: Array<{
-      tarea: { id: number; categoriaId: number | null };
-      entrega: { calificacion?: number | null } | null;
-    }>,
-    categorias: CategoriaPonderada[],
-  ) {
-    const promedio = (valores: number[]) =>
-      valores.length
-        ? Number(
-            (
-              valores.reduce((sum, value) => sum + value, 0) / valores.length
-            ).toFixed(2),
-          )
-        : null;
-    const calificaciones = (lista: typeof items) =>
-      lista
-        .map((item) => item.entrega?.calificacion)
-        .filter((value): value is number => typeof value === 'number');
-
-    if (!categorias.length) {
-      return {
-        promedio: promedio(calificaciones(items)),
-        porCategoria: [],
-        sinCategoria: [] as number[],
-      };
-    }
-
-    const porCategoria = categorias.map((categoria) => {
-      const tareas = items.filter(
-        (item) => item.tarea.categoriaId === categoria.id,
-      );
-      const valores = calificaciones(tareas);
-      return {
-        categoriaId: categoria.id,
-        nombre: categoria.nombre,
-        peso: categoria.peso,
-        promedio: promedio(valores),
-        calificadas: valores.length,
-        total: tareas.length,
-      };
-    });
-    const ids = new Set(categorias.map((categoria) => categoria.id));
-    const conCalificacion = porCategoria.filter(
-      (item) => item.promedio != null,
-    );
-    const pesoTotal = conCalificacion.reduce((sum, item) => sum + item.peso, 0);
-
-    return {
-      promedio: pesoTotal
-        ? Number(
-            (
-              conCalificacion.reduce(
-                (sum, item) => sum + (item.promedio as number) * item.peso,
-                0,
-              ) / pesoTotal
-            ).toFixed(2),
-          )
-        : null,
-      porCategoria,
-      sinCategoria: items
-        .filter((item) => !ids.has(item.tarea.categoriaId as number))
-        .map((item) => item.tarea.id),
-    };
-  }
-
-  private calcularCalificacionCalculada(
-    promedioTareas: number | null,
-    asistencia: { registradas: number; porcentaje: number },
-    ponderacion: PonderacionCalificacion,
-  ) {
-    let suma = 0;
-    let pesoAplicado = 0;
-
-    if (ponderacion.tareas > 0 && promedioTareas != null) {
-      suma += promedioTareas * ponderacion.tareas;
-      pesoAplicado += ponderacion.tareas;
-    }
-
-    if (ponderacion.asistencia > 0 && asistencia.registradas > 0) {
-      suma += asistencia.porcentaje * ponderacion.asistencia;
-      pesoAplicado += ponderacion.asistencia;
-    }
-
-    return pesoAplicado ? Math.round(suma / pesoAplicado) : null;
   }
 
   private obtenerEstadoCalificacion(calificacion: number | null) {

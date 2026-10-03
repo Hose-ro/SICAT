@@ -565,30 +565,50 @@ model Unidad {
   claseSesiones  ClaseSesion[]
   tareas         Tarea[]              @relation("TareaUnidad")
   calificaciones CalificacionUnidad[]
+  pesosCriterio  CategoriaPesoUnidad[]
 }
 
-/// Catálogo de categorías de evaluación (examen, prácticas, proyecto…) de una
+/// Qué mide un criterio de evaluación. Los de actividad (tareas, prácticas,
+/// examen…) promedian las actividades que lo llevan; ASISTENCIA y
+/// PARTICIPACION se calculan del pase de lista.
+enum TipoCriterio {
+  TAREAS
+  PRACTICAS
+  EXAMEN
+  PROYECTO
+  EXPOSICION
+  OTRO
+  ASISTENCIA
+  PARTICIPACION
+}
+
+/// Catálogo de criterios de evaluación (examen, prácticas, asistencia…) de una
 /// materia. El catálogo es de la materia para que una tarea sin grupo también
-/// pueda tener categoría; el peso de cada una lo pone cada grupo.
+/// pueda tener criterio; el peso de cada uno lo pone cada grupo.
 model CategoriaEvaluacion {
-  id        Int                  @id @default(autoincrement())
-  materiaId Int
-  nombre    String               @db.VarChar(60)
-  orden     Int                  @default(0)
-  createdAt DateTime             @default(now())
-  materia   Materia              @relation(fields: [materiaId], references: [id], onDelete: Cascade)
-  pesos     CategoriaPesoGrupo[]
-  tareas    Tarea[]
+  id          Int                   @id @default(autoincrement())
+  materiaId   Int
+  nombre      String                @db.VarChar(60)
+  tipo        TipoCriterio          @default(OTRO)
+  orden       Int                   @default(0)
+  createdAt   DateTime              @default(now())
+  materia     Materia               @relation(fields: [materiaId], references: [id], onDelete: Cascade)
+  pesos       CategoriaPesoGrupo[]
+  pesosUnidad CategoriaPesoUnidad[]
+  tareas      Tarea[]
 
   @@unique([materiaId, nombre])
 }
 
-/// Peso de una categoría en un grupo. Los pesos de un grupo suman 100; si el
-/// grupo no tiene ninguno, las tareas se promedian por igual.
+/// Peso de un criterio en un grupo: la parte de la calificación de cada unidad.
+/// Los pesos de un grupo suman 100 (asistencia y participación incluidas). Sin
+/// filas, el grupo usa la ponderación predeterminada (tareas / asistencia).
 model CategoriaPesoGrupo {
   categoriaId Int
   grupoId     Int
   peso        Int
+  /// Sólo participación: cuántas participaciones valen 100 en una unidad.
+  meta        Int?
   categoria   CategoriaEvaluacion @relation(fields: [categoriaId], references: [id], onDelete: Cascade)
   grupo       Grupo               @relation(fields: [grupoId], references: [id], onDelete: Cascade)
 
@@ -596,8 +616,26 @@ model CategoriaPesoGrupo {
   @@index([grupoId])
 }
 
-/// Ponderación tareas / asistencia propia de un grupo. Sin fila, el grupo usa
-/// la de la materia (`Materia.pesoTareas` / `pesoAsistencia`).
+/// Porcentajes propios de una unidad. Si la unidad tiene filas, se usan sólo
+/// ésas; si no, la lista del grupo.
+model CategoriaPesoUnidad {
+  categoriaId Int
+  grupoId     Int
+  unidadId    Int
+  peso        Int
+  meta        Int?
+  categoria   CategoriaEvaluacion @relation(fields: [categoriaId], references: [id], onDelete: Cascade)
+  grupo       Grupo               @relation(fields: [grupoId], references: [id], onDelete: Cascade)
+  unidad      Unidad              @relation(fields: [unidadId], references: [id], onDelete: Cascade)
+
+  @@id([categoriaId, grupoId, unidadId])
+  @@index([grupoId, unidadId])
+  @@index([unidadId])
+}
+
+/// Ponderación predeterminada tareas / asistencia propia de un grupo, la que
+/// rige mientras el grupo no tiene criterios. Sin fila, el grupo usa la de la
+/// materia (`Materia.pesoTareas` / `pesoAsistencia`).
 model PonderacionGrupo {
   materiaId      Int
   grupoId        Int
@@ -654,8 +692,8 @@ model Aviso {
 }
 
 /// Puntos de participación de un alumno en una clase (lo que muchos docentes
-/// llevan en libreta). Sólo se registra y se muestra: no entra en el cálculo
-/// de la calificación.
+/// llevan en libreta). Sólo cuenta en la calificación si el grupo tiene un
+/// criterio de participación (con su meta por unidad); si no, sólo se muestra.
 model Participacion {
   id            Int         @id @default(autoincrement())
   claseSesionId Int
@@ -796,6 +834,7 @@ model Tarea {
 
   @@index([docenteId, estado])
   @@index([materiaId, grupoId, unidadId])
+  @@index([categoriaId])
 }
 
 model EntregaTarea {
@@ -889,6 +928,7 @@ model Grupo {
   calificaciones       CalificacionUnidad[]
   ponderaciones        PonderacionGrupo[]
   pesosCategoria       CategoriaPesoGrupo[]
+  pesosCriterioUnidad  CategoriaPesoUnidad[]
   avisos               Aviso[]
   whatsapp             GrupoWhatsapp[]
 

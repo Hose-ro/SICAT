@@ -132,3 +132,36 @@ export async function docenteResponsableDeMateria(
   });
   return horario?.docenteId ?? null;
 }
+
+/**
+ * Grupos de la materia en los que el actor da clase, para ofrecerle copiar
+ * algo (p. ej. sus criterios de evaluación) a sus otros grupos: todos si es
+ * ADMIN o el docente asignado a la materia; si no, los de sus horarios activos.
+ */
+export async function gruposDelDocenteEnMateria(
+  prisma: PrismaLike,
+  materiaId: number,
+  actor: ActorMateria | undefined,
+): Promise<Array<{ id: number; nombre: string }>> {
+  const materia = await prisma.materia.findUnique({
+    where: { id: materiaId },
+    select: {
+      docenteId: true,
+      grupos: {
+        select: { id: true, nombre: true },
+        orderBy: { nombre: 'asc' },
+      },
+    },
+  });
+  if (!materia) return [];
+  if (!actor || actor.rol === 'ADMIN' || materia.docenteId === actor.id) {
+    return materia.grupos;
+  }
+  const horarios = await prisma.horarioMateria.findMany({
+    where: { materiaId, docenteId: actor.id, activo: true },
+    select: { grupoId: true },
+    distinct: ['grupoId'],
+  });
+  const propios = new Set(horarios.map((horario) => horario.grupoId));
+  return materia.grupos.filter((grupo) => propios.has(grupo.id));
+}

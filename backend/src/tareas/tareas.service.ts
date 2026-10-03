@@ -43,6 +43,7 @@ import {
   docenteResponsableDeMateria,
   esDocenteDeMateria,
 } from '../common/materia-ownership';
+import { TIPOS_CALCULADOS } from '../calificaciones/criterios';
 
 type Actor = {
   id: number;
@@ -1369,12 +1370,19 @@ export class TareasService {
     }
 
     if (dto.categoriaId) {
-      const categoria = await this.prisma.categoriaEvaluacion.count({
+      const categoria = await this.prisma.categoriaEvaluacion.findFirst({
         where: { id: dto.categoriaId, materiaId: dto.materiaId },
+        select: { tipo: true },
       });
       if (!categoria) {
         throw new BadRequestException(
-          'La categoría no pertenece a la materia seleccionada',
+          'El criterio no pertenece a la materia seleccionada',
+        );
+      }
+      // Asistencia y participación salen del pase de lista, no de actividades.
+      if (TIPOS_CALCULADOS.has(categoria.tipo)) {
+        throw new BadRequestException(
+          'Una actividad no puede calificarse como asistencia ni participación',
         );
       }
     }
@@ -1426,7 +1434,7 @@ export class TareasService {
       unidadRef: {
         select: { id: true, nombre: true, orden: true, status: true },
       },
-      categoria: { select: { id: true, nombre: true } },
+      categoria: { select: { id: true, nombre: true, tipo: true } },
       archivos: true,
     };
   }
