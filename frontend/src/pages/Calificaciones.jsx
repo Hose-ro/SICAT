@@ -4,7 +4,6 @@ import { Link, useSearchParams } from 'react-router-dom'
 import {
   AlertTriangle,
   CheckCircle2,
-  CircleDashed,
   ClipboardList,
   Download,
   FileSpreadsheet,
@@ -28,29 +27,27 @@ import { useCalificacionStore } from '../store/calificacionStore'
 import { desglosePorCategoria } from '../lib/calificaciones'
 import CriteriosModal from '@/components/calificaciones/CriteriosModal'
 import CriteriosResumen from '@/components/calificaciones/CriteriosResumen'
+import DesempenoChip from '@/components/calificaciones/DesempenoChip'
+import FiltroDesempeno from '@/components/calificaciones/FiltroDesempeno'
+import { DESEMPENO } from '@/lib/desempeno'
 
-const STATUS_META = {
-  APROBADO: {
-    label: 'Aprobado',
-    className: "bg-success/10 text-success-foreground ring-ring",
-  },
-  REQUIERE_ATENCION: {
-    label: 'Requiere atención',
-    className: "bg-warning/10 text-warning-foreground ring-ring",
-  },
-  PENDIENTE: {
-    label: 'Pendiente',
-    className: "bg-background text-muted-foreground ring-ring",
-  },
-}
-
-// Mismo umbral que usa el servidor para marcar "Requiere atención".
+// Mínima aprobatoria, la misma que usa el servidor.
 const CALIFICACION_APROBATORIA = 70
 
-const ESTADO_FILTRO_LABEL = {
-  APROBADO: 'Aprobadas',
-  REQUIERE_ATENCION: 'Requieren atención',
-  PENDIENTE: 'Sin calificar',
+// El semáforo lo calcula el servidor; un reporte sin `desempeno` (servidor
+// anterior) se traduce de `estado`.
+const DESEMPENO_DE_ESTADO = { APROBADO: 'APROBADO', REQUIERE_ATENCION: 'REPROBADO', PENDIENTE: 'SIN_CALIFICAR' }
+const desempenoDe = (row) => row?.desempeno ?? DESEMPENO_DE_ESTADO[row?.estado] ?? 'SIN_CALIFICAR'
+
+function resumenDesempeno(rows) {
+  const cuenta = (estado) => rows.filter((row) => desempenoDe(row) === estado).length
+  return {
+    total: rows.length,
+    aprobados: cuenta('APROBADO'),
+    enRiesgo: cuenta('EN_RIESGO'),
+    reprobados: cuenta('REPROBADO'),
+    sinCalificar: cuenta('SIN_CALIFICAR'),
+  }
 }
 
 function formatGrade(value) {
@@ -139,13 +136,8 @@ function getFuenteLabel(fuente) {
   return 'Pendiente'
 }
 
-function StatusBadge({ estado }) {
-  const meta = STATUS_META[estado] ?? STATUS_META.PENDIENTE
-  return (
-    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${meta.className}`}>
-      {meta.label}
-    </span>
-  )
+function StatusBadge({ row }) {
+  return <DesempenoChip estado={desempenoDe(row)} />
 }
 
 const FIELD_LABEL = 'text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground'
@@ -266,7 +258,7 @@ function CalificacionesTable({ rows, showMateria = false }) {
                   {row.observacionManual || row.observaciones?.[0] || '-'}
                 </td>
                 <td className="whitespace-nowrap px-4 py-3">
-                  <StatusBadge estado={row.estado} />
+                  <StatusBadge row={row} />
                 </td>
                 <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
                   {row.tareas?.calificadas ?? 0}/{row.tareas?.total ?? 0} calificadas
@@ -482,7 +474,7 @@ function CapturaTable({ rows, drafts, showGrupo, showUnidad, onDraftChange }) {
                     <ObservacionInput row={row} drafts={drafts} conUnidad={showUnidad} onDraftChange={onDraftChange} />
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 align-top">
-                    <StatusBadge estado={row.estado} />
+                    <StatusBadge row={row} />
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 align-top text-muted-foreground">
                     {row.tareas?.calificadas ?? 0}/{row.tareas?.total ?? 0} calificadas
@@ -521,7 +513,7 @@ function CapturaCards({ rows, drafts, showGrupo, showUnidad, onDraftChange }) {
                 </p>
                 {detalle && <p className="text-xs text-muted-foreground">{detalle}</p>}
               </div>
-              <StatusBadge estado={row.estado} />
+              <StatusBadge row={row} />
             </div>
             <div className="mt-3 flex flex-col gap-3">
               <CalificacionInput row={row} drafts={drafts} conUnidad={showUnidad} columna="lista" onDraftChange={onDraftChange} />
@@ -712,7 +704,7 @@ function DocenteCalificaciones() {
 
   const visibleRows = useMemo(
     () => rows
-      .filter((row) => (!estadoFiltro || row.estado === estadoFiltro) && coincideBusqueda(row.alumno))
+      .filter((row) => (!estadoFiltro || desempenoDe(row) === estadoFiltro) && coincideBusqueda(row.alumno))
       .sort(ORDENES[orden].compare),
     [rows, coincideBusqueda, estadoFiltro, orden],
   )
@@ -729,7 +721,7 @@ function DocenteCalificaciones() {
   // unidades está en ese estado.
   const visibleAlumnos = useMemo(
     () => agruparPorAlumno(rows)
-      .filter((item) => (!estadoFiltro || Object.values(item.celdas).some((row) => row.estado === estadoFiltro)) && coincideBusqueda(item.alumno))
+      .filter((item) => (!estadoFiltro || Object.values(item.celdas).some((row) => desempenoDe(row) === estadoFiltro)) && coincideBusqueda(item.alumno))
       .sort(ORDENES[orden].compare),
     [rows, coincideBusqueda, estadoFiltro, orden],
   )
@@ -830,7 +822,6 @@ function DocenteCalificaciones() {
     if (confirmed) setDrafts({})
   }
 
-  const toggleEstado = (estado) => setEstadoFiltro((prev) => (prev === estado ? null : estado))
   const hayFiltrosSecundarios = Boolean(filters.grupoId || filters.unidadId)
   const listaProps = {
     rows: visibleRows,
@@ -972,14 +963,18 @@ function DocenteCalificaciones() {
       )}
 
       {filters.materiaId && (
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Resumen">
-          <MetricCard icon={GraduationCap} label="Promedio" value={formatGrade(metrics.promedioGeneral)} tone="slate" />
-          <MetricCard icon={CheckCircle2} label="Aprobadas" value={metrics.aprobadas ?? 0} tone="green"
-            pressed={estadoFiltro === 'APROBADO'} onClick={() => toggleEstado('APROBADO')} />
-          <MetricCard icon={AlertTriangle} label="Requieren atención" value={metrics.requiereAtencion ?? 0} tone="amber"
-            pressed={estadoFiltro === 'REQUIERE_ATENCION'} onClick={() => toggleEstado('REQUIERE_ATENCION')} />
-          <MetricCard icon={CircleDashed} label="Sin calificar" value={metrics.pendientes ?? 0} tone="blue"
-            pressed={estadoFiltro === 'PENDIENTE'} onClick={() => toggleEstado('PENDIENTE')} />
+        <section aria-label="Resumen" className="rounded-[var(--radius-card)] border border-border bg-card p-4 sm:p-5">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+            <p className="text-sm text-muted-foreground">
+              Promedio general{' '}
+              <span className="text-lg font-semibold tabular-nums text-foreground">{formatGrade(metrics.promedioGeneral)}</span>
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Verde: 80 o más · Amarillo: de 70 a 79, o con 30 % o más de faltas y retardos · Rojo: menos de {CALIFICACION_APROBATORIA}. Con la unidad cerrada, aprobado desde {CALIFICACION_APROBATORIA}.
+            </p>
+          </div>
+          <FiltroDesempeno className="mt-3" resumen={resumenDesempeno(rows)} value={estadoFiltro ?? 'TODOS'}
+            onChange={(valor) => setEstadoFiltro(valor === 'TODOS' ? null : valor)} />
         </section>
       )}
 
@@ -991,9 +986,6 @@ function DocenteCalificaciones() {
               <p className="text-sm text-muted-foreground">{plural(metrics.totalAlumnos, 'alumno', 'alumnos')}</p>
             )}
           </div>
-          <p className="text-xs text-muted-foreground">
-            Aprobado: {CALIFICACION_APROBATORIA} o más · Requiere atención: menos de {CALIFICACION_APROBATORIA} · Pendiente: sin datos
-          </p>
         </div>
 
         {filters.materiaId && rows.length > 0 && (
@@ -1038,7 +1030,7 @@ function DocenteCalificaciones() {
             )}
             {estadoFiltro && (
               <Button variant="outline" type="button" onClick={() => setEstadoFiltro(null)} className="self-start sm:self-auto">
-                Mostrando: {ESTADO_FILTRO_LABEL[estadoFiltro]}
+                Mostrando: {DESEMPENO[estadoFiltro]?.plural ?? estadoFiltro}
                 <X aria-hidden="true" />
                 <span className="sr-only">(quitar filtro)</span>
               </Button>
@@ -1105,6 +1097,7 @@ function AlumnoCalificaciones() {
   }, [materiaId, obtenerAlumno])
 
   const rows = useMemo(() => reporteAlumno?.rows ?? [], [reporteAlumno?.rows])
+  const resumen = useMemo(() => resumenDesempeno(rows), [rows])
   const metrics = reporteAlumno?.metrics ?? {}
   const rowsFiltradas = useMemo(
     () => [...rows].sort(
@@ -1146,8 +1139,8 @@ function AlumnoCalificaciones() {
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard icon={ClipboardList} label="Unidades" value={metrics.totalFilas ?? 0} tone="blue" />
-        <MetricCard icon={CheckCircle2} label="Aprobadas" value={metrics.aprobadas ?? 0} tone="green" />
-        <MetricCard icon={AlertTriangle} label="Requieren atención" value={metrics.requiereAtencion ?? 0} tone="amber" />
+        <MetricCard icon={CheckCircle2} label="Aprobadas" value={resumen.aprobados} tone="green" />
+        <MetricCard icon={AlertTriangle} label="En riesgo o reprobadas" value={resumen.enRiesgo + resumen.reprobados} tone="amber" />
         <MetricCard icon={GraduationCap} label="Promedio" value={formatGrade(metrics.promedioGeneral)} tone="slate" />
       </section>
 

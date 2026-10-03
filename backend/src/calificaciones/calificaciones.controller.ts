@@ -88,6 +88,24 @@ export class CalificacionesController {
     return this.calificacionesService.guardarPonderacion(req.user, dto);
   }
 
+  /** Semáforo de una clase en una unidad, para el inicio del docente. */
+  @Get('desempeno')
+  @Roles('DOCENTE', 'ADMIN')
+  desempeno(
+    @Req() req: AuthenticatedRequest,
+    @Query('materiaId') materiaId?: string,
+    @Query('grupoId') grupoId?: string,
+    @Query('unidadId') unidadId?: string,
+  ) {
+    return this.calificacionesService.obtenerDesempeno(req.user, {
+      materiaId: idRequerido(materiaId, 'La materia es obligatoria'),
+      grupoId: idRequerido(grupoId, 'Elige un grupo'),
+      unidadId: unidadId
+        ? idRequerido(unidadId, 'La unidad no es válida')
+        : undefined,
+    });
+  }
+
   @Get('criterios')
   @Roles('DOCENTE', 'ADMIN')
   criterios(

@@ -18,6 +18,7 @@ import {
 import api from '../../api/axios'
 import { useAuthStore } from '../../store/authStore'
 import PeriodoEscolarCard from '../../components/PeriodoEscolarCard'
+import DesempenoUnidad from './components/DesempenoUnidad'
 import { fechaDeClave } from '../../lib/periodo'
 import './dashboard-agenda.css'
 
@@ -181,11 +182,26 @@ export default function DashboardDocente() {
             suspension={panel?.suspensionHoy}
             ahora={ahora}
           />
-          <Materias materias={materiasFiltradas} total={panel?.materias?.length ?? 0} busqueda={busqueda} onBuscar={setBusqueda} />
         </div>
-        <aside className="min-w-0 space-y-4" aria-label="Acciones y calendario docente">
+        <aside className="min-w-0 space-y-4" aria-label="Acciones del docente">
           <AccesosRapidos claseActual={panel?.claseActual} onPasarLista={pasarLista} iniciando={iniciando} />
           <Pendientes pendientes={pendientes} />
+        </aside>
+      </div>
+      {/* A todo lo ancho: la tabla lleva una columna por criterio. */}
+      <div className="agenda-banda">
+        <DesempenoUnidad
+          materias={panel?.materias ?? []}
+          claseActual={panel?.claseActual}
+          proximaClase={panel?.proximaClase}
+          userId={user?.id}
+        />
+      </div>
+      <div className="docente-agenda-grid">
+        <div className="min-w-0">
+          <Materias materias={materiasFiltradas} total={panel?.materias?.length ?? 0} busqueda={busqueda} onBuscar={setBusqueda} />
+        </div>
+        <aside className="min-w-0 space-y-4" aria-label="Calendario escolar">
           <section className="agenda-periodos rounded-2xl border border-border bg-card p-5">
             <p className="agenda-eyebrow">CALENDARIO ESCOLAR</p>
             <h2 className="mb-5 text-base font-semibold">Periodos escolares</h2>

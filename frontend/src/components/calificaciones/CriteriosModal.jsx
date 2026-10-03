@@ -39,7 +39,9 @@ export default function CriteriosModal({ open, onClose, materiaId, grupo, materi
           datos={datos}
           materiaId={materiaId}
           grupo={grupo}
-          alcanceInicial={datos.unidades.some((item) => item.unidad.id === alcanceInicial) ? alcanceInicial : 'base'}
+          // Abre en la unidad sólo si tiene porcentajes propios; si no, en la
+          // lista de todas, que es la que se edita casi siempre.
+          alcanceInicial={datos.unidades.some((item) => item.unidad.id === alcanceInicial && item.personalizada) ? alcanceInicial : 'base'}
           plantillaInicial={plantillaInicial}
           onCambios={setConCambios}
           onGuardado={(nuevos) => {

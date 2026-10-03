@@ -1,27 +1,12 @@
 import { Check, CheckCheck, CircleDashed, Clock3, Undo2 } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { Chip } from '@/components/Chip'
 import { ESTADO_DOCENTE_LABEL, TASK_STATE_LABEL } from '@/lib/tareas'
 
-const TONO = {
-  warning: 'bg-warning/15 text-warning-foreground',
-  success: 'bg-success/10 text-success-foreground',
-  destructive: 'bg-destructive/10 text-destructive-foreground',
-  neutral: 'bg-muted text-foreground',
-  muted: 'bg-muted text-muted-foreground',
-  accent: 'bg-accent text-primary-ink',
-}
+export { Chip }
 
 const TONO_ENTREGA = { ENTREGADA: 'warning', REVISADA: 'success', CALIFICADA: 'success', INCORRECTA: 'neutral', NO_ENTREGADA: 'destructive', PENDIENTE: 'muted' }
 const ICONO_ENTREGA = { ENTREGADA: Clock3, REVISADA: CheckCheck, CALIFICADA: Check, INCORRECTA: Undo2, NO_ENTREGADA: CircleDashed, PENDIENTE: CircleDashed }
 const TONO_TAREA = { BORRADOR: 'muted', PUBLICADA: 'success', VENCIDA: 'warning', CERRADA: 'neutral' }
-
-export function Chip({ tone = 'neutral', className, children }) {
-  return (
-    <span className={cn('inline-flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 text-xs font-medium', TONO[tone], className)}>
-      {children}
-    </span>
-  )
-}
 
 /** Estado de una entrega desde el punto de vista del docente; `estado` viene de estadoDocente(). */
 export function EstadoEntregaChip({ estado, entrega, className }) {

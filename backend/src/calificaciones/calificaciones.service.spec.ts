@@ -17,6 +17,8 @@ describe('CalificacionesService: política docente–materia–grupo', () => {
   const calificacionFindMany = jest.fn();
   const categoriaPesoGrupoCount = jest.fn();
   const ponderacionGrupoUpsert = jest.fn();
+  const asistenciaFindMany = jest.fn();
+  const participacionFindMany = jest.fn();
   const prisma = {
     materia: {
       findUnique: materiaFindUnique,
@@ -37,6 +39,8 @@ describe('CalificacionesService: política docente–materia–grupo', () => {
     categoriaPesoGrupo: { count: categoriaPesoGrupoCount },
     tarea: { findMany: tareaFindMany },
     claseSesion: { findMany: claseSesionFindMany },
+    asistencia: { findMany: asistenciaFindMany },
+    participacion: { findMany: participacionFindMany },
     $transaction: transaction,
   } as unknown as PrismaService;
   const service = new CalificacionesService(prisma);
@@ -345,6 +349,144 @@ describe('CalificacionesService: política docente–materia–grupo', () => {
         }),
       );
       expect(ponderacionGrupoUpsert).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('desempeño por unidad', () => {
+    const admin = { id: 1, rol: 'ADMIN' };
+    const asistencia = (
+      alumnoId: number,
+      claseSesionId: number,
+      estado: string,
+    ) => ({
+      alumnoId,
+      claseSesionId,
+      estado,
+    });
+
+    beforeEach(() => {
+      materiaFindUnique.mockResolvedValue({
+        ...materia,
+        nombre: 'Redes',
+        clave: 'RED-1',
+        numUnidades: 2,
+        pesoTareas: 80,
+        pesoAsistencia: 20,
+        grupos: [{ id: 3, nombre: '8A' }],
+        unidades: [
+          { id: 5, nombre: 'Unidad 1', orden: 1, status: 'FINALIZADA' },
+          { id: 6, nombre: 'Unidad 2', orden: 2, status: 'ACTIVA' },
+        ],
+      });
+      inscripcionFindMany.mockResolvedValue([
+        { alumno: { id: 500, nombre: 'Ana', grupoId: 3 } },
+        { alumno: { id: 501, nombre: 'Beto', grupoId: 3 } },
+        { alumno: { id: 502, nombre: 'Carla', grupoId: 3 } },
+      ]);
+      tareaFindMany.mockResolvedValue([
+        {
+          id: 20,
+          grupoId: 3,
+          unidadId: 6,
+          unidad: 2,
+          categoriaId: null,
+          grupo: { id: 3, nombre: '8A' },
+          entregas: [
+            { alumnoId: 500, estadoRevision: 'CALIFICADA', calificacion: 95 },
+            { alumnoId: 501, estadoRevision: 'CALIFICADA', calificacion: 75 },
+            { alumnoId: 502, estadoRevision: 'CALIFICADA', calificacion: 76 },
+          ],
+        },
+      ]);
+      claseSesionFindMany.mockResolvedValue(
+        [900, 901, 902].map((id) => ({
+          id,
+          grupoId: 3,
+          unidadId: 6,
+          unidad: 2,
+        })),
+      );
+      asistenciaFindMany.mockResolvedValue([
+        asistencia(500, 900, 'ASISTENCIA'),
+        asistencia(500, 901, 'ASISTENCIA'),
+        asistencia(500, 902, 'ASISTENCIA'),
+        asistencia(501, 900, 'ASISTENCIA'),
+        asistencia(501, 901, 'FALTA'),
+        asistencia(501, 902, 'FALTA'),
+      ]);
+      participacionFindMany.mockResolvedValue([]);
+      calificacionFindMany.mockResolvedValue([]);
+    });
+
+    it('usa la unidad en curso y pinta el semáforo de cada alumno', async () => {
+      const vista = await service.obtenerDesempeno(admin, {
+        materiaId: 12,
+        grupoId: 3,
+      });
+      expect(vista.unidad).toEqual(
+        expect.objectContaining({ id: 6, orden: 2 }),
+      );
+      expect(vista.criterios.map((item) => [item.clave, item.peso])).toEqual([
+        ['tareas', 80],
+        ['asistencia', 20],
+      ]);
+      expect(vista.origenCriterios).toBe('PREDETERMINADA');
+      expect(vista.resumen).toEqual({
+        total: 3,
+        aprobados: 1,
+        enRiesgo: 1,
+        reprobados: 1,
+        sinCalificar: 0,
+      });
+      const alumno = (nombre: string) =>
+        vista.alumnos.find((item) => item.alumno.nombre === nombre);
+      // (95 × 80 + 100 × 20) / 100
+      expect(alumno('Ana')).toEqual(
+        expect.objectContaining({ calificacion: 96, desempeno: 'APROBADO' }),
+      );
+      expect(alumno('Ana')?.criterios).toEqual([
+        { clave: 'tareas', valor: 95, calificadas: 1, total: 1 },
+        { clave: 'asistencia', valor: 100, calificadas: 3, total: 3 },
+      ]);
+      // (75 × 80 + 33 × 20) / 100 = 66.6; además faltó 2 de 3.
+      expect(alumno('Beto')).toEqual(
+        expect.objectContaining({
+          calificacion: 67,
+          desempeno: 'REPROBADO',
+          motivos: ['CALIFICACION_BAJA', 'ASISTENCIA'],
+        }),
+      );
+      // Sin registros de asistencia sólo cuenta la tarea.
+      expect(alumno('Carla')).toEqual(
+        expect.objectContaining({
+          calificacion: 76,
+          desempeno: 'EN_RIESGO',
+          motivos: ['CALIFICACION_LIMITE'],
+          asistencia: expect.objectContaining({ porcentaje: null }),
+        }),
+      );
+    });
+
+    it('en una unidad cerrada sólo hay aprobados y reprobados', async () => {
+      tareaFindMany.mockResolvedValue([]);
+      claseSesionFindMany.mockResolvedValue([]);
+      calificacionFindMany.mockResolvedValue([
+        {
+          alumnoId: 500,
+          unidadId: 5,
+          calificacionManual: 75,
+          observacion: null,
+        },
+      ]);
+      const vista = await service.obtenerDesempeno(admin, {
+        materiaId: 12,
+        grupoId: 3,
+        unidadId: 5,
+      });
+      expect(vista.unidad?.id).toBe(5);
+      expect(vista.resumen).toEqual(
+        expect.objectContaining({ aprobados: 1, enRiesgo: 0, sinCalificar: 2 }),
+      );
     });
   });
 

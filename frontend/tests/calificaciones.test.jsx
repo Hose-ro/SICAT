@@ -219,12 +219,27 @@ test('buscar, ordenar y filtrar por estado desde las tarjetas', async () => {
  expect(nombres()).toEqual(['Álvaro'])
  await user.clear(screen.getByLabelText('Buscar alumno'))
 
- const tarjeta = screen.getByRole('button', { name: /Requieren atención/ })
- await user.click(tarjeta)
- expect(tarjeta.getAttribute('aria-pressed')).toBe('true')
+ // Un reporte sin semáforo (servidor anterior) se traduce del estado.
+ const reprobados = screen.getByRole('radio', { name: /Reprobados/ })
+ expect(reprobados.textContent).toBe('1Reprobados')
+ await user.click(reprobados)
+ expect(reprobados.getAttribute('aria-checked')).toBe('true')
  expect(nombres()).toEqual(['Beto'])
- await user.click(screen.getByRole('button', { name: /Mostrando: Requieren atención/ }))
+ await user.click(screen.getByRole('button', { name: /Mostrando: Reprobados/ }))
  expect(nombres()).toHaveLength(3)
+ expect(screen.getByRole('radio', { name: /Todos/ }).getAttribute('aria-checked')).toBe('true')
+})
+
+test('el semáforo del servidor manda sobre el estado', async () => {
+ const user=userEvent.setup()
+ await abrirMateriaConAlumnos(user, [
+  { ...fila(1, 'Ana', { calculada: 76, estado: 'APROBADO' }), desempeno: 'EN_RIESGO', motivos: ['CALIFICACION_LIMITE'] },
+  { ...fila(2, 'Beto', { calculada: 90, estado: 'APROBADO' }), desempeno: 'APROBADO', motivos: [] },
+ ])
+ expect(screen.getByRole('radio', { name: /En riesgo/ }).textContent).toBe('1En riesgo')
+ await user.click(screen.getByRole('radio', { name: /En riesgo/ }))
+ expect(screen.getAllByLabelText(/^Calificación de /).map((input) => input.getAttribute('aria-label').replace(/ en .*/, ''))).toEqual(['Calificación de Ana'])
+ expect(screen.getAllByText('En riesgo').length).toBeGreaterThan(0)
 })
 
 test('los filtros se leen de la URL y ocultan las columnas repetidas', async () => {

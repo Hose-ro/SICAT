@@ -14,6 +14,14 @@ import {
 import { PrismaService } from '../prisma.service';
 import { getCurrentAcademicPeriod } from '../common/periodo.util';
 import { asegurarAccesoMateria } from '../common/materia-ownership';
+import {
+  CALIFICACION_APROBATORIA,
+  CALIFICACION_SIN_RIESGO,
+  evaluarDesempeno,
+  type EstadoDesempeno,
+  type MotivoDesempeno,
+} from '../common/desempeno.util';
+import { MIN_REGISTROS_RIESGO, UMBRAL_RIESGO } from '../common/riesgo.util';
 import { GuardarCalificacionManualDto } from './dto/guardar-calificacion-manual.dto';
 import { GuardarCalificacionesLoteDto } from './dto/guardar-calificaciones-lote.dto';
 import { GuardarPonderacionDto } from './dto/guardar-ponderacion.dto';
@@ -21,6 +29,7 @@ import {
   calcularUnidad,
   cargarCriterios,
   esCriterioDeActividad,
+  type Criterio,
   type ListaCriterios,
 } from './criterios';
 
@@ -34,6 +43,40 @@ type CalificacionesFiltros = {
   grupoId?: number;
   unidadId?: number;
   docenteId?: number;
+};
+
+type CriterioColumna = Pick<
+  Criterio,
+  'clave' | 'id' | 'nombre' | 'tipo' | 'peso' | 'meta'
+>;
+
+/** Un alumno en el semáforo de la unidad (inicio del docente). */
+type DesempenoAlumno = {
+  alumno: {
+    id: number;
+    nombre: string;
+    numeroControl: string | null;
+    sexo: string | null;
+  };
+  calificacion: number | null;
+  calculada: number | null;
+  fuente: string;
+  asistencia: {
+    porcentaje: number | null;
+    registradas: number;
+    faltas: number;
+    retardos: number;
+  };
+  participacion: number;
+  criterios: Array<{
+    clave: string;
+    valor: number | null;
+    calificadas: number;
+    total: number;
+    puntos?: number;
+  }>;
+  desempeno: EstadoDesempeno;
+  motivos: MotivoDesempeno[];
 };
 
 /**
@@ -101,6 +144,133 @@ export class CalificacionesService {
         validarDocente: true,
       },
     );
+  }
+
+  /**
+   * Cómo va cada alumno de una clase en una unidad, para el inicio del
+   * docente. Sin unidad elegida se usa la que está en curso; si no hay, la
+   * última cerrada; si tampoco, la primera.
+   */
+  async obtenerDesempeno(
+    actor: Actor,
+    filtros: { materiaId: number; grupoId: number; unidadId?: number },
+  ) {
+    const materia = await this.obtenerMateria({
+      materiaId: filtros.materiaId,
+      unidadId: filtros.unidadId,
+    });
+    const unidades = materia.unidades.map(
+      ({ id, nombre, orden, status, fechaInicio, fechaFin }) => ({
+        id,
+        nombre,
+        orden,
+        status,
+        fechaInicio,
+        fechaFin,
+      }),
+    );
+    const unidad = filtros.unidadId
+      ? unidades.find((item) => item.id === filtros.unidadId)
+      : (unidades.find((item) => item.status === EstadoUnidad.ACTIVA) ??
+        [...unidades]
+          .reverse()
+          .find((item) => item.status === EstadoUnidad.FINALIZADA) ??
+        unidades[0]);
+    const umbrales = {
+      aprobatoria: CALIFICACION_APROBATORIA,
+      sinRiesgo: CALIFICACION_SIN_RIESGO,
+      asistencia: {
+        minRegistros: MIN_REGISTROS_RIESGO,
+        porcentaje: Math.round(UMBRAL_RIESGO * 100),
+      },
+    };
+
+    if (!unidad) {
+      await asegurarAccesoMateria(
+        this.prisma,
+        actor,
+        filtros.materiaId,
+        filtros.grupoId,
+      );
+      return {
+        materia: {
+          id: materia.id,
+          nombre: materia.nombre,
+          clave: materia.clave,
+        },
+        grupo:
+          materia.grupos.find((item) => item.id === filtros.grupoId) ?? null,
+        unidad: null,
+        unidades,
+        criterios: [] as CriterioColumna[],
+        origenCriterios: null,
+        umbrales,
+        resumen: {
+          total: 0,
+          aprobados: 0,
+          enRiesgo: 0,
+          reprobados: 0,
+          sinCalificar: 0,
+        },
+        actividadesSinCriterio: 0,
+        alumnos: [] as DesempenoAlumno[],
+      };
+    }
+
+    const reporte = await this.construirReporte(
+      { ...filtros, unidadId: unidad.id },
+      { actor, validarDocente: true, materia },
+    );
+    const lista = reporte.criteriosUnidad ?? reporte.criterios;
+    const conteo = reporte.metrics.desempeno;
+    return {
+      materia: reporte.materia,
+      grupo: reporte.grupoSeleccionado,
+      unidad,
+      unidades,
+      criterios: lista.criterios.map(
+        ({ clave, id, nombre, tipo, peso, meta }): CriterioColumna => ({
+          clave,
+          id,
+          nombre,
+          tipo,
+          peso,
+          meta,
+        }),
+      ),
+      origenCriterios: lista.origen,
+      umbrales,
+      resumen: { total: reporte.rows.length, ...conteo },
+      actividadesSinCriterio: reporte.tareasSinCategoria,
+      alumnos: reporte.rows.map(
+        (row): DesempenoAlumno => ({
+          alumno: row.alumno,
+          calificacion: row.calificacionFinal,
+          calculada: row.calificacionCalculada,
+          fuente: row.fuenteCalificacion,
+          asistencia: {
+            porcentaje: row.asistencia.registradas
+              ? row.asistencia.porcentaje
+              : null,
+            registradas: row.asistencia.registradas,
+            faltas: row.asistencia.faltas,
+            retardos: row.asistencia.retardos,
+          },
+          participacion: row.participacion,
+          criterios: row.criterios.map(
+            ({ clave, valor, calificadas, total, puntos }) => ({
+              clave,
+              valor,
+              calificadas,
+              total,
+              ...(puntos !== undefined ? { puntos } : {}),
+            }),
+          ),
+          desempeno: row.desempeno,
+          motivos: row.motivos,
+        }),
+      ),
+    };
   }
 
   async obtenerReporteAlumno(
@@ -363,9 +533,11 @@ export class CalificacionesService {
       actor?: Actor;
       alumnoId?: number;
       validarDocente: boolean;
+      /** La materia ya cargada, para no pedirla dos veces. */
+      materia?: Awaited<ReturnType<CalificacionesService['obtenerMateria']>>;
     },
   ) {
-    const materia = await this.obtenerMateria(filtros);
+    const materia = options.materia ?? (await this.obtenerMateria(filtros));
     if (options.validarDocente) {
       await asegurarAccesoMateria(
         this.prisma,
@@ -487,30 +659,24 @@ export class CalificacionesService {
       ),
     );
 
-    // Participación: informativa, se muestra junto a la nota pero no la mueve.
-    const participaciones = sesiones.length
-      ? await this.prisma.participacion.findMany({
-          where: {
-            claseSesionId: { in: sesiones.map((sesion) => sesion.id) },
-            ...(alumnoIds.length ? { alumnoId: { in: alumnoIds } } : {}),
-          },
-          select: { alumnoId: true, claseSesionId: true, puntos: true },
-        })
-      : [];
-
-    const asistencias = sesiones.length
-      ? await this.prisma.asistencia.findMany({
-          where: {
-            claseSesionId: { in: sesiones.map((sesion) => sesion.id) },
-            ...(alumnoIds.length ? { alumnoId: { in: alumnoIds } } : {}),
-          },
-          select: {
-            alumnoId: true,
-            claseSesionId: true,
-            estado: true,
-          },
-        })
-      : [];
+    // Participación: cuenta sólo si el grupo la tiene como criterio; si no,
+    // se muestra junto a la nota pero no la mueve.
+    const filtroSesiones = {
+      claseSesionId: { in: sesiones.map((sesion) => sesion.id) },
+      ...(alumnoIds.length ? { alumnoId: { in: alumnoIds } } : {}),
+    };
+    const [participaciones, asistencias] = sesiones.length
+      ? await Promise.all([
+          this.prisma.participacion.findMany({
+            where: filtroSesiones,
+            select: { alumnoId: true, claseSesionId: true, puntos: true },
+          }),
+          this.prisma.asistencia.findMany({
+            where: filtroSesiones,
+            select: { alumnoId: true, claseSesionId: true, estado: true },
+          }),
+        ])
+      : [[], []];
 
     const asistenciasPorSesionAlumno = new Map(
       asistencias.map((asistencia) => [
@@ -611,6 +777,11 @@ export class CalificacionesService {
             ? calificacionGuardada.calificacionManual
             : null;
         const calificacionFinal = calificacionManual ?? calificacionCalculada;
+        const desempeno = evaluarDesempeno({
+          calificacion: calificacionFinal,
+          unidadFinalizada: unidad.status === EstadoUnidad.FINALIZADA,
+          asistencia,
+        });
         const observacionManual =
           calificacionGuardada?.observacion?.trim() || null;
         const observacionesEntregas = entregasAlumno
@@ -675,6 +846,8 @@ export class CalificacionesService {
           ),
           origenCriterios: listaAlumno.origen,
           estado: this.obtenerEstadoCalificacion(calificacionFinal),
+          desempeno: desempeno.estado,
+          motivos: desempeno.motivos,
           tareas: tareasResumen,
           asistencia,
           participacion,
@@ -707,6 +880,11 @@ export class CalificacionesService {
       filters: filtros,
       ponderacion: ponderacionLegada(criteriosBase),
       criterios: criteriosBase,
+      // Con una sola unidad, la lista que rige en ella (puede ser la suya).
+      criteriosUnidad:
+        filtros.unidadId && unidades[0]?.id != null
+          ? resolverCriterios(filtros.grupoId, unidades[0].id)
+          : null,
       categorias: catalogo.filter((item) => esCriterioDeActividad(item.tipo)),
       tareasSinCategoria: tareasSinCategoria.size,
       metrics: this.calcularMetricas(rows, unidades.length),
@@ -1008,6 +1186,13 @@ export class CalificacionesService {
       requiereAtencion: rows.filter((row) => row.estado === 'REQUIERE_ATENCION')
         .length,
       pendientes: rows.filter((row) => row.estado === 'PENDIENTE').length,
+      desempeno: {
+        aprobados: rows.filter((row) => row.desempeno === 'APROBADO').length,
+        enRiesgo: rows.filter((row) => row.desempeno === 'EN_RIESGO').length,
+        reprobados: rows.filter((row) => row.desempeno === 'REPROBADO').length,
+        sinCalificar: rows.filter((row) => row.desempeno === 'SIN_CALIFICAR')
+          .length,
+      },
       promedioGeneral: calificaciones.length
         ? Number(
             (
