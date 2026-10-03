@@ -13,7 +13,10 @@ import { useTareaStore } from '@/store/tareaStore'
 import { MenuAcciones, Segmentado } from './components/tareas/Controles'
 import UnidadTareas from './components/tareas/UnidadTareas'
 import ImportarTareasDialog from './components/tareas/ImportarTareasDialog'
+import MenuNuevaActividad from './components/tareas/MenuNuevaActividad'
 import useAccionesTarea from './components/tareas/useAccionesTarea'
+import CriteriosModal from '@/components/calificaciones/CriteriosModal'
+import useCriterios from '@/hooks/useCriterios'
 
 function normalizar(texto) {
   return String(texto || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
@@ -59,6 +62,8 @@ export default function TareasDocente() {
   const [busqueda, setBusqueda] = useState('')
   const [procesando, setProcesando] = useState(null)
   const [importarAbierto, setImportarAbierto] = useState(false)
+  // Editor de criterios abierto desde "Nueva actividad", con la plantilla elegida.
+  const [criteriosAbierto, setCriteriosAbierto] = useState(null)
   const pestanasRef = useRef([])
 
   const cargarMaterias = useCallback(() => api.get('/materias/mis-materias')
@@ -99,6 +104,8 @@ export default function TareasDocente() {
     ?? null
   const visibles = tareasMateria.filter((t) => !grupo || !t.grupoId || t.grupoId === grupo.id)
   const alumnosGrupo = visibles.find((t) => t.totalAlumnos)?.totalAlumnos
+  // Los tipos de actividad son los criterios de evaluación del grupo.
+  const criterios = useCriterios(materia?.id, grupo?.id)
 
   const totalPendientes = porCalificarDe(tareas)
   const presencialesHoy = tareas.filter((t) => t.tipoEntrega === 'PRESENCIAL' && t.estado === 'PUBLICADA' && plazoTarea(t).dias === 0)
@@ -156,6 +163,7 @@ export default function TareasDocente() {
         grupoId: grupo.id,
         unidadId: unidad?.id,
         tipoEntrega: datos.tipoEntrega,
+        ...(datos.categoriaId ? { categoriaId: datos.categoriaId } : {}),
         tipoEvaluacion: 'DIRECTA',
         permiteReenvio: false,
         tieneFechaLimite: Boolean(datos.fechaLimite),
@@ -313,13 +321,14 @@ export default function TareasDocente() {
                   ultimo={indice === bloques.length - 1} forzarAbierta={Boolean(needle)} puedeCrear={Boolean(grupo)}
                   formularioCompleto={`${nuevaTarea}${bloque.unidad ? `${nuevaTarea.includes('?') ? '&' : '?'}unidadId=${bloque.unidad.id}` : ''}`}
                   procesando={procesando} menuTarea={menuTarea} onPublicar={publicar} onCrearBorrador={crearBorrador}
-                  onCerrarUnidad={cerrarUnidad} onReporte={reporte} />
+                  onCerrarUnidad={cerrarUnidad} onReporte={reporte}
+                  criterios={criterios.datos} onConfigurarCriterios={(plantilla) => setCriteriosAbierto({ plantilla })} />
               ))}
             </ol>
           ) : (
             <div className="mt-5 rounded-[var(--radius-card)] border border-dashed border-border px-6 py-10 text-center">
               <p className="text-sm font-medium text-foreground">{needle ? 'Ninguna tarea coincide con la búsqueda.' : 'Esta materia todavía no tiene unidades ni tareas.'}</p>
-              {!needle && <p className="mt-1 text-sm text-muted-foreground">Crea la primera con «Nueva tarea».</p>}
+              {!needle && <p className="mt-1 text-sm text-muted-foreground">Crea la primera con «Nueva actividad».</p>}
             </div>
           )}
         </section>
@@ -336,7 +345,7 @@ export default function TareasDocente() {
             {cargando ? 'Revisando tus entregas…' : totalPendientes
               ? <><span className="font-medium text-foreground tabular-nums">{totalPendientes}</span> {totalPendientes === 1 ? 'entrega por calificar' : 'entregas por calificar'}</>
               : 'Nada por calificar por ahora'}
-            {!cargando && presencialesHoy.length > 0 && <> · {presencialesHoy.length} {presencialesHoy.length === 1 ? 'entrega presencial' : 'entregas presenciales'} hoy</>}
+            {!cargando && presencialesHoy.length > 0 && <> · {presencialesHoy.length} {presencialesHoy.length === 1 ? 'actividad en clase' : 'actividades en clase'} hoy</>}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -349,10 +358,23 @@ export default function TareasDocente() {
                 { label: `PDF · ${materia.nombre}${nombreGrupo}`, icon: FileDown, onSelect: () => reporte('pdf', { materiaId: materia.id, grupoId: grupo?.id }) },
               ]} />
           )}
-          <Link to={nuevaTarea} className={cn(buttonVariants(), 'h-9 px-3')}><Plus aria-hidden="true" />Nueva tarea</Link>
+          {grupo && criterios.datos ? (
+            <MenuNuevaActividad datos={criterios.datos}
+              className={cn(buttonVariants(), 'size-auto h-9 gap-1.5 px-3 text-primary-foreground hover:bg-primary-strong hover:text-primary-foreground aria-expanded:bg-primary-strong aria-expanded:text-primary-foreground')}
+              onElegir={(criterio) => navigate(criterio ? `${nuevaTarea}&categoriaId=${criterio.id}` : nuevaTarea)}
+              onConfigurar={(plantilla) => setCriteriosAbierto({ plantilla })} />
+          ) : (
+            <Link to={nuevaTarea} className={cn(buttonVariants(), 'h-9 px-3')}><Plus aria-hidden="true" />Nueva actividad</Link>
+          )}
         </div>
       </header>
       {contenido}
+      {materia && grupo && (
+        <CriteriosModal open={Boolean(criteriosAbierto)} onClose={() => setCriteriosAbierto(null)}
+          materiaId={materia.id} grupo={grupo} materiaNombre={materia.nombre}
+          plantillaInicial={criteriosAbierto?.plantilla ?? undefined}
+          onGuardado={() => { criterios.recargar(); cargarTareas() }} />
+      )}
       {importarAbierto && materia && grupo && (
         <ImportarTareasDialog open onClose={() => setImportarAbierto(false)} materia={materia} grupo={grupo} onImportadas={onImportadas} />
       )}

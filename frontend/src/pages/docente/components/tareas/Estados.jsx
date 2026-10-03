@@ -1,6 +1,6 @@
 import { Check, CheckCheck, CircleDashed, Clock3, Undo2 } from 'lucide-react'
 import { Chip } from '@/components/Chip'
-import { ESTADO_DOCENTE_LABEL, TASK_STATE_LABEL } from '@/lib/tareas'
+import { TASK_STATE_LABEL, etiquetaEstadoDocente } from '@/lib/tareas'
 
 export { Chip }
 
@@ -9,7 +9,7 @@ const ICONO_ENTREGA = { ENTREGADA: Clock3, REVISADA: CheckCheck, CALIFICADA: Che
 const TONO_TAREA = { BORRADOR: 'muted', PUBLICADA: 'success', VENCIDA: 'warning', CERRADA: 'neutral' }
 
 /** Estado de una entrega desde el punto de vista del docente; `estado` viene de estadoDocente(). */
-export function EstadoEntregaChip({ estado, entrega, className }) {
+export function EstadoEntregaChip({ estado, entrega, tarea, className }) {
   const Icon = ICONO_ENTREGA[estado] ?? CircleDashed
   const nota = estado === 'CALIFICADA' && typeof entrega?.calificacion === 'number' ? entrega.calificacion : null
   const tipo = estado === 'CALIFICADA' && entrega?.calificacionTipo && entrega.calificacionTipo !== 'NUMERICA'
@@ -18,7 +18,7 @@ export function EstadoEntregaChip({ estado, entrega, className }) {
   return (
     <Chip tone={TONO_ENTREGA[estado] ?? 'muted'} className={className}>
       <Icon className="size-3.5" aria-hidden="true" />
-      {ESTADO_DOCENTE_LABEL[estado] ?? estado}
+      {etiquetaEstadoDocente(estado, tarea)}
       {nota !== null && <span className="font-semibold tabular-nums">· {nota}</span>}
       {tipo && <span>· {tipo}</span>}
     </Chip>

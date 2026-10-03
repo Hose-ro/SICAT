@@ -129,21 +129,28 @@ export class CalificacionesController {
     return this.criteriosService.guardar(req.user, dto);
   }
 
-  /** La unidad deja sus porcentajes propios y vuelve a los de todas. */
+  /**
+   * Con unidad, ésta deja sus porcentajes propios y vuelve a los de todas; sin
+   * unidad, el grupo vuelve a la ponderación predeterminada.
+   */
   @Delete('criterios')
   @Roles('DOCENTE', 'ADMIN')
-  quitarCriteriosUnidad(
+  quitarCriterios(
     @Req() req: AuthenticatedRequest,
     @Query('materiaId') materiaId?: string,
     @Query('grupoId') grupoId?: string,
     @Query('unidadId') unidadId?: string,
   ) {
-    return this.criteriosService.quitarUnidad(
-      req.user,
-      idRequerido(materiaId, 'La materia es obligatoria'),
-      idRequerido(grupoId, 'El grupo es obligatorio'),
-      idRequerido(unidadId, 'La unidad es obligatoria'),
-    );
+    const materia = idRequerido(materiaId, 'La materia es obligatoria');
+    const grupo = idRequerido(grupoId, 'El grupo es obligatorio');
+    return unidadId
+      ? this.criteriosService.quitarUnidad(
+          req.user,
+          materia,
+          grupo,
+          idRequerido(unidadId, 'La unidad no es válida'),
+        )
+      : this.criteriosService.quitarTodos(req.user, materia, grupo);
   }
 
   @Get('alumno')

@@ -5,6 +5,7 @@ import {
   EstadoTarea,
   Rol,
   TipoNotificacion,
+  TipoEntrega,
 } from '@prisma/client';
 import { getCurrentAcademicPeriod } from '../common/periodo.util';
 
@@ -67,6 +68,12 @@ export class NotificacionesService {
     return this.prisma.notificacion.createMany({
       data: ids.map((usuarioId) => ({ ...data, usuarioId })),
     });
+  }
+
+  /** Varias notificaciones distintas (p. ej. una calificación por alumno). */
+  async crearVarias(items: CrearNotificacionDto[]) {
+    if (!items.length) return;
+    return this.prisma.notificacion.createMany({ data: items });
   }
 
   async crearParaAdmins(
@@ -186,6 +193,8 @@ export class NotificacionesService {
       where: {
         activa: true,
         estado: EstadoTarea.PUBLICADA,
+        // Lo que se aplica o se entrega en clase no "vence": no se recuerda.
+        tipoEntrega: { not: TipoEntrega.PRESENCIAL },
         tieneFechaLimite: true,
         fechaLimite: {
           gte: ahora,

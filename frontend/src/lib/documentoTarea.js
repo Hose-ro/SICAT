@@ -1,4 +1,4 @@
-import { parseRubrica, TASK_TYPE_LABEL } from './tareas'
+import { esEnClase, parseRubrica, TASK_TYPE_LABEL, tipoActividad } from './tareas'
 import { sanitizarNombreArchivo } from './nombreArchivo'
 
 /**
@@ -30,8 +30,11 @@ export function contenidoTarea(tarea, { docente } = {}) {
     ['Docente', docente ?? ''],
     ['Unidad', unidad],
     ['Publicada', tarea.fechaPublicacion ? fechaLarga(tarea.fechaPublicacion) : ''],
-    ['Fecha límite', tarea.tieneFechaLimite && tarea.fechaLimite ? fechaLarga(tarea.fechaLimite) : 'Sin fecha límite'],
-    ['Entrega', [TASK_TYPE_LABEL[tarea.tipoEntrega], tarea.permiteReenvio ? 'se puede reenviar' : ''].filter(Boolean).join(' · ')],
+    ['Tipo', tipoActividad(tarea).singular],
+    esEnClase(tarea)
+      ? ['Fecha de aplicación', tarea.tieneFechaLimite && tarea.fechaLimite ? fechaLarga(tarea.fechaLimite) : 'Por confirmar']
+      : ['Fecha límite', tarea.tieneFechaLimite && tarea.fechaLimite ? fechaLarga(tarea.fechaLimite) : 'Sin fecha límite'],
+    ['Entrega', esEnClase(tarea) ? 'En clase: no se sube nada' : [TASK_TYPE_LABEL[tarea.tipoEntrega], tarea.permiteReenvio ? 'se puede reenviar' : ''].filter(Boolean).join(' · ')],
   ].filter(([, valor]) => valor)
   return {
     titulo: tarea.titulo,
@@ -43,8 +46,10 @@ export function contenidoTarea(tarea, { docente } = {}) {
 }
 
 export function nombreDocumentoTarea(tarea, formato) {
-  const partes = ['Tarea', tarea.titulo, tarea.grupo?.nombre].filter(Boolean).join(' - ')
-  return `${sanitizarNombreArchivo(partes, 'Tarea')}.${formato}`
+  // "Examen - Parcial 1 - 806A.pdf": el tipo va primero (sin criterio, "Tarea").
+  const tipo = tipoActividad(tarea).singular
+  const partes = [tipo, tarea.titulo, tarea.grupo?.nombre].filter(Boolean).join(' - ')
+  return `${sanitizarNombreArchivo(partes, tipo)}.${formato}`
 }
 
 // Las fuentes estándar de jsPDF solo traen WinAnsi: acentos, ñ, comillas y

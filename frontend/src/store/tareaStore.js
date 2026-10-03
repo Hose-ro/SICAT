@@ -231,6 +231,14 @@ export const useTareaStore = create((set, get) => ({
     return res.data
   },
 
+  // Captura en lista de una actividad en clase. Cada fila: { alumnoId,
+  // calificacion?: número | null, noPresento?, observacion? }. Devuelve las
+  // entregas actualizadas (forma de GET /tareas/:id/entregas).
+  capturarCalificaciones: async (tareaId, calificaciones) => {
+    const res = await api.put(`/tareas/${tareaId}/calificaciones`, { calificaciones })
+    return res.data
+  },
+
   // Sin alumnoIds recuerda a todos los que aún no entregan. Devuelve { enviados, omitidos }.
   recordar: async (tareaId, alumnoIds) => {
     const res = await api.post(`/tareas/${tareaId}/recordatorio`, alumnoIds?.length ? { alumnoIds } : {})

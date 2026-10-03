@@ -7,7 +7,7 @@ import { useTareaStore } from '../../store/tareaStore'
 
 import TaskCriteria from '../../components/TaskCriteria'
 import TaskNotice from '../../components/TaskNotice'
-import { DELIVERY_STATE_LABEL, deliveryHelp, taskFileUrl } from '../../lib/tareas'
+import { deliveryHelp, esEnClase, etiquetaEstadoAlumno, taskFileUrl } from '../../lib/tareas'
 
 const STATE_CLASS = {
   PENDIENTE: 'bg-muted text-foreground',
@@ -63,7 +63,7 @@ export default function TareaDetalleAlumno() {
           <div className="space-y-3">
             <div className="flex flex-wrap gap-2">
               <span className={`rounded-full px-3 py-1 text-xs font-semibold ${STATE_CLASS[estadoAlumno] || 'task-hero-badge'}`}>
-                {DELIVERY_STATE_LABEL[estadoAlumno] || estadoAlumno}
+                {etiquetaEstadoAlumno(estadoAlumno, tareaActiva, Boolean(miEntrega))}
               </span>
               {miEntrega?.fueTardia && (
                 <span className="rounded-full border border-warning/30 bg-warning/10 px-3 py-1 text-xs font-semibold text-foreground">
@@ -181,10 +181,12 @@ export default function TareaDetalleAlumno() {
 
         <section className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-foreground">
-            {miEntrega ? 'Actualizar entrega' : 'Entregar tarea'}
+            {esEnClase(tareaActiva) ? 'Se aplica en clase' : miEntrega ? 'Actualizar entrega' : 'Entregar tarea'}
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Sube múltiples archivos, conserva evidencia existente o remueve archivos antes de reenviar.
+            {esEnClase(tareaActiva)
+              ? 'No necesitas subir nada: tu docente captura la calificación después de la clase.'
+              : 'Sube múltiples archivos, conserva evidencia existente o remueve archivos antes de reenviar.'}
           </p>
           <div className="mt-5">
             <FormEntregaTarea

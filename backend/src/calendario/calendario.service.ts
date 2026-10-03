@@ -3,6 +3,7 @@ import {
   EstadoTarea,
   ModalidadGrupo,
   Prisma,
+  TipoEntrega,
   TipoTokenAuth,
 } from '@prisma/client';
 import { createHash, randomBytes } from 'crypto';
@@ -19,6 +20,14 @@ const ESTADOS_TAREA_VISIBLE: EstadoTarea[] = [
   EstadoTarea.PUBLICADA,
   EstadoTarea.VENCIDA,
 ];
+
+/** Cómo se anuncia en el calendario cada tipo de actividad (si no, "Entrega"). */
+const ACTIVIDAD_EN_CALENDARIO: Record<string, string> = {
+  EXAMEN: 'Examen',
+  PROYECTO: 'Proyecto',
+  PRACTICAS: 'Práctica',
+  EXPOSICION: 'Exposición',
+};
 
 const HORARIO_SELECT = {
   id: true,
@@ -204,10 +213,12 @@ export class CalendarioService {
         const p = partesEnZona(tarea.fechaLimite as Date);
         const hora =
           tarea.horaLimite ?? `${dosDigitos(p.hour)}:${dosDigitos(p.minute)}`;
+        const enClase = tarea.tipoEntrega === TipoEntrega.PRESENCIAL;
+        const tipo = ACTIVIDAD_EN_CALENDARIO[tarea.categoria?.tipo ?? ''];
         return {
           uid: `tarea-${tarea.id}@sicat`,
-          resumen: `Entrega: ${tarea.titulo}`,
-          descripcion: `${tarea.materia.nombre}${tarea.grupo ? ` · ${tarea.grupo.nombre}` : ''}. Hora límite ${hora}.`,
+          resumen: `${tipo ?? (enClase ? 'En clase' : 'Entrega')}: ${tarea.titulo}`,
+          descripcion: `${tarea.materia.nombre}${tarea.grupo ? ` · ${tarea.grupo.nombre}` : ''}. ${enClase ? `Se aplica en clase, ${hora}.` : `Hora límite ${hora}.`}`,
           fecha: `${p.year}-${dosDigitos(p.month)}-${dosDigitos(p.day)}`,
         };
       }),
@@ -243,6 +254,8 @@ export class CalendarioService {
         titulo: true,
         fechaLimite: true,
         horaLimite: true,
+        tipoEntrega: true,
+        categoria: { select: { tipo: true } },
         materia: { select: { nombre: true } },
         grupo: { select: { nombre: true } },
       },
@@ -278,6 +291,8 @@ export class CalendarioService {
         titulo: true,
         fechaLimite: true,
         horaLimite: true,
+        tipoEntrega: true,
+        categoria: { select: { tipo: true } },
         materia: { select: { nombre: true } },
         grupo: { select: { nombre: true } },
       },

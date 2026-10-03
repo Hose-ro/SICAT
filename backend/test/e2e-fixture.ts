@@ -145,6 +145,8 @@ async function up() {
         carreraId: carrera.id,
         activo: true,
         registroAprobado: true,
+        // Ya eligieron su contraseña: los alumnos no tienen que activar con código.
+        activadoAt: new Date(),
       },
     });
   const docente = await usuario({

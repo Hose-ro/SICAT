@@ -99,8 +99,10 @@ export const useCalificacionStore = create((set) => ({
     return response.data
   },
 
-  quitarCriteriosUnidad: async ({ materiaId, grupoId, unidadId }) => {
-    const response = await api.delete('/calificaciones/criterios', { params: { materiaId, grupoId, unidadId } })
+  // Con unidad, ésta vuelve a los criterios de todas; sin unidad, el grupo
+  // vuelve a la ponderación predeterminada.
+  quitarCriterios: async ({ materiaId, grupoId, unidadId }) => {
+    const response = await api.delete('/calificaciones/criterios', { params: { materiaId, grupoId, ...(unidadId ? { unidadId } : {}) } })
     return response.data
   },
 

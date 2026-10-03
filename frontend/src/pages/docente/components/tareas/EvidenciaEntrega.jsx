@@ -89,7 +89,7 @@ export default function EvidenciaEntrega({ tarea, fila, posicion, total, onMover
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-2 text-[13px] text-muted-foreground">
-        <EstadoEntregaChip estado={estado} entrega={entrega} />
+        <EstadoEntregaChip estado={estado} entrega={entrega} tarea={tarea} />
         {!entrega.esSintetica && entrega.fechaEntrega && <span className="tabular-nums">Entregó {fechaHoraCorta(entrega.fechaEntrega)}</span>}
         {entrega.fueTardia && <Chip tone="warning">Tardía</Chip>}
         {entrega.versionEntrega > 1 && <span>· Versión {entrega.versionEntrega}</span>}

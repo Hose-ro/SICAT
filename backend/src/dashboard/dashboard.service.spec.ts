@@ -92,6 +92,44 @@ describe('DashboardService.obtenerRiesgoDocente', () => {
     });
   });
 
+  it('una actividad en clase sólo cuenta como pendiente si el alumno no presentó', async () => {
+    tareaFindMany.mockResolvedValue([
+      // Examen en clase todavía sin calificar: no es culpa del alumno.
+      {
+        id: 4,
+        materiaId: 12,
+        grupoId: 3,
+        tipoEntrega: 'PRESENCIAL',
+        entregas: [],
+      },
+      // Exposición en la que quedó registrado que no presentó.
+      {
+        id: 5,
+        materiaId: 12,
+        grupoId: 3,
+        tipoEntrega: 'PRESENCIAL',
+        entregas: [{ alumnoId: 500, estadoRevision: 'NO_ENTREGADA' }],
+      },
+      {
+        id: 6,
+        materiaId: 12,
+        grupoId: 3,
+        tipoEntrega: 'EN_LINEA',
+        entregas: [],
+      },
+    ]);
+    asistenciaFindMany.mockResolvedValue([
+      registro(ana, FALTA, 1),
+      registro(ana, FALTA, 2),
+      registro(ana, ASISTENCIA, 3),
+    ]);
+    const { alumnos } = await service.obtenerRiesgoDocente(31);
+    expect(alumnos[0]).toMatchObject({
+      tareasVencidas: 3,
+      tareasSinEntregar: 2,
+    });
+  });
+
   it('filtra por el periodo en curso y no consulta lo demás si nadie está en riesgo', async () => {
     asistenciaFindMany.mockResolvedValue([registro(beto, ASISTENCIA, 1)]);
     const resultado = await service.obtenerRiesgoDocente(31, {

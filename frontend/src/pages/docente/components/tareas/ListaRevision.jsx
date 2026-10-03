@@ -8,12 +8,13 @@ import { Kbd } from './Estados'
 import { Segmentado } from './Controles'
 import TiraEntregas from './TiraEntregas'
 
-function Linea({ fila }) {
+function Linea({ fila, presencial }) {
   const { entrega, estado } = fila
   if (estado === 'ENTREGADA') return <>Entregó {fechaCorta(entrega.fechaEntrega)}, {horaCorta(entrega.fechaEntrega)}{entrega.fueTardia && ' · tardía'}</>
   if (estado === 'CALIFICADA') return <>Calificada{entrega.fueTardia && ' · tardía'}</>
   if (estado === 'REVISADA') return 'Revisada'
   if (estado === 'INCORRECTA') return entrega.permiteCorreccion ? 'Devuelta para corregir' : 'Devuelta'
+  if (presencial) return estado === 'NO_ENTREGADA' ? 'No presentó · 0' : 'Sin calificar'
   return estado === 'NO_ENTREGADA' ? 'Sin entregar' : 'Aún no entrega'
 }
 
@@ -46,9 +47,9 @@ export default function ListaRevision({
     <aside aria-label="Alumnos del grupo" className="rounded-[var(--radius-card)] border border-border bg-card @min-[40rem]:col-span-2 @min-[56rem]:sticky @min-[56rem]:top-4 @min-[56rem]:col-span-1">
       <div className="border-b border-border p-4">
         <p className="text-sm font-medium text-foreground tabular-nums">
-          {presencial ? `${r.entregadas} de ${r.total} entregaron` : `${r.calificadas + r.revisadas} de ${r.entregadas} revisadas`}
+          {presencial ? `${r.calificadas + r.noPresentaron} de ${r.total} calificados` : `${r.calificadas + r.revisadas} de ${r.entregadas} revisadas`}
         </p>
-        <TiraEntregas filas={filas} ajustar className="mt-3" />
+        <TiraEntregas filas={filas} enClase={presencial} ajustar className="mt-3" />
         <Segmentado apilado className="mt-3 w-full" label="Filtrar alumnos" value={filtro} onChange={onFiltro} options={[
           { value: 'ENTREGADA', label: 'Por calificar', count: r.porCalificar, tono: r.porCalificar ? 'text-warning-foreground' : undefined },
           { value: 'TODAS', label: 'Todos', count: r.total },
@@ -87,7 +88,7 @@ export default function ListaRevision({
                 <SexoBadge sexo={fila.alumno.sexo} />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[13px] font-medium text-foreground">{fila.alumno.nombre}</span>
-                  <span className="block truncate text-xs text-muted-foreground"><Linea fila={fila} /></span>
+                  <span className="block truncate text-xs text-muted-foreground"><Linea fila={fila} presencial={presencial} /></span>
                 </span>
                 <Marca fila={fila} guardando={guardando[fila.alumno.id]} reciente={reciente?.alumnoId === fila.alumno.id ? reciente.seq : null} />
               </button>

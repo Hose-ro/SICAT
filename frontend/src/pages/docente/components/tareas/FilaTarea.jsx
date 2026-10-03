@@ -3,6 +3,7 @@ import { FileUp, MessageSquareText, Presentation, Signature } from 'lucide-react
 import { Button } from '@/components/ui/button'
 import { buttonVariants } from '@/components/ui/buttonVariants'
 import { cn } from '@/lib/utils'
+import { criteriosDeActividad, tipoCriterio } from '@/lib/criterios'
 import { TASK_TYPE_LABEL, conteoTarea, plazoTarea } from '@/lib/tareas'
 import { Chip } from './Estados'
 import { MenuAcciones } from './Controles'
@@ -10,9 +11,14 @@ import TiraEntregas from './TiraEntregas'
 
 const ICONO_TIPO = { EN_LINEA: FileUp, PRESENCIAL: Presentation, FIRMA: Signature, REVISION_EN_LINEA: MessageSquareText }
 
-/** Una tarea dentro de su unidad: título, plazo, quién falta y una sola acción principal. */
-export default function FilaTarea({ tarea, items, publicando, onPublicar }) {
-  const Icon = ICONO_TIPO[tarea.tipoEntrega] ?? FileUp
+/** Una actividad dentro de su unidad: título, plazo, quién falta y una sola acción principal. */
+export default function FilaTarea({ tarea, items, publicando, onPublicar, criterios }) {
+  // El ícono dice qué es (examen, práctica…); sin criterio, cómo se entrega.
+  const Icon = tarea.categoria?.tipo ? tipoCriterio(tarea.categoria.tipo).icono : ICONO_TIPO[tarea.tipoEntrega] ?? FileUp
+  // Con criterios propios, una actividad sin criterio válido en su unidad no cuenta.
+  const lista = criterios?.base?.origen === 'GRUPO' ? criteriosDeActividad(criterios, tarea.unidadId) : null
+  const criterio = lista?.find((item) => item.id === tarea.categoriaId)
+  const noCuenta = Boolean(lista) && !criterio
   const p = plazoTarea(tarea)
   const r = conteoTarea(tarea)
   const borrador = tarea.estado === 'BORRADOR'
@@ -30,16 +36,20 @@ export default function FilaTarea({ tarea, items, publicando, onPublicar }) {
         Calificar<span className="rounded-full bg-warning/20 px-1.5 text-xs font-semibold tabular-nums text-warning-foreground">{r.porCalificar}</span>
       </Link>
     )
-  } else if (presencial && !vencida) {
-    accion = <Link to={sesion} className={buttonVariants({ variant: 'outline' })}>Registrar entregas</Link>
+  } else if (presencial && !cerrada) {
+    accion = <Link to={sesion} className={buttonVariants({ variant: 'outline' })}>Capturar calificaciones</Link>
   } else {
     accion = <Link to={sesion} className={cn(buttonVariants({ variant: 'ghost' }), 'text-muted-foreground')}>Ver entregas</Link>
   }
 
   let detalle
   if (borrador) detalle = <>Sin publicar · se asignará a {r.total} {r.total === 1 ? 'alumno' : 'alumnos'}</>
-  else if (presencial && !vencida && r.entregadas === 0) detalle = 'Se registra en clase'
-  else {
+  else if (presencial) {
+    const capturadas = r.calificadas + r.noPresentaron
+    detalle = capturadas
+      ? <><span className="font-medium text-foreground tabular-nums">{capturadas} de {r.total}</span> calificados{r.noPresentaron > 0 && <> · {r.noPresentaron} no {r.noPresentaron === 1 ? 'presentó' : 'presentaron'}</>}</>
+      : 'Se califica en la lista después de la clase'
+  } else {
     detalle = (
       <>
         <span className="font-medium text-foreground tabular-nums">{r.entregadas} de {r.total}</span>
@@ -61,8 +71,9 @@ export default function FilaTarea({ tarea, items, publicando, onPublicar }) {
             </Link>
           </h4>
           <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[13px] text-muted-foreground">
+            {tarea.categoria?.nombre && <>{tarea.categoria.nombre}{criterio && ` ${criterio.peso} %`} · </>}
             {TASK_TYPE_LABEL[tarea.tipoEntrega] ?? tarea.tipoEntrega}{tarea.tipoEvaluacion === 'RUBRICA' && <> · Rúbrica</>}
-            {tarea.categoria?.nombre && <> · {tarea.categoria.nombre}</>}
+            {noCuenta && <Chip tone="warning" className="ml-1 h-5">No cuenta<span className="sr-only"> en la calificación: elige su tipo de actividad</span></Chip>}
             {borrador && <Chip tone="muted" className="ml-1 h-5">Borrador</Chip>}
             {cerrada && <Chip tone="neutral" className="ml-1 h-5">Cerrada</Chip>}
           </p>
@@ -87,7 +98,7 @@ export default function FilaTarea({ tarea, items, publicando, onPublicar }) {
           )}
         </div>
         <div className="min-w-0">
-          {!borrador && r.total > 0 && <TiraEntregas conteo={r} vencida={vencida} className="mb-1.5" />}
+          {!borrador && r.total > 0 && <TiraEntregas conteo={r} vencida={vencida} enClase={presencial} className="mb-1.5" />}
           <p className="text-xs text-muted-foreground">{detalle}</p>
         </div>
       </div>

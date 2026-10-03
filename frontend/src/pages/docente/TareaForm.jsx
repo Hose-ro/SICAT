@@ -9,7 +9,7 @@ import TaskNotice from '../../components/TaskNotice'
 import TaskRubric from '../../components/TaskRubric'
 import CriteriosModal from '@/components/calificaciones/CriteriosModal'
 import useCriterios from '@/hooks/useCriterios'
-import { criteriosDeActividad } from '@/lib/criterios'
+import { criteriosDeActividad, tipoCriterio } from '@/lib/criterios'
 import { mergeTaskFiles, taskError, TASK_TYPE_HELP } from '../../lib/tareas'
 
 const DEFAULT_FORM = {
@@ -48,6 +48,8 @@ export default function TareaForm() {
   const queryMateriaId = searchParams.get('materiaId')
   const queryGrupoId = searchParams.get('grupoId')
   const queryUnidadId = searchParams.get('unidadId')
+  // "Nueva actividad ▸ Examen" llega con el criterio ya elegido.
+  const queryCategoriaId = searchParams.get('categoriaId')
   const isEditing = Boolean(editId)
 
   const { crear, editar, obtenerDetalle, saving, error, clearError } = useTareaStore()
@@ -62,6 +64,7 @@ export default function TareaForm() {
     materiaId: queryMateriaId || '',
     grupoId: queryGrupoId || '',
     unidadId: queryUnidadId || '',
+    categoriaId: queryCategoriaId || '',
   })
   const [existingFiles, setExistingFiles] = useState([])
   const [removeFileIds, setRemoveFileIds] = useState([])
@@ -70,6 +73,9 @@ export default function TareaForm() {
   // Criterio que ya tenía la tarea, por si no está en la lista de su unidad.
   const [criterioGuardado, setCriterioGuardado] = useState(null)
   const [criteriosAbierto, setCriteriosAbierto] = useState(false)
+  // Mientras el docente no elija cómo se entrega, el tipo de actividad lo propone.
+  const [entregaTocada, setEntregaTocada] = useState(false)
+  const [sugerenciaDe, setSugerenciaDe] = useState('')
 
   useEffect(() => {
     clearError()
@@ -119,6 +125,12 @@ export default function TareaForm() {
     }
     return lista
   }, [criterios.datos, form.unidadId, form.categoriaId, criterioGuardado])
+  const criterioElegido = opcionesCriterio.find((criterio) => String(criterio.id) === String(form.categoriaId))
+  if (!isEditing && !entregaTocada && criterioElegido && sugerenciaDe !== form.categoriaId) {
+    setSugerenciaDe(form.categoriaId)
+    setForm((prev) => ({ ...prev, tipoEntrega: tipoCriterio(criterioElegido.tipo).entrega ?? prev.tipoEntrega }))
+  }
+  const enClase = form.tipoEntrega === 'PRESENCIAL'
 
   const selectedMateria = useMemo(
     () => materias.find((materia) => materia.id === Number(form.materiaId)),
@@ -127,6 +139,7 @@ export default function TareaForm() {
 
   const handleChange = (event) => {
     const { name, value, type, checked } = event.target
+    if (name === 'tipoEntrega') setEntregaTocada(true)
     setForm((prev) => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
@@ -152,7 +165,7 @@ export default function TareaForm() {
     if (saving || !loaded || !formRef.current.reportValidity()) return
     setLocalError('')
     if (!form.titulo.trim() || !form.instrucciones.trim()) {
-      setLocalError('Escribe un título y las instrucciones de la tarea.')
+      setLocalError(enClase ? 'Escribe el tema y lo que abarca.' : 'Escribe un título y las instrucciones de la tarea.')
       return
     }
     if (form.tipoEvaluacion === 'RUBRICA') {
@@ -208,10 +221,10 @@ export default function TareaForm() {
           <div className="max-w-2xl space-y-3">
             <div>
               <h1 className="text-3xl font-semibold tracking-tight">
-                {isEditing ? 'Editar tarea' : 'Nueva tarea'}
+                {isEditing ? 'Editar actividad' : 'Nueva actividad'}
               </h1>
               <p className="task-hero-subtitle mt-2 text-sm">
-                Configura la tarea por materia y grupo, define si tendrá fecha límite, sube adjuntos y decide si quedará en borrador o publicada.
+                Elige el grupo y el tipo de actividad (tarea, práctica, examen…), cómo se entrega y su fecha. Puede quedar en borrador o publicarse.
               </p>
             </div>
           </div>
@@ -228,24 +241,24 @@ export default function TareaForm() {
         <section className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
           <div className="grid gap-5">
             <div>
-              <label className="mb-2 block text-sm font-semibold text-foreground" htmlFor="task-title">Título *</label>
+              <label className="mb-2 block text-sm font-semibold text-foreground" htmlFor="task-title">{enClase ? 'Tema *' : 'Título *'}</label>
               <input
                 id="task-title" required maxLength={160} name="titulo"
                 value={form.titulo}
                 onChange={handleChange}
-                placeholder="Ej. Ensayo sobre arquitectura de software libre"
+                placeholder={enClase ? 'Ej. Examen parcial 1: sistemas de archivos' : 'Ej. Ensayo sobre arquitectura de software libre'}
                 className="w-full rounded-2xl border border-border px-4 py-3 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
               />
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-semibold text-foreground" htmlFor="task-instructions">Instrucciones *</label>
+              <label className="mb-2 block text-sm font-semibold text-foreground" htmlFor="task-instructions">{enClase ? 'Temas que abarca e indicaciones *' : 'Instrucciones *'}</label>
               <textarea
                 id="task-instructions" required maxLength={5000} name="instrucciones"
                 value={form.instrucciones}
                 onChange={handleChange}
                 rows={8}
-                placeholder="Describe la actividad, el criterio de evaluación y cualquier requisito de entrega."
+                placeholder={enClase ? 'Temas 2.1 a 2.4. Qué pueden llevar (calculadora, formulario) y cómo se califica.' : 'Describe la actividad, el criterio de evaluación y cualquier requisito de entrega.'}
                 className="w-full rounded-2xl border border-border px-4 py-3 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
               />
             </div>
@@ -428,15 +441,15 @@ export default function TareaForm() {
                   className="mt-1"
                 />
                 <div>
-                  <p className="text-sm font-semibold text-foreground">Usar fecha límite</p>
-                  <p className="text-sm text-muted-foreground">Si se desactiva, la tarea seguirá abierta hasta que la cierres manualmente.</p>
+                  <p className="text-sm font-semibold text-foreground">{enClase ? 'Tiene fecha de aplicación' : 'Usar fecha límite'}</p>
+                  <p className="text-sm text-muted-foreground">{enClase ? 'El día y la hora en que se aplica en clase. Aparece en el calendario del grupo.' : 'Si se desactiva, la tarea seguirá abierta hasta que la cierres manualmente.'}</p>
                 </div>
               </label>
 
               {form.tieneFechaLimite && (
                 <div className="grid gap-4 sm:grid-cols-2">
                   <label className="flex flex-col gap-2">
-                    <span className="text-sm font-semibold text-foreground">Fecha límite</span>
+                    <span className="text-sm font-semibold text-foreground">{enClase ? 'Fecha de aplicación' : 'Fecha límite'}</span>
                     <input
                       type="date"
                       required name="fechaLimite"
@@ -447,7 +460,7 @@ export default function TareaForm() {
                   </label>
 
                   <label className="flex flex-col gap-2">
-                    <span className="text-sm font-semibold text-foreground">Hora límite</span>
+                    <span className="text-sm font-semibold text-foreground">{enClase ? 'Hora' : 'Hora límite'}</span>
                     <input
                       type="time"
                       name="horaLimite"
@@ -459,7 +472,7 @@ export default function TareaForm() {
                 </div>
               )}
 
-              <label className="flex items-start gap-3 rounded-2xl border border-border bg-muted/40 px-4 py-3">
+              {!enClase && <label className="flex items-start gap-3 rounded-2xl border border-border bg-muted/40 px-4 py-3">
                 <input
                   type="checkbox"
                   name="permiteReenvio"
@@ -471,7 +484,7 @@ export default function TareaForm() {
                   <p className="text-sm font-semibold text-foreground">Permitir reenvío</p>
                   <p className="text-sm text-muted-foreground">Permite actualizar entregas después de la fecha límite mientras la tarea siga abierta. Antes del límite, el alumno puede actualizar su entrega.</p>
                 </div>
-              </label>
+              </label>}
             </div>
           </section>
 
@@ -499,7 +512,7 @@ export default function TareaForm() {
                 className="inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold disabled:opacity-60"
               >
                 <Send className="h-4 w-4" />
-                {saving ? 'Publicando...' : 'Publicar tarea'}
+                {saving ? 'Publicando...' : 'Publicar'}
               </Button>}
             </div>
           </section>

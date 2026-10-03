@@ -342,6 +342,21 @@ describe('Criterios de evaluación (BD local)', () => {
     ).rejects.toThrow('ya tiene actividades');
   });
 
+  it('el grupo puede volver a la ponderación predeterminada', async () => {
+    const antes = await criterios.obtener(admin, materiaId, grupoB);
+    expect(antes.base.origen).toBe('GRUPO');
+    const vista = await criterios.quitarTodos(admin, materiaId, grupoB);
+    expect(vista.base.origen).toBe('PREDETERMINADA');
+    expect(nombres(vista.base.criterios)).toEqual([
+      'Tareas 80',
+      'Asistencia 20',
+    ]);
+    // 8A conserva lo suyo.
+    expect(
+      (await criterios.obtener(admin, materiaId, grupoA)).base.origen,
+    ).toBe('GRUPO');
+  });
+
   it('el reporte califica con la lista de cada unidad', async () => {
     const vista = await criterios.obtener(admin, materiaId, grupoA);
     const tareasId = vista.base.criterios.find(

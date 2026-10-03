@@ -68,6 +68,7 @@ test('el documento lleva los datos, la rúbrica y los adjuntos', () => {
   expect(c.rubrica).toEqual([{ criterio: 'Cálculos', peso: 70 }, { criterio: 'Presentación', peso: 30 }])
   expect(c.adjuntos).toEqual(['tabla.xlsx'])
   expect(nombreDocumentoTarea({ ...tarea, titulo: 'Tarea 1: ¿qué/es?' }, 'docx')).toBe('Tarea - Tarea 1 ¿quées - 103A.docx')
+  expect(nombreDocumentoTarea({ ...tarea, titulo: 'Parcial 1', categoria: { tipo: 'EXAMEN' } }, 'pdf')).toBe('Examen - Parcial 1 - 103A.pdf')
 })
 
 describe('diálogo', () => {

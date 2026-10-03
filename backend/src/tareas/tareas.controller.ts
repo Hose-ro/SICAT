@@ -17,12 +17,13 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Put,
   Query,
   Req,
   Res,
+  UploadedFiles,
   UseGuards,
   UseInterceptors,
-  UploadedFiles,
 } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { TipoNotificacion } from '@prisma/client';
@@ -36,6 +37,7 @@ import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import type { AuthenticatedRequest } from '../auth/auth.types';
 import { CrearTareaDto } from './dto/crear-tarea.dto';
+import { CapturarCalificacionesDto } from './dto/capturar-calificaciones.dto';
 import { EntregarTareaDto } from './dto/entregar-tarea.dto';
 import { RevisarEntregaDto } from './dto/revisar-entrega.dto';
 import { CalificarEntregaDto } from './dto/calificar-entrega.dto';
@@ -612,6 +614,17 @@ export class TareasController {
     @Body() dto: RecordarEntregaDto,
   ) {
     return this.tareasService.recordarPendientes(id, req.user, dto.alumnoIds);
+  }
+
+  /** Calificaciones de una actividad en clase, capturadas en lista. */
+  @Put(':id/calificaciones')
+  @Roles('DOCENTE', 'ADMIN')
+  capturarCalificaciones(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: CapturarCalificacionesDto,
+  ) {
+    return this.tareasService.capturarCalificaciones(id, req.user, dto);
   }
 
   @Get(':id/entregas')

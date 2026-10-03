@@ -30,6 +30,7 @@ import CriteriosResumen from '@/components/calificaciones/CriteriosResumen'
 import DesempenoChip from '@/components/calificaciones/DesempenoChip'
 import FiltroDesempeno from '@/components/calificaciones/FiltroDesempeno'
 import { DESEMPENO } from '@/lib/desempeno'
+import { moverFoco } from '@/lib/capturaTeclado'
 
 // Mínima aprobatoria, la misma que usa el servidor.
 const CALIFICACION_APROBATORIA = 70
@@ -277,19 +278,6 @@ function CalificacionesTable({ rows, showMateria = false }) {
 
 // Enter baja al siguiente alumno de la misma columna y Shift+Enter sube, como
 // en una hoja de cálculo. Funciona igual en la tabla, la matriz y las tarjetas.
-function moverFoco(event) {
-  if (event.key !== 'Enter') return
-  event.preventDefault()
-  const { columna } = event.currentTarget.dataset
-  const grupo = event.currentTarget.closest('[data-captura-grupo]')
-  const inputs = [...grupo.querySelectorAll(`input[data-captura="calificacion"][data-columna="${columna}"]:not(:disabled)`)]
-  const next = inputs[inputs.indexOf(event.currentTarget) + (event.shiftKey ? -1 : 1)]
-  if (next) {
-    next.focus()
-    next.select()
-  }
-}
-
 function unidadKey(unidad) {
   return unidad?.id ?? `orden-${unidad?.orden}`
 }

@@ -6,6 +6,7 @@ import {
   EstadoTarea,
   EstadoUnidad,
   Rol,
+  TipoEntrega,
 } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { ClasesService } from '../clases/clases.service';
@@ -353,9 +354,10 @@ export class DashboardService {
           id: true,
           materiaId: true,
           grupoId: true,
+          tipoEntrega: true,
           entregas: {
             where: { alumnoId: { in: alumnoIds } },
-            select: { alumnoId: true },
+            select: { alumnoId: true, estadoRevision: true },
           },
         },
       }),
@@ -405,12 +407,18 @@ export class DashboardService {
         ),
         tendencia: fila.estados.slice(-SESIONES_TENDENCIA),
         tareasVencidas: tareasClase.length,
-        tareasSinEntregar: tareasClase.filter(
-          (tarea) =>
-            !tarea.entregas.some(
-              (entrega) => entrega.alumnoId === fila.alumno.id,
-            ),
-        ).length,
+        tareasSinEntregar: tareasClase.filter((tarea) => {
+          const entrega = tarea.entregas.find(
+            (item) => item.alumnoId === fila.alumno.id,
+          );
+          // En clase no hay entrega que esperar: sólo cuenta "no presentó".
+          if (tarea.tipoEntrega === TipoEntrega.PRESENCIAL) {
+            return entrega?.estadoRevision === EstadoRevision.NO_ENTREGADA;
+          }
+          return (
+            !entrega || entrega.estadoRevision === EstadoRevision.NO_ENTREGADA
+          );
+        }).length,
         ultimoAviso: ultimoAviso
           ? {
               id: ultimoAviso.id,

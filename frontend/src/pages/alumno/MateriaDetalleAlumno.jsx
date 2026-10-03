@@ -6,7 +6,7 @@ import AvisosAlumno from './components/AvisosAlumno'
 import { useTareaStore } from '../../store/tareaStore'
 import { useClaseStore } from '../../store/claseStore'
 
-import { DELIVERY_STATE_LABEL } from '../../lib/tareas'
+import { etiquetaEstadoAlumno } from '../../lib/tareas'
 import TaskNotice from '../../components/TaskNotice'
 
 const ESTADO_TAREA = {
@@ -19,11 +19,11 @@ const ESTADO_TAREA = {
   NO_ENTREGADA: { label: 'No entregada', bg: "bg-warning/10",   text: "text-warning-foreground",  ring: "ring-ring"  },
 }
 
-function EstadoTareaBadge({ estado }) {
+function EstadoTareaBadge({ estado, tarea, registrada }) {
   const cfg = ESTADO_TAREA[estado] ?? ESTADO_TAREA[null]
   return (
     <span className={`rounded-full px-2.5 py-1 text-xs font-medium ring-1 ${cfg.bg} ${cfg.text} ${cfg.ring}`}>
-      {DELIVERY_STATE_LABEL[estado] || 'Por entregar'}
+      {estado ? etiquetaEstadoAlumno(estado, tarea, registrada) : 'Por entregar'}
     </span>
   )
 }
@@ -154,7 +154,7 @@ export default function MateriaDetalleAlumno() {
                               {miEntrega.calificacion}/100
                             </span>
                           )}
-                          <EstadoTareaBadge estado={estado} />
+                          <EstadoTareaBadge estado={estado} tarea={tarea} registrada={Boolean(miEntrega)} />
                           <Link
                             to={`/alumno/tareas/${tarea.id}`}
                             className="rounded-xl border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-background"

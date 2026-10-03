@@ -289,6 +289,26 @@ export class CriteriosService {
     return { ...(await this.obtener(actor, materiaId, grupoId)), reasignadas };
   }
 
+  /**
+   * El grupo vuelve a la ponderación predeterminada (todas las actividades por
+   * igual más la asistencia): se borran su lista y los porcentajes propios de
+   * cada unidad. Las actividades conservan su criterio por si se vuelve a armar.
+   */
+  async quitarTodos(actor: Actor, materiaId: number, grupoId: number) {
+    await asegurarAccesoMateria(this.prisma, actor, materiaId, grupoId);
+    await this.cargarMateria(materiaId, grupoId);
+    await this.prisma.$transaction(async (tx) => {
+      await tx.categoriaPesoUnidad.deleteMany({
+        where: { grupoId, categoria: { materiaId } },
+      });
+      await tx.categoriaPesoGrupo.deleteMany({
+        where: { grupoId, categoria: { materiaId } },
+      });
+      await this.borrarHuerfanos(tx, materiaId);
+    });
+    return this.obtener(actor, materiaId, grupoId);
+  }
+
   /** La unidad vuelve a usar los criterios de todas las unidades. */
   async quitarUnidad(
     actor: Actor,

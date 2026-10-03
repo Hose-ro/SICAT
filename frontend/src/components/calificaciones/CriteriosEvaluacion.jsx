@@ -74,7 +74,7 @@ const aPayload = (filas) => filas.map((fila) => ({
  */
 export default function CriteriosEvaluacion({ datos, materiaId, grupo, alcanceInicial = 'base', plantillaInicial, onGuardado, onCambios }) {
   const guardarCriterios = useCalificacionStore((state) => state.guardarCriterios)
-  const quitarCriteriosUnidad = useCalificacionStore((state) => state.quitarCriteriosUnidad)
+  const quitarCriterios = useCalificacionStore((state) => state.quitarCriterios)
   const [alcance, setAlcance] = useState(alcanceInicial)
   const [base, setBase] = useState({ datos, alcance: alcanceInicial })
   const [filas, setFilas] = useState(() => inicial(datos, alcanceInicial, plantillaInicial))
@@ -168,12 +168,33 @@ export default function CriteriosEvaluacion({ datos, materiaId, grupo, alcanceIn
     if (!ok) return
     setGuardando(true)
     try {
-      const nuevos = await quitarCriteriosUnidad({ materiaId: Number(materiaId), grupoId: grupo.id, unidadId: unidadActual.unidad.id })
+      const nuevos = await quitarCriterios({ materiaId: Number(materiaId), grupoId: grupo.id, unidadId: unidadActual.unidad.id })
       onCambios?.(false)
       onGuardado?.(nuevos)
       setAviso(`La Unidad ${unidadActual.unidad.orden} usa los criterios de todas las unidades.`)
     } catch (error) {
       notify(error.response?.data?.message ?? 'No se pudo quitar la lista de la unidad.')
+    } finally {
+      setGuardando(false)
+    }
+  }
+
+  const volverAPredeterminada = async () => {
+    if (guardando) return
+    const ok = await confirmAction({
+      title: 'Volver a la ponderación predeterminada',
+      description: `Se borran los criterios de ${grupo.nombre} y los porcentajes propios de sus unidades. Todas las actividades volverán a contar igual, más la asistencia.`,
+      confirmLabel: 'Volver a la predeterminada',
+    })
+    if (!ok) return
+    setGuardando(true)
+    try {
+      const nuevos = await quitarCriterios({ materiaId: Number(materiaId), grupoId: grupo.id })
+      onCambios?.(false)
+      onGuardado?.(nuevos)
+      setAviso(`${grupo.nombre} usa otra vez la ponderación predeterminada.`)
+    } catch (error) {
+      notify(error.response?.data?.message ?? 'No se pudo volver a la ponderación predeterminada.')
     } finally {
       setGuardando(false)
     }
@@ -287,6 +308,9 @@ export default function CriteriosEvaluacion({ datos, materiaId, grupo, alcanceIn
         )}
         {unidadActual?.personalizada && (
           <Button variant="ghost" onClick={usarLosDeTodas} disabled={guardando}>Usar los de todas las unidades</Button>
+        )}
+        {alcance === 'base' && !predeterminada && (
+          <Button variant="ghost" onClick={volverAPredeterminada} disabled={guardando}>Volver a la predeterminada</Button>
         )}
         {cambios && problema && <p className="text-sm text-destructive-foreground">{problema}</p>}
       </div>

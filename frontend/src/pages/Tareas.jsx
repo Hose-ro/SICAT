@@ -13,7 +13,7 @@ import { useTareaStore } from '../store/tareaStore'
 
 import TaskNotice from '../components/TaskNotice'
 import TareasDocente from './docente/TareasDocente'
-import { DELIVERY_STATE_LABEL, TASK_TYPE_LABEL, searchTasks, taskError, deliveryHelp } from '../lib/tareas'
+import { TASK_TYPE_LABEL, etiquetaEstadoAlumno, searchTasks, taskError, deliveryHelp, tipoActividad } from '../lib/tareas'
 
 const DELIVERY_STATE_CLASS = {
   PENDIENTE: 'bg-muted text-foreground',
@@ -111,7 +111,8 @@ function AlumnoTareasModule() {
   }, [studentTasks, filters.estado, query, order])
 
   const stats = useMemo(() => ({
-    pendientes: studentTasks.filter((item) => item.estadoAlumno === 'PENDIENTE' || item.estadoAlumno === 'NO_ENTREGADA').length,
+    // Lo que se aplica en clase no queda "pendiente" de entregar para el alumno.
+    pendientes: studentTasks.filter((item) => (item.estadoAlumno === 'PENDIENTE' || item.estadoAlumno === 'NO_ENTREGADA') && item.tarea?.tipoEntrega !== 'PRESENCIAL').length,
     entregadas: studentTasks.filter((item) => ['ENTREGADA', 'REVISADA', 'CALIFICADA', 'INCORRECTA'].includes(item.estadoAlumno)).length,
     tardias: studentTasks.filter((item) => item.miEntrega?.fueTardia).length,
     calificadas: studentTasks.filter((item) => item.estadoAlumno === 'CALIFICADA').length,
@@ -192,10 +193,10 @@ function AlumnoTareasModule() {
                   <div className="space-y-3">
                     <div className="flex flex-wrap gap-2">
                       <span className={`rounded-full px-3 py-1 text-xs font-semibold ${DELIVERY_STATE_CLASS[estadoAlumno] || 'bg-muted text-foreground'}`}>
-                        {DELIVERY_STATE_LABEL[estadoAlumno] || estadoAlumno}
+                        {etiquetaEstadoAlumno(estadoAlumno, tarea, Boolean(miEntrega))}
                       </span>
                       <span className="rounded-full bg-card px-3 py-1 text-xs font-semibold text-muted-foreground">
-                        {TASK_TYPE_LABEL[tarea.tipoEntrega] || tarea.tipoEntrega}
+                        {tipoActividad(tarea).singular} · {TASK_TYPE_LABEL[tarea.tipoEntrega] || tarea.tipoEntrega}
                       </span>
                       {miEntrega?.fueTardia && (
                         <span className="rounded-full bg-warning/10 px-3 py-1 text-xs font-semibold text-foreground">

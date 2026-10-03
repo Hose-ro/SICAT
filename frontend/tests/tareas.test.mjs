@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { searchTasks, mergeTaskFiles, deliveryHelp, taskFileUrl, estadoDocente, conteoTarea, conteoEntregas, plazoTarea, parseRubrica, notaValida } from '../src/lib/tareas.js'
+import { searchTasks, mergeTaskFiles, deliveryHelp, taskFileUrl, estadoDocente, conteoTarea, conteoEntregas, plazoTarea, parseRubrica, notaValida, tipoActividad, etiquetaEstadoDocente, etiquetaEstadoAlumno } from '../src/lib/tareas.js'
 
 test('buscar ignora acentos y espacios, incluye materia y conserva la lista original', () => {
   const tasks = [{ id: 1, titulo: 'Investigación', materia: { nombre: 'Álgebra' } }, { id: 2, titulo: 'Ensayo' }]
@@ -33,7 +33,7 @@ test('rechaza formatos, tamaños y cantidades que el servidor no acepta', () => 
 })
 
 test('explica la entrega presencial, cerrada y tardía sin prometer edición', () => {
-  assert.match(deliveryHelp({ tipoEntrega: 'PRESENCIAL' }, null, true), /docente registra/)
+  assert.match(deliveryHelp({ tipoEntrega: 'PRESENCIAL' }, null, true), /Se aplica en clase/)
   assert.match(deliveryHelp({ estado: 'CERRADA' }, null, false), /no recibe entregas/)
   assert.match(deliveryHelp({ estado: 'VENCIDA' }, null, true), /entrega tardía/)
 })
@@ -97,3 +97,23 @@ test('las notas siguen el rango que acepta el API (1 a 100)', () => {
   assert.equal(notaValida('0', 30, 0), true)
 })
 
+
+test('en clase no hay entregas pendientes: se dice "no presentó" o "sin calificar"', () => {
+  const examen = { tipoEntrega: 'PRESENCIAL', categoria: { tipo: 'EXAMEN' } }
+  assert.equal(tipoActividad(examen).singular, 'Examen')
+  assert.equal(tipoActividad({ categoria: { tipo: 'OTRO' } }).singular, 'Tarea')
+  assert.equal(etiquetaEstadoDocente('NO_ENTREGADA', examen), 'No presentó')
+  assert.equal(etiquetaEstadoDocente('PENDIENTE', examen), 'Sin calificar')
+  assert.equal(etiquetaEstadoDocente('NO_ENTREGADA', { tipoEntrega: 'EN_LINEA' }), 'Sin entregar')
+  assert.equal(etiquetaEstadoAlumno('NO_ENTREGADA', examen, true), 'No presentó')
+  assert.equal(etiquetaEstadoAlumno('NO_ENTREGADA', examen, false), 'Sin calificar')
+  assert.equal(etiquetaEstadoAlumno('PENDIENTE', examen), 'En clase')
+
+  // "No presentó" registrado cuenta aparte y no entra al promedio de la actividad.
+  const r = conteoEntregas([
+    { estadoRevision: 'CALIFICADA', calificacion: 90 },
+    { estadoRevision: 'NO_ENTREGADA', calificacion: 0 },
+    { estadoRevision: 'NO_ENTREGADA', esSintetica: true },
+  ])
+  assert.deepEqual([r.calificadas, r.sinEntregar, r.noPresentaron, r.promedio], [1, 2, 1, 90])
+})

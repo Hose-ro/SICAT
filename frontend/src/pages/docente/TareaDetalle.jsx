@@ -11,7 +11,8 @@ import { TASK_TYPE_LABEL, conteoEntregas, estadoDocente, plazoTarea, taskError, 
 import { cn } from '@/lib/utils'
 import { useTareaStore } from '@/store/tareaStore'
 import { EstadoTareaChip } from './components/tareas/Estados'
-import { MenuAcciones } from './components/tareas/Controles'
+import { MenuAcciones, Segmentado } from './components/tareas/Controles'
+import CapturaCalificaciones from './components/tareas/CapturaCalificaciones'
 import EvidenciaEntrega from './components/tareas/EvidenciaEntrega'
 import ListaRevision from './components/tareas/ListaRevision'
 import PanelCalificacion from './components/tareas/PanelCalificacion'
@@ -64,6 +65,8 @@ function TareaDetalle({ tareaId }) {
   const [instrucciones, setInstrucciones] = useState(false)
   const [recordado, setRecordado] = useState(false)
   const [ocupado, setOcupado] = useState(null)
+  // Una actividad en clase se califica en lista; "uno por uno" queda a la mano.
+  const [modo, setModo] = useState('captura')
 
   const cargar = useCallback(async () => {
     try {
@@ -271,6 +274,7 @@ function TareaDetalle({ tareaId }) {
 
   const onTecla = useEffectEvent((event) => {
     if (event.defaultPrevented || event.metaKey || event.ctrlKey) return
+    if (tarea?.tipoEntrega === 'PRESENCIAL' && modo === 'captura') return
     const escribiendo = /^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName) || event.target.isContentEditable
     if (escribiendo && !event.altKey) return
     if (document.querySelector('[role="dialog"], [role="menu"]')) return
@@ -305,6 +309,7 @@ function TareaDetalle({ tareaId }) {
   }
 
   const presencial = tarea.tipoEntrega === 'PRESENCIAL'
+  const enCaptura = presencial && modo === 'captura'
   const vencida = tarea.estado === 'VENCIDA' || tarea.estado === 'CERRADA'
   const abierta = tarea.estado === 'PUBLICADA' || tarea.estado === 'VENCIDA'
   const p = plazoTarea(tarea)
@@ -367,7 +372,7 @@ function TareaDetalle({ tareaId }) {
         <div className="min-w-0 max-w-3xl">
           <h1 className="text-balance text-2xl font-semibold leading-tight tracking-[-0.02em] text-foreground">{tarea.titulo}</h1>
           <p className="mt-1.5 text-sm text-muted-foreground">
-            {TASK_TYPE_LABEL[tarea.tipoEntrega] ?? tarea.tipoEntrega} · {tarea.tipoEvaluacion === 'RUBRICA' ? 'Rúbrica' : 'Calificación directa'} · {p.relativo}{p.texto ? `, ${p.texto}` : ''}
+            {tarea.categoria?.nombre && `${tarea.categoria.nombre} · `}{TASK_TYPE_LABEL[tarea.tipoEntrega] ?? tarea.tipoEntrega} · {tarea.tipoEvaluacion === 'RUBRICA' ? 'Rúbrica' : 'Calificación directa'} · {p.relativo}{p.texto ? `, ${p.texto}` : ''}
             {tarea.permiteReenvio && ' · Permite reenvío'}
           </p>
         </div>
@@ -395,11 +400,22 @@ function TareaDetalle({ tareaId }) {
         </div>
       )}
 
+      {presencial && filas.length > 0 && (
+        <Segmentado label="Cómo calificar" value={modo} onChange={setModo} className="mt-4"
+          options={[{ value: 'captura', label: 'Captura en lista' }, { value: 'individual', label: 'Uno por uno' }]} />
+      )}
+
       {!filas.length ? (
         <div className="mt-6 rounded-[var(--radius-card)] border border-dashed border-border px-6 py-12 text-center">
           <p className="text-sm font-medium text-foreground">Esta tarea todavía no tiene alumnos.</p>
           <p className="mt-1 text-sm text-muted-foreground">Aparecerán cuando haya inscripciones aceptadas en el grupo.</p>
         </div>
+      ) : enCaptura ? (
+        <CapturaCalificaciones tarea={tarea} filas={filas}
+          onGuardado={(data) => {
+            if (data?.tarea) setTarea(data.tarea)
+            if (Array.isArray(data?.entregas)) setEntregas(data.entregas)
+          }} />
       ) : (
         <div className="mt-5 grid items-start gap-4 @min-[40rem]:grid-cols-[minmax(0,1fr)_18rem] @min-[56rem]:grid-cols-[15rem_minmax(0,1fr)_18.5rem] @min-[66rem]:grid-cols-[16.5rem_minmax(0,1fr)_20rem]">
           <ListaRevision filas={filas} visibles={visibles} r={r} presencial={presencial} vencida={vencida}

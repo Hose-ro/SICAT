@@ -43,7 +43,12 @@ import {
   docenteResponsableDeMateria,
   esDocenteDeMateria,
 } from '../common/materia-ownership';
-import { TIPOS_CALCULADOS } from '../calificaciones/criterios';
+import {
+  TIPOS_CALCULADOS,
+  cargarCriterios,
+  esCriterioDeActividad,
+} from '../calificaciones/criterios';
+import { CapturarCalificacionesDto } from './dto/capturar-calificaciones.dto';
 
 type Actor = {
   id: number;
@@ -58,6 +63,14 @@ type TareaFiltros = {
   fecha?: string;
   alumnoId?: number;
   docenteId?: number;
+};
+
+/** Cómo se anuncia cada tipo de actividad (si no, "Nueva tarea"). */
+const ANUNCIO_ACTIVIDAD: Record<string, string> = {
+  EXAMEN: 'Examen',
+  PRACTICAS: 'Nueva práctica',
+  PROYECTO: 'Proyecto',
+  EXPOSICION: 'Exposición',
 };
 
 const ESTADOS_CON_ENTREGA = new Set<EstadoRevision>([
@@ -92,6 +105,14 @@ export class TareasService {
     this.validarArchivosEntrega(dto.tipoEntrega, archivosAdjuntos, true);
 
     const data: any = this.buildTareaData(dto, contexto);
+    if (this.esEstadoPublicada(data.estado)) {
+      await this.asegurarCriterioParaPublicar({
+        materiaId: dto.materiaId,
+        grupoId: dto.grupoId,
+        unidadId: dto.unidadId ?? null,
+        categoriaId: dto.categoriaId ?? null,
+      });
+    }
     const tarea = await this.prisma.$transaction(async (tx) => {
       const created = await tx.tarea.create({
         data: {
@@ -165,6 +186,20 @@ export class TareasService {
     const shouldNotify =
       !this.esEstadoPublicada(tarea.estado) &&
       this.esEstadoPublicada(mergedInput.estado ?? tarea.estado);
+    // Al publicarla, o al cambiarle el tipo ya publicada, debe contar en la
+    // calificación del grupo.
+    if (
+      shouldNotify ||
+      (dto.categoriaId !== undefined &&
+        this.esEstadoPublicada(mergedInput.estado ?? tarea.estado))
+    ) {
+      await this.asegurarCriterioParaPublicar({
+        materiaId: mergedInput.materiaId,
+        grupoId: mergedInput.grupoId ?? null,
+        unidadId: mergedInput.unidadId ?? null,
+        categoriaId: mergedInput.categoriaId ?? null,
+      });
+    }
 
     const updated = await this.prisma.$transaction(async (tx) => {
       const actuales = await tx.tareaArchivo.findMany({
@@ -218,6 +253,7 @@ export class TareasService {
         'Ponle fecha límite a la tarea antes de publicarla',
       );
     }
+    await this.asegurarCriterioParaPublicar(tarea);
     const estado = this.resolverEstadoPublico(
       tarea.fechaLimite,
       tarea.tieneFechaLimite,
@@ -233,6 +269,219 @@ export class TareasService {
     });
     await this.notificarNuevaTarea(updated);
     return this.enrichTask(updated);
+  }
+
+  /**
+   * Si el grupo tiene criterios propios, una actividad publicada debe llevar
+   * uno de actividad que pese en su unidad; si no, no contaría en la
+   * calificación. Con la ponderación predeterminada todas cuentan igual.
+   */
+  private async asegurarCriterioParaPublicar(tarea: {
+    materiaId: number;
+    grupoId: number | null;
+    unidadId: number | null;
+    categoriaId: number | null;
+  }) {
+    if (!tarea.grupoId) return;
+    const materia = await this.prisma.materia.findUnique({
+      where: { id: tarea.materiaId },
+      select: { id: true, pesoTareas: true, pesoAsistencia: true },
+    });
+    if (!materia) return;
+    const { resolver } = await cargarCriterios(this.prisma, materia);
+    const lista = resolver(tarea.grupoId, tarea.unidadId);
+    if (lista.origen === 'PREDETERMINADA') return;
+    const cuenta = lista.criterios.some(
+      (criterio) =>
+        criterio.id === tarea.categoriaId &&
+        esCriterioDeActividad(criterio.tipo) &&
+        criterio.peso > 0,
+    );
+    if (!cuenta) {
+      throw new BadRequestException(
+        tarea.categoriaId
+          ? 'Ese tipo de actividad no cuenta en esta unidad; elige otro antes de publicar'
+          : 'Elige el tipo de actividad antes de publicar',
+      );
+    }
+  }
+
+  /**
+   * Captura en lista de una actividad en clase (un examen en papel, una
+   * exposición): el docente pone la calificación de cada alumno sin que nadie
+   * suba nada. "No presentó" se guarda como no entregada con 0 y sí cuenta;
+   * quitar la calificación la deja sin contar. Sólo se escribe y se avisa lo
+   * que cambió.
+   */
+  async capturarCalificaciones(
+    tareaId: number,
+    actor: Actor,
+    dto: CapturarCalificacionesDto,
+  ) {
+    const tarea = await this.obtenerTareaDocente(tareaId, actor);
+    if (tarea.tipoEntrega !== TipoEntrega.PRESENCIAL) {
+      throw new ConflictException(
+        'La captura en lista es para actividades en clase',
+      );
+    }
+    if (tarea.estado === EstadoTarea.BORRADOR) {
+      throw new ConflictException('Publica la actividad antes de calificarla');
+    }
+    const alumnos = new Set(
+      (await this.obtenerAlumnosDeTarea(tarea)).map((alumno) => alumno.id),
+    );
+    if (dto.calificaciones.some((item) => !alumnos.has(item.alumnoId))) {
+      throw new BadRequestException(
+        'El alumno no pertenece al grupo/materia de la tarea',
+      );
+    }
+    if (
+      dto.calificaciones.some(
+        (item) => item.noPresento && typeof item.calificacion === 'number',
+      )
+    ) {
+      throw new BadRequestException(
+        'Un alumno que no presentó no lleva calificación',
+      );
+    }
+
+    const actuales = new Map(
+      (
+        await this.prisma.entregaTarea.findMany({
+          where: {
+            tareaId,
+            alumnoId: { in: dto.calificaciones.map((item) => item.alumnoId) },
+          },
+          select: {
+            id: true,
+            alumnoId: true,
+            estadoRevision: true,
+            calificacion: true,
+            observacion: true,
+          },
+        })
+      ).map((entrega) => [entrega.alumnoId, entrega]),
+    );
+    const ahora = new Date();
+    const operaciones: Prisma.PrismaPromise<unknown>[] = [];
+    const avisos: Array<{ alumnoId: number; calificacion: number | null }> = [];
+    const guardar = (
+      alumnoId: number,
+      datos: Prisma.EntregaTareaUncheckedUpdateInput,
+    ) =>
+      this.prisma.entregaTarea.upsert({
+        where: { tareaId_alumnoId: { tareaId, alumnoId } },
+        create: {
+          ...(datos as Prisma.EntregaTareaUncheckedCreateInput),
+          tareaId,
+          alumnoId,
+        },
+        update: datos,
+      });
+
+    for (const item of dto.calificaciones) {
+      const actual = actuales.get(item.alumnoId);
+      const observacion =
+        item.observacion === undefined
+          ? undefined
+          : item.observacion?.trim() || null;
+      const cambiaObservacion =
+        observacion !== undefined &&
+        observacion !== (actual?.observacion ?? null);
+      const conObservacion = observacion !== undefined ? { observacion } : {};
+
+      if (item.noPresento) {
+        if (
+          actual?.estadoRevision === EstadoRevision.NO_ENTREGADA &&
+          actual.calificacion === 0 &&
+          !cambiaObservacion
+        ) {
+          continue;
+        }
+        operaciones.push(
+          guardar(item.alumnoId, {
+            estadoRevision: EstadoRevision.NO_ENTREGADA,
+            calificacion: 0,
+            calificacionTipo: TipoCalificacion.NUMERICA,
+            fechaRevision: ahora,
+            permiteCorreccion: false,
+            ...conObservacion,
+          }),
+        );
+        avisos.push({ alumnoId: item.alumnoId, calificacion: null });
+      } else if (typeof item.calificacion === 'number') {
+        if (
+          actual?.estadoRevision === EstadoRevision.CALIFICADA &&
+          actual.calificacion === item.calificacion &&
+          !cambiaObservacion
+        ) {
+          continue;
+        }
+        operaciones.push(
+          guardar(item.alumnoId, {
+            estadoRevision: EstadoRevision.CALIFICADA,
+            calificacion: item.calificacion,
+            calificacionTipo: TipoCalificacion.NUMERICA,
+            fechaRevision: ahora,
+            permiteCorreccion: false,
+            ...conObservacion,
+          }),
+        );
+        avisos.push({
+          alumnoId: item.alumnoId,
+          calificacion: item.calificacion,
+        });
+      } else if (item.calificacion === null) {
+        if (!actual) continue;
+        if (actual.estadoRevision === EstadoRevision.NO_ENTREGADA) {
+          operaciones.push(
+            this.prisma.entregaTarea.delete({ where: { id: actual.id } }),
+          );
+        } else if (
+          actual.calificacion != null ||
+          actual.estadoRevision === EstadoRevision.CALIFICADA
+        ) {
+          operaciones.push(
+            this.prisma.entregaTarea.update({
+              where: { id: actual.id },
+              data: {
+                calificacion: null,
+                calificacionTipo: null,
+                estadoRevision: EstadoRevision.ENTREGADA,
+                ...conObservacion,
+              },
+            }),
+          );
+        }
+      } else if (actual && cambiaObservacion) {
+        operaciones.push(
+          this.prisma.entregaTarea.update({
+            where: { id: actual.id },
+            data: { observacion },
+          }),
+        );
+      }
+    }
+
+    if (operaciones.length) await this.prisma.$transaction(operaciones);
+    await this.notificaciones.crearVarias(
+      avisos.map((aviso) => ({
+        usuarioId: aviso.alumnoId,
+        tipo: TipoNotificacion.CALIFICACION_DISPONIBLE,
+        titulo: `Calificación: ${tarea.titulo}`,
+        mensaje:
+          aviso.calificacion == null
+            ? `Quedó registrado que no presentaste «${tarea.titulo}».`
+            : `Obtuviste ${aviso.calificacion}/100 en «${tarea.titulo}»`,
+        referenciaId: tareaId,
+        referenciaTipo: 'Tarea',
+      })),
+    );
+
+    return {
+      ...(await this.obtenerEntregas(tareaId, actor)),
+      actualizadas: operaciones.length,
+    };
   }
 
   async cerrar(tareaId: number, actor: Actor) {
@@ -1519,7 +1768,13 @@ export class TareasService {
     const devueltas = items.filter(
       (item) => item.estadoRevision === EstadoRevision.INCORRECTA,
     ).length;
+    const noPresentaron = items.filter(
+      (item) => item.estadoRevision === EstadoRevision.NO_ENTREGADA,
+    ).length;
+    // El promedio de la actividad es el de quienes la presentaron; el 0 de
+    // "no presentó" sí cuenta en la calificación de la unidad.
     const promedioItems = items
+      .filter((item) => item.estadoRevision === EstadoRevision.CALIFICADA)
       .map((item) => item.calificacion)
       .filter((value) => typeof value === 'number');
     const promedio = promedioItems.length
@@ -1541,6 +1796,7 @@ export class TareasService {
       calificadas,
       revisadas,
       devueltas,
+      noPresentaron,
       promedio,
       porcentajeEntrega: totalAlumnos
         ? Number(((entregadas / totalAlumnos) * 100).toFixed(2))
@@ -1921,10 +2177,15 @@ export class TareasService {
     const alumnos = await this.obtenerAlumnosDeTarea(tarea);
     const alumnoIds = alumnos.map((item) => item.id);
     if (!alumnoIds.length) return;
+    // Un examen o una exposición se anuncian como lo que son, con su fecha.
+    const tipo = ANUNCIO_ACTIVIDAD[tarea.categoria?.tipo as string];
+    const enClase = tarea.tipoEntrega === TipoEntrega.PRESENCIAL;
     await this.notificaciones.crearParaVarios(alumnoIds, {
       tipo: TipoNotificacion.NUEVA_TAREA,
-      titulo: `Nueva tarea: ${tarea.titulo}`,
-      mensaje: `Se publicó una nueva tarea en ${tarea.materia.nombre}: ${tarea.titulo}`,
+      titulo: `${tipo ?? 'Nueva tarea'}: ${tarea.titulo}`,
+      mensaje: enClase
+        ? `${tipo ?? 'Actividad'} en clase de ${tarea.materia.nombre}: ${tarea.titulo}. No hay que subir nada.`
+        : `Se publicó una nueva tarea en ${tarea.materia.nombre}: ${tarea.titulo}`,
       referenciaId: tarea.id,
       referenciaTipo: 'Tarea',
     });
