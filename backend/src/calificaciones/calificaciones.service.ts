@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -142,6 +143,44 @@ export class CalificacionesService {
       {
         actor,
         validarDocente: true,
+      },
+    );
+  }
+
+  /** Consulta de jefatura: comparte el cálculo del docente sin conceder escritura. */
+  async obtenerReporteJefatura(
+    usuarioId: number,
+    carreraId: number,
+    periodo: string,
+    materiaId: number,
+    grupoId: number,
+    rango: { inicio: Date; fin: Date },
+  ) {
+    const asignacion = await this.prisma.jefeCarreraAsignacion.findFirst({
+      where: { usuarioId, carreraId, activa: true },
+      select: { id: true },
+    });
+    if (!asignacion)
+      throw new ForbiddenException('Carrera fuera de tu alcance');
+    const oferta = await this.prisma.materia.findFirst({
+      where: {
+        id: materiaId,
+        carreraId,
+        grupos: { some: { id: grupoId, carreraId, periodo, activo: true } },
+      },
+      select: { id: true },
+    });
+    if (!oferta)
+      throw new NotFoundException(
+        'Oferta fuera de la carrera o periodo seleccionado',
+      );
+    return this.construirReporte(
+      { materiaId, grupoId },
+      {
+        validarDocente: false,
+        periodo,
+        rango,
+        carreraId,
       },
     );
   }
@@ -533,6 +572,9 @@ export class CalificacionesService {
       actor?: Actor;
       alumnoId?: number;
       validarDocente: boolean;
+      periodo?: string;
+      carreraId?: number;
+      rango?: { inicio: Date; fin: Date };
       /** La materia ya cargada, para no pedirla dos veces. */
       materia?: Awaited<ReturnType<CalificacionesService['obtenerMateria']>>;
     },
@@ -566,18 +608,40 @@ export class CalificacionesService {
       filtros.materiaId,
       filtros.grupoId,
       options.alumnoId,
+      options.periodo,
+      options.carreraId,
     );
     const alumnoIds = alumnos.map((alumno) => alumno.id);
     const unidadIds = unidades
       .map((unidad) => unidad.id)
       .filter((id): id is number => typeof id === 'number');
-    const periodo = getCurrentAcademicPeriod();
+    const periodo = options.periodo ?? getCurrentAcademicPeriod();
 
     const [tareas, sesiones, calificacionesGuardadas] = await Promise.all([
       this.prisma.tarea.findMany({
         where: {
           materiaId: filtros.materiaId,
           estado: { in: ESTADOS_VISIBLES_TAREA },
+          ...(options.rango
+            ? {
+                activa: true,
+                OR: [
+                  {
+                    fechaPublicacion: {
+                      gte: options.rango.inicio,
+                      lte: options.rango.fin,
+                    },
+                  },
+                  {
+                    fechaPublicacion: null,
+                    createdAt: {
+                      gte: options.rango.inicio,
+                      lte: options.rango.fin,
+                    },
+                  },
+                ],
+              }
+            : {}),
           ...(filtros.grupoId ? { grupoId: filtros.grupoId } : {}),
           ...(filtros.unidadId
             ? {
@@ -611,6 +675,9 @@ export class CalificacionesService {
       this.prisma.claseSesion.findMany({
         where: {
           materiaId: filtros.materiaId,
+          ...(options.rango
+            ? { fecha: { gte: options.rango.inicio, lte: options.rango.fin } }
+            : {}),
           ...(filtros.grupoId ? { grupoId: filtros.grupoId } : {}),
           ...(filtros.unidadId
             ? {
@@ -799,6 +866,13 @@ export class CalificacionesService {
             nombre: alumno.nombre,
             numeroControl: alumno.numeroControl,
             sexo: alumno.sexo ?? null,
+            ...(options.periodo
+              ? {
+                  email: alumno.email,
+                  telefono: alumno.telefono,
+                  semestre: alumno.semestre,
+                }
+              : {}),
           },
           materia: {
             id: materia.id,
@@ -968,6 +1042,8 @@ export class CalificacionesService {
     materiaId: number,
     grupoId?: number,
     alumnoId?: number,
+    periodoSeleccionado?: string,
+    carreraId?: number,
   ) {
     if (alumnoId) {
       const alumno = await this.prisma.usuario.findUnique({
@@ -978,21 +1054,31 @@ export class CalificacionesService {
           numeroControl: true,
           sexo: true,
           grupoId: true,
+          email: true,
+          telefono: true,
+          semestre: true,
         },
       });
       return alumno ? [alumno] : [];
     }
 
-    const periodo = getCurrentAcademicPeriod();
+    const periodo = periodoSeleccionado ?? getCurrentAcademicPeriod();
     const baseWhere = {
       materiaId,
       estado: 'ACEPTADA' as const,
       alumno: {
         rol: 'ALUMNO' as const,
         activo: true,
+        ...(carreraId ? { carreraId } : {}),
       },
       // Del grupo, o inscritos por el docente en la clase de ese grupo.
-      ...(grupoId ? { OR: [{ alumno: { grupoId } }, { grupoId }] } : {}),
+      ...(grupoId
+        ? {
+            OR: periodoSeleccionado
+              ? [{ grupoId }, { grupoId: null, alumno: { grupoId } }]
+              : [{ alumno: { grupoId } }, { grupoId }],
+          }
+        : {}),
     };
 
     let inscripciones = await this.prisma.inscripcion.findMany({
@@ -1005,13 +1091,16 @@ export class CalificacionesService {
             numeroControl: true,
             sexo: true,
             grupoId: true,
+            email: true,
+            telefono: true,
+            semestre: true,
           },
         },
       },
       orderBy: { alumno: { nombre: 'asc' } },
     });
 
-    if (!inscripciones.length) {
+    if (!inscripciones.length && !periodoSeleccionado) {
       inscripciones = await this.prisma.inscripcion.findMany({
         where: baseWhere,
         select: {
@@ -1022,6 +1111,9 @@ export class CalificacionesService {
               numeroControl: true,
               sexo: true,
               grupoId: true,
+              email: true,
+              telefono: true,
+              semestre: true,
             },
           },
         },

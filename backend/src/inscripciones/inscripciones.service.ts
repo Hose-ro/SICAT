@@ -116,7 +116,7 @@ export class InscripcionesService {
 
     const updated = await this.prisma.inscripcion.update({
       where: { id },
-      data: { estado: 'ACEPTADA' },
+      data: { estado: 'ACEPTADA', aceptadaAt: new Date() },
     });
 
     await this.notificaciones.crear({
@@ -275,7 +275,11 @@ export class InscripcionesService {
       if (existente) {
         await this.prisma.inscripcion.update({
           where: { id: existente.id },
-          data: { estado: 'ACEPTADA', grupoId: dto.grupoId ?? null },
+          data: {
+            estado: 'ACEPTADA',
+            aceptadaAt: new Date(),
+            grupoId: dto.grupoId ?? null,
+          },
         });
         resultado.reactivados += 1;
       } else {
@@ -285,6 +289,7 @@ export class InscripcionesService {
             materiaId,
             periodo,
             estado: 'ACEPTADA',
+            aceptadaAt: new Date(),
             grupoId: dto.grupoId ?? null,
           },
         });
@@ -489,7 +494,11 @@ export class InscripcionesService {
         } else if (yaInscrito) {
           await this.prisma.inscripcion.update({
             where: { id: yaInscrito.id },
-            data: { estado: 'ACEPTADA', grupoId: dto.grupoId ?? null },
+            data: {
+              estado: 'ACEPTADA',
+              aceptadaAt: new Date(),
+              grupoId: dto.grupoId ?? null,
+            },
           });
         } else {
           await this.prisma.inscripcion.create({
@@ -498,6 +507,7 @@ export class InscripcionesService {
               materiaId,
               periodo,
               estado: 'ACEPTADA',
+              aceptadaAt: new Date(),
               grupoId: dto.grupoId ?? null,
             },
           });

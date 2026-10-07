@@ -246,6 +246,7 @@ model Usuario {
   calificacionesAlumno  CalificacionUnidad[]       @relation("CalificacionAlumno")
   calificacionesDocente CalificacionUnidad[]       @relation("CalificacionDocente")
   notificaciones        Notificacion[]
+  incorporacionesJefe   IncorporacionJefatura[]
   carrerasJefe          JefeCarreraAsignacion[]
   alertasResponsable    AlertaCarrera[]            @relation("AlertaCarreraResponsable")
   authTokens            AuthToken[]
@@ -735,6 +736,8 @@ model CalificacionUnidad {
 }
 
 model Inscripcion {
+  aceptadaAt DateTime?
+  incorporaciones IncorporacionJefatura[]
   id        Int               @id @default(autoincrement())
   alumnoId  Int
   materiaId Int
@@ -933,4 +936,18 @@ model Grupo {
   whatsapp             GrupoWhatsapp[]
 
   @@unique([semestre, seccion, carreraId, periodo, modalidad])
+}
+
+/// Historial inmutable de incorporaciones realizadas por jefatura.
+model IncorporacionJefatura {
+  id Int @id @default(autoincrement())
+  inscripcionId Int
+  actorId Int
+  motivo String @db.VarChar(500)
+  estadoAnterior EstadoInscripcion?
+  createdAt DateTime @default(now())
+  inscripcion Inscripcion @relation(fields: [inscripcionId], references: [id], onDelete: Cascade)
+  actor Usuario @relation(fields: [actorId], references: [id])
+  @@index([inscripcionId, createdAt])
+  @@index([actorId, createdAt])
 }

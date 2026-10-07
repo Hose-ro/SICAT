@@ -78,7 +78,7 @@ export function resolveNotificationRoute(notificacion, rol) {
 
   if (rol === 'JEFE_CARRERA') {
     if (['Asistencias', 'ClaseSesion', 'HorarioMateria'].includes(referenciaTipo)) {
-      return '/jefe-carrera/clases'
+      return '/jefe-carrera/horarios'
     }
     if (['Materia', 'Unidad'].includes(referenciaTipo)) {
       return '/jefe-carrera/seguimiento'

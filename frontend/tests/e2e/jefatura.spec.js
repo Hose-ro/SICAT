@@ -1,0 +1,151 @@
+import { test, expect } from '@playwright/test'
+import AxeBuilder from '@axe-core/playwright'
+import { mockApi } from './fixtures'
+import { mockJefatura } from './jefatura-fixture'
+
+const axe = async (page) => {
+  const r = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()
+  return r.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.html.slice(0, 120)).join(' | ')}`)
+}
+const sinDesborde = (page) => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)
+
+test.describe('jefatura de carrera', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockApi(page, 'JEFE_CARRERA')
+  })
+
+  test('inicio: señales, horario día/semana, detalle con teclado y Mixto', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 1000 })
+    await mockJefatura(page)
+    await page.goto('/dashboard')
+    await expect(page.getByRole('heading', { level: 1, name: 'Inicio' })).toBeVisible()
+    await expect(page).toHaveURL(/carrera=1&periodo=2026-B/)
+    await expect(page.getByRole('link', { name: /Listas por completar/ })).toBeVisible()
+    await expect(page.getByRole('link', { name: /Alumnos en riesgo/ })).toHaveAttribute('href', /\/jefe-carrera\/grupos\?.*riesgo=1/)
+    const region = page.getByRole('region', { name: 'Horario del día por grupo y hora' })
+    await expect(region).toBeVisible()
+    await page.screenshot({ path: 'audit/jefatura-inicio.png', fullPage: true })
+    expect(await axe(page)).toEqual([])
+
+    const bloque = region.getByRole('button', { name: /Cálculo diferencial, grupo 1A/ })
+    await bloque.focus()
+    await page.keyboard.press('Enter')
+    const panel = page.getByRole('dialog', { name: 'Detalle de clase' })
+    await expect(panel).toBeVisible()
+    await expect(panel.getByText('Cobertura de captura')).toBeVisible()
+    await expect(page).toHaveURL(/clase=100%3A/)
+    await page.screenshot({ path: 'audit/jefatura-detalle.png' })
+    await page.keyboard.press('Escape')
+    await expect(panel).toBeHidden()
+    await expect(bloque).toBeFocused()
+
+    await page.getByRole('button', { name: 'Semana' }).click()
+    await expect(page.getByRole('region', { name: 'Horario semanal por grupo y día' })).toBeVisible()
+    await expect(page).toHaveURL(/vista=semana/)
+    await page.screenshot({ path: 'audit/jefatura-semana.png', fullPage: true })
+
+    await page.getByLabel('Docente').selectOption({ label: 'Carlos Ruiz' })
+    const semana = page.getByRole('region', { name: 'Horario semanal por grupo y día' })
+    await expect(semana.getByRole('rowheader')).toHaveCount(2)
+
+    await page.getByLabel('Modalidad').selectOption('MIXTO')
+    await expect(page.getByText('Ningún resultado con estos filtros')).toBeVisible()
+    await page.getByRole('button', { name: 'Restablecer filtros' }).click()
+    await expect(page.getByLabel('Modalidad')).toHaveValue('ESCOLARIZADO')
+    await page.getByLabel('Modalidad').selectOption('MIXTO')
+    await expect(semana.getByRole('columnheader', { name: /sáb/i })).toBeVisible()
+    await expect(semana.getByRole('columnheader')).toHaveCount(2)
+    await page.screenshot({ path: 'audit/jefatura-mixto.png' })
+  })
+
+  test('grupos y expediente del alumno con inscripción fuera del grupo base', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 1000 })
+    await mockJefatura(page)
+    await page.goto('/jefe-carrera/grupos')
+    await expect(page.getByRole('heading', { level: 1, name: 'Grupos' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: '1.º semestre' })).toBeVisible()
+    await page.screenshot({ path: 'audit/jefatura-grupos.png', fullPage: true })
+    expect(await axe(page)).toEqual([])
+
+    await page.getByRole('link', { name: '7A' }).click()
+    await expect(page.getByRole('link', { name: 'Resumen' })).toHaveAttribute('aria-current', 'page')
+    await page.getByRole('link', { name: /^Alumnos/ }).click()
+    await expect(page.getByText('Incorporado · grupo base 9A')).toBeVisible()
+    await page.screenshot({ path: 'audit/jefatura-grupo-alumnos.png', fullPage: true })
+    expect(await axe(page)).toEqual([])
+    await page.getByRole('button', { name: 'Zoe Incorporada' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Zoe Incorporada' })
+    await expect(dialog.getByText('Inteligencia artificial')).toBeVisible()
+    await expect(dialog.getByRole('link', { name: 'Preparar correo' })).toHaveAttribute('href', 'mailto:zoe@sicat.test')
+    await page.screenshot({ path: 'audit/jefatura-expediente-alumno.png' })
+    await page.keyboard.press('Escape')
+
+    await page.getByRole('link', { name: 'Materias y unidades' }).click()
+    await expect(page.getByRole('region', { name: /Calificaciones de .* por unidad/ })).toBeVisible()
+    await page.goto('/jefe-carrera/grupos/9?carrera=1&periodo=2026-B&tab=materias&materia=414')
+    await expect(page.getByText('Sin captura').first()).toBeVisible()
+    await page.screenshot({ path: 'audit/jefatura-grupo-unidades.png', fullPage: true })
+  })
+
+  test('docente: cobertura sobre clases elegibles y unidades por oferta', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 1000 })
+    await mockJefatura(page)
+    await page.goto('/jefe-carrera/docentes')
+    await expect(page.getByRole('heading', { level: 1, name: 'Docentes' })).toBeVisible()
+    await page.screenshot({ path: 'audit/jefatura-docentes.png', fullPage: true })
+    await page.getByRole('link', { name: 'Laura Méndez' }).click()
+    await expect(page.getByRole('heading', { level: 1, name: 'Laura Méndez' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Registro de clases y asistencia' })).toBeVisible()
+    await expect(page.getByText(/Cobertura = clases con lista completa/)).toBeVisible()
+    await expect(page.getByText('Clases sin evidencia de registro')).toBeVisible()
+    await expect(page.getByText(/Cierre previsto el .* sin registrar/)).toBeVisible()
+    await page.screenshot({ path: 'audit/jefatura-docente.png', fullPage: true })
+    expect(await axe(page)).toEqual([])
+  })
+
+  test('materias: retícula vs oferta e incorporación con solicitud pendiente', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 1000 })
+    const requests = await mockJefatura(page)
+    await page.goto('/jefe-carrera/materias')
+    await expect(page.getByText('1 oferta sin docente')).toBeVisible()
+    await page.screenshot({ path: 'audit/jefatura-materias.png', fullPage: true })
+    await page.getByRole('button', { name: /materias? de la retícula sin oferta/ }).click()
+    await expect(page.getByText('Sin oferta en el periodo').first()).toBeVisible()
+    await expect(page.getByText('Taller de ética')).toHaveCount(0)
+
+    await page.goto('/jefe-carrera/materias/414?carrera=1&periodo=2026-B')
+    await page.getByRole('button', { name: 'Incorporar alumno' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Incorporar alumno' })
+    await expect(dialog.getByLabel(/Alumno de la carrera/)).toBeFocused()
+    await dialog.getByLabel(/Alumno de la carrera/).fill('Bru')
+    await expect(dialog.getByRole('button', { name: /Bruna Estrada/ })).toBeDisabled()
+    await dialog.getByRole('button', { name: /Bruno Alcántara/ }).click()
+    const confirmar = dialog.getByRole('button', { name: 'Incorporar alumno' })
+    await dialog.getByLabel('Motivo de la incorporación').fill('Recursamiento autorizado por la academia')
+    await expect(confirmar).toBeDisabled()
+    await dialog.getByRole('checkbox').check()
+    await page.screenshot({ path: 'audit/jefatura-incorporar.png' })
+    expect(await axe(page)).toEqual([])
+    await confirmar.click()
+    await expect(dialog.getByText(/quedó inscrito en Programación orientada a objetos, grupo 3A/)).toBeVisible()
+    const post = requests.find((r) => r.method === 'POST')
+    expect(post.body).toEqual({ alumnoId: 1202, materiaId: 414, grupoId: 9, motivo: 'Recursamiento autorizado por la academia', resolverSolicitud: true })
+    expect(post.query).toMatchObject({ carreraId: '1', periodo: '2026-B' })
+  })
+
+  test('móvil: agenda legible y sin desborde', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await mockJefatura(page)
+    await page.goto('/dashboard')
+    await expect(page.getByRole('button', { name: 'Ver matriz' })).toBeVisible()
+    await expect(page.locator('section[aria-label]').filter({ hasText: 'Cálculo diferencial' }).first()).toBeVisible()
+    expect(await sinDesborde(page)).toBe(true)
+    await page.screenshot({ path: 'audit/jefatura-movil.png', fullPage: true })
+    for (const ruta of ['/jefe-carrera/grupos/8?tab=alumnos', '/jefe-carrera/docentes/37', '/jefe-carrera/materias/411']) {
+      await page.goto(ruta)
+      await expect(page.locator('main h1')).toHaveCount(1)
+      await page.waitForTimeout(200)
+      expect(await sinDesborde(page), ruta).toBe(true)
+    }
+  })
+})

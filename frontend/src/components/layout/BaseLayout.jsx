@@ -144,22 +144,30 @@ export function BaseLayout({ children }) {
 
           {role === 'JEFE_CARRERA' && (
             <>
-              <span className="nav__section">Jefatura</span>
-              <NavLink to="/jefe-carrera/docentes" className={navClass} data-tip="Docentes" hidden={!'Docentes'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
+              <NavLink to="/jefe-carrera/grupos" className={navClass} data-tip="Grupos" hidden={!'Grupos'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
                 <UsersRound className="nav__icon" />
+                <span className="nav__label">Grupos</span>
+              </NavLink>
+              <NavLink to="/jefe-carrera/docentes" className={navClass} data-tip="Docentes" hidden={!'Docentes'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
+                <CiUser className="nav__icon" />
                 <span className="nav__label">Docentes</span>
               </NavLink>
-              <NavLink to="/jefe-carrera/clases" className={navClass} data-tip="Clases y horarios" hidden={!'Clases y horarios'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
+              <NavLink to="/jefe-carrera/materias" className={navClass} data-tip="Materias" hidden={!'Materias'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
+                <CiRead className="nav__icon" />
+                <span className="nav__label">Materias</span>
+              </NavLink>
+              <NavLink to="/jefe-carrera/horarios" className={navClass} data-tip="Horarios" hidden={!'Horarios'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
                 <CalendarClock className="nav__icon" />
-                <span className="nav__label">Clases y horarios</span>
+                <span className="nav__label">Horarios</span>
+              </NavLink>
+              <span className="nav__section">Seguimiento</span>
+              <NavLink to="/jefe-carrera/alertas" className={navClass} data-tip="Alertas" hidden={!'Alertas'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
+                <BellRing className="nav__icon" />
+                <span className="nav__label">Alertas</span>
               </NavLink>
               <NavLink to="/jefe-carrera/seguimiento" className={navClass} data-tip="Seguimiento" hidden={!'Seguimiento'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
                 <BookOpenCheck className="nav__icon" />
                 <span className="nav__label">Seguimiento</span>
-              </NavLink>
-              <NavLink to="/jefe-carrera/alertas" className={navClass} data-tip="Alertas" hidden={!'Alertas'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
-                <BellRing className="nav__icon" />
-                <span className="nav__label">Alertas</span>
               </NavLink>
               <NavLink to="/jefe-carrera/reportes" className={navClass} data-tip="Reportes" hidden={!'Reportes'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
                 <BarChart3 className="nav__icon" />

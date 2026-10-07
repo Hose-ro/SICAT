@@ -4,9 +4,8 @@
       "/opt/homebrew/Cellar/node@22/22.22.0/bin/node",
       "/Users/jose/Documents/8vosemestre/fede/SICAT/frontend/node_modules/.bin/playwright",
       "test",
-      "tests/e2e/audit.spec.js",
-      "-g",
-      "exportaciones"
+      "tests/e2e/jefatura.spec.js",
+      "tests/e2e/rutas.spec.js"
     ],
     "configFile": "/Users/jose/Documents/8vosemestre/fede/SICAT/frontend/playwright.config.js",
     "rootDir": "/Users/jose/Documents/8vosemestre/fede/SICAT/frontend/tests/e2e",
@@ -68,15 +67,204 @@
   },
   "suites": [
     {
-      "title": "audit.spec.js",
-      "file": "audit.spec.js",
+      "title": "jefatura.spec.js",
+      "file": "jefatura.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "jefatura de carrera",
+          "file": "jefatura.spec.js",
+          "line": 12,
+          "column": 6,
+          "specs": [
+            {
+              "title": "inicio: señales, horario día/semana, detalle con teclado y Mixto",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 3381,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-07T21:14:24.487Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "820303c29c76fc62601c-256a1a456fc4743efdad",
+              "file": "jefatura.spec.js",
+              "line": 17,
+              "column": 3
+            },
+            {
+              "title": "grupos y expediente del alumno con inscripción fuera del grupo base",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 3595,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-07T21:14:28.877Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "820303c29c76fc62601c-c59908c54f10b1ed1dbc",
+              "file": "jefatura.spec.js",
+              "line": 61,
+              "column": 3
+            },
+            {
+              "title": "docente: cobertura sobre clases elegibles y unidades por oferta",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 2792,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-07T21:14:32.480Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "820303c29c76fc62601c-ced0e8ecac38072f9c92",
+              "file": "jefatura.spec.js",
+              "line": 90,
+              "column": 3
+            },
+            {
+              "title": "materias: retícula vs oferta e incorporación con solicitud pendiente",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 3405,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-07T21:14:35.279Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "820303c29c76fc62601c-466c1da5f9f4f07571e7",
+              "file": "jefatura.spec.js",
+              "line": 106,
+              "column": 3
+            },
+            {
+              "title": "móvil: agenda legible y sin desborde",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4261,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-07T21:14:38.691Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "820303c29c76fc62601c-e329ed9575bfa91ea33e",
+              "file": "jefatura.spec.js",
+              "line": 136,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "rutas.spec.js",
+      "file": "rutas.spec.js",
       "column": 0,
       "line": 0,
       "specs": [
         {
-          "title": "exportaciones: el reporte filtrado descarga Excel y PDF del backend",
+          "title": "ADMIN /dashboard light@1280",
           "ok": true,
-          "tags": [],
+          "tags": [
+            "1280"
+          ],
           "tests": [
             {
               "timeout": 30000,
@@ -89,12 +277,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 1140,
+                  "duration": 1818,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-09-17T19:45:35.010Z",
+                  "startTime": "2026-10-07T21:14:42.977Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -102,21 +290,3165 @@
               "status": "expected"
             }
           ],
-          "id": "cb3620ddbaaaeb17db70-6f13f94661b86463be42",
-          "file": "audit.spec.js",
-          "line": 61,
-          "column": 1
+          "id": "bdb404eaccb5c57a2ad5-da33c08498f39ab20bd6",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "ADMIN /dashboard dark@390",
+          "ok": true,
+          "tags": [
+            "390"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1450,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:14:44.804Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-58a9416bee33f09e722d",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "ADMIN /materias light@1280",
+          "ok": true,
+          "tags": [
+            "1280"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1487,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:14:46.260Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-3ee4dc053625e26efa68",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "ADMIN /materias dark@390",
+          "ok": true,
+          "tags": [
+            "390"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1280,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:14:47.754Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-ee3333d6627df5fc9190",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "ADMIN /materias/1 light@1280",
+          "ok": true,
+          "tags": [
+            "1280"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1390,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:14:49.041Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-1c9ce011778147c1c989",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "ADMIN /materias/1 dark@390",
+          "ok": true,
+          "tags": [
+            "390"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1323,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:14:50.436Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-7f08d6703f2365ecd1da",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "ADMIN /asistencias light@1280",
+          "ok": true,
+          "tags": [
+            "1280"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1326,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:14:51.766Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-7eb915c16a87ba18ade0",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "ADMIN /asistencias dark@390",
+          "ok": true,
+          "tags": [
+            "390"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1533,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:14:53.099Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-26e7e601938c1fdaedc5",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "ADMIN /tareas light@1280",
+          "ok": true,
+          "tags": [
+            "1280"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1393,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:14:54.640Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-104acd95c6acb2820c20",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "ADMIN /tareas dark@390",
+          "ok": true,
+          "tags": [
+            "390"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1271,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:14:56.040Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-a938f2e15882c71b269d",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "ADMIN /calificaciones light@1280",
+          "ok": true,
+          "tags": [
+            "1280"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1445,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:14:57.317Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-fe85afed279a6d04296c",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "ADMIN /calificaciones dark@390",
+          "ok": true,
+          "tags": [
+            "390"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1329,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:14:58.768Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-1168fe3bdf172bb61612",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "ADMIN /usuarios light@1280",
+          "ok": true,
+          "tags": [
+            "1280"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1320,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:15:00.103Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-6d9610502cdeab35968a",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "ADMIN /usuarios dark@390",
+          "ok": true,
+          "tags": [
+            "390"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1785,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:15:01.429Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-2b90b0a3c4586beaf798",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "ADMIN /carreras light@1280",
+          "ok": true,
+          "tags": [
+            "1280"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1318,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:15:03.220Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-c0ecdc0e783aa6600af0",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "ADMIN /carreras dark@390",
+          "ok": true,
+          "tags": [
+            "390"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1220,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:15:04.543Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-50996fb8356f401c8dd2",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "ADMIN /admin/horarios light@1280",
+          "ok": true,
+          "tags": [
+            "1280"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1717,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:15:05.768Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-05c1e9ee7834d8f14c88",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "ADMIN /admin/horarios dark@390",
+          "ok": true,
+          "tags": [
+            "390"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1182,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:15:07.491Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-a71b5526950e03f98d1a",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "ADMIN /admin/horarios-importados light@1280",
+          "ok": true,
+          "tags": [
+            "1280"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1366,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:15:08.678Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-01c91ca8af7f45ce12c3",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "ADMIN /admin/horarios-importados dark@390",
+          "ok": true,
+          "tags": [
+            "390"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1262,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:15:10.049Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-e5c28abd874b1ab75f4c",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "ADMIN /admin/academias light@1280",
+          "ok": true,
+          "tags": [
+            "1280"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1324,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:15:11.316Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-d3b262369bf6d7870e01",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "ADMIN /admin/academias dark@390",
+          "ok": true,
+          "tags": [
+            "390"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1274,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:15:12.645Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-fe10d059a3ff5eb631cd",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "ADMIN /admin/academias/1 light@1280",
+          "ok": true,
+          "tags": [
+            "1280"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1936,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:15:13.925Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-2e4f45728acba6864eb3",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "ADMIN /admin/academias/1 dark@390",
+          "ok": true,
+          "tags": [
+            "390"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1252,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:15:15.869Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-752da6d18a4f4a11b9d0",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "ADMIN /admin/aulas light@1280",
+          "ok": true,
+          "tags": [
+            "1280"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1421,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:15:17.128Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-8676adc32d14bef2d4c7",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "ADMIN /admin/aulas dark@390",
+          "ok": true,
+          "tags": [
+            "390"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1303,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:15:18.554Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-31895d15557b9fcd03ff",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "ADMIN /admin/grupos light@1280",
+          "ok": true,
+          "tags": [
+            "1280"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1398,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:15:19.863Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-c5b105e7c42911516913",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "ADMIN /admin/grupos dark@390",
+          "ok": true,
+          "tags": [
+            "390"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1318,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:15:21.267Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-db725d5eef904cfc1be2",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "ADMIN /admin/grupos/1 light@1280",
+          "ok": true,
+          "tags": [
+            "1280"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1460,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:15:22.591Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-b8958645113f9954d03f",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "ADMIN /admin/grupos/1 dark@390",
+          "ok": true,
+          "tags": [
+            "390"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1299,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:15:24.056Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-eb1df6749ac65da0826c",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "ADMIN /notificaciones light@1280",
+          "ok": true,
+          "tags": [
+            "1280"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1479,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:15:25.360Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-e26d220e3eddfbc29803",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "ADMIN /notificaciones dark@390",
+          "ok": true,
+          "tags": [
+            "390"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1380,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:15:26.844Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-ff065b40fc79161a1861",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "DOCENTE /dashboard light@1280",
+          "ok": true,
+          "tags": [
+            "1280"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1432,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:15:28.229Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-0baea134ca256435194e",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "DOCENTE /dashboard dark@390",
+          "ok": true,
+          "tags": [
+            "390"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1318,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:15:29.669Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-14f0fd02f85256c61fb1",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "DOCENTE /asistencias light@1280",
+          "ok": true,
+          "tags": [
+            "1280"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1508,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:15:30.992Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-a9104196a1cd710dca45",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "DOCENTE /asistencias dark@390",
+          "ok": true,
+          "tags": [
+            "390"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1415,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:15:32.505Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-ca09729b558bc88ff2da",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "DOCENTE /tareas light@1280",
+          "ok": true,
+          "tags": [
+            "1280"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1258,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:15:33.925Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-660dd403da8670380c03",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "DOCENTE /tareas dark@390",
+          "ok": true,
+          "tags": [
+            "390"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1273,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:15:35.188Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-166a27b15167e30935f9",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "DOCENTE /calificaciones light@1280",
+          "ok": true,
+          "tags": [
+            "1280"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1367,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:15:36.467Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-c32fab1ae56cff1a64a1",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "DOCENTE /calificaciones dark@390",
+          "ok": true,
+          "tags": [
+            "390"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1257,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:15:37.840Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-6a9c8fdd968ab9779faa",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "DOCENTE /docente/grupos light@1280",
+          "ok": true,
+          "tags": [
+            "1280"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1289,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:15:39.104Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-ea2fdf3614f5cbde7993",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "DOCENTE /docente/grupos dark@390",
+          "ok": true,
+          "tags": [
+            "390"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1182,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:15:40.398Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-71abd2fc1fb126fd5c18",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "DOCENTE /docente/horario light@1280",
+          "ok": true,
+          "tags": [
+            "1280"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1480,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:15:41.585Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-308dca5c1277a7c290e7",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "DOCENTE /docente/horario dark@390",
+          "ok": true,
+          "tags": [
+            "390"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1739,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:15:43.070Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-3ff854eb4121cc18b878",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "DOCENTE /docente/solicitudes light@1280",
+          "ok": true,
+          "tags": [
+            "1280"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1337,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:15:44.815Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-35830be6831366c8ca43",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "DOCENTE /docente/solicitudes dark@390",
+          "ok": true,
+          "tags": [
+            "390"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1241,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:15:46.157Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-d8faeb9b70a631641ecd",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "DOCENTE /docente/horario/editar light@1280",
+          "ok": true,
+          "tags": [
+            "1280"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1712,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:15:47.403Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-c0389e70956a30896ab2",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "DOCENTE /docente/horario/editar dark@390",
+          "ok": true,
+          "tags": [
+            "390"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1624,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:15:49.120Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-d65de6115400a464f632",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "DOCENTE /docente/tareas/crear light@1280",
+          "ok": false,
+          "tags": [
+            "1280"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 1267,
+                  "error": {
+                    "message": "Error: frame.evaluate: Execution context was destroyed, most likely because of a navigation.",
+                    "stack": "Error: frame.evaluate: Execution context was destroyed, most likely because of a navigation.\n    at AxeBuilder.runPartialRecursive (/Users/jose/Documents/8vosemestre/fede/SICAT/frontend/node_modules/@axe-core/playwright/dist/index.mjs:283:34)\n    at AxeBuilder.analyze (/Users/jose/Documents/8vosemestre/fede/SICAT/frontend/node_modules/@axe-core/playwright/dist/index.mjs:210:28)\n    at /Users/jose/Documents/8vosemestre/fede/SICAT/frontend/tests/e2e/rutas.spec.js:23:13",
+                    "location": {
+                      "file": "/Users/jose/Documents/8vosemestre/fede/SICAT/frontend/tests/e2e/rutas.spec.js",
+                      "column": 13,
+                      "line": 23
+                    },
+                    "snippet": "  21 |   await page.goto(path); await expect(page).toHaveURL(new RegExp(path.replace(/\\//g,'\\\\/')+'$'))\n  22 |   await expect(page.getByRole('status',{name:/cargando/i})).toHaveCount(0); await page.locator('main').waitFor(); await page.waitForTimeout(300); await settle(page)\n> 23 |   const r = await new AxeBuilder({ page }).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze()\n     |             ^\n  24 |   const violations = r.violations.map(v => ({ id: v.id, nodes: v.nodes.map(n => ({ html: n.html.slice(0,200), summary: n.failureSummary })) }))\n  25 |   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)\n  26 |   const h1 = await page.locator('main h1').count()"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/Users/jose/Documents/8vosemestre/fede/SICAT/frontend/tests/e2e/rutas.spec.js",
+                        "column": 13,
+                        "line": 23
+                      },
+                      "message": "Error: frame.evaluate: Execution context was destroyed, most likely because of a navigation.\n\n  21 |   await page.goto(path); await expect(page).toHaveURL(new RegExp(path.replace(/\\//g,'\\\\/')+'$'))\n  22 |   await expect(page.getByRole('status',{name:/cargando/i})).toHaveCount(0); await page.locator('main').waitFor(); await page.waitForTimeout(300); await settle(page)\n> 23 |   const r = await new AxeBuilder({ page }).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze()\n     |             ^\n  24 |   const violations = r.violations.map(v => ({ id: v.id, nodes: v.nodes.map(n => ({ html: n.html.slice(0,200), summary: n.failureSummary })) }))\n  25 |   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)\n  26 |   const h1 = await page.locator('main h1').count()\n    at AxeBuilder.runPartialRecursive (/Users/jose/Documents/8vosemestre/fede/SICAT/frontend/node_modules/@axe-core/playwright/dist/index.mjs:283:34)\n    at AxeBuilder.analyze (/Users/jose/Documents/8vosemestre/fede/SICAT/frontend/node_modules/@axe-core/playwright/dist/index.mjs:210:28)\n    at /Users/jose/Documents/8vosemestre/fede/SICAT/frontend/tests/e2e/rutas.spec.js:23:13"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:15:50.751Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/Users/jose/Documents/8vosemestre/fede/SICAT/frontend/test-results/rutas-DOCENTE-docente-tareas-crear-light-1280/error-context.md"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/Users/jose/Documents/8vosemestre/fede/SICAT/frontend/test-results/rutas-DOCENTE-docente-tareas-crear-light-1280/error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "/Users/jose/Documents/8vosemestre/fede/SICAT/frontend/test-results/rutas-DOCENTE-docente-tareas-crear-light-1280/trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/Users/jose/Documents/8vosemestre/fede/SICAT/frontend/tests/e2e/rutas.spec.js",
+                    "column": 13,
+                    "line": 23
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-6afa22c7a3fe2052fd87",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "DOCENTE /docente/tareas/crear dark@390",
+          "ok": true,
+          "tags": [
+            "390"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1455,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:15:52.839Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-cf278c1a8fb2c72949e4",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "ALUMNO /materias light@1280",
+          "ok": true,
+          "tags": [
+            "1280"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1410,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:15:54.537Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-916abb2f94d2de839632",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "ALUMNO /materias dark@390",
+          "ok": true,
+          "tags": [
+            "390"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1281,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:15:55.952Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-51a9c0492c9b8536db71",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "ALUMNO /asistencias light@1280",
+          "ok": true,
+          "tags": [
+            "1280"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1368,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:15:57.238Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-08a11a9559b5aa747873",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "ALUMNO /asistencias dark@390",
+          "ok": true,
+          "tags": [
+            "390"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1305,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:15:58.613Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-9bae98161cda36b4370f",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "ALUMNO /tareas light@1280",
+          "ok": true,
+          "tags": [
+            "1280"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1354,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:15:59.923Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-cf9d025c492e5a98fafa",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "ALUMNO /tareas dark@390",
+          "ok": true,
+          "tags": [
+            "390"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1307,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:16:01.282Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-8e9699bd0b68fb0e0b28",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "ALUMNO /calificaciones light@1280",
+          "ok": true,
+          "tags": [
+            "1280"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1355,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:16:02.596Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-a823bb6304b6d728b666",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "ALUMNO /calificaciones dark@390",
+          "ok": true,
+          "tags": [
+            "390"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1285,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:16:03.956Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-35877988765a63065ee5",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "ALUMNO /alumno/horario light@1280",
+          "ok": true,
+          "tags": [
+            "1280"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1856,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:16:05.246Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-e5238c0801dc36d7b87b",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "ALUMNO /alumno/horario dark@390",
+          "ok": true,
+          "tags": [
+            "390"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1242,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:16:07.108Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-cdec8faac45aabd64a8d",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "ALUMNO /alumno/materias/1 light@1280",
+          "ok": true,
+          "tags": [
+            "1280"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1363,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:16:08.355Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-e21712f30c5d2af15d39",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "ALUMNO /alumno/materias/1 dark@390",
+          "ok": true,
+          "tags": [
+            "390"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1739,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:16:09.724Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-ca97f0313a2156b41428",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "ALUMNO /notificaciones light@1280",
+          "ok": true,
+          "tags": [
+            "1280"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1857,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:16:11.469Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-77b46dafe53b0f3a2fb3",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "ALUMNO /notificaciones dark@390",
+          "ok": true,
+          "tags": [
+            "390"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1343,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:16:13.331Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-cc5bdf94f5bc3d29f494",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "JEFE_CARRERA /dashboard light@1280",
+          "ok": true,
+          "tags": [
+            "1280"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1695,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:16:14.679Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-7febf2039eca75d516a3",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "JEFE_CARRERA /dashboard dark@390",
+          "ok": true,
+          "tags": [
+            "390"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1539,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:16:16.379Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-69f3dae199e90c762d0d",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "JEFE_CARRERA /jefe-carrera/grupos light@1280",
+          "ok": true,
+          "tags": [
+            "1280"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1585,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:16:17.924Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-4ea70479d45b57462667",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "JEFE_CARRERA /jefe-carrera/grupos dark@390",
+          "ok": true,
+          "tags": [
+            "390"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1389,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:16:19.518Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-9e3e6c4ed31c1f5f31e2",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "JEFE_CARRERA /jefe-carrera/grupos/8 light@1280",
+          "ok": true,
+          "tags": [
+            "1280"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1385,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:16:20.914Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-1ee4863493b166efe9fc",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "JEFE_CARRERA /jefe-carrera/grupos/8 dark@390",
+          "ok": false,
+          "tags": [
+            "390"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 1372,
+                  "error": {
+                    "message": "Error: browserContext.close: ENOENT: no such file or directory, open '/Users/jose/Documents/8vosemestre/fede/SICAT/frontend/test-results/.playwright-artifacts-1/traces/bdb404eaccb5c57a2ad5-86c196e9f7a9763bd743-recording40.trace'",
+                    "stack": "Error: browserContext.close: ENOENT: no such file or directory, open '/Users/jose/Documents/8vosemestre/fede/SICAT/frontend/test-results/.playwright-artifacts-1/traces/bdb404eaccb5c57a2ad5-86c196e9f7a9763bd743-recording40.trace'"
+                  },
+                  "errors": [
+                    {
+                      "message": "Error: browserContext.close: ENOENT: no such file or directory, open '/Users/jose/Documents/8vosemestre/fede/SICAT/frontend/test-results/.playwright-artifacts-1/traces/bdb404eaccb5c57a2ad5-86c196e9f7a9763bd743-recording40.trace'"
+                    },
+                    {
+                      "message": "Error: ENOENT: no such file or directory, open '/Users/jose/Documents/8vosemestre/fede/SICAT/frontend/test-results/.playwright-artifacts-1/ddc0688f4de0d8e6ab953fb9653bba70.zip'"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:16:22.304Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/Users/jose/Documents/8vosemestre/fede/SICAT/frontend/test-results/rutas-JEFE-CARRERA-jefe-carrera-grupos-8-dark-390/error-context.md"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/Users/jose/Documents/8vosemestre/fede/SICAT/frontend/test-results/rutas-JEFE-CARRERA-jefe-carrera-grupos-8-dark-390/error-context.md"
+                    }
+                  ]
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-86c196e9f7a9763bd743",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "JEFE_CARRERA /jefe-carrera/docentes light@1280",
+          "ok": true,
+          "tags": [
+            "1280"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1961,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:16:24.180Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-fef292f4a72b4ff9ac73",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "JEFE_CARRERA /jefe-carrera/docentes dark@390",
+          "ok": false,
+          "tags": [
+            "390"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 1425,
+                  "error": {
+                    "message": "Error: browserContext.close: ENOENT: no such file or directory, open '/Users/jose/Documents/8vosemestre/fede/SICAT/frontend/test-results/.playwright-artifacts-2/traces/bdb404eaccb5c57a2ad5-20dea80b616081e8304c-recording2.trace'",
+                    "stack": "Error: browserContext.close: ENOENT: no such file or directory, open '/Users/jose/Documents/8vosemestre/fede/SICAT/frontend/test-results/.playwright-artifacts-2/traces/bdb404eaccb5c57a2ad5-20dea80b616081e8304c-recording2.trace'"
+                  },
+                  "errors": [
+                    {
+                      "message": "Error: browserContext.close: ENOENT: no such file or directory, open '/Users/jose/Documents/8vosemestre/fede/SICAT/frontend/test-results/.playwright-artifacts-2/traces/bdb404eaccb5c57a2ad5-20dea80b616081e8304c-recording2.trace'"
+                    },
+                    {
+                      "message": "Error: ENOENT: no such file or directory, open '/Users/jose/Documents/8vosemestre/fede/SICAT/frontend/test-results/.playwright-artifacts-2/c9d06ea6aece1a375ceefdf19ac9e616.zip'"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:16:26.411Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/Users/jose/Documents/8vosemestre/fede/SICAT/frontend/test-results/rutas-JEFE-CARRERA-jefe-carrera-docentes-dark-390/error-context.md"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/Users/jose/Documents/8vosemestre/fede/SICAT/frontend/test-results/rutas-JEFE-CARRERA-jefe-carrera-docentes-dark-390/error-context.md"
+                    }
+                  ]
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-20dea80b616081e8304c",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "JEFE_CARRERA /jefe-carrera/docentes/37 light@1280",
+          "ok": true,
+          "tags": [
+            "1280"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1854,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:16:28.670Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-fde8e9ae4e591598a464",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "JEFE_CARRERA /jefe-carrera/docentes/37 dark@390",
+          "ok": true,
+          "tags": [
+            "390"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1560,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:16:30.654Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-c9a13e696c918778d8c4",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "JEFE_CARRERA /jefe-carrera/materias light@1280",
+          "ok": true,
+          "tags": [
+            "1280"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1528,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:16:32.221Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-501d7442b6d302f304c1",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "JEFE_CARRERA /jefe-carrera/materias dark@390",
+          "ok": true,
+          "tags": [
+            "390"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1416,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:16:33.755Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-89643ff3f042aa1072df",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "JEFE_CARRERA /jefe-carrera/materias/411 light@1280",
+          "ok": true,
+          "tags": [
+            "1280"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1393,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:16:35.176Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-e0340bc54bc68d3c5bfb",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "JEFE_CARRERA /jefe-carrera/materias/411 dark@390",
+          "ok": true,
+          "tags": [
+            "390"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1873,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:16:36.574Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-6cda173aa6f56ba899b8",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "JEFE_CARRERA /jefe-carrera/horarios light@1280",
+          "ok": true,
+          "tags": [
+            "1280"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1463,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:16:38.451Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-27ebf47bb1317958bbea",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "JEFE_CARRERA /jefe-carrera/horarios dark@390",
+          "ok": true,
+          "tags": [
+            "390"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1465,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:16:39.919Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-617d9bfd5f92d5646119",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "JEFE_CARRERA /jefe-carrera/seguimiento light@1280",
+          "ok": true,
+          "tags": [
+            "1280"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1318,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:16:41.390Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-b7b2c09b82c7872ce4eb",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "JEFE_CARRERA /jefe-carrera/seguimiento dark@390",
+          "ok": true,
+          "tags": [
+            "390"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1299,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:16:42.715Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-dd71d200ee3bcc98e34e",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "JEFE_CARRERA /jefe-carrera/alertas light@1280",
+          "ok": true,
+          "tags": [
+            "1280"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1329,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:16:44.020Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-7d816cba67e389da8cce",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "JEFE_CARRERA /jefe-carrera/alertas dark@390",
+          "ok": true,
+          "tags": [
+            "390"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1243,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:16:45.354Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-657a8066416b0c818a3d",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "JEFE_CARRERA /jefe-carrera/reportes light@1280",
+          "ok": true,
+          "tags": [
+            "1280"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1273,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:16:46.601Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-01523907fe35ddabff50",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
+        },
+        {
+          "title": "JEFE_CARRERA /jefe-carrera/reportes dark@390",
+          "ok": true,
+          "tags": [
+            "390"
+          ],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1213,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-07T21:16:47.879Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "bdb404eaccb5c57a2ad5-cc78b58f86ec454ed46c",
+          "file": "rutas.spec.js",
+          "line": 18,
+          "column": 2
         }
       ]
     }
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-09-17T19:45:33.137Z",
-    "duration": 4092.925,
-    "expected": 1,
+    "startTime": "2026-10-07T21:14:22.368Z",
+    "duration": 146831.528,
+    "expected": 88,
     "skipped": 0,
-    "unexpected": 0,
+    "unexpected": 3,
     "flaky": 0
   }
 }

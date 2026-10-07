@@ -89,7 +89,7 @@ describe('InscripcionesService', () => {
 
     expect(inscripcionUpdate).toHaveBeenCalledWith({
       where: { id: 9 },
-      data: { estado: 'ACEPTADA', grupoId: null },
+      data: { estado: 'ACEPTADA', aceptadaAt: expect.any(Date), grupoId: null },
     });
     expect(resultado.reactivados).toBe(1);
   });

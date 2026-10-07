@@ -3,191 +3,246 @@
   "path": "/asistencias",
   "files": [
     {
-      "name": "/assets/index-FCsOnC5u.js",
-      "bytes": 340907,
-      "gzip": 113009
+      "name": "/assets/index-CLZ-181H.js",
+      "bytes": 344234,
+      "gzip": 114059
     },
     {
-      "name": "/assets/x-DpuZlBay.js",
+      "name": "/assets/Modal--E2Era79.js",
+      "bytes": 8313,
+      "gzip": 3158
+    },
+    {
+      "name": "/assets/BaseLayout-BSpClmpT.js",
+      "bytes": 37783,
+      "gzip": 11705
+    },
+    {
+      "name": "/assets/x-CoXmfTbj.js",
       "bytes": 155,
       "gzip": 148
     },
     {
-      "name": "/assets/feedback-FvLKjzdI.js",
-      "bytes": 662,
-      "gzip": 378
+      "name": "/assets/feedback-DcgQ8eg4.js",
+      "bytes": 741,
+      "gzip": 418
     },
     {
-      "name": "/assets/BaseLayout-DSZOCmln.js",
-      "bytes": 70292,
-      "gzip": 23584
+      "name": "/assets/useOpenInteractionType-BtyIlFLW.js",
+      "bytes": 55492,
+      "gzip": 19319
     },
     {
-      "name": "/assets/useThemeStore-CIaiM-u5.js",
+      "name": "/assets/avisos-BGZDmwA7.js",
+      "bytes": 244,
+      "gzip": 203
+    },
+    {
+      "name": "/assets/compartirWhatsappStore-yg1ddd-b.js",
+      "bytes": 3248,
+      "gzip": 1569
+    },
+    {
+      "name": "/assets/file-text-BGpGYDIR.js",
+      "bytes": 386,
+      "gzip": 252
+    },
+    {
+      "name": "/assets/tareas-sjn5RpMO.js",
+      "bytes": 6415,
+      "gzip": 2893
+    },
+    {
+      "name": "/assets/useThemeStore-Drz5yqtM.js",
       "bytes": 726,
-      "gzip": 403
+      "gzip": 402
     },
     {
-      "name": "/assets/Modal-24SD4dN9.js",
-      "bytes": 61580,
-      "gzip": 21120
+      "name": "/assets/notificacionStore-I3RIkn6I.js",
+      "bytes": 5053,
+      "gzip": 1881
     },
     {
-      "name": "/assets/notificacionStore-ZisJfPJQ.js",
-      "bytes": 11124,
-      "gzip": 4167
+      "name": "/assets/megaphone-WvxIlfho.js",
+      "bytes": 347,
+      "gzip": 243
     },
     {
-      "name": "/assets/calendar-check-B9VVnqiQ.js",
+      "name": "/assets/avisosSistema-dr-kv3Ci.js",
+      "bytes": 7617,
+      "gzip": 3084
+    },
+    {
+      "name": "/assets/calendar-check-Dir6SCRT.js",
       "bytes": 306,
-      "gzip": 226
+      "gzip": 225
     },
     {
-      "name": "/assets/calendar-range-BUdajzq_.js",
+      "name": "/assets/calendar-range-CWephhAg.js",
       "bytes": 416,
-      "gzip": 256
+      "gzip": 255
     },
     {
-      "name": "/assets/book-open-DH6UYdRe.js",
+      "name": "/assets/book-open-Dsdnt5VZ.js",
       "bytes": 280,
       "gzip": 206
     },
     {
-      "name": "/assets/list-checks-BPrKTqEh.js",
-      "bytes": 396,
-      "gzip": 253
-    },
-    {
-      "name": "/assets/circle-check-DOuJqE5T.js",
-      "bytes": 174,
-      "gzip": 165
-    },
-    {
-      "name": "/assets/user-round-BLgMembt.js",
+      "name": "/assets/user-round-DuCrNlW9.js",
       "bytes": 178,
       "gzip": 175
     },
     {
-      "name": "/assets/upload-B7YMIBhO.js",
-      "bytes": 231,
-      "gzip": 191
+      "name": "/assets/list-checks-BoIda7SO.js",
+      "bytes": 396,
+      "gzip": 252
     },
     {
-      "name": "/assets/clipboard-check-wubqAgnV.js",
+      "name": "/assets/circle-check-VA6203oS.js",
+      "bytes": 174,
+      "gzip": 166
+    },
+    {
+      "name": "/assets/message-square-text-CuyEpNTS.js",
+      "bytes": 347,
+      "gzip": 247
+    },
+    {
+      "name": "/assets/clipboard-check-CelrFbvq.js",
       "bytes": 300,
-      "gzip": 232
+      "gzip": 230
     },
     {
-      "name": "/assets/calendar-clock-C5-SLDF4.js",
+      "name": "/assets/calendar-clock-Ci5MDDtE.js",
       "bytes": 374,
-      "gzip": 250
+      "gzip": 248
     },
     {
-      "name": "/assets/check-T4UZ2CKH.js",
+      "name": "/assets/check-B2h1CG_8.js",
       "bytes": 120,
       "gzip": 137
     },
     {
-      "name": "/assets/trash-2-svTZPSyR.js",
+      "name": "/assets/trash-2-D6_pwIUb.js",
       "bytes": 329,
-      "gzip": 217
+      "gzip": 216
     },
     {
-      "name": "/assets/BrandMark-ClakRLGe.js",
+      "name": "/assets/search-U_Myi2-t.js",
+      "bytes": 170,
+      "gzip": 167
+    },
+    {
+      "name": "/assets/BrandMark-BOuLguih.js",
       "bytes": 288,
       "gzip": 252
     },
     {
-      "name": "/assets/search-UHQUwTsZ.js",
-      "bytes": 170,
-      "gzip": 166
+      "name": "/assets/ToolbarRootContext-4GL0cEC3.js",
+      "bytes": 39924,
+      "gzip": 14520
     },
     {
-      "name": "/assets/list-Byf68o7H.js",
+      "name": "/assets/list-D9c98_We.js",
       "bytes": 303,
       "gzip": 189
     },
     {
-      "name": "/assets/graduation-cap-BeJoRO3z.js",
+      "name": "/assets/graduation-cap-D-aFX8hs.js",
       "bytes": 333,
-      "gzip": 249
+      "gzip": 248
     },
     {
-      "name": "/assets/users-round-g1Xu2TQI.js",
+      "name": "/assets/users-round-zwL1zWpP.js",
       "bytes": 249,
       "gzip": 216
     },
     {
-      "name": "/assets/book-open-check-xl98mZan.js",
-      "bytes": 336,
-      "gzip": 231
+      "name": "/assets/bell-ring-Drk2TPeX.js",
+      "bytes": 398,
+      "gzip": 279
     },
     {
-      "name": "/assets/calendar-days-SyqLxM_W.js",
+      "name": "/assets/book-open-check-_zkdz2Bc.js",
+      "bytes": 336,
+      "gzip": 230
+    },
+    {
+      "name": "/assets/calendar-days-_E-hErcT.js",
       "bytes": 495,
       "gzip": 265
     },
     {
-      "name": "/assets/scan-line-BLBuFgMM.js",
+      "name": "/assets/scan-line-CJNGLFvu.js",
       "bytes": 332,
-      "gzip": 223
+      "gzip": 222
     },
     {
-      "name": "/assets/school-Bu4enfu2.js",
+      "name": "/assets/school-Myjl4pHi.js",
       "bytes": 448,
-      "gzip": 288
+      "gzip": 285
     },
     {
-      "name": "/assets/door-open-DfiVDxoA.js",
+      "name": "/assets/door-open-DbbGvCtk.js",
       "bytes": 373,
-      "gzip": 254
+      "gzip": 253
     },
     {
-      "name": "/assets/AttendanceBadge-OHByHymL.js",
+      "name": "/assets/DialogClose-BcpEQ3_8.js",
+      "bytes": 500,
+      "gzip": 356
+    },
+    {
+      "name": "/assets/Asistencias-BgWjPMzo.js",
+      "bytes": 63453,
+      "gzip": 15404
+    },
+    {
+      "name": "/assets/AttendanceBadge-DzuuTAWy.js",
       "bytes": 2683,
       "gzip": 921
     },
     {
-      "name": "/assets/useAsyncAction-Bk3VyisB.js",
+      "name": "/assets/asistenciaStore-Cl88_2BU.js",
+      "bytes": 3133,
+      "gzip": 1116
+    },
+    {
+      "name": "/assets/useAsyncAction-be_5064y.js",
       "bytes": 208,
-      "gzip": 179
+      "gzip": 180
     },
     {
-      "name": "/assets/Asistencias-BQl3AhDq.js",
-      "bytes": 63078,
-      "gzip": 15342
-    },
-    {
-      "name": "/assets/asistenciaStore-CP-k_Hcc.js",
-      "bytes": 3012,
-      "gzip": 1069
-    },
-    {
-      "name": "/assets/SexoBadge-BtP1CyEx.js",
+      "name": "/assets/SexoBadge-DCENWEUp.js",
       "bytes": 330,
-      "gzip": 273
+      "gzip": 275
     },
     {
-      "name": "/assets/chevron-down-BT96lBTM.js",
-      "bytes": 129,
-      "gzip": 140
+      "name": "/assets/AsistenciaSesionPanel-C7P19rmt.js",
+      "bytes": 10083,
+      "gzip": 3274
     },
     {
-      "name": "/assets/AsistenciaSesionPanel-BTpzUmOy.js",
-      "bytes": 8619,
-      "gzip": 2815
+      "name": "/assets/hand-B1B-KQdY.js",
+      "bytes": 407,
+      "gzip": 253
     },
     {
-      "name": "/assets/chevron-left-1WXvQP_Z.js",
+      "name": "/assets/chevron-left-Dgq3lvBU.js",
       "bytes": 131,
       "gzip": 144
     },
     {
-      "name": "/assets/chevron-right-CdqoNEv8.js",
+      "name": "/assets/chevron-right-CEgcYBW4.js",
       "bytes": 131,
+      "gzip": 141
+    },
+    {
+      "name": "/assets/chevron-down-B8byoX7s.js",
+      "bytes": 129,
       "gzip": 141
     }
   ],
-  "bytes": 570198,
-  "gzip": 188474
+  "bytes": 598811,
+  "gzip": 201022
 }
