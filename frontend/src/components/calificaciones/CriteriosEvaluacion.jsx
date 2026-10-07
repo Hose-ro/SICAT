@@ -357,7 +357,7 @@ function FilaCriterio({ fila, indice, onEditar, onQuitar }) {
         </div>
         {fila.tipo === 'PARTICIPACION' && (
           <label className="inline-flex items-center gap-2 text-xs text-muted-foreground">
-            Meta
+            Meta por unidad
             <input aria-label={`Participaciones que valen 100 en la unidad (${nombre})`} inputMode="numeric" value={fila.meta}
               onChange={(event) => onEditar(fila.key, 'meta', event.target.value.replace(/[^\d]/g, '').slice(0, 3))}
               className={cn(CAMPO, 'w-16 text-right tabular-nums')} />
@@ -368,6 +368,13 @@ function FilaCriterio({ fila, indice, onEditar, onQuitar }) {
           <Trash2 aria-hidden="true" />
         </Button>
       </div>
+      {fila.tipo === 'PARTICIPACION' && (
+        <p className="w-full text-xs text-muted-foreground">
+          {Number(fila.meta) > 0 && Number(fila.peso) > 0
+            ? `Cada participación suma ${Number((Number(fila.peso) / Number(fila.meta)).toFixed(2)).toLocaleString('es-MX')} puntos al aporte de este criterio, hasta ${fila.peso} puntos con ${fila.meta} participaciones. Se acumulan por alumno y unidad desde Asistencias.`
+            : 'Define el porcentaje y cuántas participaciones se necesitan para completarlo. Cada participación registrada suma una parte de ese porcentaje.'}
+        </p>
+      )}
     </li>
   )
 }

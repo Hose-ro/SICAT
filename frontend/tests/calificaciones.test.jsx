@@ -300,7 +300,7 @@ test('la vista por alumno muestra una fila por alumno, una columna por unidad y 
  servir({ rows: dosUnidades() })
  renderPage('/calificaciones?materia=410')
  await screen.findByLabelText('Calificación de Ana en Unidad 1')
- await user.click(within(screen.getByRole('group', { name: 'Vista' })).getByRole('button', { name: 'Por alumno' }))
+ await user.click(within(screen.getByRole('group', { name: 'Vista' })).getByRole('button', { name: 'Por unidad' }))
 
  const matriz = screen.getByRole('table')
  expect(within(matriz).getAllByRole('columnheader').map((th) => th.textContent)).toEqual(['Alumno', 'Grupo', 'Unidad 1', 'Unidad 2', 'Promedio'])
@@ -327,4 +327,45 @@ test('en teléfono cada alumno es una tarjeta en lugar de una fila de tabla', as
  expect(within(tarjetas).getByText('Ana')).toBeTruthy()
  expect(within(tarjetas).getByLabelText('Calificación de Ana').placeholder).toBe('82')
  expect(within(tarjetas).getByText('Tareas 0/0 · Asistencia 0%')).toBeTruthy()
+})
+
+
+test('la participación se agrega y guarda con su meta y aporte acumulado', async () => {
+ const user = userEvent.setup()
+ await abrirCriterios(user)
+ const tareas = screen.getByLabelText('Porcentaje de Tareas')
+ await user.clear(tareas); await user.type(tareas, '60')
+ await user.click(screen.getByRole('button', { name: 'Agregar criterio' }))
+ await user.click(await screen.findByRole('menuitem', { name: 'Participación' }))
+ expect(screen.getByLabelText('Porcentaje de Participación').value).toBe('20')
+ expect(screen.getByLabelText('Participaciones que valen 100 en la unidad (Participación)').value).toBe('5')
+ expect(screen.getByText(/Cada participación suma 4 puntos al aporte/)).toBeTruthy()
+ const guardado = vistaCriterios({ origen: 'GRUPO', criterios: [
+  { id: 1, nombre: 'Tareas', tipo: 'TAREAS', peso: 60, meta: null },
+  { id: 2, nombre: 'Asistencia', tipo: 'ASISTENCIA', peso: 20, meta: null },
+  { id: 3, nombre: 'Participación', tipo: 'PARTICIPACION', peso: 20, meta: 5 },
+ ] })
+ api.put.mockResolvedValueOnce({ data: guardado })
+ await user.click(screen.getByRole('button', { name: 'Guardar criterios' }))
+ await waitFor(() => expect(api.put).toHaveBeenCalledWith('/calificaciones/criterios', {
+  materiaId: 410, grupoId: 6, criterios: [
+   { nombre: 'Tareas', tipo: 'TAREAS', peso: 60 },
+   { nombre: 'Asistencia', tipo: 'ASISTENCIA', peso: 20 },
+   { nombre: 'Participación', tipo: 'PARTICIPACION', peso: 20, meta: 5 },
+  ],
+ }))
+ expect(await screen.findByText(/Cada participación registrada suma 4 puntos/)).toBeTruthy()
+})
+
+test('la unidad muestra sus criterios propios incluso sin alumnos en captura', async () => {
+ const criterios = vistaCriterios()
+ criterios.unidades[0] = {
+  ...criterios.unidades[0], personalizada: true,
+  criterios: [{ id: 3, nombre: 'Participación', tipo: 'PARTICIPACION', peso: 100, meta: 10 }],
+ }
+ servir({ criterios })
+ renderPage('/calificaciones?materia=410&grupo=6&unidad=1')
+ expect(await screen.findByText(/Cada participación registrada suma 10 puntos/)).toBeTruthy()
+ expect(screen.getByText(/Porcentajes propios: Unidad 1/)).toBeTruthy()
+ expect(screen.getByText('Sin calificaciones disponibles.')).toBeTruthy()
 })

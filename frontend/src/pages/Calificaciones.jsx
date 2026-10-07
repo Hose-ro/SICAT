@@ -7,7 +7,6 @@ import {
   ClipboardList,
   Download,
   FileSpreadsheet,
-  Filter,
   GraduationCap,
   LayoutGrid,
   List,
@@ -25,8 +24,7 @@ import { confirmAction, notify } from '@/lib/feedback'
 import { useAuthStore } from '../store/authStore'
 import { useCalificacionStore } from '../store/calificacionStore'
 import { desglosePorCategoria } from '../lib/calificaciones'
-import CriteriosModal from '@/components/calificaciones/CriteriosModal'
-import CriteriosResumen from '@/components/calificaciones/CriteriosResumen'
+import CriteriosGuiados from '@/components/calificaciones/CriteriosGuiados'
 import DesempenoChip from '@/components/calificaciones/DesempenoChip'
 import FiltroDesempeno from '@/components/calificaciones/FiltroDesempeno'
 import { DESEMPENO } from '@/lib/desempeno'
@@ -641,7 +639,6 @@ function DocenteCalificaciones() {
   const [downloading, setDownloading] = useState(null)
   const [drafts, setDrafts] = useState({})
   const [saving, setSaving] = useState(false)
-  const [criteriosAbierto, setCriteriosAbierto] = useState(false)
 
   useEffect(() => {
     api.get('/materias/mis-materias')
@@ -676,13 +673,6 @@ function DocenteCalificaciones() {
     [filters.materiaId, reporteDocente?.rows],
   )
   const metrics = filters.materiaId ? reporteDocente?.metrics ?? {} : {}
-  // Unidades que este grupo califica con porcentajes propios.
-  const unidadesPropias = useMemo(
-    () => [...new Set(rows.filter((row) => row.origenCriterios === 'UNIDAD').map((row) => row.unidad?.orden))]
-      .filter(Boolean)
-      .sort((a, b) => a - b),
-    [rows],
-  )
   const canExport = Boolean(filters.materiaId)
 
   const coincideBusqueda = useMemo(() => {
@@ -828,14 +818,14 @@ function DocenteCalificaciones() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-[2rem] border border-border bg-card px-6 py-7">
+      <section className="px-1 py-2">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-2xl">
             <h1 className="text-3xl font-semibold tracking-tight text-foreground">Calificaciones</h1>
-            <p className="mt-2 text-sm text-muted-foreground">Lista por unidad con avance de tareas y asistencia.</p>
+            <p className="mt-2 text-sm text-muted-foreground">Selecciona el grupo, revisa sus criterios y captura las calificaciones.</p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
-            <Button variant="default"
+            <Button variant="outline"
               type="button"
               disabled={!canExport || downloading !== null}
               onClick={() => handleExport('excel')}
@@ -865,76 +855,43 @@ function DocenteCalificaciones() {
         )}
       </section>
 
-      <section className="rounded-[2rem] border border-border bg-card p-5">
-        <div className="flex items-center gap-2 text-foreground">
-          <Filter className="h-4 w-4" />
-          <h2 className="text-sm font-semibold uppercase tracking-[0.14em]">Filtros</h2>
-        </div>
-        <div className="mt-4 flex flex-col gap-4 xl:flex-row xl:flex-wrap">
-          <SelectField
-            label="Materia"
-            value={filters.materiaId}
-            onChange={(event) => changeFilters({ materiaId: event.target.value, grupoId: '', unidadId: '' })}
-          >
-            <option value="">Selecciona materia</option>
-            {materias.map((materia) => (
-              <option key={materia.id} value={materia.id}>{materia.nombre}</option>
-            ))}
-          </SelectField>
-
-          <SelectField
-            label="Grupo"
-            value={filters.grupoId}
-            disabled={!selectedMateria}
-            onChange={(event) => changeFilters({ ...filters, grupoId: event.target.value })}
-          >
-            <option value="">Todos los grupos</option>
-            {(selectedMateria?.grupos ?? []).map((grupo) => (
-              <option key={grupo.id} value={grupo.id}>{grupo.nombre}</option>
-            ))}
-          </SelectField>
-
-          <SelectField
-            label="Unidad"
-            value={filters.unidadId}
-            disabled={!selectedMateria}
-            onChange={(event) => changeFilters({ ...filters, unidadId: event.target.value })}
-          >
-            <option value="">Todas las unidades</option>
-            {(selectedMateria?.unidades ?? []).map((unidad) => (
-              <option key={unidad.id} value={unidad.id}>{unidad.nombre}</option>
-            ))}
-          </SelectField>
-
-          <Button variant="outline"
-            type="button"
-            disabled={!hayFiltrosSecundarios}
-            onClick={() => changeFilters({ ...filters, grupoId: '', unidadId: '' })}
-            className="mt-auto inline-flex items-center justify-center gap-2 border px-4 py-3 text-sm font-semibold"
-          >
-            <RefreshCcw className="h-4 w-4" />
-            Limpiar grupo y unidad
-          </Button>
-        </div>
-      </section>
-
-      {filters.materiaId && (
-        <CriteriosResumen
-          lista={reporteDocente?.criterios}
-          grupo={selectedGrupo}
-          unidadesPropias={unidadesPropias}
-          onEditar={() => setCriteriosAbierto(true)}
-        />
-      )}
-      <CriteriosModal
-        open={criteriosAbierto && Boolean(selectedGrupo)}
-        onClose={() => setCriteriosAbierto(false)}
-        materiaId={filters.materiaId}
-        grupo={selectedGrupo}
-        materiaNombre={selectedMateria?.nombre}
-        alcanceInicial={filters.unidadId ? Number(filters.unidadId) : 'base'}
-        onGuardado={() => obtenerDocente(reportQuery, { silent: true }).catch(() => {})}
-      />
+      <div className="grid items-start gap-5 xl:grid-cols-[18rem_minmax(0,1fr)]">
+        <section aria-labelledby="contexto-calificaciones" className="min-w-0 rounded-[var(--radius-card)] border border-border bg-card p-5 sm:p-6">
+          <span className="text-xs font-semibold tabular-nums text-muted-foreground">01 · CONTEXTO ACADÉMICO</span>
+          <h2 id="contexto-calificaciones" className="mt-2 text-lg font-semibold tracking-tight">Selecciona el contexto</h2>
+          <p className="mt-2 text-sm text-muted-foreground">La materia y el grupo determinan qué criterios puedes consultar.</p>
+          <div className="mt-6 flex flex-col gap-5 [&_select]:min-w-0 [&_select]:w-full">
+            <SelectField label="Materia" value={filters.materiaId}
+              onChange={(event) => changeFilters({ materiaId: event.target.value, grupoId: '', unidadId: '' })}>
+              <option value="">Selecciona materia</option>
+              {materias.map((materia) => <option key={materia.id} value={materia.id}>{materia.nombre}</option>)}
+            </SelectField>
+            <div>
+              <SelectField label="Grupo" value={filters.grupoId} disabled={!selectedMateria}
+                onChange={(event) => changeFilters({ ...filters, grupoId: event.target.value })}>
+                <option value="">Todos los grupos</option>
+                {(selectedMateria?.grupos ?? []).map((grupo) => <option key={grupo.id} value={grupo.id}>{grupo.nombre}</option>)}
+              </SelectField>
+              <p className="mt-2 text-xs text-muted-foreground">Elige uno para consultar y editar su evaluación.</p>
+            </div>
+            <div>
+              <SelectField label="Unidad" value={filters.unidadId} disabled={!selectedMateria}
+                onChange={(event) => changeFilters({ ...filters, unidadId: event.target.value })}>
+                <option value="">Todas las unidades</option>
+                {(selectedMateria?.unidades ?? []).map((unidad) => <option key={unidad.id} value={unidad.id}>{unidad.nombre}</option>)}
+              </SelectField>
+              <p className="mt-2 text-xs text-muted-foreground">Acota la lista a una unidad o consulta el curso completo.</p>
+            </div>
+            <Button variant="ghost" type="button" disabled={!hayFiltrosSecundarios}
+              onClick={() => changeFilters({ ...filters, grupoId: '', unidadId: '' })} className="justify-start px-0">
+              <RefreshCcw aria-hidden="true" />Limpiar grupo y unidad
+            </Button>
+          </div>
+        </section>
+        <CriteriosGuiados key={`${filters.materiaId}:${filters.grupoId}`} materiaId={filters.materiaId}
+          materiaNombre={selectedMateria?.nombre} grupo={selectedGrupo} unidadId={filters.unidadId}
+          onGuardado={() => obtenerDocente(reportQuery, { silent: true }).catch(() => {})} />
+      </div>
 
       {filters.materiaId && reporteDocente?.tareasSinCategoria > 0 && (
         <div role="status" className="rounded-2xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning-foreground">
@@ -1000,7 +957,7 @@ function DocenteCalificaciones() {
               <div className="flex flex-col gap-1">
                 <span className={FIELD_LABEL} id="vista-captura">Vista</span>
                 <div role="group" aria-labelledby="vista-captura" className="inline-flex rounded-2xl border border-border bg-background p-1">
-                  {[['lista', 'Lista'], ['matriz', 'Por alumno']].map(([value, label]) => (
+                  {[['lista', 'Lista'], ['matriz', 'Por unidad']].map(([value, label]) => (
                     <Button
                       key={value}
                       type="button"
