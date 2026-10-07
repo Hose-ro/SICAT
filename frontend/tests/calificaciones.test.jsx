@@ -299,8 +299,8 @@ test('la vista por alumno muestra una fila por alumno, una columna por unidad y 
  const user=userEvent.setup()
  servir({ rows: dosUnidades() })
  renderPage('/calificaciones?materia=410')
- await screen.findByLabelText('Calificación de Ana en Unidad 1')
- await user.click(within(screen.getByRole('group', { name: 'Vista' })).getByRole('button', { name: 'Por unidad' }))
+ await screen.findByLabelText('Calificación de Ana')
+ await user.click(within(screen.getByRole('group', { name: 'Vista' })).getByRole('button', { name: 'Por alumno' }))
 
  const matriz = screen.getByRole('table')
  expect(within(matriz).getAllByRole('columnheader').map((th) => th.textContent)).toEqual(['Alumno', 'Grupo', 'Unidad 1', 'Unidad 2', 'Promedio'])
@@ -316,6 +316,30 @@ test('la vista por alumno muestra una fila por alumno, una columna por unidad y 
  api.patch.mockResolvedValueOnce({ data: reporte(80, 20, dosUnidades()) })
  await user.click(screen.getByRole('button', { name: 'Guardar todo' }))
  expect(api.patch.mock.calls[0][1].calificaciones).toEqual([{ alumnoId: 1, unidadId: 2, calificacionManual: 100, observacion: '' }])
+})
+
+test('la lista arranca en la unidad abierta y muestra las demás sin recargar ni perder lo capturado', async () => {
+ const user=userEvent.setup()
+ const status = (row) => ({ ...row, unidad: { ...row.unidad, status: row.unidad.orden === 2 ? 'ACTIVA' : 'FINALIZADA' } })
+ servir({ rows: dosUnidades().map(status) })
+ renderPage('/calificaciones?materia=410')
+ expect(await screen.findByText(/Se muestra la unidad abierta \(Unidad 2\)/)).toBeTruthy()
+ const filtro = screen.getByRole('radiogroup', { name: 'Mostrar unidad' })
+ expect(within(filtro).getByRole('radio', { name: 'Unidad 2' }).getAttribute('aria-checked')).toBe('true')
+ expect(screen.getByLabelText('Calificación de Ana').placeholder).toBe('60')
+ expect(screen.getByLabelText('Calificación de Beto')).toBeTruthy()
+ await user.type(screen.getByLabelText('Calificación de Ana'), '95')
+ const llamadas = api.get.mock.calls.length
+
+ await user.click(within(filtro).getByRole('radio', { name: 'Todas' }))
+ expect(screen.getByLabelText('Calificación de Ana en Unidad 1').placeholder).toBe('80')
+ expect(screen.getByLabelText('Calificación de Ana en Unidad 2').value).toBe('95')
+ expect(screen.queryByText(/Se muestra la unidad abierta/)).toBeNull()
+ expect(api.get.mock.calls.length).toBe(llamadas)
+
+ await user.click(within(filtro).getByRole('radio', { name: 'Unidad 1' }))
+ expect(screen.getByLabelText('Calificación de Ana').placeholder).toBe('80')
+ expect(screen.getAllByText(/1 cambio sin guardar/).length).toBeGreaterThan(0)
 })
 
 test('en teléfono cada alumno es una tarjeta en lugar de una fila de tabla', async () => {

@@ -29,6 +29,7 @@ import DesempenoChip from '@/components/calificaciones/DesempenoChip'
 import FiltroDesempeno from '@/components/calificaciones/FiltroDesempeno'
 import { DESEMPENO } from '@/lib/desempeno'
 import { moverFoco } from '@/lib/capturaTeclado'
+import { Segmentado } from '@/pages/docente/components/tareas/Controles'
 
 // Mínima aprobatoria, la misma que usa el servidor.
 const CALIFICACION_APROBATORIA = 70
@@ -623,6 +624,10 @@ function DocenteCalificaciones() {
   const grupoParam = searchParams.get('grupo') ?? ''
   const unidadParam = searchParams.get('unidad') ?? ''
   const vistaParam = searchParams.get('vista') === 'matriz' ? 'matriz' : 'lista'
+  // Unidad que se ve en la lista cuando el reporte trae todas: sólo filtra en
+  // pantalla, así que cambiarla no recarga ni descarta lo capturado. Vacío es
+  // la unidad abierta; 'todas' muestra el curso completo.
+  const enUnidadParam = searchParams.get('en-unidad') ?? ''
   const isMobile = useIsMobile()
   const filters = useMemo(
     () => ({ materiaId: materiaParam, grupoId: grupoParam, unidadId: unidadParam }),
@@ -680,13 +685,6 @@ function DocenteCalificaciones() {
     return (alumno) => !query || normalizar(`${alumno?.nombre ?? ''} ${alumno?.numeroControl ?? ''}`).includes(query)
   }, [busqueda])
 
-  const visibleRows = useMemo(
-    () => rows
-      .filter((row) => (!estadoFiltro || desempenoDe(row) === estadoFiltro) && coincideBusqueda(row.alumno))
-      .sort(ORDENES[orden].compare),
-    [rows, coincideBusqueda, estadoFiltro, orden],
-  )
-
   const unidadesReporte = useMemo(() => {
     const unidades = new Map()
     for (const row of rows) if (row.unidad) unidades.set(unidadKey(row.unidad), row.unidad)
@@ -695,6 +693,30 @@ function DocenteCalificaciones() {
   // La matriz sólo tiene sentido con varias unidades a la vista.
   const puedeVerMatriz = !filters.unidadId && unidadesReporte.length > 1
   const vista = puedeVerMatriz ? vistaParam : 'lista'
+  // Con todas las unidades, la lista repetiría a cada alumno una vez por
+  // unidad; por eso arranca en la abierta, con el mismo criterio del servidor.
+  const unidadAbierta = useMemo(
+    () => unidadesReporte.find((unidad) => unidad.status === 'ACTIVA')
+      ?? [...unidadesReporte].reverse().find((unidad) => unidad.status === 'FINALIZADA')
+      ?? unidadesReporte[0]
+      ?? null,
+    [unidadesReporte],
+  )
+  const unidadLista = vista === 'lista' && puedeVerMatriz && enUnidadParam !== 'todas'
+    ? unidadesReporte.find((unidad) => String(unidadKey(unidad)) === enUnidadParam) ?? unidadAbierta
+    : null
+  const unidadPorDefecto = Boolean(unidadLista) && unidadLista === unidadAbierta && !enUnidadParam
+  const rowsLista = useMemo(
+    () => (unidadLista ? rows.filter((row) => unidadKey(row.unidad) === unidadKey(unidadLista)) : rows),
+    [rows, unidadLista],
+  )
+
+  const visibleRows = useMemo(
+    () => rowsLista
+      .filter((row) => (!estadoFiltro || desempenoDe(row) === estadoFiltro) && coincideBusqueda(row.alumno))
+      .sort(ORDENES[orden].compare),
+    [rowsLista, coincideBusqueda, estadoFiltro, orden],
+  )
   // En la matriz, un alumno aparece con el filtro de estado si alguna de sus
   // unidades está en ese estado.
   const visibleAlumnos = useMemo(
@@ -703,14 +725,15 @@ function DocenteCalificaciones() {
       .sort(ORDENES[orden].compare),
     [rows, coincideBusqueda, estadoFiltro, orden],
   )
-  const setVista = (next) => {
+  const setParam = (name, value) => {
     setSearchParams((prev) => {
       const params = new URLSearchParams(prev)
-      if (next === 'matriz') params.set('vista', 'matriz')
-      else params.delete('vista')
+      if (value) params.set(name, value)
+      else params.delete(name)
       return params
     }, { replace: true })
   }
+  const setVista = (next) => setParam('vista', next === 'matriz' ? 'matriz' : '')
 
   // `drafts` sólo guarda las filas que el docente cambió y aún no guarda. Así,
   // cuando el servidor devuelve el reporte actualizado, los cambios pendientes
@@ -805,7 +828,7 @@ function DocenteCalificaciones() {
     rows: visibleRows,
     drafts,
     showGrupo: !filters.grupoId,
-    showUnidad: !filters.unidadId,
+    showUnidad: !filters.unidadId && !unidadLista,
     onDraftChange: handleDraftChange,
   }
   const matrizProps = {
@@ -918,7 +941,7 @@ function DocenteCalificaciones() {
               Verde: 80 o más · Amarillo: de 70 a 79, o con 30 % o más de faltas y retardos · Rojo: menos de {CALIFICACION_APROBATORIA}. Con la unidad cerrada, aprobado desde {CALIFICACION_APROBATORIA}.
             </p>
           </div>
-          <FiltroDesempeno className="mt-3" resumen={resumenDesempeno(rows)} value={estadoFiltro ?? 'TODOS'}
+          <FiltroDesempeno className="mt-3" resumen={resumenDesempeno(vista === 'lista' ? rowsLista : rows)} value={estadoFiltro ?? 'TODOS'}
             onChange={(valor) => setEstadoFiltro(valor === 'TODOS' ? null : valor)} />
         </section>
       )}
@@ -957,7 +980,7 @@ function DocenteCalificaciones() {
               <div className="flex flex-col gap-1">
                 <span className={FIELD_LABEL} id="vista-captura">Vista</span>
                 <div role="group" aria-labelledby="vista-captura" className="inline-flex rounded-2xl border border-border bg-background p-1">
-                  {[['lista', 'Lista'], ['matriz', 'Por unidad']].map(([value, label]) => (
+                  {[['lista', 'Lista'], ['matriz', 'Por alumno']].map(([value, label]) => (
                     <Button
                       key={value}
                       type="button"
@@ -971,6 +994,38 @@ function DocenteCalificaciones() {
                     </Button>
                   ))}
                 </div>
+              </div>
+            )}
+            {puedeVerMatriz && vista === 'lista' && (
+              <div className="flex min-w-0 flex-col gap-1 sm:basis-full">
+                <span className={FIELD_LABEL} aria-hidden="true">Unidad</span>
+                <Segmentado
+                  label="Mostrar unidad"
+                  value={unidadLista ? String(unidadKey(unidadLista)) : 'todas'}
+                  onChange={(value) => setParam('en-unidad', value)}
+                  options={[
+                    { value: 'todas', label: 'Todas' },
+                    ...unidadesReporte.map((unidad) => ({
+                      value: String(unidadKey(unidad)),
+                      // En teléfono basta el número; el lector de pantalla oye el nombre.
+                      label: unidad.orden ? (
+                        <>
+                          <span aria-hidden="true" className="sm:hidden">U{unidad.orden}</span>
+                          <span className="max-sm:sr-only">{unidad.nombre}</span>
+                        </>
+                      ) : unidad.nombre,
+                    })),
+                  ]}
+                  className="self-start"
+                />
+                {unidadPorDefecto && (
+                  <p className="text-xs text-muted-foreground">
+                    {unidadLista.status === 'ACTIVA'
+                      ? `Se muestra la unidad abierta (${unidadLista.nombre}).`
+                      : `No hay unidad abierta; se muestra ${unidadLista.nombre}.`}{' '}
+                    Elige otra o Todas para ver el resto.
+                  </p>
+                )}
               </div>
             )}
             {estadoFiltro && (
