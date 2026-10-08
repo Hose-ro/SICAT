@@ -107,7 +107,7 @@ export default function Carreras() {
           <Button variant="default"
             type="button"
             onClick={openCreate}
-            className="w-full px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40 sm:w-auto"
+            className="px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
           >
             + Nueva carrera
           </Button>

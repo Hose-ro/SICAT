@@ -87,7 +87,7 @@ export default function HorariosPage({ soloPropias = false }) {
         </div>
       )}
 
-      <div className="flex flex-col gap-3 text-sm sm:flex-row sm:items-center">
+      <div className="flex flex-wrap items-center gap-2 text-sm">
         {!soloPropias && (
           <>
             <Button variant="ghost"
@@ -135,7 +135,7 @@ export default function HorariosPage({ soloPropias = false }) {
           {modoEdicion && contexto && !editor && (
             <Button variant="outline"
               onClick={() => setEditor({ preset: null })}
-              className="border border-dashed px-4 py-3 text-sm font-medium"
+              className="self-start border border-dashed px-4 py-3 text-sm font-medium"
             >
               + Nueva clase
             </Button>

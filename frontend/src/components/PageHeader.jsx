@@ -6,7 +6,7 @@ export default function PageHeader({ title, subtitle, action, level = 1 }) {
         <Heading className="text-xl font-bold text-foreground sm:text-2xl">{title}</Heading>
         {subtitle && <div className="mt-1 text-sm text-muted-foreground">{subtitle}</div>}
       </div>
-      {action && <div className="w-full sm:w-auto sm:shrink-0">{action}</div>}
+      {action && <div className="flex flex-wrap gap-2 sm:shrink-0">{action}</div>}
     </div>
   )
 }

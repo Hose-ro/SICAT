@@ -559,7 +559,7 @@ export default function Usuarios() {
         action={
           <Button variant="default"
             onClick={() => setModal(true)}
-            className="w-full px-4 py-2 text-sm font-medium sm:w-auto"
+            className="px-4 py-2 text-sm font-medium"
           >
             + Nuevo usuario
           </Button>

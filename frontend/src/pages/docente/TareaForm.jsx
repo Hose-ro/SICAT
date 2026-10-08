@@ -496,24 +496,26 @@ export default function TareaForm() {
           <section className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
             <div className="flex flex-col gap-3">
               <p className="text-sm text-muted-foreground">{isEditing ? 'Guardar cambios conserva el estado actual de la tarea.' : 'El borrador solo es visible para ti. Al publicar, el grupo podrá ver la actividad.'}</p>
-              <Button variant="outline"
-                type="button"
-                onClick={() => submitWithState(isEditing ? originalState : 'BORRADOR')}
-                disabled={saving || !loaded}
-                className="inline-flex items-center justify-center gap-2 border px-4 py-3 text-sm font-semibold disabled:opacity-60"
-              >
-                <Save className="h-4 w-4" />
-                {saving ? 'Guardando...' : isEditing ? 'Guardar cambios' : 'Guardar borrador'}
-              </Button>
-              {(!isEditing || originalState === 'BORRADOR') && <Button variant="default"
-                type="button"
-                onClick={() => submitWithState('PUBLICADA')}
-                disabled={saving || !loaded}
-                className="inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold disabled:opacity-60"
-              >
-                <Send className="h-4 w-4" />
-                {saving ? 'Publicando...' : 'Publicar'}
-              </Button>}
+              <div className="flex flex-wrap gap-2 xl:flex-col">
+                <Button variant="outline"
+                  type="button"
+                  onClick={() => submitWithState(isEditing ? originalState : 'BORRADOR')}
+                  disabled={saving || !loaded}
+                  className="inline-flex items-center justify-center gap-2 border px-4 py-3 text-sm font-semibold disabled:opacity-60"
+                >
+                  <Save className="h-4 w-4" />
+                  {saving ? 'Guardando...' : isEditing ? 'Guardar cambios' : 'Guardar borrador'}
+                </Button>
+                {(!isEditing || originalState === 'BORRADOR') && <Button variant="default"
+                  type="button"
+                  onClick={() => submitWithState('PUBLICADA')}
+                  disabled={saving || !loaded}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold disabled:opacity-60"
+                >
+                  <Send className="h-4 w-4" />
+                  {saving ? 'Publicando...' : 'Publicar'}
+                </Button>}
+              </div>
             </div>
           </section>
         </aside>

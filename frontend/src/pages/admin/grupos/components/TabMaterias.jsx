@@ -76,7 +76,7 @@ export default function TabMaterias({ grupo, onAgregarClick }) {
         </div>
         <Button variant="default"
           onClick={onAgregarClick}
-          className="w-full px-4 py-2 text-sm sm:w-auto"
+          className="self-start px-4 py-2 text-sm"
         >
           + Agregar materias
         </Button>

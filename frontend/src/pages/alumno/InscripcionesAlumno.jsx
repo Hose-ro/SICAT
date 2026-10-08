@@ -70,7 +70,7 @@ export default function InscripcionesAlumno() {
                   <span className="text-xs text-muted-foreground ml-2">{m.docente?.nombre}</span>
                 </div>
                 <Button variant="default" onClick={() => handleSolicitar(m.id)} disabled={solicitando === m.id}
-                  className="w-full px-3 py-1 text-xs disabled:opacity-50 sm:w-auto">
+                  className="px-3 py-1 text-xs disabled:opacity-50">
                   Solicitar
                 </Button>
               </div>

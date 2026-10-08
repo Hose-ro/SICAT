@@ -847,7 +847,7 @@ function DocenteCalificaciones() {
             <h1 className="text-3xl font-semibold tracking-tight text-foreground">Calificaciones</h1>
             <p className="mt-2 text-sm text-muted-foreground">Selecciona el grupo, revisa sus criterios y captura las calificaciones.</p>
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline"
               type="button"
               disabled={!canExport || downloading !== null}
@@ -906,7 +906,7 @@ function DocenteCalificaciones() {
               <p className="mt-2 text-xs text-muted-foreground">Acota la lista a una unidad o consulta el curso completo.</p>
             </div>
             <Button variant="ghost" type="button" disabled={!hayFiltrosSecundarios}
-              onClick={() => changeFilters({ ...filters, grupoId: '', unidadId: '' })} className="justify-start px-0">
+              onClick={() => changeFilters({ ...filters, grupoId: '', unidadId: '' })} className="self-start px-0">
               <RefreshCcw aria-hidden="true" />Limpiar grupo y unidad
             </Button>
           </div>

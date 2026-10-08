@@ -203,7 +203,7 @@ export default function AulasPage() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="flex gap-2">
           <Button variant="default"
             type="submit"
             disabled={guardando}
@@ -321,7 +321,7 @@ export default function AulasPage() {
               El aula se borrará definitivamente. Las materias y los bloques de horario que la
               tenían asignada se conservan, pero quedan sin aula.
             </p>
-            <div className="flex flex-col gap-2 sm:flex-row">
+            <div className="flex gap-2">
               <Button variant="outline"
                 onClick={() => setConfirmId(null)}
                 className="flex-1 border py-2 text-sm"
@@ -344,7 +344,7 @@ export default function AulasPage() {
           <p className="text-sm text-muted-foreground">
             Se eliminarán definitivamente {seleccionados.length} aula{seleccionados.length === 1 ? '' : 's'}. Las materias y los bloques de horario que las tenían asignadas se conservan, pero quedan sin aula.
           </p>
-          <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="flex gap-2">
             <Button variant="outline"
               onClick={() => setConfirmLote(false)}
               disabled={eliminandoLote}

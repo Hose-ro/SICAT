@@ -82,7 +82,7 @@ export default function NotificacionesHistorial() {
         title="Notificaciones"
         subtitle="Avisos recientes: ábrelos para ir al recurso relacionado."
         action={
-          <Button variant="outline" onClick={marcarTodas} disabled={!noLeidas} className="w-full sm:w-auto">
+          <Button variant="outline" onClick={marcarTodas} disabled={!noLeidas}>
             Marcar todas leídas
           </Button>
         }

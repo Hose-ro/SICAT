@@ -183,7 +183,7 @@ export default function GrupoDetalle() {
             <p className="text-sm text-muted-foreground">
               Sus alumnos quedan sin grupo y el historial académico se conserva: las clases, tareas y calificaciones siguen registradas en cada materia.
             </p>
-            <div className="flex flex-col gap-2 sm:flex-row">
+            <div className="flex gap-2">
               <Button variant="outline"
                 onClick={() => setConfirmEliminar(false)}
                 className="flex-1 border py-2 text-sm"

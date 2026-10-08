@@ -779,7 +779,7 @@ export default function HorarioImportacionesPage() {
                   </label>
 
                   {editable && !rejecting && (
-                    <div className="flex flex-col-reverse gap-2 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-4">
                       <Button variant="destructive"
                         type="button"
                         disabled={saving}
@@ -789,7 +789,7 @@ export default function HorarioImportacionesPage() {
                         <X className="h-4 w-4" aria-hidden="true" />
                         Rechazar
                       </Button>
-                      <div className="flex flex-col gap-2 sm:flex-row">
+                      <div className="flex flex-wrap gap-2">
                         <Button variant="outline"
                           type="button"
                           disabled={saving || !completos}
