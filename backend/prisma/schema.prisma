@@ -796,6 +796,9 @@ model CalificacionUnidad {
   unidadId            Int
   periodo             String
   calificacionManual  Float?
+  /// Puntos que el docente suma a la calificación de la unidad (calculada o
+  /// manual) sin tocar los criterios. La final se topa en 100.
+  puntosExtra         Float?
   observacion         String?
   /// Evaluación de segunda oportunidad (TecNM) de una unidad no alcanzada en
   /// la primera. `segundaNoPresento`: el docente la reprobó sin calificación

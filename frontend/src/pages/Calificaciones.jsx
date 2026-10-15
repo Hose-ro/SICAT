@@ -62,12 +62,13 @@ function getRowKey(row) {
 function getServerDraft(row) {
   return {
     calificacionManual: row.calificacionManual == null ? '' : String(row.calificacionManual),
+    puntosExtra: row.puntosExtra == null ? '' : String(row.puntosExtra),
     observacion: row.observacionManual ?? '',
   }
 }
 
 function isSameDraft(a, b) {
-  return a.calificacionManual === b.calificacionManual && a.observacion === b.observacion
+  return a.calificacionManual === b.calificacionManual && a.puntosExtra === b.puntosExtra && a.observacion === b.observacion
 }
 
 // Mismo rango que valida el servidor; vacío significa "usar la calculada".
@@ -77,6 +78,19 @@ function validarCalificacion(value) {
   const number = Number(text)
   if (!Number.isFinite(number) || number < 1 || number > 100) return 'Debe estar entre 1 y 100'
   return null
+}
+
+// Puntos que se suman a la calificación sin tocar los criterios; vacío es 0.
+function validarPuntosExtra(value) {
+  const text = String(value ?? '').trim()
+  if (text === '') return null
+  const number = Number(text)
+  if (!Number.isFinite(number) || number < 0 || number > 100) return 'Debe estar entre 0 y 100'
+  return null
+}
+
+function borradorInvalido(draft) {
+  return Boolean(validarCalificacion(draft.calificacionManual) || validarPuntosExtra(draft.puntosExtra))
 }
 
 function plural(count, singular, pluralForm) {
@@ -169,8 +183,10 @@ function etiquetaCelda(row, conUnidad) {
 // vacía, la calculada.
 function valorEfectivo(row, draft) {
   const manual = draft.calificacionManual.trim()
-  if (manual === '') return row.calificacionCalculada ?? null
-  return validarCalificacion(manual) ? null : Number(manual)
+  const base = manual === '' ? row.calificacionCalculada ?? null : validarCalificacion(manual) ? null : Number(manual)
+  const extra = draft.puntosExtra.trim()
+  if (base == null || extra === '' || validarPuntosExtra(extra)) return base
+  return Math.min(100, Math.round((base + Number(extra)) * 10) / 10)
 }
 
 function promedio(values) {
@@ -266,6 +282,49 @@ function CalificacionInput({ row, drafts, conUnidad, columna, compact = false, o
   )
 }
 
+function PuntosExtraInput({ row, drafts, conUnidad, onDraftChange }) {
+  const rowKey = getRowKey(row)
+  const draft = drafts[rowKey] ?? getServerDraft(row)
+  const invalid = validarPuntosExtra(draft.puntosExtra)
+  const conPuntos = draft.puntosExtra.trim() !== '' && Number(draft.puntosExtra) > 0
+  const final = valorEfectivo(row, draft)
+  const hintId = `extra-${rowKey}`
+
+  return (
+    <div>
+      <input
+        data-captura="calificacion"
+        data-columna="extra"
+        aria-label={`Puntos extra de ${etiquetaCelda(row, conUnidad)}`}
+        aria-describedby={hintId}
+        aria-invalid={Boolean(invalid)}
+        type="number"
+        inputMode="decimal"
+        min="0"
+        max="100"
+        step="0.5"
+        value={draft.puntosExtra}
+        placeholder="+0"
+        disabled={!row.unidad?.id}
+        onChange={(event) => onDraftChange(row, 'puntosExtra', event.target.value)}
+        onKeyDown={moverFoco}
+        className="w-20 rounded-2xl border border-border bg-card px-3 py-2 text-base font-semibold text-foreground outline-none transition placeholder:font-normal placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40 aria-invalid:border-destructive disabled:cursor-not-allowed disabled:bg-background"
+      />
+      <div id={hintId} className="mt-1 text-xs">
+        {invalid ? (
+          <span className="font-medium text-destructive-foreground">{invalid}</span>
+        ) : conPuntos ? (
+          <span className="text-muted-foreground">
+            Final <span className="font-semibold text-foreground">{final ?? '-'}</span>
+          </span>
+        ) : (
+          <span className="text-muted-foreground">Sin extra</span>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function ObservacionInput({ row, drafts, conUnidad, onDraftChange }) {
   const draft = drafts[getRowKey(row)] ?? getServerDraft(row)
   return (
@@ -311,6 +370,7 @@ function CapturaTable({ rows, drafts, showGrupo, showUnidad, onDraftChange }) {
               {showGrupo && <th className="px-4 py-3">Grupo</th>}
               {showUnidad && <th className="px-4 py-3">Unidad</th>}
               <th className="px-4 py-3">Calificación</th>
+              <th className="px-4 py-3" title="Se suman a la calificación sin cambiar los criterios">Extra</th>
               <th className="px-4 py-3">Observación</th>
               <th className="px-4 py-3">Estado</th>
               <th className="px-4 py-3">Tareas</th>
@@ -333,6 +393,9 @@ function CapturaTable({ rows, drafts, showGrupo, showUnidad, onDraftChange }) {
                   {showUnidad && <td className="whitespace-nowrap px-4 py-3 align-top">{row.unidad?.nombre || '-'}</td>}
                   <td className="min-w-[11rem] px-4 py-3 align-top">
                     <CalificacionInput row={row} drafts={drafts} conUnidad={showUnidad} columna="lista" onDraftChange={onDraftChange} />
+                  </td>
+                  <td className="min-w-[7rem] px-4 py-3 align-top">
+                    <PuntosExtraInput row={row} drafts={drafts} conUnidad={showUnidad} onDraftChange={onDraftChange} />
                   </td>
                   <td className="min-w-[12rem] px-4 py-3 align-top">
                     <ObservacionInput row={row} drafts={drafts} conUnidad={showUnidad} onDraftChange={onDraftChange} />
@@ -380,7 +443,10 @@ function CapturaCards({ rows, drafts, showGrupo, showUnidad, onDraftChange }) {
               <StatusBadge row={row} />
             </div>
             <div className="mt-3 flex flex-col gap-3">
-              <CalificacionInput row={row} drafts={drafts} conUnidad={showUnidad} columna="lista" onDraftChange={onDraftChange} />
+              <div className="flex flex-wrap items-start gap-4">
+                <CalificacionInput row={row} drafts={drafts} conUnidad={showUnidad} columna="lista" onDraftChange={onDraftChange} />
+                <PuntosExtraInput row={row} drafts={drafts} conUnidad={showUnidad} onDraftChange={onDraftChange} />
+              </div>
               <ObservacionInput row={row} drafts={drafts} conUnidad={showUnidad} onDraftChange={onDraftChange} />
             </div>
             <p className="mt-3 text-xs text-muted-foreground">{resumenAvance(row)}</p>
@@ -621,7 +687,7 @@ function DocenteCalificaciones() {
     [rows, drafts],
   )
   const dirtyCount = dirtyRows.length
-  const invalidCount = dirtyRows.filter((row) => validarCalificacion(drafts[getRowKey(row)].calificacionManual)).length
+  const invalidCount = dirtyRows.filter((row) => borradorInvalido(drafts[getRowKey(row)])).length
   const unsavedMessage = (accion) => ({
     title: 'Cambios sin guardar',
     description: `Tienes ${plural(dirtyCount, 'calificación', 'calificaciones')} sin guardar. Si ${accion}, se perderán.`,
@@ -673,10 +739,12 @@ function DocenteCalificaciones() {
         calificaciones: dirtyRows.map((row) => {
           const draft = snapshot[getRowKey(row)]
           const manual = draft.calificacionManual.trim()
+          const extra = draft.puntosExtra.trim()
           return {
             alumnoId: row.alumno.id,
             unidadId: row.unidad.id,
             calificacionManual: manual === '' ? null : Number(manual),
+            puntosExtra: extra === '' ? null : Number(extra),
             observacion: draft.observacion,
           }
         }),
@@ -1036,6 +1104,7 @@ function AlumnoCalificaciones() {
                   <StatusBadge row={row} />
                 </span>
                 <span className="text-sm text-muted-foreground">
+                  {row.puntosExtra > 0 && <span className="font-medium text-foreground">Incluye +{row.puntosExtra} extra · </span>}
                   {row.tareas?.calificadas ?? 0} de {row.tareas?.total ?? 0} tareas calificadas
                   {' · '}{row.asistencia?.registradas ? `${row.asistencia.porcentaje} % de asistencia` : 'sin asistencia registrada'}
                   {(row.observacionManual || row.observaciones?.[0]) && (

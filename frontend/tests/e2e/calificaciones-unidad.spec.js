@@ -55,3 +55,32 @@ for (const [theme, width] of [['dark', 390], ['light', 1280]]) {
     expect(errors).toEqual([])
   })
 }
+
+test('calificaciones: puntos extra se suman sin tocar la calculada', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await mockApi(page, 'DOCENTE')
+  await page.route('**/api/materias/mis-materias', (route) => route.fulfill({ json: materias }))
+  await page.route('**/api/calificaciones/docente**', (route) => route.fulfill({ json: reporte }))
+  await page.route('**/api/calificaciones/criterios**', (route) => route.fulfill({ json: { materiaId: 1, grupoId: null, base: null, unidades: [], catalogo: [], gruposDelDocente: [] } }))
+  let enviado = null
+  await page.route('**/api/calificaciones/manual/lote**', (route) => {
+    enviado = route.request().postDataJSON()
+    route.fulfill({ json: reporte })
+  })
+  await page.goto('/calificaciones?materia=1&en-unidad=2')
+
+  const extra = page.getByLabel('Puntos extra de AGUILAR ZARATE ANA LAURA')
+  await extra.fill('5')
+  // 100 calculada + 5 se topa en 100; la calculada queda igual.
+  await expect(page.getByText('Final 100')).toBeVisible()
+  await expect(page.getByLabel('Calificación de AGUILAR ZARATE ANA LAURA')).toHaveValue('')
+  await extra.fill('150')
+  await expect(page.getByText('Debe estar entre 0 y 100')).toBeVisible()
+  await extra.fill('2.5')
+  await page.locator('table').first().screenshot({ path: 'audit/docente/calificaciones-puntos-extra-1280.png' })
+  await page.getByRole('button', { name: 'Guardar todo' }).click()
+  await expect.poll(() => enviado).not.toBeNull()
+  expect(enviado.calificaciones).toEqual([
+    expect.objectContaining({ alumnoId: 1, unidadId: 2, calificacionManual: null, puntosExtra: 2.5 }),
+  ])
+})

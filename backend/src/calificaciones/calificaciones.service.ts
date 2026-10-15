@@ -463,6 +463,7 @@ export class CalificacionesService {
             alumnoId: dto.alumnoId,
             unidadId: dto.unidadId,
             calificacionManual: dto.calificacionManual,
+            puntosExtra: dto.puntosExtra,
             observacion: dto.observacion,
           },
         ],
@@ -522,11 +523,27 @@ export class CalificacionesService {
           'La calificacion debe estar entre 1 y 100',
         );
       }
+      // `undefined` deja los puntos guardados; `null` o 0 los quita.
+      const puntosExtra =
+        item.puntosExtra === undefined
+          ? undefined
+          : item.puntosExtra == null || Number(item.puntosExtra) === 0
+            ? null
+            : Number(item.puntosExtra);
+      if (
+        puntosExtra != null &&
+        (!Number.isFinite(puntosExtra) || puntosExtra < 0 || puntosExtra > 100)
+      ) {
+        throw new BadRequestException(
+          'Los puntos extra deben estar entre 0 y 100',
+        );
+      }
       return {
         alumnoId: item.alumnoId,
         unidadId: item.unidadId,
         grupoId: dto.grupoId ?? alumno.grupoId ?? null,
         calificacionManual,
+        puntosExtra,
         observacion: item.observacion?.trim() || null,
       };
     });
@@ -741,6 +758,7 @@ export class CalificacionesService {
               alumnoId: true,
               unidadId: true,
               calificacionManual: true,
+              puntosExtra: true,
               observacion: true,
             },
           })
@@ -874,7 +892,21 @@ export class CalificacionesService {
           typeof calificacionGuardada?.calificacionManual === 'number'
             ? calificacionGuardada.calificacionManual
             : null;
-        const calificacionFinal = calificacionManual ?? calificacionCalculada;
+        const puntosExtra =
+          typeof calificacionGuardada?.puntosExtra === 'number' &&
+          calificacionGuardada.puntosExtra > 0
+            ? calificacionGuardada.puntosExtra
+            : null;
+        // Los puntos extra se suman al final, fuera de los criterios: la
+        // calculada y la manual no cambian. Sin base no hay a qué sumarlos.
+        const calificacionBase = calificacionManual ?? calificacionCalculada;
+        const calificacionFinal =
+          calificacionBase == null || puntosExtra == null
+            ? calificacionBase
+            : Math.min(
+                100,
+                Math.round((calificacionBase + puntosExtra) * 10) / 10,
+              );
         const desempeno = evaluarDesempeno({
           calificacion: calificacionFinal,
           unidadFinalizada: unidad.status === EstadoUnidad.FINALIZADA,
@@ -916,6 +948,8 @@ export class CalificacionesService {
           calificacionFinal,
           calificacionManual,
           calificacionCalculada,
+          calificacionBase,
+          puntosExtra,
           fuenteCalificacion:
             calificacionManual != null
               ? 'MANUAL'

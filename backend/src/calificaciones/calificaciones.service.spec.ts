@@ -490,6 +490,43 @@ describe('CalificacionesService: política docente–materia–grupo', () => {
         expect.objectContaining({ aprobados: 1, enRiesgo: 0, sinCalificar: 2 }),
       );
     });
+
+    it('se suman a la manual sin cambiarla y la final se topa en 100', async () => {
+      tareaFindMany.mockResolvedValue([]);
+      claseSesionFindMany.mockResolvedValue([]);
+      calificacionFindMany.mockResolvedValue([
+        {
+          alumnoId: 500,
+          unidadId: 5,
+          calificacionManual: 65,
+          puntosExtra: 10,
+          observacion: null,
+        },
+        {
+          alumnoId: 501,
+          unidadId: 5,
+          calificacionManual: 95,
+          puntosExtra: 10,
+          observacion: null,
+        },
+      ]);
+      const reporte = await service.obtenerReporteDocente(admin, {
+        materiaId: 12,
+        grupoId: 3,
+        unidadId: 5,
+      });
+      const fila = (id: number) =>
+        reporte.rows.find((row) => row.alumno.id === id);
+      expect(fila(500)).toEqual(
+        expect.objectContaining({
+          calificacionManual: 65,
+          calificacionBase: 65,
+          puntosExtra: 10,
+          calificacionFinal: 75,
+        }),
+      );
+      expect(fila(501)?.calificacionFinal).toBe(100);
+    });
   });
 
   describe('captura por lote', () => {

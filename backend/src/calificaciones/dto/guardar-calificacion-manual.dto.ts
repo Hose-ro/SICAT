@@ -45,6 +45,15 @@ export class GuardarCalificacionManualDto {
   @Max(100)
   calificacionManual?: number | null;
 
+  @ValidateIf(
+    (_, value) => value !== null && value !== undefined && value !== '',
+  )
+  @ToNumber()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  puntosExtra?: number | null;
+
   @V.MaxLength(5000)
   @V.ValidateIf((_object, value: unknown) => value !== undefined)
   @SanitizeText()
