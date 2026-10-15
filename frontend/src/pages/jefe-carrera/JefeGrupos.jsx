@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { modalidadTexto, semestreTexto } from './supervision/formato'
+import { modalidadTexto, periodoTexto, semestreTexto } from './supervision/formato'
 import { JefaturaPage, Segmento, Vacio, linkClass } from './supervision/ui'
 
 export default function JefeGrupos() {
@@ -13,18 +13,23 @@ export default function JefeGrupos() {
   const soloRiesgo = params.get('riesgo') === '1'
 
   return (
-    <JefaturaPage titulo="Grupos" subtitulo="Grupos activos de la carrera en el periodo, con su alumnado y sus pendientes.">
+    <JefaturaPage titulo="Grupos" subtitulo="Todos los grupos activos de la carrera; el seguimiento académico corresponde al periodo seleccionado.">
       {({ j, resumen }) => {
         const pendientesPorGrupo = new Map()
         resumen.pendientes.forEach((c) => pendientesPorGrupo.set(c.grupo.id, (pendientesPorGrupo.get(c.grupo.id) ?? 0) + 1))
-        const filas = resumen.grupos.map((g) => {
-          const ofertas = resumen.ofertas.filter((o) => o.grupo.id === g.id)
+        const gruposPeriodo = new Map(resumen.grupos.map((g) => [g.id, g]))
+        const gruposActivos = resumen.catalogo?.grupos ?? resumen.grupos
+        const filas = gruposActivos.map((g) => {
+          const seguimiento = gruposPeriodo.get(g.id)
+          const ofertas = seguimiento ? resumen.ofertas.filter((o) => o.grupo.id === g.id) : []
           return {
             ...g,
-            materias: ofertas.length,
-            inscripciones: ofertas.reduce((n, o) => n + o.resumen.alumnos, 0),
-            calificaciones: ofertas.reduce((n, o) => n + o.resumen.calificacionesPendientes, 0),
-            listas: pendientesPorGrupo.get(g.id) ?? 0,
+            materias: g.ofertas?.length ?? ofertas.length,
+            inscripciones: seguimiento ? ofertas.reduce((n, o) => n + o.resumen.alumnos, 0) : null,
+            calificaciones: seguimiento ? ofertas.reduce((n, o) => n + o.resumen.calificacionesPendientes, 0) : null,
+            listas: seguimiento ? (pendientesPorGrupo.get(g.id) ?? 0) : null,
+            alumnosRiesgo: seguimiento?.alumnosRiesgo ?? null,
+            periodoDisponible: j.periodos.includes(g.periodo),
           }
         })
         const q = busqueda.trim().toLocaleLowerCase()
@@ -47,11 +52,11 @@ export default function JefeGrupos() {
             </div>
 
             <p className="mt-4 max-w-3xl text-xs text-muted-foreground">
-              <b className="font-medium text-foreground">Alumnos</b> cuenta a quienes pertenecen al grupo base. <b className="font-medium text-foreground">Inscripciones</b> suma las inscripciones aceptadas en sus materias, incluidos alumnos de otros grupos; un alumno cuenta una vez por materia.
+              <b className="font-medium text-foreground">Materias</b> incluye las asignadas a cada grupo activo. Alumnos, inscripciones, riesgo y pendientes se calculan únicamente para {periodoTexto(j.periodo)}; cambia el periodo para consultar el seguimiento de otro ciclo.
             </p>
 
-            {!resumen.grupos.length ? (
-              <Vacio titulo="Sin grupos en el periodo">La carrera no tiene grupos activos en este periodo.</Vacio>
+            {!gruposActivos.length ? (
+              <Vacio titulo="Sin grupos activos">La carrera no tiene grupos marcados como activos.</Vacio>
             ) : !visibles.length ? (
               <Vacio titulo="Ningún grupo coincide" accion={<Button variant="outline" onClick={() => { setBusqueda(''); setParams(new URLSearchParams({ carrera: j.carreraId, periodo: j.periodo }), { replace: true }) }}>Restablecer filtros</Button>}>
                 {soloRiesgo ? 'Ningún grupo tiene alumnos con señales de riesgo.' : 'Prueba con otra modalidad o búsqueda.'}
@@ -60,10 +65,11 @@ export default function JefeGrupos() {
               <section key={semestre} aria-labelledby={`semestre-${semestre}`} className="mt-8">
                 <h2 id={`semestre-${semestre}`} className="mb-2 text-base font-semibold text-foreground">{semestreTexto(semestre)}</h2>
                 <div role="region" tabIndex={0} aria-label={`Grupos de ${semestreTexto(semestre)}`} className="overflow-x-auto rounded-[var(--radius-item)] border border-border bg-card focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40">
-                  <table className="w-full min-w-[720px] border-collapse text-[0.8125rem]">
+                  <table className="w-full min-w-[820px] border-collapse text-[0.8125rem]">
                     <thead>
                       <tr className="border-b border-border bg-background text-left text-xs text-muted-foreground">
                         <th scope="col" className="px-4 py-2.5 font-medium">Grupo</th>
+                        <th scope="col" className="px-4 py-2.5 font-medium">Periodo</th>
                         <th scope="col" className="px-4 py-2.5 font-medium">Modalidad</th>
                         <th scope="col" className="px-4 py-2.5 text-right font-medium">Alumnos</th>
                         <th scope="col" className="px-4 py-2.5 text-right font-medium">Materias</th>
@@ -76,15 +82,20 @@ export default function JefeGrupos() {
                       {visibles.filter((g) => g.semestre === semestre).map((g) => (
                         <tr key={g.id} className="border-b border-border last:border-b-0">
                           <th scope="row" className="px-4 py-3 text-left font-semibold">
-                            <Link to={j.to(`/jefe-carrera/grupos/${g.id}`)} className={`${linkClass} text-foreground`}>{g.nombre}</Link>
+                            {g.periodoDisponible
+                              ? <Link to={j.to(`/jefe-carrera/grupos/${g.id}`, { periodo: g.periodo })} className={`${linkClass} text-foreground`}>{g.nombre}</Link>
+                              : <span className="text-foreground">{g.nombre}</span>}
                           </th>
+                          <td className="px-4 py-3 text-muted-foreground">{periodoTexto(g.periodo)}</td>
                           <td className="px-4 py-3 text-muted-foreground">{modalidadTexto(g.modalidad)}</td>
                           <td className="px-4 py-3 text-right tabular-nums">{g.alumnosBase}</td>
                           <td className="px-4 py-3 text-right tabular-nums">{g.materias}</td>
-                          <td className="px-4 py-3 text-right tabular-nums">{g.inscripciones}</td>
-                          <td className={`px-4 py-3 text-right tabular-nums ${g.alumnosRiesgo ? 'font-semibold text-warning-foreground' : 'text-muted-foreground'}`}>{g.alumnosRiesgo}</td>
+                          <td className="px-4 py-3 text-right tabular-nums">{g.inscripciones ?? '—'}</td>
+                          <td className={`px-4 py-3 text-right tabular-nums ${g.alumnosRiesgo ? 'font-semibold text-warning-foreground' : 'text-muted-foreground'}`}>{g.alumnosRiesgo ?? '—'}</td>
                           <td className="px-4 py-3 text-muted-foreground">
-                            {g.listas || g.calificaciones
+                            {g.listas == null
+                              ? (g.periodoDisponible ? `Consulta ${periodoTexto(g.periodo)}` : 'Periodo no compatible con supervisión')
+                              : g.listas || g.calificaciones
                               ? [g.listas && `${g.listas} ${g.listas === 1 ? 'lista' : 'listas'}`, g.calificaciones && `${g.calificaciones} ${g.calificaciones === 1 ? 'calificación' : 'calificaciones'}`].filter(Boolean).join(' · ')
                               : 'Sin pendientes detectados'}
                           </td>

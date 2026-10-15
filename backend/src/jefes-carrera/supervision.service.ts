@@ -144,21 +144,26 @@ export class SupervisionService {
     });
   }
 
-  private async ofertas(carreraId: number, periodo: string) {
+  private async ofertas(carreraId: number, periodo?: string) {
+    const gruposActivos = {
+      carreraId,
+      activo: true,
+      ...(periodo ? { periodo } : {}),
+    };
     const materias = await this.prisma.materia.findMany({
       where: {
         carreraId,
-        grupos: { some: { carreraId, periodo, activo: true } },
+        grupos: { some: gruposActivos },
       },
       include: {
         docente: { select: persona },
         unidades: { orderBy: { orden: 'asc' } },
         grupos: {
-          where: { carreraId, periodo, activo: true },
+          where: gruposActivos,
           select: grupoCampos,
         },
         horarios: {
-          where: { activo: true, grupo: { carreraId, periodo, activo: true } },
+          where: { activo: true, grupo: gruposActivos },
           include: horarioInclude,
         },
       },
@@ -250,9 +255,18 @@ export class SupervisionService {
   async resumen(usuarioId: number, consulta: Consulta) {
     await this.alcance(usuarioId, consulta.carreraId);
     const periodo = periodoSupervision(consulta.periodo);
-    const [ofertas, grupos, calendarios, reticula, cierres] = await Promise.all(
+    const [
+      ofertas,
+      ofertasActivas,
+      grupos,
+      gruposActivos,
+      calendarios,
+      reticula,
+      cierres,
+    ] = await Promise.all(
       [
         this.ofertas(consulta.carreraId, periodo),
+        this.ofertas(consulta.carreraId),
         this.prisma.grupo.findMany({
           where: { carreraId: consulta.carreraId, periodo, activo: true },
           select: {
@@ -260,6 +274,18 @@ export class SupervisionService {
             _count: { select: { alumnos: { where: { activo: true } } } },
           },
           orderBy: [{ semestre: 'asc' }, { nombre: 'asc' }],
+        }),
+        this.prisma.grupo.findMany({
+          where: { carreraId: consulta.carreraId, activo: true },
+          select: {
+            ...grupoCampos,
+            _count: { select: { alumnos: { where: { activo: true } } } },
+          },
+          orderBy: [
+            { periodo: 'desc' },
+            { semestre: 'asc' },
+            { nombre: 'asc' },
+          ],
         }),
         this.calendarios(periodo),
         this.prisma.materia.findMany({
@@ -410,6 +436,23 @@ export class SupervisionService {
         responsabilidadCompartida: propias.some((o) => o.docentes.length > 1),
       };
     });
+    const docentesActivos = [
+      ...new Map(
+        ofertasActivas.flatMap((o) => o.docentes).map((d) => [d.id, d]),
+      ).values(),
+    ].map((d) => ({
+      ...d,
+      ofertas: ofertasActivas
+        .filter((o) => o.docentes.some((docente) => docente.id === d.id))
+        .map((o) => o.id),
+    }));
+    const catalogoOfertas = ofertasActivas.map((o) => ({
+      id: o.id,
+      materia: o.materia,
+      grupo: o.grupo,
+      docentes: o.docentes,
+      tieneHorario: o.horarios.length > 0,
+    }));
     return {
       periodo,
       generadoEn: new Date().toISOString(),
@@ -453,6 +496,17 @@ export class SupervisionService {
         (c) =>
           c.elegible && ['SIN_CAPTURA', 'CAPTURA_PARCIAL'].includes(c.estado),
       ),
+      catalogo: {
+        ofertas: catalogoOfertas,
+        docentes: docentesActivos,
+        grupos: gruposActivos.map((g) => ({
+          ...g,
+          alumnosBase: g._count.alumnos,
+          ofertas: catalogoOfertas
+            .filter((o) => o.grupo.id === g.id)
+            .map((o) => o.id),
+        })),
+      },
     };
   }
 

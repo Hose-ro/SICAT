@@ -15,8 +15,8 @@ export default function JefeMaterias() {
     setParams(n, { replace: true })
   }
   const set = (k, v) => setVarios({ [k]: v })
-  const vista = params.get('vista') === 'reticula' ? 'reticula' : ''
-  const todas = params.get('paridad') === 'todas'
+  const vista = params.get('vista') === 'ofertas' ? 'ofertas' : 'reticula'
+  const todas = params.get('paridad') !== 'ciclo'
   const soloPendientes = params.get('pendientes') === '1'
   const soloIncompletas = params.get('revision') === 'incompleta'
 
@@ -44,12 +44,12 @@ export default function JefeMaterias() {
           <>
             <ul className="mt-6 flex flex-wrap gap-x-6 gap-y-1 border-y border-border py-3 text-[0.8125rem]" aria-label="Revisión de la oferta">
               <li>{sinOferta.length ? <button type="button" className={linkClass} onClick={() => set('vista', 'reticula')}>{sinOferta.length} {sinOferta.length === 1 ? 'materia' : 'materias'} de la retícula sin oferta</button> : <span className="text-muted-foreground">Retícula del ciclo cubierta</span>}</li>
-              <li>{sinDocente.length ? <button type="button" aria-pressed={soloIncompletas} className={cn(linkClass, 'text-warning-foreground')} onClick={() => setVarios({ vista: '', revision: soloIncompletas ? '' : 'incompleta' })}>{sinDocente.length} {sinDocente.length === 1 ? 'materia en un grupo sin docente' : 'materias en grupos sin docente'}</button> : <span className="text-muted-foreground">Todas las materias con docente</span>}</li>
-              <li>{sinHorario.length ? <button type="button" aria-pressed={soloIncompletas} className={cn(linkClass, 'text-warning-foreground')} onClick={() => setVarios({ vista: '', revision: soloIncompletas ? '' : 'incompleta' })}>{sinHorario.length} {sinHorario.length === 1 ? 'materia en un grupo sin horario' : 'materias en grupos sin horario'}</button> : <span className="text-muted-foreground">Todas las materias con horario</span>}</li>
+              <li>{sinDocente.length ? <button type="button" aria-pressed={soloIncompletas} className={cn(linkClass, 'text-warning-foreground')} onClick={() => setVarios({ vista: 'ofertas', revision: soloIncompletas ? '' : 'incompleta' })}>{sinDocente.length} {sinDocente.length === 1 ? 'materia en un grupo sin docente' : 'materias en grupos sin docente'}</button> : <span className="text-muted-foreground">Todas las materias con docente</span>}</li>
+              <li>{sinHorario.length ? <button type="button" aria-pressed={soloIncompletas} className={cn(linkClass, 'text-warning-foreground')} onClick={() => setVarios({ vista: 'ofertas', revision: soloIncompletas ? '' : 'incompleta' })}>{sinHorario.length} {sinHorario.length === 1 ? 'materia en un grupo sin horario' : 'materias en grupos sin horario'}</button> : <span className="text-muted-foreground">Todas las materias con horario</span>}</li>
             </ul>
 
             <div className="mt-5 flex flex-wrap items-center gap-3">
-              <Segmento label="Vista" value={vista} onChange={(v) => set('vista', v)} options={[{ value: '', label: 'Ofertas del periodo' }, { value: 'reticula', label: 'Retícula' }]} />
+              <Segmento label="Vista" value={vista} onChange={(v) => set('vista', v)} options={[{ value: 'reticula', label: 'Todas las materias' }, { value: 'ofertas', label: 'Ofertas del periodo' }]} />
               <label className="relative min-w-[200px] flex-1 sm:max-w-xs">
                 <span className="sr-only">Buscar materia</span>
                 <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
@@ -57,8 +57,8 @@ export default function JefeMaterias() {
               </label>
               {vista === 'reticula' ? (
                 <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 text-[0.8125rem]">
-                  <input type="checkbox" checked={todas} onChange={(e) => set('paridad', e.target.checked ? 'todas' : '')} className="size-[17px] accent-primary" />
-                  Incluir semestres fuera del ciclo
+                  <input type="checkbox" checked={todas} onChange={(e) => set('paridad', e.target.checked ? '' : 'ciclo')} className="size-[17px] accent-primary" />
+                  Incluir todos los semestres
                 </label>
               ) : (
                 <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 text-[0.8125rem]">

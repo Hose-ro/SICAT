@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { fechaHoraCorta } from './supervision/formato'
+import { fechaHoraCorta, periodoTexto } from './supervision/formato'
 import { JefaturaPage, Segmento, Vacio, linkClass } from './supervision/ui'
 
 function cobertura(d) {
@@ -18,9 +18,28 @@ export default function JefeDocentes() {
   return (
     <JefaturaPage titulo="Docentes" subtitulo="Carga académica y registro de cada docente dentro de esta carrera.">
       {({ j, resumen }) => {
-        const ofertas = new Map(resumen.ofertas.map((o) => [o.id, o]))
+        const ofertas = new Map((resumen.catalogo?.ofertas ?? resumen.ofertas).map((o) => [o.id, o]))
+        const metricas = new Map(resumen.docentes.map((d) => [d.id, d]))
+        const docentesActivos = resumen.catalogo?.docentes ?? resumen.docentes
         const q = busqueda.trim().toLocaleLowerCase()
-        const filas = resumen.docentes
+        const filas = docentesActivos
+          .map((docente) => {
+            const metrica = metricas.get(docente.id)
+            const asignaciones = docente.ofertas.map((id) => ofertas.get(id)).filter(Boolean)
+            const periodoReferencia = asignaciones.some((o) => o.grupo.periodo === j.periodo)
+              ? j.periodo
+              : asignaciones.map((o) => o.grupo.periodo).find((periodo) => j.periodos.includes(periodo))
+            return {
+              ...docente,
+              ...metrica,
+              asignaciones,
+              periodoReferencia,
+              tieneMetricas: Boolean(metrica),
+              listasPendientes: metrica?.listasPendientes ?? 0,
+              calificacionesPendientes: metrica?.calificacionesPendientes ?? 0,
+              entregasPendientes: metrica?.entregasPendientes ?? 0,
+            }
+          })
           .filter((d) => !q || d.nombre.toLocaleLowerCase().includes(q))
           .filter((d) => !filtro || d.listasPendientes || d.calificacionesPendientes || d.entregasPendientes)
           .sort((a, b) => a.nombre.localeCompare(b.nombre))
@@ -36,11 +55,11 @@ export default function JefeDocentes() {
               <Segmento label="Mostrar" value={filtro} onChange={(v) => { const n = new URLSearchParams(params); if (v) n.set('filtro', v); else n.delete('filtro'); setParams(n, { replace: true }) }} options={[{ value: '', label: 'Todos' }, { value: 'pendientes', label: 'Con pendientes' }]} />
             </div>
             <p className="mt-4 max-w-3xl text-xs text-muted-foreground">
-              Aparecen quienes imparten clases de la carrera en el periodo. SICAT aún no registra la adscripción institucional, así que un docente compartido muestra aquí solo su trabajo en esta carrera. La cobertura es listas completas entre clases concluidas y elegibles del intervalo.
+              Aparecen quienes tienen materias en grupos activos de la carrera. Horas, pendientes, cobertura y última captura corresponden únicamente a {j.periodo}; abre una asignación de otro periodo para consultar su seguimiento.
             </p>
 
-            {!resumen.docentes.length ? (
-              <Vacio titulo="Sin docentes asignados">Ninguna materia de la carrera tiene docente en este periodo.</Vacio>
+            {!docentesActivos.length ? (
+              <Vacio titulo="Sin docentes asignados">Ninguna materia de los grupos activos de la carrera tiene docente.</Vacio>
             ) : !filas.length ? (
               <Vacio titulo={filtro ? 'Sin pendientes detectados' : 'Ningún docente coincide'} accion={<Button variant="outline" onClick={() => { setBusqueda(''); setParams(new URLSearchParams({ carrera: j.carreraId, periodo: j.periodo }), { replace: true }) }}>Restablecer filtros</Button>} />
             ) : (
@@ -61,20 +80,22 @@ export default function JefeDocentes() {
                     {filas.map((d) => (
                       <tr key={d.id} className="border-b border-border align-top last:border-b-0">
                         <th scope="row" className="px-4 py-3 text-left font-medium">
-                          <Link className={cn(linkClass, 'text-foreground')} to={j.to(`/jefe-carrera/docentes/${d.id}`)}>{d.nombre}</Link>
-                          <span className="block text-xs font-normal text-muted-foreground">{d.pertenencia}</span>
+                          {d.periodoReferencia
+                            ? <Link className={cn(linkClass, 'text-foreground')} to={j.to(`/jefe-carrera/docentes/${d.id}`, { periodo: d.periodoReferencia })}>{d.nombre}</Link>
+                            : <span className="text-foreground">{d.nombre}</span>}
+                          <span className="block text-xs font-normal text-muted-foreground">Imparte en esta carrera</span>
                         </th>
                         <td className="px-4 py-3 text-muted-foreground">
-                          {d.ofertas.map((id) => ofertas.get(id)).filter(Boolean).map((o) => <span key={o.id} className="block">{o.materia.nombre} · {o.grupo.nombre}</span>)}
+                          {d.asignaciones.map((o) => <span key={o.id} className="block">{o.materia.nombre} · {o.grupo.nombre} · {periodoTexto(o.grupo.periodo)}</span>)}
                         </td>
-                        <td className="px-4 py-3 text-right tabular-nums">{d.horasSemanales}</td>
-                        <td className={cn('px-4 py-3 text-right tabular-nums', d.listasPendientes ? 'font-semibold text-warning-foreground' : 'text-muted-foreground')}>{d.listasPendientes}</td>
-                        <td className={cn('px-4 py-3 text-right tabular-nums', d.calificacionesPendientes ? 'font-semibold text-warning-foreground' : 'text-muted-foreground')}>{d.calificacionesPendientes}</td>
+                        <td className="px-4 py-3 text-right tabular-nums">{d.tieneMetricas ? d.horasSemanales : '—'}</td>
+                        <td className={cn('px-4 py-3 text-right tabular-nums', d.listasPendientes ? 'font-semibold text-warning-foreground' : 'text-muted-foreground')}>{d.tieneMetricas ? d.listasPendientes : '—'}</td>
+                        <td className={cn('px-4 py-3 text-right tabular-nums', d.calificacionesPendientes ? 'font-semibold text-warning-foreground' : 'text-muted-foreground')}>{d.tieneMetricas ? d.calificacionesPendientes : '—'}</td>
                         <td className="px-4 py-3 text-right tabular-nums">
-                          {cobertura(d)}
-                          {d.clasesEsperadas > 0 && <span className="block text-xs text-muted-foreground">{d.listasCompletas} de {d.clasesEsperadas}</span>}
+                          {d.tieneMetricas ? cobertura(d) : '—'}
+                          {d.tieneMetricas && d.clasesEsperadas > 0 && <span className="block text-xs text-muted-foreground">{d.listasCompletas} de {d.clasesEsperadas}</span>}
                         </td>
-                        <td className="px-4 py-3 text-muted-foreground">{fechaHoraCorta(d.ultimaCaptura)}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{d.tieneMetricas ? fechaHoraCorta(d.ultimaCaptura) : '—'}</td>
                       </tr>
                     ))}
                   </tbody>
