@@ -96,7 +96,32 @@ test('sin señal la lista queda en cola y se envía sola al volver la conexión'
   expect(await page.evaluate(() => localStorage.getItem('sicat:pase-lista-cola'))).toBeNull()
 })
 
-test('con teclado: A/R/F/J marcan y pasan al siguiente; las flechas se mueven entre alumnos', async ({ page }) => {
+test('con teclado se marca sin tocar nada: el alumno resaltado avanza solo', async ({ page }) => {
+  await abrir(page, { n: 3 })
+  const fila = (nombre) => page.getByRole('listitem').filter({ hasText: nombre })
+  // Recién abierta, sin foco en la lista: el primero sin marcar está resaltado.
+  await expect(fila('Ana López')).toHaveAttribute('aria-current', 'true')
+  await page.keyboard.press('a')
+  await page.keyboard.press('F')
+  await expect(estado(page, 'Ana López', 'Asistencia')).toHaveAttribute('aria-pressed', 'true')
+  await expect(estado(page, 'Bruno Díaz', 'Falta')).toHaveAttribute('aria-pressed', 'true')
+  await expect(fila('Carla Méndez')).toHaveAttribute('aria-current', 'true')
+
+  // ↑ regresa sin foco en un control; corregir a Bruno lo deja en Retardo.
+  await page.keyboard.press('ArrowUp')
+  await expect(fila('Bruno Díaz')).toHaveAttribute('aria-current', 'true')
+  await page.keyboard.press('r')
+  await expect(estado(page, 'Bruno Díaz', 'Retardo')).toHaveAttribute('aria-pressed', 'true')
+
+  // Un clic (aunque el navegador no enfoque el botón, como Safari) elige al alumno.
+  await page.getByText('Ana López').click()
+  await estado(page, 'Ana López', 'Justificado').click()
+  await expect(fila('Ana López')).toHaveAttribute('aria-current', 'true')
+  await page.keyboard.press('j')
+  await expect(estado(page, 'Ana López', 'Justificado')).toHaveAttribute('aria-pressed', 'true')
+})
+
+test('con el foco en la lista, las teclas llevan el foco al siguiente alumno', async ({ page }) => {
   await abrir(page, { n: 3 })
   await estado(page, 'Ana López', 'Asistencia').focus()
   await page.keyboard.press('f')
@@ -104,13 +129,28 @@ test('con teclado: A/R/F/J marcan y pasan al siguiente; las flechas se mueven en
   await expect(estado(page, 'Bruno Díaz', 'Falta')).toBeFocused()
   await page.keyboard.press('ArrowDown')
   await expect(estado(page, 'Carla Méndez', 'Falta')).toBeFocused()
-  await page.keyboard.press('r')
-  await expect(estado(page, 'Carla Méndez', 'Retardo')).toHaveAttribute('aria-pressed', 'true')
-  await page.keyboard.press('ArrowUp')
-  await expect(estado(page, 'Bruno Díaz', 'Retardo')).toBeFocused()
+})
+
+test('los atajos no se disparan al escribir, con un diálogo abierto ni desactivados', async ({ page }) => {
+  await abrir(page)
+  await page.getByRole('searchbox', { name: /Buscar alumno/ }).fill('far')
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('group', { name: /^Estado de / }).getByRole('button', { pressed: true })).toHaveCount(0)
+  await page.getByRole('searchbox', { name: /Buscar alumno/ }).fill('')
+
+  await page.getByRole('button', { name: 'Guardar asistencia' }).click()
+  await expect(page.getByRole('dialog')).toBeVisible()
   await page.keyboard.press('a')
-  await expect(estado(page, 'Bruno Díaz', 'Asistencia')).toHaveAttribute('aria-pressed', 'true')
-  await expect(page.getByText('Todos marcados')).toBeVisible()
+  await page.getByRole('dialog').getByRole('button', { name: 'Cancelar' }).click()
+  await expect(estado(page, 'Ana López', 'Asistencia')).toHaveAttribute('aria-pressed', 'false')
+
+  await page.getByRole('button', { name: 'Desactivar atajos' }).click()
+  await page.locator('body').click({ position: { x: 5, y: 5 } })
+  await page.keyboard.press('a')
+  await expect(estado(page, 'Ana López', 'Asistencia')).toHaveAttribute('aria-pressed', 'false')
+  // La preferencia se recuerda en este navegador.
+  await page.reload()
+  await expect(page.getByRole('button', { name: 'Activar atajos' })).toBeVisible()
 })
 
 test('guardar con alumnos sin marcar pide confirmar las faltas', async ({ page }) => {

@@ -11,8 +11,20 @@ import { cn } from '@/lib/utils'
 import SexoBadge from '../../../components/SexoBadge'
 import { useAsistenciaStore } from '../../../store/asistenciaStore'
 
-// Atajos de teclado (A/R/F/J), activos sólo con el foco dentro de un alumno.
+// Atajos de teclado: actúan sobre el alumno resaltado, tenga o no el foco
+// (Safari no enfoca un botón al hacer clic). Se pueden apagar (WCAG 2.1.4).
 const TECLAS = { a: 'ASISTENCIA', r: 'RETARDO', f: 'FALTA', j: 'JUSTIFICADA' }
+const PREFERENCIA_ATAJOS = 'sicat:atajos-pase-lista'
+// Donde una letra es texto o pertenece a otra cosa, no es un atajo.
+const FUERA_DE_ATAJOS = 'input, textarea, select, [contenteditable="true"], [role="dialog"], [role="menu"]'
+
+function leerAtajos() {
+  try {
+    return localStorage.getItem(PREFERENCIA_ATAJOS) !== 'no'
+  } catch {
+    return true
+  }
+}
 
 const ESTADOS = [
   { valor: 'ASISTENCIA', etiqueta: 'Asistencia', letra: 'A', plural: ['asistencia', 'asistencias'], activo: 'bg-success/15 text-success-foreground ring-success/40' },
@@ -72,6 +84,9 @@ export default function AsistenciaSesionPanel({
   // Marcas que se intentaron guardar sin red y esperan en la cola del dispositivo.
   const [encolado, setEncolado] = useState(null)
   const filasRef = useRef([])
+  const [cursor, setCursor] = useState(null)
+  const [atajos, setAtajos] = useState(leerAtajos)
+  const teclaRef = useRef(null)
 
   const { sesion, alumnos, disponibles, registros, guardados, participacion, recuperado } = datos
 
@@ -218,25 +233,61 @@ export default function AsistenciaSesionPanel({
 
   const marcar = (alumnoId, estado) => actualizar((prev) => ({ registros: { ...prev.registros, [alumnoId]: estado } }))
 
-  const enfocarFila = (indice, columna = 0) => {
-    filasRef.current[indice]?.querySelectorAll('[data-estado]')[columna]?.focus()
+  // El alumno resaltado: el que se eligió, o el primero que falta marcar.
+  const actual = visibles.find((alumno) => alumno.alumnoId === cursor)
+    ?? visibles.find((alumno) => !registros[alumno.alumnoId])
+    ?? visibles[0]
+    ?? null
+
+  // Mueve el resaltado; si el foco ya estaba en la lista, lo lleva a la misma columna.
+  const moverA = (indice, columna, origen) => {
+    const destino = Math.max(0, Math.min(indice, visibles.length - 1))
+    const fila = filasRef.current[destino]
+    if (!visibles[destino]) return
+    setCursor(visibles[destino].alumnoId)
+    fila?.scrollIntoView({ block: 'nearest' })
+    if (origen?.closest?.('[data-lista-alumnos]')) fila?.querySelectorAll('[data-estado]')[columna]?.focus()
   }
 
-  const manejarTecla = (event, alumno, indice) => {
-    if (event.altKey || event.ctrlKey || event.metaKey) return
-    const estado = TECLAS[event.key.toLowerCase()]
-    if (estado) {
-      event.preventDefault()
-      marcar(alumno.alumnoId, estado)
-      enfocarFila(Math.min(indice + 1, visibles.length - 1), ESTADOS.findIndex((item) => item.valor === estado))
-      return
+  useEffect(() => {
+    teclaRef.current = (event) => {
+      if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || !actual) return
+      const origen = event.target
+      if (origen.closest?.(FUERA_DE_ATAJOS) || document.querySelector('[aria-modal="true"]')) return
+      const indice = visibles.findIndex((alumno) => alumno.alumnoId === actual.alumnoId)
+      const estado = TECLAS[event.key.toLowerCase()]
+      if (estado) {
+        event.preventDefault()
+        marcar(actual.alumnoId, estado)
+        moverA(indice + 1, ESTADOS.findIndex((item) => item.valor === estado), origen)
+        return
+      }
+      // Las flechas sólo se toman en la lista o sin foco; en otro control conservan su uso.
+      const paso = { ArrowDown: 1, ArrowUp: -1 }[event.key]
+      if (paso && (origen === document.body || origen.closest?.('[data-lista-alumnos]'))) {
+        event.preventDefault()
+        const columna = Math.max(0, ESTADOS.findIndex((item) => item.valor === origen.dataset?.estado))
+        moverA(indice + paso, columna, origen)
+      }
     }
-    const paso = { ArrowDown: 1, ArrowUp: -1 }[event.key]
-    if (paso && event.target.dataset.estado) {
-      event.preventDefault()
-      const columna = ESTADOS.findIndex((item) => item.valor === event.target.dataset.estado)
-      enfocarFila(Math.max(0, Math.min(indice + paso, visibles.length - 1)), columna)
-    }
+  })
+
+  useEffect(() => {
+    if (!listo || !atajos) return undefined
+    const alTeclear = (event) => teclaRef.current?.(event)
+    document.addEventListener('keydown', alTeclear)
+    return () => document.removeEventListener('keydown', alTeclear)
+  }, [listo, atajos])
+
+  const alternarAtajos = () => {
+    setAtajos((activos) => {
+      try {
+        localStorage.setItem(PREFERENCIA_ATAJOS, activos ? 'no' : 'si')
+      } catch {
+        // Sin almacenamiento la preferencia dura lo que la pantalla.
+      }
+      return !activos
+    })
   }
 
   const marcarRestantesPresentes = () => actualizar((prev) => ({
@@ -472,9 +523,20 @@ export default function AsistenciaSesionPanel({
         )}
       </div>
 
-      <p className="mt-3 hidden text-xs text-muted-foreground [@media(pointer:fine)]:block">
-        Con teclado: <kbd className="font-semibold text-foreground">A</kbd> asistencia · <kbd className="font-semibold text-foreground">R</kbd> retardo · <kbd className="font-semibold text-foreground">F</kbd> falta · <kbd className="font-semibold text-foreground">J</kbd> justificado, y pasa al siguiente alumno. <kbd className="font-semibold text-foreground">↑</kbd> <kbd className="font-semibold text-foreground">↓</kbd> para moverte.
-      </p>
+      {/* Sólo con mouse o trackpad: en el teléfono no hay teclado físico que explicar. */}
+      <div className="mt-3 hidden flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground [@media(pointer:fine)]:flex">
+        {atajos ? (
+          <p>
+            Con teclado: <kbd className="font-semibold text-foreground">A</kbd> asistencia · <kbd className="font-semibold text-foreground">R</kbd> retardo · <kbd className="font-semibold text-foreground">F</kbd> falta · <kbd className="font-semibold text-foreground">J</kbd> justificado marcan al alumno resaltado y pasan al siguiente; <kbd className="font-semibold text-foreground">↑</kbd> <kbd className="font-semibold text-foreground">↓</kbd> cambian de alumno.
+          </p>
+        ) : (
+          <p>Atajos de teclado desactivados.</p>
+        )}
+        <button type="button" aria-pressed={atajos} onClick={alternarAtajos}
+          className="rounded-md font-medium text-primary-ink underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
+          {atajos ? 'Desactivar atajos' : 'Activar atajos'}
+        </button>
+      </div>
 
       {visibles.length === 0 ? (
         <p className="mt-4 rounded-[var(--radius-item)] border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
@@ -483,12 +545,16 @@ export default function AsistenciaSesionPanel({
             : soloSinMarcar && !needle ? 'Ya marcaste a todos.' : 'Ningún alumno coincide con la búsqueda.'}
         </p>
       ) : (
-        <ul className="@container mt-3 divide-y divide-border border-y border-border">
+        <ul data-lista-alumnos className="@container -mx-2 mt-3 divide-y divide-border border-y border-border">
           {visibles.map((alumno, indice) => {
             const puntos = participacion[alumno.alumnoId] ?? 0
+            const resaltado = atajos && alumno.alumnoId === actual?.alumnoId
+            const elegir = () => setCursor(alumno.alumnoId)
             return (
               <li key={alumno.alumnoId} ref={(el) => { filasRef.current[indice] = el }}
-                className="grid items-center gap-x-3 gap-y-1.5 py-2.5 [grid-template-areas:'nombre_participa'_'estado_estado'] grid-cols-[minmax(0,1fr)_auto] @[40rem]:grid-cols-[minmax(0,1fr)_auto_auto] @[40rem]:[grid-template-areas:'nombre_estado_participa']">
+                aria-current={resaltado ? 'true' : undefined}
+                className={cn('grid scroll-mb-36 scroll-mt-4 items-center gap-x-3 gap-y-1.5 px-2 py-2.5 transition-colors duration-150', resaltado && '[@media(pointer:fine)]:bg-accent/60',
+                  "[grid-template-areas:'nombre_participa'_'estado_estado'] grid-cols-[minmax(0,1fr)_auto] @[40rem]:grid-cols-[minmax(0,1fr)_auto_auto] @[40rem]:[grid-template-areas:'nombre_estado_participa']")}>
                 <div className="min-w-0 [grid-area:nombre]">
                   <p className="flex items-start gap-2 text-sm font-medium text-foreground">
                     <SexoBadge sexo={alumno.sexo} />
@@ -506,9 +572,9 @@ export default function AsistenciaSesionPanel({
                     const marcado = registros[alumno.alumnoId] === valor
                     return (
                       <button key={valor} type="button" aria-pressed={marcado} data-estado={valor}
-                        aria-keyshortcuts={valor === 'ASISTENCIA' ? 'A' : valor === 'RETARDO' ? 'R' : valor === 'FALTA' ? 'F' : 'J'}
-                        onClick={() => setEstado(alumno.alumnoId, valor)}
-                        onKeyDown={(event) => manejarTecla(event, alumno, indice)}
+                        aria-keyshortcuts={atajos ? Object.keys(TECLAS).find((tecla) => TECLAS[tecla] === valor).toUpperCase() : undefined}
+                        onClick={() => { elegir(); setEstado(alumno.alumnoId, valor) }}
+                        onFocus={elegir}
                         className={cn(
                           'min-h-9 min-w-0 rounded-[10px] px-1 text-xs font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50',
                           marcado ? cn('font-semibold ring-1', activo) : 'text-muted-foreground hover:bg-card hover:text-foreground',
@@ -529,8 +595,8 @@ export default function AsistenciaSesionPanel({
                   )}
                   <Button variant="outline" type="button"
                     aria-label={`Sumar participación a ${alumno.nombre} (lleva ${puntos})`}
-                    onClick={() => cambiarParticipacion(alumno, 1)}
-                    onKeyDown={(event) => manejarTecla(event, alumno, indice)}
+                    onClick={() => { elegir(); cambiarParticipacion(alumno, 1) }}
+                    onFocus={elegir}
                     className={cn('h-8 gap-1.5 rounded-full px-3 text-xs font-semibold', puntos > 0 ? 'border-primary/40 bg-primary/10 text-primary-ink' : 'text-muted-foreground')}>
                     <Hand className="size-3.5" aria-hidden="true" />
                     {puntos > 0 ? `${puntos} ${puntos === 1 ? 'pt' : 'pts'}` : '+1'}
