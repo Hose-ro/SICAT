@@ -8,7 +8,7 @@ const rutas = {
  ADMIN: ['/dashboard','/materias','/materias/1','/asistencias','/tareas','/calificaciones','/usuarios','/carreras','/admin/horarios','/admin/horarios-importados','/admin/academias','/admin/academias/1','/admin/aulas','/admin/grupos','/admin/grupos/1','/notificaciones'],
  DOCENTE: ['/dashboard','/asistencias','/tareas','/calificaciones','/docente/grupos','/docente/horario','/docente/solicitudes','/docente/horario/editar','/docente/tareas/crear'],
  ALUMNO: ['/materias','/asistencias','/tareas','/calificaciones','/alumno/horario','/alumno/materias/1','/notificaciones'],
- JEFE_CARRERA: ['/dashboard','/jefe-carrera/grupos','/jefe-carrera/grupos/8','/jefe-carrera/docentes','/jefe-carrera/docentes/37','/jefe-carrera/materias','/jefe-carrera/materias/411','/jefe-carrera/horarios','/jefe-carrera/seguimiento','/jefe-carrera/alertas','/jefe-carrera/reportes'],
+ JEFE_CARRERA: ['/dashboard','/jefe-carrera/grupos','/jefe-carrera/grupos/8','/jefe-carrera/docentes','/jefe-carrera/docentes/37','/jefe-carrera/materias','/jefe-carrera/materias/411','/jefe-carrera/horarios','/jefe-carrera/seguimientos','/jefe-carrera/reportes'],
 }
 const settle=page=>page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))))
 const report=[]

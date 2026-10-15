@@ -53,3 +53,20 @@ export const ESTADO_UNIDAD = {
   ACTIVA: { label: 'En curso', tono: 'accent' },
   FINALIZADA: { label: 'Cerrada', tono: 'neutral' },
 }
+
+/** Días que una unidad puede seguir en curso antes de pedir revisar su avance. */
+export const DIAS_REVISION_UNIDAD = 28
+
+// Las fechas de unidad se guardan a medianoche UTC.
+const fechaUnidad = (iso) => new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', timeZone: 'UTC' })
+
+/** Señal de una unidad sin cerrar: cierre previsto vencido o demasiados días abierta; null si va bien. */
+export function senalUnidad(u, hoy = new Date()) {
+  if (u.status === 'FINALIZADA') return null
+  if (u.fechaFin && new Date(u.fechaFin) < hoy) return `Cierre previsto el ${fechaUnidad(u.fechaFin)} sin registrar`
+  if (u.status === 'ACTIVA' && u.fechaInicio) {
+    const dias = Math.floor((hoy - new Date(u.fechaInicio)) / 86400000)
+    if (dias > DIAS_REVISION_UNIDAD) return `Abierta hace ${dias} días; revisar avance`
+  }
+  return null
+}

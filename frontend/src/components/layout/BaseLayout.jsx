@@ -9,10 +9,9 @@ import { Boxes as CiBoxes, Calendar as CiCalendar, CalendarDays as CiCalendarDat
 import {
   AlertTriangle,
   BarChart3,
+  NotebookPen,
   ClipboardCheck,
   MoreHorizontal,
-  BellRing,
-  BookOpenCheck,
   CalendarClock,
   DoorOpen,
   GraduationCap,
@@ -176,18 +175,14 @@ export function BaseLayout({ children }) {
                 <CalendarClock className="nav__icon" />
                 <span className="nav__label">Horarios</span>
               </NavLink>
-              <span className="nav__section">Seguimiento</span>
-              <NavLink to="/jefe-carrera/alertas" className={navClass} data-tip="Alertas" hidden={!'Alertas'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
-                <BellRing className="nav__icon" />
-                <span className="nav__label">Alertas</span>
+              <span className="nav__section">Evidencia</span>
+              <NavLink to="/jefe-carrera/seguimientos" className={navClass} data-tip="Seguimientos" hidden={!'Seguimientos'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
+                <NotebookPen className="nav__icon" />
+                <span className="nav__label">Seguimientos</span>
               </NavLink>
-              <NavLink to="/jefe-carrera/seguimiento" className={navClass} data-tip="Seguimiento" hidden={!'Seguimiento'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
-                <BookOpenCheck className="nav__icon" />
-                <span className="nav__label">Seguimiento</span>
-              </NavLink>
-              <NavLink to="/jefe-carrera/reportes" className={navClass} data-tip="Reportes" hidden={!'Reportes'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
+              <NavLink to="/jefe-carrera/reportes" className={navClass} data-tip="Informe del periodo" hidden={!'Informe del periodo'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
                 <BarChart3 className="nav__icon" />
-                <span className="nav__label">Reportes</span>
+                <span className="nav__label">Informe del periodo</span>
               </NavLink>
             </>
           )}

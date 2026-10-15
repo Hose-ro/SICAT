@@ -159,8 +159,23 @@ function resumen() {
   }
 }
 
-export async function mockJefatura(page) {
+const informe = (q) => ({
+  generadoEn: '2026-10-14T22:55:00.000Z', carrera, periodo: '2026-B',
+  intervalo: { desde: q.desde, hasta: q.hasta }, limites: { inicio: '2026-08-24', fin: '2026-12-12' },
+  totales: { clasesEsperadas: 106, listasCompletas: 100, listasPendientes: 6, cobertura: 94, alumnosRiesgo: 2, calificacionesPendientes: 15, seguimientos: 1 },
+  docentes: [
+    { id: 38, nombre: 'Carlos Ruiz', horasSemanales: 20, esperadas: 30, completas: 27, parciales: 3, sinCaptura: 0, tardias: 1, cobertura: 90 },
+    { id: 37, nombre: 'Laura Méndez', horasSemanales: 34, esperadas: 40, completas: 37, parciales: 0, sinCaptura: 3, tardias: 0, cobertura: 93 },
+  ],
+  listasPendientes: [{ fecha: '2026-10-12', horaInicio: '07:00', horaFin: '09:00', materia: 'Cálculo diferencial', grupo: '1A', docente: 'Laura Méndez', estado: 'SIN_CAPTURA', registros: 0, alumnos: 32 }],
+  avance: [{ materia: 'Cálculo vectorial', clave: 'ACF-0904', grupo: '3A', modalidad: 'ESCOLARIZADO', docentes: ['Laura Méndez'], unidades: [{ orden: 1, nombre: 'Unidad 1', status: 'FINALIZADA' }, { orden: 2, nombre: 'Unidad 2', status: 'ACTIVA' }], calificacionesPendientes: 0, entregasPendientes: 0 }],
+  riesgos: [{ id: 800, nombre: 'Ana Prueba', numeroControl: '221100', sexo: 'MUJER', materias: ['Cálculo diferencial'], grupos: ['1A'], motivos: ['Calificación reprobatoria'] }],
+  seguimientos: [{ fecha: '2026-10-13T16:00:00.000Z', caso: 'Seguimiento con Laura Méndez', detalle: '', tipo: 'SEGUIMIENTO_DOCENTE', estado: 'EN_SEGUIMIENTO', autor: 'Persona de prueba', texto: 'Acordamos capturar las listas pendientes el viernes.' }],
+})
+
+export async function mockJefatura(page, { seguimientos = [] } = {}) {
   const requests = []
+  const guardados = [...seguimientos]
   await page.route('**/api/jefe-carrera/**', async (route) => {
     const req = route.request()
     const url = new URL(req.url())
@@ -194,7 +209,32 @@ export async function mockJefatura(page) {
     } else if (p === '/incorporaciones' && req.method() === 'POST') {
       data = { inscripcion: { id: 1 }, mensaje: 'Alumno incorporado. Su grupo de origen se conserva.' }
     } else if (p.startsWith('/sesiones/')) {
-      data = { id: 1, materia: { nombre: 'Cálculo diferencial' }, grupo: { nombre: '1A' }, docente: { nombre: 'Laura Méndez' }, asistencias: [] }
+      data = {
+        sesion: { id: 1, fecha: '2026-10-13', activa: false, horaInicio: '07:04', horaFin: '08:58', horaInicioProgramada: '07:00', horaFinProgramada: '09:00', materia: { id: 411, nombre: 'Cálculo diferencial', clave: 'ACF-0901' }, grupo: { id: 8, nombre: '1A' }, docente: { id: 37, nombre: 'Laura Méndez' }, aula: { id: 1, nombre: 'A-101' }, unidad: { id: 1, nombre: 'Unidad 2', orden: 2 } },
+        resumen: { asistencias: 1, faltas: 1, retardos: 0, justificadas: 0, total: 2 },
+        asistencias: [
+          { id: 1, alumnoId: 800, nombre: 'Ana Prueba', numeroControl: '221100', sexo: 'MUJER', estado: 'ASISTENCIA', observacion: null },
+          { id: 2, alumnoId: 801, nombre: 'Bruno Castillo', numeroControl: '221101', sexo: 'HOMBRE', estado: 'FALTA', observacion: null },
+        ],
+      }
+    } else if (p === '/seguimientos' && req.method() === 'POST') {
+      const b = req.postDataJSON()
+      const previo = b.alertaId ? guardados.find((x) => x.id === b.alertaId) : null
+      const referencia = previo?.referencia ?? Object.fromEntries(Object.entries(b).filter(([k]) => ['tipo', 'horarioId', 'fecha', 'alumnoId', 'materiaId', 'grupoId', 'docenteId'].includes(k)))
+      const docente = docentes.find((d) => d.id === referencia.docenteId)
+      const nota = { id: Date.now(), texto: b.texto, estado: b.estado, fechaRevision: b.fechaRevision ?? null, autor: 'Persona de prueba', creadoEn: new Date().toISOString() }
+      data = previo
+        ? { ...previo, estado: b.estado, abierto: b.estado !== 'CERRADA', fechaRevision: b.fechaRevision ?? null, notas: [...previo.notas, nota] }
+        : { id: guardados.length + 1, tipo: referencia.tipo, titulo: docente ? `Seguimiento con ${docente.nombre}` : 'Lista sin captura · Cálculo diferencial · 1A', mensaje: 'Acuerdos y revisiones con el docente', estado: b.estado, abierto: b.estado !== 'CERRADA', fechaRevision: b.fechaRevision ?? null, responsable: docente ? { id: docente.id, nombre: docente.nombre } : null, referencia, creadoEn: nota.creadoEn, actualizadoEn: nota.creadoEn, notas: [nota] }
+      const i = guardados.findIndex((x) => x.id === data.id)
+      if (i >= 0) guardados[i] = data; else guardados.push(data)
+    } else if (p === '/seguimientos') {
+      data = guardados
+    } else if (p === '/informe') {
+      data = informe(q)
+    } else if (p === '/informe/exportar') {
+      await route.fulfill({ status: 200, contentType: q.formato === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', headers: { 'content-disposition': `attachment; filename="SICAT_ISC_2026-B_${q.desde}_${q.hasta}.${q.formato === 'pdf' ? 'pdf' : 'xlsx'}"` }, body: 'archivo' })
+      return
     } else { data = []; status = 200 }
     await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(data) })
   })

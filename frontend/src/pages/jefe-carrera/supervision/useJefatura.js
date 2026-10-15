@@ -4,6 +4,7 @@ import { create } from 'zustand'
 import api from '@/api/axios'
 
 const CARRERA_RECORDADA = 'sicat.jefatura.carrera'
+const PERIODO_RECORDADO = 'sicat.jefatura.periodo'
 const ACTUALIZACION_MS = 120000
 
 function leerCarrera() {
@@ -11,6 +12,14 @@ function leerCarrera() {
 }
 function recordarCarrera(id) {
   try { localStorage.setItem(CARRERA_RECORDADA, id) } catch { /* sin almacenamiento */ }
+}
+// El periodo consultado se recuerda solo durante la sesión del navegador: al
+// volver otro día, la jefatura abre en el periodo actual.
+function leerPeriodo() {
+  try { return sessionStorage.getItem(PERIODO_RECORDADO) ?? '' } catch { return '' }
+}
+function recordarPeriodo(periodo) {
+  try { sessionStorage.setItem(PERIODO_RECORDADO, periodo) } catch { /* sin almacenamiento */ }
 }
 
 const mensaje = (error, fallback) => {
@@ -37,12 +46,13 @@ export const useJefaturaStore = create((set, get) => ({
     }
   },
 
-  cargarResumen: async (carreraId, periodo) => {
+  // manual: la persona pidió reintentar; solo entonces se anuncia «Actualizando…».
+  cargarResumen: async (carreraId, periodo, { manual = false } = {}) => {
     const key = `${carreraId}|${periodo}`
     const previo = get().resumenes[key]
     if (previo?.cargando) return
     const actualizar = (patch) => set((state) => ({ resumenes: { ...state.resumenes, [key]: { ...state.resumenes[key], ...patch } } }))
-    actualizar({ cargando: true })
+    actualizar({ cargando: true, manual })
     try {
       const { data } = await api.get('/jefe-carrera/supervision', { params: { carreraId, periodo } })
       actualizar({ data, error: '', cargando: false, actualizado: Date.now() })
@@ -70,7 +80,12 @@ export function useJefatura() {
     : valida(recordada) ? recordada
       : carreras.length === 1 ? String(carreras[0].id) : ''
   const periodoPedido = params.get('periodo')
-  const periodo = contexto?.periodos?.includes(periodoPedido) ? periodoPedido : contexto?.periodoActual ?? ''
+  const periodoRecordado = leerPeriodo()
+  const periodo = contexto?.periodos?.includes(periodoPedido) ? periodoPedido
+    : contexto?.periodos?.includes(periodoRecordado) ? periodoRecordado
+      : contexto?.periodoActual ?? ''
+
+  useEffect(() => { if (periodo) recordarPeriodo(periodo) }, [periodo])
 
   useEffect(() => {
     if (!contexto || !carreraId) return
@@ -136,11 +151,11 @@ export function useResumen({ carreraId, periodo }) {
   return {
     data: entry?.data ?? null,
     cargando: Boolean(carreraId && periodo) && !entry?.data && !entry?.error,
-    actualizando: Boolean(entry?.cargando && entry?.data),
+    actualizando: Boolean(entry?.cargando && entry?.data && entry?.manual),
     error: entry?.error ?? '',
     denegado: entry?.status === 403,
     actualizado: entry?.actualizado ?? null,
-    reintentar: () => cargar(carreraId, periodo),
+    reintentar: () => cargar(carreraId, periodo, { manual: true }),
   }
 }
 

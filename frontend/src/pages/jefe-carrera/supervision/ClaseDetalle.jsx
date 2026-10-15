@@ -8,6 +8,7 @@ import AsistenciaSesionModal from '../components/AsistenciaSesionModal'
 import { fechaHoraCorta, fechaLarga, minutos, modalidadTexto } from './formato'
 import { estadoClase } from './estados'
 import { linkClass } from './ui'
+import { FormSeguimiento } from './Seguimiento'
 
 const CONFLICTO = {
   Docente: 'El docente tiene otra clase a la misma hora.',
@@ -82,12 +83,19 @@ export default function ClaseDetalle({ clase, clases = [], j, onClose }) {
                   </section>
                 )}
 
+                {clase.elegible && ['SIN_CAPTURA', 'CAPTURA_PARCIAL'].includes(clase.estado) && (
+                  <section className="mt-6 border-t border-border pt-5" aria-labelledby="seguimiento-clase">
+                    <h4 id="seguimiento-clase" className="mb-3 text-sm font-semibold text-foreground">Seguimiento</h4>
+                    <FormSeguimiento j={j} caso={{ tipo: 'ASISTENCIA_SIN_CAPTURA', horarioId: clase.horarioId, fecha: clase.fecha }} />
+                  </section>
+                )}
+
                 <div className="mt-6 grid gap-2">
                   {clase.sesionId && (
                     <Button variant="outline" className="min-h-11 w-full" onClick={() => setSesionAbierta(clase.sesionId)}>Ver lista capturada</Button>
                   )}
                   <Link className={buttonVariants({ variant: 'outline', className: 'min-h-11 w-full' })} to={j.to(`/jefe-carrera/materias/${clase.materia.id}`)}>
-                    Consultar la materia
+                    Ver la materia
                   </Link>
                 </div>
               </div>
@@ -95,7 +103,7 @@ export default function ClaseDetalle({ clase, clases = [], j, onClose }) {
           </Dialog.Popup>
         </Dialog.Portal>
       </Dialog.Root>
-      {sesionAbierta && <AsistenciaSesionModal sesionId={sesionAbierta} onClose={() => setSesionAbierta(null)} />}
+      {sesionAbierta && <AsistenciaSesionModal sesionId={sesionAbierta} carreraId={j.carreraId} periodo={j.periodo} onClose={() => setSesionAbierta(null)} />}
     </>
   )
 }

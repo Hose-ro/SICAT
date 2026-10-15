@@ -2,12 +2,12 @@ import { Link, useParams } from 'react-router-dom'
 import { Chip } from '@/components/Chip'
 import { cn } from '@/lib/utils'
 import HorarioCarrera from './supervision/HorarioCarrera'
-import { ESTADO_UNIDAD, ESTADOS_PENDIENTES, estadoClase } from './supervision/estados'
+import { ESTADO_UNIDAD, ESTADOS_PENDIENTES, estadoClase, senalUnidad } from './supervision/estados'
 import { fechaCorta, fechaHoraCorta, haceTiempo, hoyClave, minutos, modalidadTexto, parseClave, diasTexto } from './supervision/formato'
 import { useClases } from './supervision/useClasesSemana'
 import { Aviso, Cifra, Contacto, JefaturaPage, SeccionTitulo, Vacio, linkClass } from './supervision/ui'
+import { BotonSeguimiento } from './supervision/Seguimiento'
 
-const DIAS_REVISION_UNIDAD = 28
 const fechaBreve = (clave) => parseClave(clave).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
 const fechaUnidad = (iso) => new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', timeZone: 'UTC' })
 
@@ -36,7 +36,16 @@ function Contenido({ j, resumen, docenteId }) {
         <div className="min-w-0">
           <p className="text-[0.8125rem] text-muted-foreground">{docente.pertenencia} · {[docente.email, docente.telefono].filter(Boolean).join(' · ') || 'Sin contacto registrado'}</p>
         </div>
-        <Contacto persona={docente} compacto />
+        <div className="flex flex-col items-start gap-2 sm:items-end">
+          <Contacto persona={docente} compacto />
+          <BotonSeguimiento
+            j={j}
+            caso={{ tipo: 'SEGUIMIENTO_DOCENTE', docenteId: docente.id }}
+            titulo={`Seguimiento con ${docente.nombre}`}
+            contexto="Acuerdos y revisiones con el docente. Cada nota queda con tu nombre y la fecha."
+            className="sm:justify-end"
+          />
+        </div>
       </header>
 
       <Carga ofertas={ofertas} docente={docente} j={j} />
@@ -150,16 +159,6 @@ function Registro({ docente, clases, error, reintentar, intervalo, j }) {
   )
 }
 
-function senalUnidad(u) {
-  if (u.status === 'FINALIZADA') return null
-  const hoy = new Date()
-  if (u.fechaFin && new Date(u.fechaFin) < hoy) return `Cierre previsto el ${fechaUnidad(u.fechaFin)} sin registrar`
-  if (u.status === 'ACTIVA' && u.fechaInicio) {
-    const dias = Math.floor((hoy - new Date(u.fechaInicio)) / 86400000)
-    if (dias > DIAS_REVISION_UNIDAD) return `Abierta hace ${dias} días; revisar avance`
-  }
-  return null
-}
 
 function Avance({ ofertas, j }) {
   return (

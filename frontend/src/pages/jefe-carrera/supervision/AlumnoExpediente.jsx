@@ -6,9 +6,14 @@ import { semestreTexto } from './formato'
 import { Nota, Promedio } from './notas'
 import { resumenAlumno, useReportes } from './useReportes'
 import { Contacto, linkClass } from './ui'
+import { FormSeguimiento } from './Seguimiento'
+import { useSeguimientos } from './useSeguimientos'
 
 /** Expediente del alumno: todas sus inscripciones aceptadas del periodo, también fuera de su grupo base. */
-export default function AlumnoExpediente({ j, alumno, cargando, onClose }) {
+export default function AlumnoExpediente({ j, alumno, enRiesgo = false, cargando, onClose }) {
+  const seguimientos = useSeguimientos({ carreraId: j.carreraId, periodo: j.periodo })
+  const caso = alumno ? { tipo: 'ALUMNO_RIESGO', alumnoId: alumno.id } : null
+  const conSeguimiento = Boolean(caso && seguimientos.buscar(caso))
   const pares = useMemo(() => (alumno?.inscripciones ?? []).filter((i) => i.grupo).map((i) => ({ materiaId: i.materia.id, grupoId: i.grupo.id })), [alumno])
   const reportes = useReportes(j, pares)
 
@@ -72,6 +77,13 @@ export default function AlumnoExpediente({ j, alumno, cargando, onClose }) {
               </ul>
             ) : <p className="mt-2 text-sm text-muted-foreground">Sin inscripciones aceptadas en el periodo.</p>}
           </section>
+
+          {(enRiesgo || conSeguimiento) && (
+            <section aria-labelledby="seguimiento-alumno" className="border-t border-border pt-4">
+              <h3 id="seguimiento-alumno" className="mb-3 text-sm font-semibold text-foreground">Seguimiento</h3>
+              <FormSeguimiento j={j} caso={caso} />
+            </section>
+          )}
         </>
       )}
     </Modal>

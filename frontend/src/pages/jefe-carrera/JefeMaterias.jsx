@@ -9,10 +9,16 @@ import { JefaturaPage, Segmento, Vacio, linkClass } from './supervision/ui'
 export default function JefeMaterias() {
   const [params, setParams] = useSearchParams()
   const [busqueda, setBusqueda] = useState('')
-  const set = (k, v) => { const n = new URLSearchParams(params); if (v) n.set(k, v); else n.delete(k); setParams(n, { replace: true }) }
+  const setVarios = (patch) => {
+    const n = new URLSearchParams(params)
+    Object.entries(patch).forEach(([k, v]) => { if (v) n.set(k, v); else n.delete(k) })
+    setParams(n, { replace: true })
+  }
+  const set = (k, v) => setVarios({ [k]: v })
   const vista = params.get('vista') === 'reticula' ? 'reticula' : ''
   const todas = params.get('paridad') === 'todas'
   const soloPendientes = params.get('pendientes') === '1'
+  const soloIncompletas = params.get('revision') === 'incompleta'
 
   return (
     <JefaturaPage titulo="Materias" subtitulo="Lo que se imparte en el periodo frente a la retícula de la carrera.">
@@ -30,6 +36,7 @@ export default function JefeMaterias() {
           .filter((m) => ofertasPorMateria.has(m.id) && coincide(m))
           .map((m) => ({ ...m, ofertas: ofertasPorMateria.get(m.id) }))
           .filter((m) => !soloPendientes || m.ofertas.some((o) => o.resumen.calificacionesPendientes > 0))
+          .filter((m) => !soloIncompletas || m.ofertas.some((o) => !o.docentes.length || !o.horarios.length))
         const reticula = resumen.reticula.filter((m) => (todas || esDeLaParidad(m.semestre, j.periodo)) && coincide(m))
         const semestres = [...new Set(reticula.map((m) => m.semestre ?? 0))].sort((a, b) => a - b)
 
@@ -37,8 +44,8 @@ export default function JefeMaterias() {
           <>
             <ul className="mt-6 flex flex-wrap gap-x-6 gap-y-1 border-y border-border py-3 text-[0.8125rem]" aria-label="Revisión de la oferta">
               <li>{sinOferta.length ? <button type="button" className={linkClass} onClick={() => set('vista', 'reticula')}>{sinOferta.length} {sinOferta.length === 1 ? 'materia' : 'materias'} de la retícula sin oferta</button> : <span className="text-muted-foreground">Retícula del ciclo cubierta</span>}</li>
-              <li className={sinDocente.length ? 'text-warning-foreground' : 'text-muted-foreground'}>{sinDocente.length ? `${sinDocente.length} ${sinDocente.length === 1 ? 'oferta' : 'ofertas'} sin docente` : 'Todas las ofertas con docente'}</li>
-              <li className={sinHorario.length ? 'text-warning-foreground' : 'text-muted-foreground'}>{sinHorario.length ? `${sinHorario.length} ${sinHorario.length === 1 ? 'oferta' : 'ofertas'} sin horario` : 'Todas las ofertas con horario'}</li>
+              <li>{sinDocente.length ? <button type="button" aria-pressed={soloIncompletas} className={cn(linkClass, 'text-warning-foreground')} onClick={() => setVarios({ vista: '', revision: soloIncompletas ? '' : 'incompleta' })}>{sinDocente.length} {sinDocente.length === 1 ? 'materia en un grupo sin docente' : 'materias en grupos sin docente'}</button> : <span className="text-muted-foreground">Todas las materias con docente</span>}</li>
+              <li>{sinHorario.length ? <button type="button" aria-pressed={soloIncompletas} className={cn(linkClass, 'text-warning-foreground')} onClick={() => setVarios({ vista: '', revision: soloIncompletas ? '' : 'incompleta' })}>{sinHorario.length} {sinHorario.length === 1 ? 'materia en un grupo sin horario' : 'materias en grupos sin horario'}</button> : <span className="text-muted-foreground">Todas las materias con horario</span>}</li>
             </ul>
 
             <div className="mt-5 flex flex-wrap items-center gap-3">
@@ -57,6 +64,12 @@ export default function JefeMaterias() {
                 <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 text-[0.8125rem]">
                   <input type="checkbox" checked={soloPendientes} onChange={(e) => set('pendientes', e.target.checked ? '1' : '')} className="size-[17px] accent-primary" />
                   Con calificaciones pendientes
+                </label>
+              )}
+              {vista !== 'reticula' && (
+                <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 text-[0.8125rem]">
+                  <input type="checkbox" checked={soloIncompletas} onChange={(e) => set('revision', e.target.checked ? 'incompleta' : '')} className="size-[17px] accent-primary" />
+                  Sin docente u horario
                 </label>
               )}
             </div>
@@ -86,7 +99,7 @@ export default function JefeMaterias() {
             ) : !resumen.ofertas.length ? (
               <Vacio titulo="Sin oferta en el periodo">Ninguna materia de la carrera está asignada a un grupo activo en este periodo.</Vacio>
             ) : !materiasOfertadas.length ? (
-              <Vacio titulo={soloPendientes ? 'Sin calificaciones pendientes' : 'Ninguna materia coincide'} accion={<Button variant="outline" onClick={() => { setBusqueda(''); set('pendientes', '') }}>Restablecer filtros</Button>} />
+              <Vacio titulo={soloIncompletas ? 'Todas las materias tienen docente y horario' : soloPendientes ? 'Sin calificaciones pendientes' : 'Ninguna materia coincide'} accion={<Button variant="outline" onClick={() => { setBusqueda(''); const n = new URLSearchParams(params); n.delete('pendientes'); n.delete('revision'); setParams(n, { replace: true }) }}>Restablecer filtros</Button>} />
             ) : (
               <div className="mt-5 overflow-x-auto rounded-[var(--radius-item)] border border-border bg-card">
                 <table className="w-full min-w-[860px] border-collapse text-[0.8125rem]">

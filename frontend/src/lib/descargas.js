@@ -7,7 +7,8 @@ export function descargarArchivo(blob, nombre) {
   document.body.appendChild(anchor)
   anchor.click()
   anchor.remove()
-  URL.revokeObjectURL(url)
+  // Safari y Firefox leen el URL después del clic; revocarlo al instante cancela la descarga.
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
 /** Con responseType 'blob' el cuerpo del error también llega como Blob. */

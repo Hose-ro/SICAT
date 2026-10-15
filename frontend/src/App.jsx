@@ -59,8 +59,7 @@ const JefeDocenteDetalle = lazy(() => import("./pages/jefe-carrera/JefeDocenteDe
 const JefeMaterias = lazy(() => import("./pages/jefe-carrera/JefeMaterias"));
 const JefeMateriaDetalle = lazy(() => import("./pages/jefe-carrera/JefeMateriaDetalle"));
 const JefeHorarios = lazy(() => import("./pages/jefe-carrera/JefeHorarios"));
-const JefeSeguimiento = lazy(() => import("./pages/jefe-carrera/JefeSeguimiento"));
-const JefeAlertas = lazy(() => import("./pages/jefe-carrera/JefeAlertas"));
+const JefeSeguimientos = lazy(() => import("./pages/jefe-carrera/JefeSeguimientos"));
 const JefeReportes = lazy(() => import("./pages/jefe-carrera/JefeReportes"));
 import PwaInstallPrompt from "@/components/PwaInstallPrompt";
 import { EMAIL_AUTH_ENABLED, REGISTRO_PUBLICO_ENABLED } from "./lib/authFeatures";
@@ -263,10 +262,17 @@ function App() {
                 element={<Navigate to="/jefe-carrera/horarios" replace />}
               />
               <Route
-                path="/jefe-carrera/seguimiento"
-                element={<JefeSeguimiento />}
+                path="/jefe-carrera/seguimientos"
+                element={<JefeSeguimientos />}
               />
-              <Route path="/jefe-carrera/alertas" element={<JefeAlertas />} />
+              <Route
+                path="/jefe-carrera/seguimiento"
+                element={<Navigate to="/jefe-carrera/seguimientos" replace />}
+              />
+              <Route
+                path="/jefe-carrera/alertas"
+                element={<Navigate to="/jefe-carrera/seguimientos" replace />}
+              />
               <Route path="/jefe-carrera/reportes" element={<JefeReportes />} />
             </Route>
 

@@ -80,12 +80,11 @@ export function resolveNotificationRoute(notificacion, rol) {
     if (['Asistencias', 'ClaseSesion', 'HorarioMateria'].includes(referenciaTipo)) {
       return '/jefe-carrera/horarios'
     }
-    if (['Materia', 'Unidad'].includes(referenciaTipo)) {
-      return '/jefe-carrera/seguimiento'
-    }
-    if (referenciaTipo === 'Usuario') return '/jefe-carrera/docentes'
+    if (referenciaTipo === 'Materia' && referenciaId) return `/jefe-carrera/materias/${referenciaId}`
+    if (['Materia', 'Unidad'].includes(referenciaTipo)) return '/jefe-carrera/materias'
+    if (referenciaTipo === 'Docente' && referenciaId) return `/jefe-carrera/docentes/${referenciaId}`
     if (referenciaTipo?.startsWith('Reporte')) return '/jefe-carrera/reportes'
-    return '/jefe-carrera/alertas'
+    return '/jefe-carrera/seguimientos'
   }
 
   switch (referenciaTipo) {

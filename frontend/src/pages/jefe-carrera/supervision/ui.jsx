@@ -202,10 +202,13 @@ export function Pestanas({ label, items, activa }) {
 export function Senales({ items, nota }) {
   return (
     <div className="mt-6 flex flex-wrap items-center border-y border-border py-2">
-      {items.map((item, index) => (
-        <Link
+      {items.map((item, index) => {
+        // Un ancla (#seccion) baja dentro de la misma página; un destino abre otra vista.
+        const Destino = item.href ? 'a' : Link
+        return (
+        <Destino
           key={item.label}
-          to={item.to}
+          {...(item.href ? { href: item.href } : { to: item.to })}
           className={cn(
             'flex min-h-11 items-center gap-2 pr-5 text-[0.8125rem] text-foreground hover:text-primary-ink focus-visible:rounded-md focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40',
             index > 0 && 'border-l border-border pl-5 max-sm:border-l-0 max-sm:pl-0',
@@ -220,8 +223,9 @@ export function Senales({ items, nota }) {
           ) : (
             <span className="text-muted-foreground">{item.vacio}</span>
           )}
-        </Link>
-      ))}
+        </Destino>
+        )
+      })}
       {nota && <span className="ml-auto text-xs text-muted-foreground max-lg:mt-1 max-lg:w-full max-lg:ml-0">{nota}</span>}
     </div>
   )
