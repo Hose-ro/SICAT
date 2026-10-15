@@ -3,12 +3,11 @@ import { Button } from '@/components/ui/button'
 import { confirmAction, notify } from '@/lib/feedback'
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
+import { AlertTriangle, ArrowRight, CalendarDays, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import api from '../api/axios'
 import { useAuthStore } from '../store/authStore'
 import { useClaseStore } from '../store/claseStore'
 import { useAsistenciaStore } from '../store/asistenciaStore'
-import AttendanceBadge from '../components/AttendanceBadge'
 import SexoBadge from '../components/SexoBadge'
 import AsistenciaSesionPanel from './docente/components/AsistenciaSesionPanel'
 import VistaPreviaReporteModal from './docente/components/VistaPreviaReporteModal'
@@ -980,28 +979,14 @@ function FiltroToolbar({
   )
 }
 
-function AttendanceBar({ percentage }) {
+const TONO_ASISTENCIA = (pct) => (pct >= 85 ? 'success' : pct >= 70 ? 'warning' : 'destructive')
+
+function AttendanceBar({ percentage, label }) {
   const pct = Math.min(100, Math.max(0, percentage ?? 0))
-  const color =
-    pct >= 85 ? "bg-success" :
-    pct >= 70 ? "bg-warning/15" :
-    "bg-destructive"
-
+  const relleno = { success: 'bg-success', warning: 'bg-warning', destructive: 'bg-destructive' }[TONO_ASISTENCIA(pct)]
   return (
-    <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-      <div
-        className={`h-full rounded-full transition-[color,background-color,border-color,opacity,transform] duration-500 ${color}`}
-        style={{ width: `${pct}%` }}
-      />
-    </div>
-  )
-}
-
-function MiniStat({ label, value, color = "text-foreground" }) {
-  return (
-    <div className="flex flex-col items-center gap-0.5 text-center">
-      <span className={`text-base font-bold tabular-nums ${color}`}>{value}</span>
-      <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{label}</span>
+    <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} aria-label={label}>
+      <div className={`h-full rounded-full ${relleno}`} style={{ width: `${pct}%` }} />
     </div>
   )
 }
@@ -1009,76 +994,51 @@ function MiniStat({ label, value, color = "text-foreground" }) {
 function AlumnoMateriaCard({ item }) {
   const { materia, grupo, resumen, ultimaSesion } = item
   const pct = resumen.porcentaje ?? 0
-
-  const detalleGrupo = grupo
-    ? `${grupo.nombre} · ${grupo.periodo}`
-    : materia.carrera
-      ? `${materia.carrera.nombre}${materia.semestre ? ` · Sem. ${materia.semestre}` : ''}`
-      : 'Sin grupo asignado'
-
-  const statusMsg =
-    (resumen.totalSesiones ?? 0) === 0
-      ? null
-      : (resumen.sinRegistro ?? 0) > 0
-        ? { text: `${resumen.sinRegistro} sesión(es) aún sin captura`, warn: true }
-        : { text: 'Todos los registros al día', warn: false }
+  const sesiones = resumen.totalSesiones ?? 0
+  const detalle = [
+    materia.clave,
+    grupo ? `${grupo.nombre} · ${grupo.periodo}` : materia.carrera?.nombre,
+    materia.docente?.nombre ?? 'Docente por asignar',
+  ].filter(Boolean).join(' · ')
+  const conteos = [
+    ['asistencia', 'asistencias', resumen.asistencias ?? 0, 'text-success-foreground'],
+    ['falta', 'faltas', resumen.faltas ?? 0, 'text-destructive-foreground'],
+    ['retardo', 'retardos', resumen.retardos ?? 0, 'text-warning-foreground'],
+    ['justificada', 'justificadas', resumen.justificados ?? 0, 'text-primary-ink'],
+  ]
+  const tono = { success: 'text-success-foreground', warning: 'text-warning-foreground', destructive: 'text-destructive-foreground' }[TONO_ASISTENCIA(pct)]
 
   return (
-    <article className="rounded-2xl border border-border bg-card overflow-hidden">
-      <div className="p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2 mb-2">
-              <span className="rounded-md bg-muted px-2 py-0.5 text-[11px] font-bold tracking-wider text-muted-foreground uppercase">
-                {materia.clave}
-              </span>
-            </div>
-            <h2 className="text-base font-semibold leading-snug text-foreground line-clamp-2">
-              {materia.nombre}
-            </h2>
-            <p className="mt-1 text-xs text-muted-foreground truncate">{detalleGrupo}</p>
-            <p className="mt-0.5 text-xs text-muted-foreground truncate">
-              {materia.docente?.nombre ?? 'Docente por asignar'}
-            </p>
-          </div>
-          <div className="shrink-0 flex flex-col items-end gap-2">
-            <AttendanceBadge percentage={pct} />
-            <span className="text-[11px] text-muted-foreground tabular-nums">
-              {resumen.totalSesiones ?? 0} sesiones
-            </span>
-          </div>
+    <article className="flex flex-col rounded-[var(--radius-card)] border border-border bg-card p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-base font-semibold leading-snug text-foreground">{materia.nombre}</h2>
+          <p className="mt-1 text-xs text-muted-foreground">{detalle}</p>
         </div>
-
-        <div className="mt-4">
-          <AttendanceBar percentage={pct} />
-        </div>
-
-        <div className="mt-4 grid grid-cols-4 divide-x divide-border rounded-xl bg-background py-3">
-          <MiniStat label="Asist." value={resumen.asistencias ?? 0} color="text-success-foreground" />
-          <MiniStat label="Faltas" value={resumen.faltas ?? 0} color="text-destructive-foreground" />
-          <MiniStat label="Retard." value={resumen.retardos ?? 0} color="text-warning-foreground" />
-          <MiniStat label="Justif." value={resumen.justificados ?? 0} color="text-primary-ink" />
+        <div className="shrink-0 text-right">
+          <p className={`text-xl font-semibold tabular-nums ${sesiones ? tono : 'text-muted-foreground'}`}>{sesiones ? `${pct} %` : '—'}</p>
+          <p className="text-xs text-muted-foreground tabular-nums">{sesiones} {sesiones === 1 ? 'clase' : 'clases'}</p>
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-3 border-t border-border bg-background/60 px-5 py-3">
-        <div className="min-w-0">
-          {statusMsg ? (
-            <p className={`text-xs truncate ${statusMsg.warn ? "text-warning-foreground" : "text-success-foreground"}`}>
-              {statusMsg.warn ? '⚠ ' : '✓ '}{statusMsg.text}
-            </p>
-          ) : (
-            <p className="text-xs text-muted-foreground">Última clase: {formatDate(ultimaSesion)}</p>
-          )}
-          {statusMsg && (
-            <p className="text-[11px] text-muted-foreground mt-0.5">Última clase: {formatDate(ultimaSesion)}</p>
-          )}
-        </div>
-        <Link
-          to={`/alumno/materias/${materia.id}`}
-          className="shrink-0 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition hover:bg-primary"
-        >
-          Ver detalle →
+      {sesiones > 0 && <div className="mt-3"><AttendanceBar percentage={pct} label={`Asistencia en ${materia.nombre}: ${pct} %`} /></div>}
+
+      <p className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-sm tabular-nums text-muted-foreground">
+        {conteos.map(([uno, varios, n, color]) => (
+          <span key={uno}><span className={`font-semibold ${n ? color : ''}`}>{n}</span> {n === 1 ? uno : varios}</span>
+        ))}
+      </p>
+
+      <div className="mt-auto flex flex-wrap items-center justify-between gap-3 pt-4">
+        <p className={`flex items-center gap-1.5 text-xs ${(resumen.sinRegistro ?? 0) > 0 ? 'text-warning-foreground' : 'text-muted-foreground'}`}>
+          {(resumen.sinRegistro ?? 0) > 0 && <AlertTriangle className="size-3.5 shrink-0" aria-hidden="true" />}
+          {(resumen.sinRegistro ?? 0) > 0
+            ? `${resumen.sinRegistro} ${resumen.sinRegistro === 1 ? 'clase' : 'clases'} sin lista todavía`
+            : `Última clase: ${formatDate(ultimaSesion)}`}
+        </p>
+        <Link to={`/alumno/materias/${materia.id}`}
+          className="inline-flex min-h-9 items-center gap-1.5 rounded-[10px] border border-border bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted">
+          Ver detalle<ArrowRight className="size-4" aria-hidden="true" />
         </Link>
       </div>
     </article>
@@ -1120,129 +1080,50 @@ function AlumnoAsistenciasView() {
     }
   }, [])
 
-  const estadisticas = resumen.reduce((acc, item) => {
-    acc.materias++
-    acc.asistencias += item.resumen?.asistencias ?? 0
-    acc.faltas += item.resumen?.faltas ?? 0
-    acc.retardos += item.resumen?.retardos ?? 0
-    acc.justificados += item.resumen?.justificados ?? 0
-    acc.sinRegistro += item.resumen?.sinRegistro ?? 0
-    acc.totalSesiones += item.resumen?.totalSesiones ?? 0
+  const total = resumen.reduce((acc, item) => {
+    for (const clave of ['asistencias', 'faltas', 'retardos', 'justificados', 'sinRegistro']) acc[clave] += item.resumen?.[clave] ?? 0
     return acc
-  }, {
-    materias: 0,
-    asistencias: 0,
-    faltas: 0,
-    retardos: 0,
-    justificados: 0,
-    sinRegistro: 0,
-    totalSesiones: 0,
-  })
-
-  const totalRegistrado = (
-    estadisticas.asistencias +
-    estadisticas.faltas +
-    estadisticas.retardos +
-    estadisticas.justificados
-  )
-  const porcentajeGlobal = totalRegistrado > 0
-    ? Math.round((estadisticas.asistencias / totalRegistrado) * 100)
-    : 0
-
-  const pctColor =
-    porcentajeGlobal >= 85 ? "text-success-foreground" :
-    porcentajeGlobal >= 70 ? "text-warning-foreground" :
-    "text-destructive-foreground"
+  }, { asistencias: 0, faltas: 0, retardos: 0, justificados: 0, sinRegistro: 0 })
+  const registrado = total.asistencias + total.faltas + total.retardos + total.justificados
+  const porcentaje = registrado ? Math.round((total.asistencias / registrado) * 100) : null
+  const tono = porcentaje == null ? '' : { success: 'text-success-foreground', warning: 'text-warning-foreground', destructive: 'text-destructive-foreground' }[TONO_ASISTENCIA(porcentaje)]
+  const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`
 
   return (
-    <div className="space-y-8">
-      <header className="flex flex-col gap-1">
-        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Panel del alumno</p>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Mis asistencias</h1>
-        <p className="text-sm text-muted-foreground">
-          Consulta tu avance por materia e identifica faltas antes de que afecten tu evaluación.
+    <div className="mx-auto max-w-[76rem] space-y-6">
+      <header>
+        <h1 className="text-[1.75rem] font-semibold leading-tight tracking-[-0.02em] text-foreground">Mis asistencias</h1>
+        <p className="mt-1.5 text-sm text-muted-foreground">
+          {loading ? 'Revisando tus asistencias…' : resumen.length === 0 ? 'Tu asistencia por materia aparecerá aquí cuando tus docentes pasen lista.' : (
+            <>
+              {porcentaje != null && <><span className={`font-semibold ${tono}`}>{porcentaje} %</span> de asistencia en general · </>}
+              {plural(resumen.length, 'materia', 'materias')} · {plural(total.faltas, 'falta', 'faltas')} · {plural(total.retardos, 'retardo', 'retardos')}
+              {total.justificados > 0 && ` · ${plural(total.justificados, 'justificada', 'justificadas')}`}
+            </>
+          )}
         </p>
       </header>
 
       {error && (
-        <div className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground">
-          <span className="mt-0.5 shrink-0 text-destructive-foreground">⚠</span>
+        <div role="alert" className="flex items-start gap-2 rounded-[var(--radius-item)] border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
           {error}
         </div>
       )}
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-2xl border border-border bg-card p-5">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Materias</p>
-          <p className="mt-3 text-4xl font-bold tabular-nums text-foreground">{estadisticas.materias}</p>
-          <p className="mt-1 text-xs text-muted-foreground">inscritas este periodo</p>
+      {loading ? (
+        <div role="status" aria-label="Cargando tus asistencias" className="grid gap-3 xl:grid-cols-2">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div key={index} className="h-44 animate-pulse rounded-[var(--radius-card)] border border-border bg-card" />
+          ))}
         </div>
-        <div className="rounded-2xl border border-success/30 bg-success/10 p-5">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-success-foreground">Asistencias</p>
-          <p className="mt-3 text-4xl font-bold tabular-nums text-success-foreground">{estadisticas.asistencias}</p>
-          <p className="mt-1 text-xs text-success-foreground">presencias registradas</p>
-        </div>
-        <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-5">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-destructive-foreground">Faltas</p>
-          <p className="mt-3 text-4xl font-bold tabular-nums text-destructive-foreground">{estadisticas.faltas}</p>
-          <p className="mt-1 text-xs text-destructive-foreground">ausencias acumuladas</p>
-        </div>
-        <div className="rounded-2xl border border-border bg-card p-5">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">% Global</p>
-          <p className={`mt-3 text-4xl font-bold tabular-nums ${pctColor}`}>{porcentajeGlobal}%</p>
-          <div className="mt-2">
-            <AttendanceBar percentage={porcentajeGlobal} />
-          </div>
-        </div>
-      </section>
-
-      {!loading && resumen.length > 0 && (estadisticas.retardos > 0 || estadisticas.justificados > 0 || estadisticas.sinRegistro > 0) && (
-        <div className="flex flex-wrap gap-2 text-xs">
-          {estadisticas.retardos > 0 && (
-            <span className="rounded-full bg-warning/10 px-3 py-1.5 font-medium text-warning-foreground ring-1 ring-ring">
-              {estadisticas.retardos} retardo{estadisticas.retardos !== 1 ? 's' : ''}
-            </span>
-          )}
-          {estadisticas.justificados > 0 && (
-            <span className="rounded-full bg-accent px-3 py-1.5 font-medium text-primary-ink ring-1 ring-ring">
-              {estadisticas.justificados} justificado{estadisticas.justificados !== 1 ? 's' : ''}
-            </span>
-          )}
-          {estadisticas.sinRegistro > 0 && (
-            <span className="rounded-full bg-muted px-3 py-1.5 font-medium text-muted-foreground ring-1 ring-ring">
-              {estadisticas.sinRegistro} sin captura
-            </span>
-          )}
-          <span className="rounded-full bg-muted px-3 py-1.5 font-medium text-muted-foreground ring-1 ring-ring">
-            {estadisticas.totalSesiones} sesiones totales
-          </span>
-        </div>
+      ) : resumen.length > 0 && (
+        <section aria-label="Por materia" className="grid gap-3 xl:grid-cols-2">
+          {resumen.map((item) => (
+            <AlumnoMateriaCard key={item.materia.id} item={item} />
+          ))}
+        </section>
       )}
-
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-foreground">Por materia</h2>
-        {loading ? (
-          <div className="grid gap-3 xl:grid-cols-2">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <div
-                key={index}
-                className="h-52 animate-pulse rounded-2xl border border-border bg-card"
-              />
-            ))}
-          </div>
-        ) : resumen.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center">
-            <p className="text-sm font-medium text-muted-foreground">Sin materias disponibles</p>
-            <p className="mt-1 text-xs text-muted-foreground">No hay sesiones registradas en este momento.</p>
-          </div>
-        ) : (
-          <div className="grid gap-3 xl:grid-cols-2">
-            {resumen.map((item) => (
-              <AlumnoMateriaCard key={item.materia.id} item={item} />
-            ))}
-          </div>
-        )}
-      </section>
     </div>
   )
 }

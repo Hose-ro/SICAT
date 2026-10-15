@@ -2,12 +2,8 @@ import { Button } from '@/components/ui/button'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import {
-  AlertTriangle,
-  CheckCircle2,
-  ClipboardList,
   Download,
   FileSpreadsheet,
-  GraduationCap,
   LayoutGrid,
   List,
   RefreshCcw,
@@ -130,18 +126,12 @@ function nombreExportacion(reporte, materiaId) {
     .replace(/^-+|-+$/g, '')
 }
 
-function getFuenteLabel(fuente) {
-  if (fuente === 'MANUAL') return 'Manual'
-  if (fuente === 'CALCULADA') return 'Calculada'
-  return 'Pendiente'
-}
-
 function StatusBadge({ row }) {
   return <DesempenoChip estado={desempenoDe(row)} />
 }
 
-const FIELD_LABEL = 'text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground'
-const FIELD_INPUT = 'rounded-2xl border border-border bg-card px-4 py-3 text-sm text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40 disabled:cursor-not-allowed disabled:bg-background'
+const FIELD_LABEL = 'text-sm font-medium text-foreground'
+const FIELD_INPUT = 'h-10 rounded-[10px] border border-input bg-background px-3 text-base text-foreground outline-none transition-[border-color,box-shadow] focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40 disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm'
 
 function SelectField({ label, value, onChange, children, disabled = false }) {
   return (
@@ -154,123 +144,10 @@ function SelectField({ label, value, onChange, children, disabled = false }) {
   )
 }
 
-function MetricCard({ icon, label, value, tone = 'slate', onClick, pressed = false }) {
-  const Icon = icon
-  const tones = {
-    blue: "border-border bg-accent text-primary-ink",
-    green: "border-success/30 bg-success/10 text-success-foreground",
-    amber: "border-warning/30 bg-warning/10 text-warning-foreground",
-    slate: "border-border bg-background text-foreground",
-  }
-  const content = (
-    <div className="flex items-center justify-between gap-4">
-      <div>
-        <p className="text-sm font-medium">{label}</p>
-        <p className="mt-2 text-3xl font-semibold">{value ?? '-'}</p>
-      </div>
-      <div className="rounded-2xl bg-card/80 p-3">
-        <Icon className="h-5 w-5" />
-      </div>
-    </div>
-  )
-  const className = `rounded-3xl border p-5 ${tones[tone] || tones.slate}`
-
-  if (!onClick) return <div className={className}>{content}</div>
-
-  return (
-    <button
-      type="button"
-      aria-pressed={pressed}
-      onClick={onClick}
-      className={`${className} text-left outline-none transition hover:shadow-[0_6px_20px_oklch(0.62_0.19_264/0.08)] focus-visible:ring-2 focus-visible:ring-ring/40 ${pressed ? 'ring-2 ring-ring' : ''}`}
-    >
-      {content}
-    </button>
-  )
-}
-
 function EmptyState({ children }) {
   return (
-    <div className="rounded-3xl border border-dashed border-border bg-background px-6 py-14 text-center text-sm text-muted-foreground">
+    <div className="rounded-[var(--radius-card)] border border-dashed border-border px-6 py-14 text-center text-sm text-muted-foreground">
       {children}
-    </div>
-  )
-}
-
-function CalificacionesTable({ rows, showMateria = false }) {
-  if (!rows.length) return <EmptyState>Sin calificaciones disponibles.</EmptyState>
-
-  return (
-    <div className="overflow-hidden rounded-[1.75rem] border border-border bg-card">
-      <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Tabla de calificaciones">
-        <table className="min-w-full divide-y divide-border text-sm">
-          <thead className="bg-background text-left text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-            <tr>
-              <th className="px-4 py-3">No. control</th>
-              <th className="px-4 py-3">Alumno</th>
-              {showMateria && <th className="px-4 py-3">Materia</th>}
-              <th className="px-4 py-3">Grupo</th>
-              <th className="px-4 py-3">Unidad</th>
-              <th className="px-4 py-3">Calificación</th>
-              <th className="px-4 py-3">Cálculo</th>
-              <th className="px-4 py-3">Origen</th>
-              <th className="px-4 py-3">Observación</th>
-              <th className="px-4 py-3">Estado</th>
-              <th className="px-4 py-3">Tareas</th>
-              <th className="px-4 py-3">Asistencia</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border text-foreground">
-            {rows.map((row) => (
-              <tr key={getRowKey(row)}>
-                <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">{row.alumno?.numeroControl || '-'}</td>
-                <td className="min-w-[14rem] px-4 py-3 font-medium text-foreground">
-                  <span className="flex items-center gap-2">
-                    <SexoBadge sexo={row.alumno?.sexo} />
-                    {row.alumno?.nombre}
-                  </span>
-                </td>
-                {showMateria && (
-                  <td className="min-w-[14rem] px-4 py-3">
-                    <p className="font-medium text-foreground">{row.materia?.nombre}</p>
-                    <p className="text-xs text-muted-foreground">{row.materia?.clave}</p>
-                  </td>
-                )}
-                <td className="whitespace-nowrap px-4 py-3">{row.grupo?.nombre || '-'}</td>
-                <td className="whitespace-nowrap px-4 py-3">{row.unidad?.nombre || '-'}</td>
-                <td className="whitespace-nowrap px-4 py-3">
-                  <span className="text-lg font-semibold text-foreground">{formatGrade(getCalificacionFinal(row))}</span>
-                  <span className="ml-2 text-xs text-muted-foreground">{getFuenteLabel(row.fuenteCalificacion)}</span>
-                </td>
-                <td className="whitespace-nowrap px-4 py-3">
-                  <span className="font-medium text-foreground">{formatGrade(row.calificacionCalculada)}</span>
-                  {typeof row.promedioTareas === 'number' && (
-                    <p className="text-xs text-muted-foreground">Tareas {row.promedioTareas}</p>
-                  )}
-                  {desglosePorCategoria(row) && (
-                    <p className="text-xs text-muted-foreground">{desglosePorCategoria(row)}</p>
-                  )}
-                </td>
-                <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
-                  {getFuenteLabel(row.fuenteCalificacion)}
-                </td>
-                <td className="min-w-[16rem] px-4 py-3 text-muted-foreground">
-                  {row.observacionManual || row.observaciones?.[0] || '-'}
-                </td>
-                <td className="whitespace-nowrap px-4 py-3">
-                  <StatusBadge row={row} />
-                </td>
-                <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
-                  {row.tareas?.calificadas ?? 0}/{row.tareas?.total ?? 0} calificadas
-                </td>
-                <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
-                  {row.asistencia?.porcentaje ?? 0}%
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
     </div>
   )
 }
@@ -1104,64 +981,72 @@ function AlumnoCalificaciones() {
   const rows = useMemo(() => reporteAlumno?.rows ?? [], [reporteAlumno?.rows])
   const resumen = useMemo(() => resumenDesempeno(rows), [rows])
   const metrics = reporteAlumno?.metrics ?? {}
-  const rowsFiltradas = useMemo(
-    () => [...rows].sort(
-      (a, b) =>
-        a.materia?.nombre?.localeCompare(b.materia?.nombre ?? '', 'es') ||
-        (a.unidad?.orden ?? 0) - (b.unidad?.orden ?? 0),
-    ),
-    [rows],
-  )
+  // Agrupadas por materia y en el orden de las unidades: así lee el alumno su avance.
+  const porMateria = useMemo(() => {
+    const grupos = new Map()
+    for (const row of [...rows].sort((a, b) => (a.unidad?.orden ?? 0) - (b.unidad?.orden ?? 0))) {
+      const clave = row.materia?.id ?? 'sin-materia'
+      if (!grupos.has(clave)) grupos.set(clave, { materia: row.materia, rows: [] })
+      grupos.get(clave).rows.push(row)
+    }
+    return [...grupos.values()].sort((a, b) => (a.materia?.nombre ?? '').localeCompare(b.materia?.nombre ?? '', 'es'))
+  }, [rows])
 
   return (
-    <div className="space-y-6">
-      <section className="rounded-[2rem] border border-border bg-card px-6 py-7">
-        <span className="inline-flex rounded-full bg-accent px-4 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-primary-ink ring-1 ring-ring">
-          Alumno
-        </span>
-        <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground">Mis calificaciones</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Consulta por unidad con resumen de asistencia y tareas.</p>
-      </section>
-
-      <section className="rounded-[2rem] border border-border bg-card p-5">
-        <SelectField
-          label="Materia"
-          value={materiaId}
-          onChange={(event) => setMateriaId(event.target.value)}
-        >
-          <option value="">Todas las materias</option>
-          {materias.map((materia) => (
-            <option key={materia.id} value={materia.id}>{materia.nombre}</option>
-          ))}
-        </SelectField>
-      </section>
+    <div className="mx-auto max-w-[76rem] space-y-6">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-[1.75rem] font-semibold leading-tight tracking-[-0.02em] text-foreground">Mis calificaciones</h1>
+          <p className="mt-1.5 text-sm text-muted-foreground">
+            {rows.length
+              ? `${plural(rows.length, 'unidad', 'unidades')} · ${plural(resumen.aprobados, 'aprobada', 'aprobadas')} · ${plural(resumen.enRiesgo + resumen.reprobados, 'en riesgo o reprobada', 'en riesgo o reprobadas')}${metrics.promedioGeneral != null ? ` · promedio ${formatGrade(metrics.promedioGeneral)}` : ''}`
+              : 'Tu calificación de cada unidad, con tus tareas y tu asistencia.'}
+          </p>
+        </div>
+        <div className="sm:w-64 [&_label]:min-w-0">
+          <SelectField label="Materia" value={materiaId} onChange={(event) => setMateriaId(event.target.value)}>
+            <option value="">Todas las materias</option>
+            {materias.map((materia) => <option key={materia.id} value={materia.id}>{materia.nombre}</option>)}
+          </SelectField>
+        </div>
+      </header>
 
       {error && (
-        <div className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground">
+        <div role="alert" className="rounded-[var(--radius-item)] border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground">
           {Array.isArray(error) ? error.join(', ') : error}
         </div>
       )}
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard icon={ClipboardList} label="Unidades" value={metrics.totalFilas ?? 0} tone="blue" />
-        <MetricCard icon={CheckCircle2} label="Aprobadas" value={resumen.aprobados} tone="green" />
-        <MetricCard icon={AlertTriangle} label="En riesgo o reprobadas" value={resumen.enRiesgo + resumen.reprobados} tone="amber" />
-        <MetricCard icon={GraduationCap} label="Promedio" value={formatGrade(metrics.promedioGeneral)} tone="slate" />
-      </section>
-
-      <section className="rounded-[2rem] border border-border bg-card p-5">
-        <div className="mb-4">
-          <h2 className="text-lg font-semibold text-foreground">Avance por unidad</h2>
-        </div>
-
-        {loading ? (
-          <div className="rounded-3xl border border-dashed border-border bg-background px-6 py-14 text-center text-sm text-muted-foreground">
-            Cargando calificaciones...
-          </div>
-        ) : (
-          <CalificacionesTable rows={rowsFiltradas} showMateria />
-        )}
-      </section>
+      {loading ? (
+        <EmptyState>Cargando calificaciones…</EmptyState>
+      ) : !porMateria.length ? (
+        <EmptyState>Todavía no tienes calificaciones.</EmptyState>
+      ) : porMateria.map(({ materia, rows: unidades }) => (
+        <section key={materia?.id ?? 'sin-materia'} aria-labelledby={`materia-${materia?.id}`} className="rounded-[var(--radius-card)] border border-border bg-card p-5">
+          <h2 id={`materia-${materia?.id}`} className="text-lg font-semibold text-foreground">
+            {materia?.nombre ?? 'Materia'}
+            {materia?.clave && <span className="font-normal text-muted-foreground"> · {materia.clave}</span>}
+          </h2>
+          <ul className="mt-3 divide-y divide-border border-y border-border">
+            {unidades.map((row) => (
+              <li key={getRowKey(row)} className="grid gap-x-5 gap-y-1 py-3 sm:grid-cols-[9rem_10rem_minmax(0,1fr)] sm:items-center">
+                <span className="text-sm font-medium text-foreground">{row.unidad?.nombre}</span>
+                <span className="flex items-center gap-2">
+                  <span className="text-lg font-semibold tabular-nums text-foreground">{formatGrade(getCalificacionFinal(row))}</span>
+                  <StatusBadge row={row} />
+                </span>
+                <span className="text-sm text-muted-foreground">
+                  {row.tareas?.calificadas ?? 0} de {row.tareas?.total ?? 0} tareas calificadas
+                  {' · '}{row.asistencia?.registradas ? `${row.asistencia.porcentaje} % de asistencia` : 'sin asistencia registrada'}
+                  {(row.observacionManual || row.observaciones?.[0]) && (
+                    <span className="block text-foreground">Tu docente: {row.observacionManual || row.observaciones[0]}</span>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
     </div>
   )
 }

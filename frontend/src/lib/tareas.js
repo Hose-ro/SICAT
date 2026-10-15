@@ -76,7 +76,7 @@ export function deliveryHelp(tarea, entrega, editable) {
   if (!editable) return 'El plazo para modificar tu entrega terminó. Consulta a tu docente si necesitas corregirla.'
   if (!entrega) return tarea.estado === 'VENCIDA'
     ? 'Puedes entregar; se registrará como entrega tardía.'
-    : 'Prepara tu trabajo y envíalo desde el detalle de la tarea.'
+    : 'Aún no la entregas.'
   return 'Puedes actualizar tu entrega. El nuevo envío reemplaza la versión anterior y vuelve a revisión.'
 }
 

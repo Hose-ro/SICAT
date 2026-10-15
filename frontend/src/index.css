@@ -190,14 +190,6 @@
 .skip-link { position: fixed; left: 1rem; top: 1rem; z-index: 500; padding: .75rem 1rem; border-radius: .75rem; background: var(--primary); color: var(--primary-foreground); transform: translateY(-200%); }
 .skip-link:focus { transform: translateY(0); }
 
-.task-hero { position: relative; overflow: hidden; border-radius: var(--radius-card); border: 1px solid var(--border); background: var(--card); color: var(--foreground); }
-.task-hero-subtitle, .task-hero-meta { color: var(--muted-foreground); }
-.task-hero-emphasis { color: var(--foreground); }
-.task-hero-chip, .task-hero-badge, .task-hero-surface { border: 1px solid var(--border); background: var(--muted); color: var(--foreground); }
-.task-hero-button, .task-hero-button-primary { border: 1px solid var(--border); background: var(--background); color: var(--foreground); transition: transform var(--t) var(--ease), opacity var(--t) var(--ease); }
-.task-hero-button:hover { background: var(--muted); }
-.task-hero-button-primary { background: var(--primary); border-color: var(--primary); color: var(--primary-foreground); }
-.task-hero-button-primary:hover { background: var(--primary-strong); }
 
 /* Avisos de FeedbackDialogs: entran desde abajo, sin retrasar al usuario. */
 .feedback-notice { transition: opacity var(--t) var(--ease), transform var(--t) var(--ease); }
@@ -309,7 +301,7 @@
 }
 /* Actual boxes grow on touch layouts. No overlapping pseudo hit areas. */
 @media (max-width: 767px), (pointer: coarse) {
-  .sicat-button, button, [role=button], .task-hero-button, .task-hero-button-primary { min-height: 44px; min-width: 44px; }
+  .sicat-button, button, [role=button] { min-height: 44px; min-width: 44px; }
   input:not([type=checkbox]):not([type=radio]), select { min-height: 44px; }
   input[type=checkbox], input[type=radio] { min-width: 24px; min-height: 24px; }
   label:has(input[type=checkbox]), label:has(input[type=radio]) { min-height: 44px; }

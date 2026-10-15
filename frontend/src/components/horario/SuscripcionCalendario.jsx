@@ -76,7 +76,7 @@ export default function SuscripcionCalendario() {
   return (
     <>
       <Button variant="outline" type="button" onClick={() => setAbierto(true)}
-        className="print-hidden inline-flex items-center gap-2 border px-4 py-2 text-sm font-medium shadow-sm">
+        className="print-hidden inline-flex items-center gap-2 border px-4 py-2 text-sm font-medium">
         <CalendarPlus className="h-4 w-4" aria-hidden="true" />
         Agregar a mi calendario
       </Button>

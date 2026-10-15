@@ -207,38 +207,23 @@ export default function TareaForm() {
 
   return (
     <div className="space-y-6">
-      <section className="task-hero px-6 py-7">
-        <Button variant="ghost"
-          type="button"
-          onClick={() => navigate(-1)}
-          className="task-hero-button inline-flex items-center gap-2  px-4 py-2 text-sm font-semibold"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Volver
-        </Button>
-
-        <div className="mt-5 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-2xl space-y-3">
-            <div>
-              <h1 className="text-3xl font-semibold tracking-tight">
-                {isEditing ? 'Editar actividad' : 'Nueva actividad'}
-              </h1>
-              <p className="task-hero-subtitle mt-2 text-sm">
-                Elige el grupo y el tipo de actividad (tarea, práctica, examen…), cómo se entrega y su fecha. Puede quedar en borrador o publicarse.
-              </p>
-            </div>
-          </div>
-          <div className="task-hero-surface rounded-3xl px-5 py-4 text-sm">
-            <p className="task-hero-emphasis font-semibold">Formatos permitidos</p>
-            <p className="task-hero-subtitle mt-1">PDF, Word e imagen. Hasta 12 archivos nuevos de 15 MB cada uno.</p>
-          </div>
-        </div>
-      </section>
+      <Button variant="ghost" type="button" onClick={() => navigate(-1)} className="h-9 gap-2 px-2 text-muted-foreground hover:text-foreground">
+        <ArrowLeft className="size-4" aria-hidden="true" />
+        Volver
+      </Button>
+      <header>
+        <h1 className="text-[1.75rem] font-semibold leading-tight tracking-[-0.02em] text-foreground">
+          {isEditing ? 'Editar actividad' : 'Nueva actividad'}
+        </h1>
+        <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">
+          Elige el grupo y el tipo de actividad (tarea, práctica, examen…), cómo se entrega y su fecha. Puede quedar en borrador o publicarse.
+        </p>
+      </header>
 
       <TaskNotice error={localError || error} />
 
       <form ref={formRef} onSubmit={(event) => { event.preventDefault(); submitWithState(isEditing ? originalState : 'PUBLICADA') }} className="grid gap-6 xl:grid-cols-[1.4fr_0.8fr]">
-        <section className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
+        <section className="rounded-[var(--radius-card)] border border-border bg-card p-5 sm:p-6">
           <div className="grid gap-5">
             <div>
               <label className="mb-2 block text-sm font-semibold text-foreground" htmlFor="task-title">{enClase ? 'Tema *' : 'Título *'}</label>
@@ -377,13 +362,14 @@ export default function TareaForm() {
             </div>
 
             <p className="text-sm text-muted-foreground">{TASK_TYPE_HELP[form.tipoEntrega]}</p>
-            <div className="rounded-3xl border border-border bg-muted/40 p-5">
+            {/* Subsección del mismo formulario: separada por una línea, no otra tarjeta. */}
+            <div className="border-t border-border pt-5">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
                   <h2 className="text-sm font-semibold text-foreground">Archivos adjuntos</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">Material de referencia o plantilla para el alumnado.</p>
+                  <p className="mt-1 text-sm text-muted-foreground">Material de referencia o plantilla para el alumnado. PDF, Word o imagen; hasta 12 archivos nuevos de 15 MB cada uno.</p>
                 </div>
-                <label className="inline-flex max-w-full cursor-pointer flex-wrap items-center gap-2 rounded-2xl border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground transition hover:bg-muted/40">
+                <label className="inline-flex max-w-full cursor-pointer flex-wrap items-center gap-2 rounded-[10px] border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted">
                   <UploadCloud className="h-4 w-4" />
                   Agregar archivos
                   <input type="file" multiple accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.webp" onChange={handleFileSelect} className="block w-full min-w-0 text-xs" />
@@ -392,7 +378,7 @@ export default function TareaForm() {
 
               {existingFiles.length > 0 && (
                 <div className="mt-4 space-y-2">
-                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Adjuntos actuales</p>
+                  <p className="text-sm font-medium text-foreground">Adjuntos actuales</p>
                   {existingFiles.map((file) => (
                     <label key={file.id} className="flex items-center justify-between rounded-2xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
                       <div>
@@ -411,7 +397,7 @@ export default function TareaForm() {
 
               {newFiles.length > 0 && (
                 <div className="mt-4 space-y-2">
-                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Nuevos archivos</p>
+                  <p className="text-sm font-medium text-foreground">Nuevos archivos</p>
                   {newFiles.map((file, index) => (
                     <div key={`${file.name}-${file.size}`} className="rounded-2xl border border-dashed border-border bg-card px-4 py-3 text-sm text-muted-foreground">
                       {file.name}
@@ -425,7 +411,7 @@ export default function TareaForm() {
         </section>
 
         <aside className="space-y-6">
-          <section className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
+          <section className="rounded-[var(--radius-card)] border border-border bg-card p-5 sm:p-6">
             <div className="flex items-center gap-2">
               <FileText className="h-4 w-4 text-muted-foreground" />
               <h2 className="text-lg font-semibold text-foreground">Publicación y entrega</h2>
@@ -488,12 +474,12 @@ export default function TareaForm() {
             </div>
           </section>
 
-          {form.tipoEvaluacion === 'RUBRICA' && <section className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
+          {form.tipoEvaluacion === 'RUBRICA' && <section className="rounded-[var(--radius-card)] border border-border bg-card p-5 sm:p-6">
             <h2 className="mb-3 text-lg font-semibold">Rúbrica</h2>
             <TaskRubric value={form.rubricJson} onChange={(rubricJson) => setForm((prev) => ({ ...prev, rubricJson }))} />
           </section>}
 
-          <section className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
+          <section className="rounded-[var(--radius-card)] border border-border bg-card p-5 sm:p-6">
             <div className="flex flex-col gap-3">
               <p className="text-sm text-muted-foreground">{isEditing ? 'Guardar cambios conserva el estado actual de la tarea.' : 'El borrador solo es visible para ti. Al publicar, el grupo podrá ver la actividad.'}</p>
               <div className="flex flex-wrap gap-2 xl:flex-col">

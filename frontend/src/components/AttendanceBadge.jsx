@@ -1,11 +1,11 @@
 function getConfig(pct) {
   if (pct >= 85) {
-    return { bg: "bg-success/10", text: "text-success-foreground", ring: "ring-ring", dot: "bg-success" }
+    return { bg: "bg-success/10", text: "text-success-foreground", ring: "ring-success/30", dot: "bg-success" }
   }
   if (pct >= 70) {
-    return { bg: "bg-warning/10", text: "text-warning-foreground", ring: "ring-ring", dot: "bg-warning/15" }
+    return { bg: "bg-warning/15", text: "text-warning-foreground", ring: "ring-warning/40", dot: "bg-warning" }
   }
-  return { bg: "bg-destructive/10", text: "text-destructive-foreground", ring: "ring-ring", dot: "bg-destructive" }
+  return { bg: "bg-destructive/10", text: "text-destructive-foreground", ring: "ring-destructive/30", dot: "bg-destructive" }
 }
 
 export default function AttendanceBadge({ percentage, suffix = '%' }) {
