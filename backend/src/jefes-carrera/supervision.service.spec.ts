@@ -30,7 +30,21 @@ describe('SupervisionService - catálogos de jefatura', () => {
 
   function crearServicio() {
     const prisma = {
+      carrera: {
+        findMany: jest.fn().mockResolvedValue([
+          { id: 1, nombre: 'Sistemas', codigo: 'ISC' },
+        ]),
+      },
       materia: { findMany: jest.fn().mockResolvedValue([materia]) },
+      grupo: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: 20,
+            periodo: 'Agosto-Diciembre 2026',
+            createdAt: new Date('2026-08-01T12:00:00Z'),
+          },
+        ]),
+      },
     };
     return {
       prisma,
@@ -68,20 +82,33 @@ describe('SupervisionService - catálogos de jefatura', () => {
     ]);
   });
 
-  it('conserva el filtro de periodo para las métricas académicas', async () => {
+  it('incluye etiquetas institucionales equivalentes en el periodo de supervisión', async () => {
     const { prisma, service } = crearServicio();
 
-    await (service as any).ofertas(1, '2026-B');
+    const grupos = await (service as any).gruposDelPeriodo(1, '2026-B');
+    await (service as any).ofertas(
+      1,
+      grupos.map((grupo: { id: number }) => grupo.id),
+    );
 
     expect(prisma.materia.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
           carreraId: 1,
           grupos: {
-            some: { carreraId: 1, activo: true, periodo: '2026-B' },
+            some: { carreraId: 1, activo: true, id: { in: [20] } },
           },
         },
       }),
     );
+  });
+
+  it('ofrece en el selector los ciclos detectados desde etiquetas libres', async () => {
+    const { service } = crearServicio();
+
+    const contexto = await service.contexto(9);
+
+    expect(contexto.periodos).toContain('2026-B');
+    expect(contexto.periodos).not.toContain('Agosto-Diciembre 2026');
   });
 });

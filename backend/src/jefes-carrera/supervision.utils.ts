@@ -14,6 +14,47 @@ export function periodoSupervision(value?: string) {
   return periodo;
 }
 
+/**
+ * Traduce las etiquetas libres que admite Grupo.periodo a la clave que usa la
+ * supervisión. El texto original se conserva en la base; esto sólo evita que
+ * "Agosto-Diciembre 2026" y "2026-B" partan el mismo ciclo en dos.
+ *
+ * Cuando la institución omite el año se usa el año en que se creó el grupo,
+ * que es una referencia más estable que la fecha en que se hace la consulta.
+ */
+export function periodoCanonicoDeGrupo(
+  value: string,
+  referencia = new Date(),
+) {
+  const directo = value.trim().toUpperCase();
+  if (/^\d{4}-[AB]$/.test(directo)) return directo;
+
+  const texto = value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+  const anios = texto.match(/\b(?:19|20)\d{2}\b/g) ?? [];
+  // Un intervalo como "2026-2027" no identifica por sí solo un semestre.
+  const anio = anios.length === 1 ? Number(anios[0]) : referencia.getFullYear();
+  const tokens = new Set(texto.split(/\s+/).filter(Boolean));
+  const primero = ['ene', 'enero', 'jun', 'junio'].some((t) => tokens.has(t));
+  const segundo = ['jul', 'julio', 'ago', 'agosto', 'dic', 'diciembre'].some(
+    (t) => tokens.has(t),
+  );
+
+  if (primero === segundo) return null;
+  return `${anio}-${primero ? 'A' : 'B'}`;
+}
+
+export function grupoPerteneceAPeriodo(
+  grupo: { periodo: string; createdAt?: Date },
+  periodo: string,
+) {
+  return periodoCanonicoDeGrupo(grupo.periodo, grupo.createdAt) === periodo;
+}
+
 export function rangoPeriodo(periodo: string) {
   const year = Number(periodo.slice(0, 4));
   const first = periodo.endsWith('A');

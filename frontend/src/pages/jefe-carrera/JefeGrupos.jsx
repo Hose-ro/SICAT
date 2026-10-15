@@ -29,7 +29,7 @@ export default function JefeGrupos() {
             calificaciones: seguimiento ? ofertas.reduce((n, o) => n + o.resumen.calificacionesPendientes, 0) : null,
             listas: seguimiento ? (pendientesPorGrupo.get(g.id) ?? 0) : null,
             alumnosRiesgo: seguimiento?.alumnosRiesgo ?? null,
-            periodoDisponible: j.periodos.includes(g.periodo),
+            periodoDisponible: j.periodos.includes(g.periodoConsulta),
           }
         })
         const q = busqueda.trim().toLocaleLowerCase()
@@ -83,7 +83,7 @@ export default function JefeGrupos() {
                         <tr key={g.id} className="border-b border-border last:border-b-0">
                           <th scope="row" className="px-4 py-3 text-left font-semibold">
                             {g.periodoDisponible
-                              ? <Link to={j.to(`/jefe-carrera/grupos/${g.id}`, { periodo: g.periodo })} className={`${linkClass} text-foreground`}>{g.nombre}</Link>
+                              ? <Link to={j.to(`/jefe-carrera/grupos/${g.id}`, { periodo: g.periodoConsulta })} className={`${linkClass} text-foreground`}>{g.nombre}</Link>
                               : <span className="text-foreground">{g.nombre}</span>}
                           </th>
                           <td className="px-4 py-3 text-muted-foreground">{periodoTexto(g.periodo)}</td>
@@ -94,7 +94,7 @@ export default function JefeGrupos() {
                           <td className={`px-4 py-3 text-right tabular-nums ${g.alumnosRiesgo ? 'font-semibold text-warning-foreground' : 'text-muted-foreground'}`}>{g.alumnosRiesgo ?? '—'}</td>
                           <td className="px-4 py-3 text-muted-foreground">
                             {g.listas == null
-                              ? (g.periodoDisponible ? `Consulta ${periodoTexto(g.periodo)}` : 'Periodo no compatible con supervisión')
+                              ? (g.periodoDisponible ? `Consulta ${periodoTexto(g.periodoConsulta)}` : 'Periodo no compatible con supervisión')
                               : g.listas || g.calificaciones
                               ? [g.listas && `${g.listas} ${g.listas === 1 ? 'lista' : 'listas'}`, g.calificaciones && `${g.calificaciones} ${g.calificaciones === 1 ? 'calificación' : 'calificaciones'}`].filter(Boolean).join(' · ')
                               : 'Sin pendientes detectados'}

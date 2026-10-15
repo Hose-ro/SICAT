@@ -2,6 +2,8 @@ import {
   coincidenHorarios,
   estadoCaptura,
   horasSemanal,
+  grupoPerteneceAPeriodo,
+  periodoCanonicoDeGrupo,
   periodoSupervision,
   resumenCierre,
 } from './supervision.utils';
@@ -78,6 +80,25 @@ describe('supervision.utils', () => {
   it('valida el periodo explícito', () => {
     expect(periodoSupervision('2026-b')).toBe('2026-B');
     expect(() => periodoSupervision('2026-2027')).toThrow();
+  });
+
+  it('reconoce como el mismo ciclo las etiquetas libres de la institución', () => {
+    expect(periodoCanonicoDeGrupo('Agosto-Diciembre 2026')).toBe('2026-B');
+    expect(periodoCanonicoDeGrupo('Ago–Dic 2026')).toBe('2026-B');
+    expect(periodoCanonicoDeGrupo('ENERO - JUNIO 2026')).toBe('2026-A');
+    expect(
+      grupoPerteneceAPeriodo(
+        {
+          periodo: 'agosto-diciembre',
+          createdAt: new Date('2026-08-10T12:00:00Z'),
+        },
+        '2026-B',
+      ),
+    ).toBe(true);
+  });
+
+  it('no adivina un ciclo cuando sólo recibe un intervalo de años', () => {
+    expect(periodoCanonicoDeGrupo('2026-2027')).toBeNull();
   });
 
   it('resume el concentrado de un curso cerrado con la regla NA', () => {

@@ -21,7 +21,9 @@ import {
   coincidenHorarios,
   estadoCaptura,
   fechaSupervision,
+  grupoPerteneceAPeriodo,
   horasSemanal,
+  periodoCanonicoDeGrupo,
   periodoSupervision,
   rangoPeriodo,
   resumenCierre,
@@ -111,8 +113,7 @@ export class SupervisionService {
     });
     const grupos = await this.prisma.grupo.findMany({
       where: { carreraId: { in: carreras.map((c) => c.id) } },
-      select: { periodo: true },
-      distinct: ['periodo'],
+      select: { periodo: true, createdAt: true },
     });
     return {
       carreras,
@@ -120,7 +121,11 @@ export class SupervisionService {
       periodos: [
         ...new Set([
           getCurrentAcademicPeriod(),
-          ...grupos.map((g) => g.periodo).filter((p) => /^\d{4}-[AB]$/.test(p)),
+          ...grupos
+            .map((grupo) =>
+              periodoCanonicoDeGrupo(grupo.periodo, grupo.createdAt),
+            )
+            .filter((p): p is string => Boolean(p)),
         ]),
       ]
         .sort()
@@ -144,11 +149,19 @@ export class SupervisionService {
     });
   }
 
-  private async ofertas(carreraId: number, periodo?: string) {
+  private async gruposDelPeriodo(carreraId: number, periodo: string) {
+    const grupos = await this.prisma.grupo.findMany({
+      where: { carreraId, activo: true },
+      select: { id: true, periodo: true, createdAt: true },
+    });
+    return grupos.filter((grupo) => grupoPerteneceAPeriodo(grupo, periodo));
+  }
+
+  private async ofertas(carreraId: number, grupoIds?: number[]) {
     const gruposActivos = {
       carreraId,
       activo: true,
-      ...(periodo ? { periodo } : {}),
+      ...(grupoIds ? { id: { in: grupoIds } } : {}),
     };
     const materias = await this.prisma.materia.findMany({
       where: {
@@ -205,19 +218,22 @@ export class SupervisionService {
   ) {
     await this.alcance(usuarioId, consulta.carreraId);
     const periodo = periodoSupervision(consulta.periodo);
-    const grupo = await this.prisma.grupo.findFirst({
+    const grupoEncontrado = await this.prisma.grupo.findFirst({
       where: {
         id: grupoId,
         carreraId: consulta.carreraId,
-        periodo,
         activo: true,
       },
-      select: grupoCampos,
+      select: { ...grupoCampos, createdAt: true },
     });
-    if (!grupo)
+    if (
+      !grupoEncontrado ||
+      !grupoPerteneceAPeriodo(grupoEncontrado, periodo)
+    )
       throw new NotFoundException(
         'Grupo fuera de la carrera o periodo seleccionado',
       );
+    const { createdAt: _createdAt, ...grupo } = grupoEncontrado;
     const calendarios = await this.calendarios(periodo);
     const calendario = calendarios.find(
       (c) => c.modalidad === grupo.modalidad,
@@ -229,6 +245,7 @@ export class SupervisionService {
       materiaId,
       grupoId,
       { inicio: calendario.inicio, fin: calendario.fin },
+      [periodo, grupo.periodo],
     );
     return { ...reporte, periodo, grupo, calendario, avanceCompartido: true };
   }
@@ -255,6 +272,11 @@ export class SupervisionService {
   async resumen(usuarioId: number, consulta: Consulta) {
     await this.alcance(usuarioId, consulta.carreraId);
     const periodo = periodoSupervision(consulta.periodo);
+    const gruposPeriodo = await this.gruposDelPeriodo(
+      consulta.carreraId,
+      periodo,
+    );
+    const grupoIdsPeriodo = gruposPeriodo.map((grupo) => grupo.id);
     const [
       ofertas,
       ofertasActivas,
@@ -265,10 +287,14 @@ export class SupervisionService {
       cierres,
     ] = await Promise.all(
       [
-        this.ofertas(consulta.carreraId, periodo),
+        this.ofertas(consulta.carreraId, grupoIdsPeriodo),
         this.ofertas(consulta.carreraId),
         this.prisma.grupo.findMany({
-          where: { carreraId: consulta.carreraId, periodo, activo: true },
+          where: {
+            carreraId: consulta.carreraId,
+            id: { in: grupoIdsPeriodo },
+            activo: true,
+          },
           select: {
             ...grupoCampos,
             _count: { select: { alumnos: { where: { activo: true } } } },
@@ -279,6 +305,7 @@ export class SupervisionService {
           where: { carreraId: consulta.carreraId, activo: true },
           select: {
             ...grupoCampos,
+            createdAt: true,
             _count: { select: { alumnos: { where: { activo: true } } } },
           },
           orderBy: [
@@ -446,10 +473,19 @@ export class SupervisionService {
         .filter((o) => o.docentes.some((docente) => docente.id === d.id))
         .map((o) => o.id),
     }));
+    const periodoConsultaPorGrupo = new Map(
+      gruposActivos.map((grupo) => [
+        grupo.id,
+        periodoCanonicoDeGrupo(grupo.periodo, grupo.createdAt),
+      ]),
+    );
     const catalogoOfertas = ofertasActivas.map((o) => ({
       id: o.id,
       materia: o.materia,
-      grupo: o.grupo,
+      grupo: {
+        ...o.grupo,
+        periodoConsulta: periodoConsultaPorGrupo.get(o.grupo.id) ?? null,
+      },
       docentes: o.docentes,
       tieneHorario: o.horarios.length > 0,
     }));
@@ -499,8 +535,9 @@ export class SupervisionService {
       catalogo: {
         ofertas: catalogoOfertas,
         docentes: docentesActivos,
-        grupos: gruposActivos.map((g) => ({
+        grupos: gruposActivos.map(({ createdAt, ...g }) => ({
           ...g,
+          periodoConsulta: periodoCanonicoDeGrupo(g.periodo, createdAt),
           alumnosBase: g._count.alumnos,
           ofertas: catalogoOfertas
             .filter((o) => o.grupo.id === g.id)
@@ -519,6 +556,9 @@ export class SupervisionService {
   ) {
     await this.alcance(usuarioId, consulta.carreraId);
     const periodo = periodoSupervision(consulta.periodo);
+    const grupoIdsPeriodo = (
+      await this.gruposDelPeriodo(consulta.carreraId, periodo)
+    ).map((grupo) => grupo.id);
     const inicio = fechaSupervision(desde),
       fin = fechaSupervision(hasta);
     if (fin < inicio || (fin.getTime() - inicio.getTime()) / 86400000 > 366)
@@ -541,14 +581,21 @@ export class SupervisionService {
           ...(filtros.docenteId ? { docenteId: filtros.docenteId } : {}),
           ...(filtros.grupoId ? { grupoId: filtros.grupoId } : {}),
           materia: { carreraId: consulta.carreraId },
-          grupo: { carreraId: consulta.carreraId, periodo, activo: true },
+          grupo: {
+            id: { in: grupoIdsPeriodo },
+            carreraId: consulta.carreraId,
+            activo: true,
+          },
         },
         include: horarioInclude,
       }),
       this.prisma.claseSesion.findMany({
         where: {
           materia: { carreraId: consulta.carreraId },
-          grupo: { carreraId: consulta.carreraId, periodo },
+          grupo: {
+            id: { in: grupoIdsPeriodo },
+            carreraId: consulta.carreraId,
+          },
           fecha: { gte: inicio, lte: finDia },
         },
         include: {
@@ -584,7 +631,10 @@ export class SupervisionService {
             horariosDocente: {
               some: {
                 activo: true,
-                grupo: { carreraId: consulta.carreraId, periodo },
+                grupo: {
+                  id: { in: grupoIdsPeriodo },
+                  carreraId: consulta.carreraId,
+                },
               },
             },
           },
@@ -779,19 +829,22 @@ export class SupervisionService {
   ) {
     await this.alcance(usuarioId, consulta.carreraId);
     const periodo = periodoSupervision(consulta.periodo);
-    const grupo = await this.prisma.grupo.findFirst({
+    const grupoEncontrado = await this.prisma.grupo.findFirst({
       where: {
         id: grupoId,
         carreraId: consulta.carreraId,
-        periodo,
         activo: true,
       },
-      select: grupoCampos,
+      select: { ...grupoCampos, createdAt: true },
     });
-    if (!grupo)
+    if (
+      !grupoEncontrado ||
+      !grupoPerteneceAPeriodo(grupoEncontrado, periodo)
+    )
       throw new NotFoundException(
         'Grupo fuera de la carrera o periodo seleccionado',
       );
+    const { createdAt: _createdAt, ...grupo } = grupoEncontrado;
     const alumnoBase = {
       rol: 'ALUMNO' as const,
       activo: true,
@@ -904,7 +957,7 @@ export class SupervisionService {
           });
           if (!asignacion)
             throw new ForbiddenException('Carrera fuera de tu alcance');
-          const [alumno, grupo, materia] = await Promise.all([
+          const [alumno, grupoEncontrado, materia] = await Promise.all([
             tx.usuario.findFirst({
               where: {
                 id: dto.alumnoId,
@@ -918,10 +971,9 @@ export class SupervisionService {
               where: {
                 id: dto.grupoId,
                 carreraId: consulta.carreraId,
-                periodo,
                 activo: true,
               },
-              select: grupoCampos,
+              select: { ...grupoCampos, createdAt: true },
             }),
             tx.materia.findFirst({
               where: {
@@ -931,7 +983,6 @@ export class SupervisionService {
                   some: {
                     id: dto.grupoId,
                     carreraId: consulta.carreraId,
-                    periodo,
                     activo: true,
                   },
                 },
@@ -939,10 +990,16 @@ export class SupervisionService {
               select: { id: true },
             }),
           ]);
-          if (!alumno || !grupo || !materia)
+          if (
+            !alumno ||
+            !grupoEncontrado ||
+            !grupoPerteneceAPeriodo(grupoEncontrado, periodo) ||
+            !materia
+          )
             throw new NotFoundException(
               'Alumno u oferta fuera de tu carrera y periodo',
             );
+          const { createdAt: _createdAt, ...grupo } = grupoEncontrado;
           const calendario = await tx.periodoAcademico.findUnique({
             where: {
               clave_modalidad: { clave: periodo, modalidad: grupo.modalidad },

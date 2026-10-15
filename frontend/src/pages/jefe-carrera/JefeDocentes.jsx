@@ -26,9 +26,9 @@ export default function JefeDocentes() {
           .map((docente) => {
             const metrica = metricas.get(docente.id)
             const asignaciones = docente.ofertas.map((id) => ofertas.get(id)).filter(Boolean)
-            const periodoReferencia = asignaciones.some((o) => o.grupo.periodo === j.periodo)
+            const periodoReferencia = asignaciones.some((o) => o.grupo.periodoConsulta === j.periodo)
               ? j.periodo
-              : asignaciones.map((o) => o.grupo.periodo).find((periodo) => j.periodos.includes(periodo))
+              : asignaciones.map((o) => o.grupo.periodoConsulta).find((periodo) => j.periodos.includes(periodo))
             return {
               ...docente,
               ...metrica,

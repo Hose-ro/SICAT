@@ -11,6 +11,7 @@ import { formatearFechaClave, parsearFechaClave } from '../clases/clases.utils';
 import { RegistrarSeguimientoDto } from './dto/seguimiento.dto';
 import {
   fechaSupervision,
+  grupoPerteneceAPeriodo,
   huellaSeguimiento,
   leerHuella,
   periodoSupervision,
@@ -63,6 +64,16 @@ export class SeguimientosService {
     });
     if (!asignacion)
       throw new ForbiddenException('Carrera fuera de tu alcance');
+  }
+
+  private async grupoIdsDelPeriodo(carreraId: number, periodo: string) {
+    const grupos = await this.prisma.grupo.findMany({
+      where: { carreraId, activo: true },
+      select: { id: true, periodo: true, createdAt: true },
+    });
+    return grupos
+      .filter((grupo) => grupoPerteneceAPeriodo(grupo, periodo))
+      .map((grupo) => grupo.id);
   }
 
   async listar(usuarioId: number, consulta: Consulta) {
@@ -208,6 +219,7 @@ export class SeguimientosService {
   ): Promise<Caso> {
     const fuera = () =>
       new NotFoundException('El caso no pertenece a tu carrera o periodo');
+    const grupoIds = await this.grupoIdsDelPeriodo(carreraId, periodo);
     switch (dto.tipo) {
       case 'ASISTENCIA_SIN_CAPTURA': {
         if (!dto.horarioId || !dto.fecha)
@@ -217,7 +229,7 @@ export class SeguimientosService {
           where: {
             id: dto.horarioId,
             materia: { carreraId },
-            grupo: { carreraId, periodo },
+            grupo: { id: { in: grupoIds }, carreraId },
           },
           include: {
             materia: { select: { nombre: true } },
@@ -269,7 +281,12 @@ export class SeguimientosService {
             where: {
               id: dto.materiaId,
               carreraId,
-              grupos: { some: { id: dto.grupoId, carreraId, periodo } },
+              grupos: {
+                some: {
+                  id: { equals: dto.grupoId, in: grupoIds },
+                  carreraId,
+                },
+              },
             },
             select: {
               id: true,
@@ -283,7 +300,10 @@ export class SeguimientosService {
             },
           }),
           this.prisma.grupo.findFirst({
-            where: { id: dto.grupoId, carreraId, periodo },
+            where: {
+              id: { equals: dto.grupoId, in: grupoIds },
+              carreraId,
+            },
             select: { id: true, nombre: true },
           }),
         ]);
@@ -309,13 +329,16 @@ export class SeguimientosService {
                 horariosDocente: {
                   some: {
                     materia: { carreraId },
-                    grupo: { carreraId, periodo },
+                    grupo: { id: { in: grupoIds }, carreraId },
                   },
                 },
               },
               {
                 docenteMaterias: {
-                  some: { carreraId, grupos: { some: { periodo } } },
+                  some: {
+                    carreraId,
+                    grupos: { some: { id: { in: grupoIds } } },
+                  },
                 },
               },
             ],

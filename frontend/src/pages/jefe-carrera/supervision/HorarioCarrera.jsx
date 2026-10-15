@@ -96,6 +96,23 @@ export default function HorarioCarrera({ j, resumen, fijo = {}, titulo = 'Horari
   const semestres = [...new Set(gruposModalidad.map((g) => g.semestre))].sort((a, b) => a - b)
   const gruposOpciones = gruposModalidad.filter((g) => !v.semestre || String(g.semestre) === v.semestre)
 
+  const pendientesHorario = useMemo(() => (resumen.ofertas ?? [])
+    .filter((oferta) => oferta.grupo.modalidad === v.modalidad)
+    .filter((oferta) => !v.semestre || String(oferta.grupo.semestre) === v.semestre)
+    .filter((oferta) => !v.grupo || String(oferta.grupo.id) === v.grupo)
+    .flatMap((oferta) => {
+      const docentes = oferta.docentes?.length ? oferta.docentes : [null]
+      return docentes
+        .filter((docente) => !v.docente || String(docente?.id) === v.docente)
+        .filter((docente) => !oferta.horarios?.some((horario) => !docente || horario.docenteId === docente.id))
+        .map((docente) => ({
+          id: `${oferta.id}:${docente?.id ?? 'sin-docente'}`,
+          materia: oferta.materia,
+          grupo: oferta.grupo,
+          docente,
+        }))
+    }), [resumen.ofertas, v.modalidad, v.semestre, v.grupo, v.docente])
+
   const filtradas = useMemo(() => (clases ?? []).filter((c) =>
     c.grupo.modalidad === v.modalidad &&
     (!v.semestre || String(c.grupo.semestre) === v.semestre) &&
@@ -164,6 +181,23 @@ export default function HorarioCarrera({ j, resumen, fijo = {}, titulo = 'Horari
           </Filtro>
         )}
       </div>
+
+      {pendientesHorario.length > 0 && (
+        <section aria-labelledby={`${headingId}-sin-horario`} className="mb-4 rounded-[var(--radius-item)] border border-warning-foreground/25 bg-warning/35 px-4 py-3.5">
+          <h3 id={`${headingId}-sin-horario`} className="text-sm font-semibold text-foreground">Pendientes de programar</h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Estas asignaciones pertenecen al periodo, pero todavía no tienen días y horas; por eso no pueden colocarse en la cuadrícula.
+          </p>
+          <ul className="mt-3 grid gap-2 text-xs sm:grid-cols-2 xl:grid-cols-3">
+            {pendientesHorario.map((item) => (
+              <li key={item.id} className="rounded-lg border border-border/80 bg-card px-3 py-2.5">
+                <strong className="block font-medium text-foreground">{item.materia.nombre}</strong>
+                <span className="mt-0.5 block text-muted-foreground">{item.grupo.nombre} · {item.docente?.nombre ?? 'Sin docente asignado'}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <div className="overflow-hidden rounded-[var(--radius-card)] border border-border bg-card max-md:rounded-2xl">
         <div className="flex flex-wrap items-center justify-between gap-2.5 border-b border-border px-3 py-3 sm:px-[18px] sm:py-[15px]">

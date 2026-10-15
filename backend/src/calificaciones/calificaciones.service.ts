@@ -155,6 +155,7 @@ export class CalificacionesService {
     materiaId: number,
     grupoId: number,
     rango: { inicio: Date; fin: Date },
+    periodosGrupo: string[] = [periodo],
   ) {
     const asignacion = await this.prisma.jefeCarreraAsignacion.findFirst({
       where: { usuarioId, carreraId, activa: true },
@@ -166,7 +167,14 @@ export class CalificacionesService {
       where: {
         id: materiaId,
         carreraId,
-        grupos: { some: { id: grupoId, carreraId, periodo, activo: true } },
+        grupos: {
+          some: {
+            id: grupoId,
+            carreraId,
+            periodo: { in: periodosGrupo },
+            activo: true,
+          },
+        },
       },
       select: { id: true },
     });

@@ -60,6 +60,17 @@ function crear() {
     },
     usuario: { findFirst: jest.fn() },
     horarioMateria: { findFirst: jest.fn() },
+    grupo: {
+      findMany: jest.fn().mockResolvedValue([
+        {
+          id: 4,
+          periodo: 'Agosto-Diciembre 2026',
+          createdAt: new Date('2026-08-01T12:00:00Z'),
+        },
+      ]),
+      findFirst: jest.fn(),
+    },
+    materia: { findFirst: jest.fn() },
     $transaction: jest.fn((fn: (t: typeof tx) => unknown) => fn(tx)),
   };
   const service = new SeguimientosService(prisma as unknown as PrismaService);
@@ -186,6 +197,21 @@ describe('SeguimientosService', () => {
       responsableId: 41,
       estado: 'EN_SEGUIMIENTO',
     });
+    expect(prisma.usuario.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: expect.arrayContaining([
+            expect.objectContaining({
+              horariosDocente: {
+                some: expect.objectContaining({
+                  grupo: { id: { in: [4] }, carreraId: 3 },
+                }),
+              },
+            }),
+          ]),
+        }),
+      }),
+    );
     const nota = (
       tx.seguimientoNota.create.mock.calls as unknown[][]
     )[0][0] as {
