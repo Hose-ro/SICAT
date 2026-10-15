@@ -239,7 +239,7 @@ export default function UnidadesCard({ materia, puedeEditar, onActualizado }) {
   const sinCambios = Number(valor) === unidades.length
 
   return (
-    <article className="min-w-0 rounded-2xl border border-border bg-card p-5 shadow-sm">
+    <article className="min-w-0 rounded-[var(--radius-card)] border border-border bg-card p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-semibold text-foreground">Unidades</h2>
         {puedeEditar && (
@@ -256,7 +256,7 @@ export default function UnidadesCard({ materia, puedeEditar, onActualizado }) {
               onChange={(event) => setValor(event.target.value)}
               className="w-20 rounded-xl border border-border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
-            <Button variant="default"
+            <Button variant="outline"
               type="button"
               onClick={() => guardar(false)}
               disabled={guardando || sinCambios}

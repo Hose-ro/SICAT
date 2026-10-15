@@ -163,13 +163,11 @@ export default function DashboardDocente() {
     )
   }
 
-  const pendientes = panel?.pendientes ?? {}
-  const urgentes =
-    (pendientes.alumnosEnRiesgo ?? 0) + (panel?.resumen?.listasPendientes ?? 0)
+  const pendientes = { ...panel?.pendientes, listasPendientes: panel?.resumen?.listasPendientes ?? 0 }
 
   return (
     <div className="docente-agenda">
-      <Encabezado nombre={user?.nombre?.split(' ')[0] ?? 'Docente'} fecha={ahora} resumen={panel?.resumen} urgentes={urgentes} />
+      <Encabezado nombre={user?.nombre?.split(' ')[0] ?? 'Docente'} fecha={ahora} resumen={panel?.resumen} />
       {errorClase && <p role="alert" className="mb-4 rounded-xl bg-destructive/10 p-3 text-sm text-destructive-foreground">{errorClase}</p>}
       <div className="docente-agenda-grid">
         <div className="min-w-0 space-y-7">
@@ -202,9 +200,8 @@ export default function DashboardDocente() {
           <Materias materias={materiasFiltradas} total={panel?.materias?.length ?? 0} busqueda={busqueda} onBuscar={setBusqueda} />
         </div>
         <aside className="min-w-0 space-y-4" aria-label="Calendario escolar">
-          <section className="agenda-periodos rounded-2xl border border-border bg-card p-5">
-            <p className="agenda-eyebrow">CALENDARIO ESCOLAR</p>
-            <h2 className="mb-5 text-base font-semibold">Periodos escolares</h2>
+          <section className="agenda-periodos rounded-[var(--radius-card)] border border-border bg-card p-5">
+            <h2 className="mb-5 text-base font-semibold">Calendario escolar</h2>
             <PeriodoEscolarCard compacto />
           </section>
         </aside>
@@ -213,29 +210,17 @@ export default function DashboardDocente() {
   )
 }
 
-function Encabezado({ nombre, fecha, resumen, urgentes }) {
+// El día es el título: la pantalla trata de hoy.
+function Encabezado({ nombre, fecha, resumen }) {
   const clases = resumen?.clasesHoy ?? 0
-  const listas = resumen?.listasPendientes ?? 0
 
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-      <div className="min-w-0">
-        <p className="agenda-eyebrow">{fechaLarga(fecha)}</p>
-        <h1 className="agenda-heading">Tu día de clases,<br />en orden.</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Hola, {nombre}. Tienes {clases} clase{clases === 1 ? '' : 's'} programada{clases === 1 ? '' : 's'} hoy.
-          {listas > 0 &&
-            ` · ${listas} lista${listas === 1 ? '' : 's'} sin pasar`}
-        </p>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {urgentes > 0 && (
-          <span className="rounded-full bg-destructive/10 px-3 py-1 text-xs font-medium text-destructive-foreground">
-            {urgentes} urgente{urgentes === 1 ? '' : 's'}
-          </span>
-        )}
-      </div>
-    </div>
+    <header>
+      <h1 className="text-[1.75rem] font-semibold leading-tight tracking-[-0.02em] text-foreground">{fechaLarga(fecha)}</h1>
+      <p className="mt-1.5 text-sm text-muted-foreground">
+        Hola, {nombre}. {clases === 0 ? 'Hoy no tienes clases programadas.' : `Tienes ${clases} clase${clases === 1 ? '' : 's'} hoy.`}
+      </p>
+    </header>
   )
 }
 
@@ -268,7 +253,6 @@ function ClaseDestacada({
   clase,
   ahora,
   iniciando,
-  error,
   onPasarLista,
 }) {
   if (!clase) {
@@ -353,11 +337,6 @@ function ClaseDestacada({
         </div>
       </div>
 
-      {error && (
-        <p className="mt-3 rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground">
-          {error}
-        </p>
-      )}
     </section>
   )
 }
@@ -395,8 +374,7 @@ function AccesosRapidos({ claseActual, onPasarLista, iniciando }) {
   ]
 
   return (
-    <section className="agenda-accesos rounded-2xl border border-border bg-card p-5">
-      <p className="agenda-eyebrow">EN UN CLIC</p>
+    <section className="agenda-accesos rounded-[var(--radius-card)] border border-border bg-card p-5">
       <h2 className="mb-4 text-base font-semibold">Acciones rápidas</h2>
       {accesos.map((acceso) => (
         <Button variant="outline"
@@ -421,11 +399,9 @@ function AccesosRapidos({ claseActual, onPasarLista, iniciando }) {
 function AgendaHoy({ clases, proximasSuspensiones, iniciando, onPasarLista, destacada, suspension, ahora }) {
   const otrasClases = suspension ? clases : clases.filter(clase => clase.horarioId !== destacada?.horarioId)
   return (
-    <article className="rounded-2xl border border-border bg-card p-5">
+    <article className="rounded-[var(--radius-card)] border border-border bg-card p-5">
       <div className="flex items-center justify-between gap-3">
-        <div><p className="agenda-eyebrow">{ahora.toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-          <h2 className="text-xl font-semibold tracking-tight text-foreground">Hoy, {DIAS_LARGOS[ahora.getDay()].toLowerCase()}</h2>
-        </div>
+        <h2 className="text-xl font-semibold tracking-tight text-foreground">Clases de hoy</h2>
         <Link to="/docente/horario" className="inline-flex items-center gap-2 text-xs font-medium text-primary-ink">
           Ver horario completo <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </Link>
@@ -548,65 +524,62 @@ function EstadoClase({ clase, iniciando, onPasarLista }) {
   )
 }
 
+const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`
+
+/** Sólo lo que de verdad espera algo: un renglón en cero no pide atención. */
 function Pendientes({ pendientes }) {
   const filas = [
     {
+      icono: ClipboardCheck,
+      tono: 'text-destructive-foreground',
+      n: pendientes.listasPendientes ?? 0,
+      texto: (n) => `${plural(n, 'lista', 'listas')} sin pasar`,
+      to: '/asistencias',
+    },
+    {
       icono: AlertTriangle,
-      tono: "text-destructive-foreground",
-      texto: `${pendientes.alumnosEnRiesgo ?? 0} alumno${pendientes.alumnosEnRiesgo === 1 ? '' : 's'} en riesgo por inasistencias`,
+      tono: 'text-destructive-foreground',
+      n: pendientes.alumnosEnRiesgo ?? 0,
+      texto: (n) => `${plural(n, 'alumno', 'alumnos')} en riesgo por inasistencias`,
       to: '/docente/riesgo',
     },
     {
       icono: FileText,
-      tono: "text-warning-foreground ",
-      texto: `${pendientes.entregasSinCalificar ?? 0} entrega${pendientes.entregasSinCalificar === 1 ? '' : 's'} sin calificar`,
+      tono: 'text-warning-foreground',
+      n: pendientes.entregasSinCalificar ?? 0,
+      texto: (n) => `${plural(n, 'entrega', 'entregas')} sin calificar`,
       to: '/tareas',
     },
     {
       icono: UserPlus,
-      tono: "text-primary-ink",
-      texto: `${pendientes.solicitudes ?? 0} solicitud${pendientes.solicitudes === 1 ? '' : 'es'} de inscripción`,
+      tono: 'text-primary-ink',
+      n: pendientes.solicitudes ?? 0,
+      texto: (n) => `${plural(n, 'solicitud', 'solicitudes')} de inscripción`,
       to: '/docente/solicitudes',
     },
-  ]
+  ].filter((fila) => fila.n > 0)
 
-  const sinPendientes = filas.every((fila) => fila.texto.startsWith('0 '))
-
-  if (sinPendientes) return (
-    <article className="flex items-center gap-3 rounded-2xl border border-border bg-success/10 p-5">
+  if (!filas.length) return (
+    <article className="flex items-center gap-3 rounded-[var(--radius-card)] border border-border bg-success/10 p-5">
       <Check className="h-5 w-5 shrink-0 text-success-foreground" aria-hidden="true" />
       <div><h2 className="text-sm font-semibold">Estás al día</h2><p className="mt-1 text-xs text-muted-foreground">No hay pendientes por revisar.</p></div>
     </article>
   )
 
   return (
-    <article className="rounded-2xl border border-border bg-card p-5">
-      <h2 className="text-sm font-semibold text-foreground">
-        Requiere tu atención
-      </h2>
-
-      {sinPendientes ? (
-        <p className="mt-4 text-sm text-muted-foreground">
-          Estás al día. No hay pendientes por revisar.
-        </p>
-      ) : (
-        <ul className="mt-2 divide-y divide-border">
-          {filas.map((fila) => (
-            <li key={fila.to}>
-              <Link
-                to={fila.to}
-                className="-mx-2 flex items-center gap-3 rounded-xl px-2 py-2.5 transition hover:bg-muted/50"
-              >
-                <fila.icono className={`h-4 w-4 shrink-0 ${fila.tono}`} />
-                <span className="min-w-0 flex-1 text-sm text-foreground">
-                  {fila.texto}
-                </span>
-                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
+    <article className="rounded-[var(--radius-card)] border border-border bg-card p-5">
+      <h2 className="text-sm font-semibold text-foreground">Requiere tu atención</h2>
+      <ul className="mt-2 divide-y divide-border">
+        {filas.map((fila) => (
+          <li key={fila.to}>
+            <Link to={fila.to} className="-mx-2 flex items-center gap-3 rounded-xl px-2 py-2.5 transition hover:bg-muted/50">
+              <fila.icono className={`h-4 w-4 shrink-0 ${fila.tono}`} aria-hidden="true" />
+              <span className="min-w-0 flex-1 text-sm text-foreground">{fila.texto(fila.n)}</span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            </Link>
+          </li>
+        ))}
+      </ul>
     </article>
   )
 }

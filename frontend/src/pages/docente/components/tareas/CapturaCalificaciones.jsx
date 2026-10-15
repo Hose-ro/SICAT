@@ -157,7 +157,7 @@ export default function CapturaCalificaciones({ tarea, filas, onGuardado }) {
         </table>
       </div>
 
-      <div className="sticky bottom-0 flex flex-wrap items-center justify-between gap-3 rounded-b-[var(--radius-card)] border-t border-border bg-card px-4 py-3 sm:px-5">
+      <div className="sticky bottom-[var(--barra-inferior,0px)] flex flex-wrap items-center justify-between gap-3 rounded-b-[var(--radius-card)] border-t border-border bg-card px-4 py-3 sm:px-5">
         <p aria-live="polite" className="text-sm text-muted-foreground">
           {cambiados.length
             ? <>{cambiados.length === 1 ? '1 cambio sin guardar' : `${cambiados.length} cambios sin guardar`}{invalidos.length > 0 && <span className="text-destructive-foreground"> · corrige {invalidos.length === 1 ? '1 calificación' : `${invalidos.length} calificaciones`} fuera de 1 a 100</span>}</>

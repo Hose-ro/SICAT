@@ -1060,7 +1060,7 @@ function DocenteCalificaciones() {
         )}
 
         {dirtyCount > 0 && (
-          <div className="sticky bottom-[calc(env(safe-area-inset-bottom,0px)+1rem)] z-10 mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-3">
+          <div className="sticky bottom-[calc(var(--barra-inferior,0px)+env(safe-area-inset-bottom,0px)+1rem)] z-10 mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-3">
             <p className="text-sm font-medium text-foreground">
               {plural(dirtyCount, 'cambio', 'cambios')} sin guardar
               {invalidCount > 0 && (

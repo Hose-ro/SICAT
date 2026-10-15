@@ -3,7 +3,9 @@ import Modal from '@/components/Modal'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import PeriodoEscolarCard from '../../components/PeriodoEscolarCard'
-import { CalendarClock, Download } from 'lucide-react'
+import { Download } from 'lucide-react'
+import { buttonVariants } from '@/components/ui/buttonVariants'
+import { cn } from '@/lib/utils'
 import api from '../../api/axios'
 import HorarioSemanal from '../../components/horario/HorarioSemanal'
 import SuscripcionCalendario from '../../components/horario/SuscripcionCalendario'
@@ -42,14 +44,11 @@ export default function MiHorario() {
   const horasSemanales = calcularHorasSemanales(horarios)
 
   return (
-    <div className="flex h-full flex-col gap-4 px-4 py-4 sm:px-6 sm:py-6 print:gap-2 print:px-0 print:py-0">
+    <div className="flex h-full flex-col gap-4 print:gap-2">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary-ink">
-            <CalendarClock className="h-5 w-5" />
-          </div>
+        <div>
           <div>
-            <h1 className="text-xl font-bold text-foreground sm:text-2xl">Mi Horario</h1>
+            <h1 className="text-[1.75rem] font-semibold leading-tight tracking-[-0.02em] text-foreground">Mi horario</h1>
             <p className="text-sm text-muted-foreground">
               {loading
                 ? 'Cargando...'
@@ -63,7 +62,7 @@ export default function MiHorario() {
         <div className="flex flex-wrap items-center gap-2">
           <Link
             to="/docente/horario/editar"
-            className="print-hidden inline-flex items-center gap-2 rounded-2xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-[color,background-color,border-color,opacity,transform] duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
+            className={cn(buttonVariants({ variant: 'outline' }), 'print-hidden px-4')}
           >
             Editar mi horario
           </Link>
@@ -76,12 +75,12 @@ export default function MiHorario() {
             onClick={() =>
               generarHorarioPdf({
                 nombreArchivo: `Horario - ${docente?.nombre ?? 'Docente'}`,
-                titulo: 'Mi Horario',
+                titulo: 'Mi horario',
                 subtitulo: `${docente?.nombre ?? ''} · ${horarios.length} clase${horarios.length !== 1 ? 's' : ''} · ${horasSemanales}h semanales`,
                 horarios,
               })
             }
-            className="print-hidden inline-flex items-center gap-2 border px-4 py-2 text-sm font-medium shadow-sm duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
+            className="print-hidden gap-2 px-4"
           >
             <Download className="h-4 w-4" />
             Descargar PDF
@@ -141,6 +140,12 @@ export default function MiHorario() {
                 </p>
               )}
             </div>
+            <Link
+              to={`/materias/${detalle.materiaId ?? detalle.materia.id}${detalle.grupo?.id ? `?grupo=${detalle.grupo.id}` : ''}`}
+              className={cn(buttonVariants({ variant: 'outline' }), 'mt-4 px-4')}
+            >
+              Abrir la materia
+            </Link>
           </Modal>
       )}
     </div>

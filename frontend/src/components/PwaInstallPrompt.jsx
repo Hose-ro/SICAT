@@ -45,7 +45,7 @@ export default function PwaInstallPrompt() {
   }
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-4 z-[300] flex justify-center px-4">
+    <div className="pointer-events-none fixed inset-x-0 bottom-[calc(var(--barra-inferior,0px)+1rem)] z-[300] flex justify-center px-4">
       <div className="pointer-events-auto w-full max-w-md rounded-3xl border border-border bg-card p-4 shadow-2xl">
         <div className="flex items-start gap-3">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary text-lg text-primary-foreground">

@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
-import PageHeader from '../components/PageHeader'
 import api from '../api/axios'
 import { useAuthStore } from '../store/authStore'
 import UnidadesCard from './materia/UnidadesCard'
 import AlumnosMateriaCard from './materia/AlumnosMateriaCard'
 import AvisosMateriaCard from './materia/AvisosMateriaCard'
+
+const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`
 
 function formatDate(value) {
   if (!value) return 'Sin fecha'
@@ -118,13 +119,6 @@ export default function MateriaDetalle() {
     [grupo, tareas],
   )
 
-  const resumen = useMemo(() => ({
-    unidades: materiaDelGrupo?.unidades?.length ?? 0,
-    alumnos: materiaDelGrupo?.inscripciones?.length ?? 0,
-    clases: historial.length,
-    tareas: tareasDelGrupo.length,
-  }), [historial.length, materiaDelGrupo?.inscripciones?.length, materiaDelGrupo?.unidades?.length, tareasDelGrupo.length])
-
   const elegirGrupo = (grupoId) => {
     const siguiente = new URLSearchParams(searchParams)
     if (grupoId) siguiente.set('grupo', String(grupoId))
@@ -140,35 +134,36 @@ export default function MateriaDetalle() {
     return <div className="py-16 text-center text-sm text-destructive-foreground">{error || 'Materia no encontrada'}</div>
   }
 
+  const esDocente = user?.rol === 'DOCENTE'
+  // Los enlaces llevan la materia y el grupo: la otra pantalla abre ya filtrada.
+  const contexto = `materia=${materia.id}${grupo ? `&grupo=${grupo.id}` : ''}`
+  const alumnosActivos = materiaDelGrupo?.inscripciones?.length ?? 0
+  const resumen = [
+    plural(alumnosActivos, 'alumno', 'alumnos'),
+    plural(materiaDelGrupo?.unidades?.length ?? 0, 'unidad', 'unidades'),
+    plural(historial.length, 'clase registrada', 'clases registradas'),
+    estadisticas?.porcentaje != null && historial.length ? `${estadisticas.porcentaje} % de asistencia` : null,
+  ].filter(Boolean).join(' · ')
+  const enlace = 'inline-flex min-h-9 items-center rounded-[10px] border border-border bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted'
+
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={grupo ? `${materia.nombre} · ${grupo.nombre}` : materia.nombre}
-        subtitle={
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-            <span className="font-semibold text-primary-ink">{materia.clave}</span>
-            <span>{materia.carrera?.nombre ?? 'Sin carrera'}</span>
-            <span>{materia.semestre ? `Semestre ${materia.semestre}` : 'Semestre sin asignar'}</span>
-            <span>{materia.docente?.nombre ? `Docente: ${materia.docente.nombre}` : 'Docente pendiente'}</span>
-          </div>
-        }
-        action={
-          <div className="flex flex-wrap gap-2">
-            <Link
-              to="/asistencias"
-              className="rounded-xl border border-border px-4 py-2 text-sm font-medium text-foreground transition hover:bg-background"
-            >
-              Ver asistencias
-            </Link>
-            <Link
-              to="/tareas"
-              className="rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary-strong"
-            >
-              Ver tareas
-            </Link>
-          </div>
-        }
-      />
+      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-[1.75rem] font-semibold leading-tight tracking-[-0.02em] text-foreground">
+            {grupo ? `${materia.nombre} · ${grupo.nombre}` : materia.nombre}
+          </h1>
+          <p className="mt-1.5 text-sm text-muted-foreground">
+            {[materia.clave, materia.carrera?.nombre, materia.semestre ? `Semestre ${materia.semestre}` : null, esDocente ? null : materia.docente?.nombre ? `Docente: ${materia.docente.nombre}` : 'Docente pendiente'].filter(Boolean).join(' · ')}
+          </p>
+          <p className="mt-0.5 text-sm text-muted-foreground">{resumen}</p>
+        </div>
+        <nav aria-label="Ir con esta materia" className="flex flex-wrap gap-2">
+          <Link to={`/asistencias?${contexto}`} className={enlace}>Asistencias</Link>
+          <Link to={`/tareas?${contexto}`} className={enlace}>Tareas</Link>
+          <Link to={`/calificaciones?${contexto}`} className={enlace}>Calificaciones</Link>
+        </nav>
+      </header>
 
       {grupos.length > 1 && (
         <nav aria-label="Grupo" className="flex flex-wrap gap-2">
@@ -180,9 +175,9 @@ export default function MateriaDetalle() {
                 type="button"
                 aria-pressed={activo}
                 onClick={() => elegirGrupo(item.id)}
-                className={`min-h-9 rounded-full border px-4 text-sm font-medium transition ${
+                className={`min-h-9 rounded-full border px-4 text-sm font-medium transition-colors ${
                   activo
-                    ? 'border-primary bg-primary text-primary-foreground'
+                    ? 'border-primary/30 bg-accent text-primary-ink'
                     : 'border-border bg-card text-foreground hover:bg-muted'
                 }`}
               >
@@ -191,33 +186,6 @@ export default function MateriaDetalle() {
             )
           })}
         </nav>
-      )}
-
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {[
-          ['Unidades', resumen.unidades],
-          ['Alumnos activos', resumen.alumnos],
-          ['Clases registradas', resumen.clases],
-          ['Tareas creadas', resumen.tareas],
-        ].map(([label, value]) => (
-          <article key={label} className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-            <p className="text-sm text-muted-foreground">{label}</p>
-            <p className="mt-2 text-3xl font-semibold text-foreground">{value}</p>
-          </article>
-        ))}
-      </section>
-
-      {estadisticas && (
-        <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Resumen de asistencias</h2>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <span className="rounded-full bg-success/10 px-3 py-1 text-xs font-medium text-success-foreground">A: {estadisticas.asistencias ?? 0}</span>
-            <span className="rounded-full bg-destructive/10 px-3 py-1 text-xs font-medium text-destructive-foreground">F: {estadisticas.faltas ?? 0}</span>
-            <span className="rounded-full bg-warning/10 px-3 py-1 text-xs font-medium text-warning-foreground">R: {estadisticas.retardos ?? 0}</span>
-            <span className="rounded-full bg-accent px-3 py-1 text-xs font-medium text-primary-ink">J: {estadisticas.justificados ?? 0}</span>
-            <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-foreground">%: {estadisticas.porcentaje ?? 0}</span>
-          </div>
-        </section>
       )}
 
       {puedeGestionar && <AvisosMateriaCard key={grupo?.id ?? 'todos'} materia={materiaDelGrupo} />}
@@ -237,61 +205,75 @@ export default function MateriaDetalle() {
       </section>
 
       <section className="grid gap-6 xl:grid-cols-2">
-        <article className="min-w-0 rounded-2xl border border-border bg-card p-5 shadow-sm">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold text-foreground">Sesiones recientes</h2>
-            <span className="text-xs text-muted-foreground">{historial.length} registro(s)</span>
-          </div>
-          <div className="mt-4 space-y-3">
-            {historial.slice(0, 8).map((sesion) => (
-              <div key={sesion.id} className="rounded-xl border border-border bg-background px-4 py-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <p className="font-medium text-foreground">{sesion.grupo?.nombre ?? 'Sin grupo'} · {sesion.unidad?.nombre ?? 'Sin unidad'}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">{formatDate(sesion.fecha)} · Semana {sesion.semanaClave}</p>
-                  </div>
-                  <div className="flex flex-wrap gap-2 text-xs">
-                    <span className="rounded-full bg-success/10 px-2 py-1 font-medium text-success-foreground">A {sesion.resumen?.asistencias ?? 0}</span>
-                    <span className="rounded-full bg-destructive/10 px-2 py-1 font-medium text-destructive-foreground">F {sesion.resumen?.faltas ?? 0}</span>
-                    <span className="rounded-full bg-warning/10 px-2 py-1 font-medium text-warning-foreground">R {sesion.resumen?.retardos ?? 0}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-            {historial.length === 0 && (
-              <p className="text-sm text-muted-foreground">No hay sesiones registradas todavía.</p>
+        <article className="min-w-0 rounded-[var(--radius-card)] border border-border bg-card p-5">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+            <h2 className="text-lg font-semibold text-foreground">Clases recientes</h2>
+            {estadisticas && historial.length > 0 && (
+              <p className="text-xs tabular-nums text-muted-foreground">
+                {estadisticas.asistencias ?? 0} asistencias · {estadisticas.retardos ?? 0} retardos · {estadisticas.faltas ?? 0} faltas · {estadisticas.justificados ?? 0} justificados
+              </p>
             )}
           </div>
-        </article>
-
-        <article className="min-w-0 rounded-2xl border border-border bg-card p-5 shadow-sm">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold text-foreground">Tareas recientes</h2>
-            <span className="text-xs text-muted-foreground">{tareasDelGrupo.length} tarea(s)</span>
-          </div>
-          <div className="mt-4 space-y-3">
-            {tareasDelGrupo.slice(0, 8).map((item) => (
-              <div key={item.id} className="rounded-xl border border-border bg-background px-4 py-3">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <p className="font-medium text-foreground">{item.titulo}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {item.unidadRef?.nombre ?? 'Sin unidad'} · {item.tieneFechaLimite ? `Límite ${formatDate(item.fechaLimite)}` : 'Sin límite'}
+          {historial.length === 0 ? (
+            <p className="mt-4 text-sm text-muted-foreground">Todavía no hay clases registradas.</p>
+          ) : (
+            <ul className="mt-3 divide-y divide-border">
+              {historial.slice(0, 8).map((sesion) => (
+                <li key={sesion.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 py-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-foreground">{formatDate(sesion.fecha)} · {sesion.unidad?.nombre ?? 'Sin unidad'}</p>
+                    <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">
+                      {grupo ? '' : `${sesion.grupo?.nombre ?? 'Sin grupo'} · `}
+                      {sesion.resumen?.asistencias ?? 0} A · {sesion.resumen?.retardos ?? 0} R · {sesion.resumen?.faltas ?? 0} F
                     </p>
                   </div>
-                  <Link
-                    to={`/docente/tareas/${item.id}`}
-                    className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-card"
-                  >
-                    Ver tarea
-                  </Link>
-                </div>
-              </div>
-            ))}
-            {tareasDelGrupo.length === 0 && (
-              <p className="text-sm text-muted-foreground">No hay tareas publicadas para esta materia.</p>
+                  {esDocente && (
+                    <Link to={`/docente/pasar-lista/${sesion.id}`} className="text-sm font-medium text-primary-ink underline-offset-4 hover:underline">
+                      Editar lista
+                    </Link>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+          {historial.length > 8 && (
+            <Link to={`/asistencias?${contexto}`} className="mt-2 inline-block text-sm font-medium text-primary-ink underline-offset-4 hover:underline">
+              Ver las {historial.length} en Asistencias
+            </Link>
+          )}
+        </article>
+
+        <article className="min-w-0 rounded-[var(--radius-card)] border border-border bg-card p-5">
+          <div className="flex flex-wrap items-baseline justify-between gap-3">
+            <h2 className="text-lg font-semibold text-foreground">Tareas recientes</h2>
+            {esDocente && (
+              <Link to={`/docente/tareas/crear?materiaId=${materia.id}${grupo ? `&grupoId=${grupo.id}` : ''}`}
+                className="text-sm font-medium text-primary-ink underline-offset-4 hover:underline">
+                Nueva tarea
+              </Link>
             )}
           </div>
+          {tareasDelGrupo.length === 0 ? (
+            <p className="mt-4 text-sm text-muted-foreground">Todavía no hay tareas para {grupo ? 'este grupo' : 'esta materia'}.</p>
+          ) : (
+            <ul className="mt-3 divide-y divide-border">
+              {tareasDelGrupo.slice(0, 8).map((item) => (
+                <li key={item.id}>
+                  <Link to={`/docente/tareas/${item.id}`} className="-mx-2 flex flex-col rounded-[10px] px-2 py-3 transition-colors hover:bg-muted/60">
+                    <span className="text-sm font-medium text-foreground">{item.titulo}</span>
+                    <span className="mt-0.5 text-xs text-muted-foreground">
+                      {item.unidadRef?.nombre ?? 'Sin unidad'} · {item.tieneFechaLimite ? `Límite ${formatDate(item.fechaLimite)}` : 'Sin límite'}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+          {tareasDelGrupo.length > 8 && (
+            <Link to={`/tareas?${contexto}`} className="mt-2 inline-block text-sm font-medium text-primary-ink underline-offset-4 hover:underline">
+              Ver las {tareasDelGrupo.length} en Tareas
+            </Link>
+          )}
         </article>
       </section>
     </div>

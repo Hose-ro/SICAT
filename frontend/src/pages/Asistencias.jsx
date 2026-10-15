@@ -1,8 +1,8 @@
 import useAsyncAction from '@/hooks/useAsyncAction'
 import { Button } from '@/components/ui/button'
-import { confirmAction } from '@/lib/feedback'
+import { confirmAction, notify } from '@/lib/feedback'
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import api from '../api/axios'
 import { useAuthStore } from '../store/authStore'
@@ -126,7 +126,7 @@ function ExportActions({ onVer, onExportPdf, onExportExcel, label, disabled = fa
       >
         Exportar PDF
       </Button>
-      <Button variant="default"
+      <Button variant="outline"
         type="button"
         onClick={onExportExcel}
         disabled={disabled}
@@ -219,7 +219,7 @@ function ReporteAcumuladoCard({ materias = [], materiaSugeridaId, grupoSugeridoI
   return (
     <section
       aria-labelledby="reporte-acumulado-titulo"
-      className="rounded-3xl border border-primary/30 bg-primary/5 p-5 shadow-sm"
+      className="rounded-[var(--radius-card)] border border-border bg-card p-5"
     >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="min-w-0 space-y-3">
@@ -291,9 +291,14 @@ function ReporteAcumuladoCard({ materias = [], materiaSugeridaId, grupoSugeridoI
   )
 }
 
+/**
+ * Una clase del día con una sola acción siguiente según su estado: iniciar la
+ * unidad, iniciar la clase, pasar lista o finalizar, y editar la lista después.
+ */
 function ClaseCard({
   clase,
   principal = false,
+  ocupado = false,
   onIniciar,
   onTomarAsistencia,
   onFinalizar,
@@ -305,124 +310,89 @@ function ClaseCard({
   const unidadPendiente = unidades.find((unidad) => unidad.status === 'PENDIENTE')
   // La última finalizada es la única que se puede reabrir (vienen ordenadas).
   const unidadAnterior = unidades.findLast((unidad) => unidad.status === 'FINALIZADA')
-  const requiereUnidadActiva = !clase.sesion?.id && !clase.unidadActiva
-  const inicioAyudaId = `clase-${clase.horarioId}-inicio-ayuda`
+  const suspendida = clase.estado === 'SUSPENDIDA'
+  const sesion = clase.sesion
+  // Una sola acción azul en la pantalla: la de la clase principal.
+  const enfasis = principal ? 'default' : 'outline'
+  const ayudaId = `clase-${clase.horarioId}-ayuda`
 
-  const iniciarLabel = clase.sesion?.id
-    ? 'Clase iniciada'
-    : clase.estado === 'SUSPENDIDA'
-      ? 'Sin clases'
-    : requiereUnidadActiva
-      ? unidadPendiente
-        ? `Inicia ${unidadPendiente.nombre} primero`
-        : 'Sin unidad disponible'
-      : 'Iniciar clase'
-
-  return (
-    <article className={`rounded-3xl border border-border bg-card shadow-sm ${principal ? 'p-6' : 'p-5'}`}>
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div className="space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className={`rounded-full px-3 py-1 text-xs font-semibold ${estadoClaseStyle(clase.estado)}`}>
-              {estadoClaseLabel(clase.estado)}
-            </span>
-            <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
-              {formatTime(clase.horaInicio)} - {formatTime(clase.horaFin)}
-            </span>
-            {clase.sesion?.fueFueraDeHorario && (
-              <span className="rounded-full bg-warning/10 px-3 py-1 text-xs font-medium text-warning-foreground">
-                Sesión iniciada fuera de horario
-              </span>
-            )}
-          </div>
-
-          <div>
-            <h2 className={`${principal ? 'text-2xl' : 'text-lg'} font-semibold text-foreground`}>
-              {clase.materia?.nombre}
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {clase.grupo?.nombre ?? 'Sin grupo'} · {clase.aula?.nombre ?? 'Aula pendiente'}
-            </p>
-            {clase.suspensionMotivo && <p className="mt-2 rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground">Sin clases: {clase.suspensionMotivo}</p>}
-          </div>
-
-          <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
-            <p>Materia: {clase.materia?.clave ?? 'Sin clave'}</p>
-            <p>Fecha: {formatDate(new Date())}</p>
-            <p>Unidad activa: {clase.unidadActiva?.nombre ?? 'No hay unidad activa'}</p>
-            <p>Periodo: {clase.grupo?.periodo ?? 'Sin periodo'}</p>
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-2 lg:min-w-[220px]">
-          <Button variant="default"
-            type="button"
-            onClick={onIniciar}
-            disabled={clase.estado === 'SUSPENDIDA' || Boolean(clase.sesion?.id) || requiereUnidadActiva}
-            aria-describedby={requiereUnidadActiva ? inicioAyudaId : undefined}
-            className="px-4 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {iniciarLabel}
-          </Button>
-          {requiereUnidadActiva && (
-            <p id={inicioAyudaId} className="px-1 text-xs leading-relaxed text-muted-foreground">
-              Activa una unidad para asociar correctamente la asistencia de esta clase.
-            </p>
-          )}
-          <Button variant="outline"
-            type="button"
-            onClick={onTomarAsistencia}
-            disabled={clase.estado === 'SUSPENDIDA' || !clase.sesion?.id}
-            className="border px-4 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Tomar asistencia
-          </Button>
-          <Button variant="destructive"
-            type="button"
-            onClick={onFinalizar}
-            disabled={clase.estado === 'SUSPENDIDA' || !clase.sesion?.activa}
-            className="border px-4 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Finalizar clase
-          </Button>
-        </div>
-      </div>
-
-      <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-4">
-        {!clase.unidadActiva && unidadPendiente && (
-          <Button variant="ghost"
-            type="button"
-            onClick={() => onIniciarUnidad(unidadPendiente)}
-            className="bg-success/10 px-3 py-2 text-xs font-semibold text-success-foreground  hover:bg-success/15"
-          >
+  let acciones = null
+  let ayuda = null
+  if (suspendida) {
+    ayuda = clase.suspensionMotivo ? `Sin clases: ${clase.suspensionMotivo}` : 'Sin clases este día.'
+  } else if (sesion?.activa) {
+    acciones = (
+      <>
+        <Button variant={enfasis} type="button" onClick={onTomarAsistencia}>Pasar lista</Button>
+        <Button variant="outline" type="button" onClick={onFinalizar} className="text-destructive-foreground">Finalizar clase</Button>
+      </>
+    )
+  } else if (sesion?.id) {
+    acciones = <Button variant="outline" type="button" onClick={onTomarAsistencia}>Editar lista</Button>
+  } else if (!clase.unidadActiva) {
+    ayuda = unidadPendiente
+      ? `Para pasar lista, inicia ${unidadPendiente.nombre}.`
+      : 'La materia no tiene unidades por iniciar.'
+    acciones = (
+      <>
+        {unidadPendiente && (
+          <Button variant={enfasis} type="button" disabled={ocupado} aria-describedby={ayudaId}
+            onClick={() => onIniciarUnidad(unidadPendiente)}>
             Iniciar {unidadPendiente.nombre}
           </Button>
         )}
-
-        {!clase.unidadActiva && unidadAnterior && (
-          <Button variant="ghost"
-            type="button"
-            onClick={() => onReabrirUnidad(unidadAnterior)}
-            className="bg-muted px-3 py-2 text-xs font-semibold text-muted-foreground hover:bg-muted/80 hover:text-foreground"
-          >
+        {unidadAnterior && (
+          <Button variant="ghost" type="button" disabled={ocupado} onClick={() => onReabrirUnidad(unidadAnterior)}>
             Regresar a {unidadAnterior.nombre}
           </Button>
         )}
+      </>
+    )
+  } else {
+    acciones = (
+      <Button variant={enfasis} type="button" disabled={ocupado} onClick={onIniciar}>
+        {ocupado ? 'Iniciando…' : 'Iniciar y pasar lista'}
+      </Button>
+    )
+  }
 
-        {clase.unidadActiva && (
-          <Button variant="ghost"
-            type="button"
-            onClick={() => onFinalizarUnidad(clase.unidadActiva, clase)}
-            className="bg-warning/10 px-3 py-2 text-xs font-semibold text-warning-foreground  hover:bg-warning/15"
-          >
+  const detalle = [
+    clase.grupo?.nombre ?? 'Sin grupo',
+    clase.aula?.nombre ?? 'Sin aula',
+    clase.unidadActiva?.nombre ?? 'Sin unidad activa',
+  ].join(' · ')
+
+  return (
+    <article aria-labelledby={`clase-${clase.horarioId}-titulo`}
+      className="grid grid-cols-[3rem_minmax(0,1fr)] items-start gap-x-3 gap-y-3 py-4 sm:grid-cols-[3.5rem_minmax(0,1fr)_auto] sm:gap-x-4">
+      <p className="text-sm font-semibold tabular-nums text-foreground">
+        {formatTime(clase.horaInicio)}
+        <span className="block text-xs font-normal text-muted-foreground">{formatTime(clase.horaFin)}</span>
+      </p>
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <h3 id={`clase-${clase.horarioId}-titulo`} className={`${principal ? 'text-lg' : 'text-base'} font-semibold leading-snug text-foreground`}>
+            {clase.materia?.nombre}
+          </h3>
+          <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${estadoClaseStyle(clase.estado)}`}>
+            {estadoClaseLabel(clase.estado)}
+          </span>
+        </div>
+        <p className="mt-0.5 text-sm text-muted-foreground">{detalle}</p>
+        {sesion?.fueFueraDeHorario && (
+          <p className="mt-1 text-xs text-warning-foreground">Se inició fuera de su horario.</p>
+        )}
+        {ayuda && (
+          <p id={ayudaId} className={`mt-1 text-xs ${suspendida ? 'text-destructive-foreground' : 'text-muted-foreground'}`}>{ayuda}</p>
+        )}
+        {clase.unidadActiva && !suspendida && (
+          <Button variant="link" type="button" disabled={ocupado} onClick={() => onFinalizarUnidad(clase.unidadActiva, clase)}
+            className="mt-1 h-auto min-h-0 px-0 text-xs text-muted-foreground hover:text-foreground">
             Finalizar {clase.unidadActiva.nombre}
           </Button>
         )}
-
-        <span className="text-xs text-muted-foreground">
-          La lista se arma con alumnos del grupo que además tienen inscripción aceptada en la materia.
-        </span>
       </div>
+      {acciones && <div className="col-start-2 flex flex-wrap gap-2 sm:col-start-auto sm:justify-end">{acciones}</div>}
     </article>
   )
 }
@@ -449,7 +419,7 @@ function RankingFaltas({ items }) {
   const resumen = `${items.length} ${items.length === 1 ? 'alumno' : 'alumnos'} · hasta ${maximo} ${maximo === 1 ? 'falta' : 'faltas'}`
 
   return (
-    <div className="overflow-hidden rounded-3xl border border-destructive/30 bg-destructive/10">
+    <div className="overflow-hidden rounded-[var(--radius-card)] border border-destructive/30 bg-destructive/10">
       <button
         type="button"
         onClick={() => setAbierto((prev) => !prev)}
@@ -497,7 +467,7 @@ function HistorialTable({ items, onEditar, onVer, onExportarPdf, onExportarExcel
 
   if (items.length === 0) {
     return (
-      <div className="rounded-3xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
+      <div className="rounded-[var(--radius-card)] border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
         No hay registros con los filtros actuales.
       </div>
     )
@@ -511,7 +481,7 @@ function HistorialTable({ items, onEditar, onVer, onExportarPdf, onExportarExcel
   const resumen = `${sesiones} ${sesiones === 1 ? 'sesión' : 'sesiones'}${sinClases ? ` · ${sinClases} ${sinClases === 1 ? 'día sin clases' : 'días sin clases'}` : ''} · última fecha ${formatDate(ultima?.fecha)}`
 
   return (
-    <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
+    <div className="overflow-hidden rounded-[var(--radius-card)] border border-border bg-card">
       <button
         type="button"
         onClick={onToggle}
@@ -841,7 +811,7 @@ function FiltroToolbar({
   )
 
   return (
-    <div className="rounded-3xl border border-border bg-card p-5 shadow-sm">
+    <div className="rounded-[var(--radius-card)] border border-border bg-card p-5">
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
         {showDocente && (
           <label className="min-w-0">
@@ -995,7 +965,7 @@ function FiltroToolbar({
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2">
-        <Button variant="default"
+        <Button variant="outline"
           type="button"
           onClick={onApply}
           className="px-4 py-3 text-sm font-semibold"
@@ -1054,7 +1024,7 @@ function AlumnoMateriaCard({ item }) {
         : { text: 'Todos los registros al día', warn: false }
 
   return (
-    <article className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+    <article className="rounded-2xl border border-border bg-card overflow-hidden">
       <div className="p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
@@ -1202,22 +1172,22 @@ function AlumnoAsistenciasView() {
       )}
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+        <div className="rounded-2xl border border-border bg-card p-5">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Materias</p>
           <p className="mt-3 text-4xl font-bold tabular-nums text-foreground">{estadisticas.materias}</p>
           <p className="mt-1 text-xs text-muted-foreground">inscritas este periodo</p>
         </div>
-        <div className="rounded-2xl border border-success/30 bg-success/10 p-5 shadow-sm">
+        <div className="rounded-2xl border border-success/30 bg-success/10 p-5">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-success-foreground">Asistencias</p>
           <p className="mt-3 text-4xl font-bold tabular-nums text-success-foreground">{estadisticas.asistencias}</p>
           <p className="mt-1 text-xs text-success-foreground">presencias registradas</p>
         </div>
-        <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-5 shadow-sm">
+        <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-5">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-destructive-foreground">Faltas</p>
           <p className="mt-3 text-4xl font-bold tabular-nums text-destructive-foreground">{estadisticas.faltas}</p>
           <p className="mt-1 text-xs text-destructive-foreground">ausencias acumuladas</p>
         </div>
-        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+        <div className="rounded-2xl border border-border bg-card p-5">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">% Global</p>
           <p className={`mt-3 text-4xl font-bold tabular-nums ${pctColor}`}>{porcentajeGlobal}%</p>
           <div className="mt-2">
@@ -1409,18 +1379,18 @@ function ClasesAtrasadasSection({
       )}
 
       {loading && items.length === 0 ? (
-        <div className="rounded-3xl border border-border bg-card p-6 text-center text-sm text-muted-foreground">
+        <div className="rounded-[var(--radius-card)] border border-border bg-card p-6 text-center text-sm text-muted-foreground">
           Revisando tu horario...
         </div>
       ) : items.length === 0 ? (
-        <div className="rounded-3xl border border-dashed border-border bg-card p-6 text-center text-sm text-muted-foreground">
+        <div className="rounded-[var(--radius-card)] border border-dashed border-border bg-card p-6 text-center text-sm text-muted-foreground">
           No tienes asistencias atrasadas: todas las clases de tu horario ya tienen lista.
         </div>
       ) : (
         abierta && (
           <>
             {capturables.length > 0 && (
-              <div className="rounded-3xl border border-border bg-card p-4 shadow-sm">
+              <div className="rounded-[var(--radius-card)] border border-border bg-card p-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <label className="flex items-center gap-3 text-sm text-foreground">
                     <input
@@ -1478,7 +1448,7 @@ function ClasesAtrasadasSection({
 
             <div className="grid gap-4 xl:grid-cols-2">
               {grupos.map((entry) => (
-                <article key={entry.clave} className="rounded-3xl border border-border bg-muted/40 p-5">
+                <article key={entry.clave} className="rounded-[var(--radius-card)] border border-border bg-muted/40 p-5">
                   <div>
                     <h3 className="text-lg font-semibold text-foreground">{entry.materia?.nombre}</h3>
                     <p className="mt-1 text-sm text-muted-foreground">
@@ -1550,6 +1520,9 @@ function ClasesAtrasadasSection({
 
 function DocenteAsistenciasView() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const materiaInicial = searchParams.get('materia') ?? ''
+  const grupoInicial = materiaInicial ? searchParams.get('grupo') ?? '' : ''
   const {
     panelDocente,
     cargarPanelDocente,
@@ -1561,15 +1534,14 @@ function DocenteAsistenciasView() {
     finalizar,
   } = useClaseStore()
   const { historial, estadisticas, obtenerHistorial, exportar } = useAsistenciaStore()
-  const { user } = useAuthStore()
-  const [selectedSessionId, setSelectedSessionId] = useState(null)
+  const [iniciandoId, setIniciandoId] = useState(null)
   const [mensaje, setMensaje] = useState('')
   const [exportSuggestion, setExportSuggestion] = useState(null)
-  const [historialAbierto, setHistorialAbierto] = useState(false)
+  const [historialAbierto, setHistorialAbierto] = useState(Boolean(materiaInicial))
   const [vistaPrevia, setVistaPrevia] = useState(null)
   const [filters, setFilters] = useState({
-    materiaId: '',
-    grupoId: '',
+    materiaId: materiaInicial,
+    grupoId: grupoInicial,
     unidadId: '',
     fecha: '',
     semana: '',
@@ -1589,7 +1561,6 @@ function DocenteAsistenciasView() {
   const [atrasadaProcesando, setAtrasadaProcesando] = useState('')
   const [marcandoLote, setMarcandoLote] = useState(false)
   const opcionesRequestId = useRef(0)
-  const panelCapturaRef = useRef(null)
 
   const cargarOpcionesFiltros = async (materiaId, grupoId = '') => {
     if (!materiaId) return null
@@ -1651,15 +1622,16 @@ function DocenteAsistenciasView() {
   }
 
   useEffect(() => {
+    const inicial = Object.fromEntries(Object.entries({ materiaId: materiaInicial, grupoId: grupoInicial }).filter(([, valor]) => valor))
     Promise.all([
       cargarPanelDocente(),
-      obtenerHistorial({}),
+      obtenerHistorial(inicial),
       cargarAtrasadas(),
     ]).catch(() => {})
 
     const requestId = opcionesRequestId.current + 1
     opcionesRequestId.current = requestId
-    api.get('/asistencias/filtros-disponibles')
+    api.get('/asistencias/filtros-disponibles', { params: inicial })
       .then((response) => {
         if (requestId !== opcionesRequestId.current) return
         setOpcionesFiltros(response.data)
@@ -1675,7 +1647,7 @@ function DocenteAsistenciasView() {
     }, 30000)
 
     return () => clearInterval(interval)
-  }, [cargarPanelDocente, obtenerHistorial, cargarAtrasadas])
+  }, [cargarPanelDocente, obtenerHistorial, cargarAtrasadas, materiaInicial, grupoInicial])
 
   const clasesHoy = panelDocente?.clasesHoy ?? []
   const clasePrincipal = panelDocente?.claseActual ?? panelDocente?.proximaClase ?? null
@@ -1687,26 +1659,19 @@ function DocenteAsistenciasView() {
   const unidades = opcionesFiltros.unidades ?? []
   const resumenFiltro = describirFiltro(filters, { materias, grupos, unidades })
 
+  // Pasar lista vive en su propia pantalla, igual que desde Inicio.
+  const abrirPaseDeLista = (sesionId) => navigate(`/docente/pasar-lista/${sesionId}`)
+
   const handleStartClass = async (clase) => {
+    if (iniciandoId) return
     setMensaje('')
-
-    if (!clase?.unidadActiva) {
-      const unidadPendiente = clase?.materia?.unidades?.find((unidad) => unidad.status === 'PENDIENTE')
-      setMensaje(
-        unidadPendiente
-          ? `Primero inicia ${unidadPendiente.nombre}; después podrás iniciar la clase.`
-          : 'No hay una unidad disponible para iniciar esta clase.',
-      )
-      return
-    }
-
+    setIniciandoId(clase.horarioId)
     try {
       const response = await iniciar({ horarioId: clase.horarioId })
-      setSelectedSessionId(response.id)
-      if (response.advertencia) setMensaje(response.advertencia)
-      await cargarTodo()
+      abrirPaseDeLista(response.id)
     } catch (error) {
       setMensaje(getApiErrorMessage(error, 'No se pudo iniciar la clase.'))
+      setIniciandoId(null)
     }
   }
 
@@ -1729,19 +1694,24 @@ function DocenteAsistenciasView() {
     }
   })
 
-  const handleIniciarUnidad = async (unidad) => {
+  const handleIniciarUnidad = useAsyncAction(async (unidad) => {
     setMensaje('')
     try {
       await api.patch(`/unidades/${unidad.id}/iniciar`)
       await cargarTodo()
-      setMensaje(`${unidad.nombre} está activa. Ya puedes iniciar la clase.`)
+      notify(`${unidad.nombre} está activa. Ya puedes iniciar la clase.`, 'success')
     } catch (error) {
       setMensaje(getApiErrorMessage(error, 'No se pudo iniciar la unidad.'))
     }
-  }
+  })
 
-  const handleFinalizarUnidad = async (unidad, clase) => {
+  const handleFinalizarUnidad = useAsyncAction(async (unidad, clase) => {
     if (!unidad?.id) return
+    if (!(await confirmAction({
+      title: `Finalizar ${unidad.nombre}`,
+      description: `Las clases que inicies después ya no contarán para ${unidad.nombre}. Si fue un error, podrás regresar a ella.`,
+      confirmLabel: `Finalizar ${unidad.nombre}`,
+    }))) return
     setMensaje('')
     try {
       await api.patch(`/unidades/${unidad.id}/finalizar`)
@@ -1757,7 +1727,7 @@ function DocenteAsistenciasView() {
     } catch (error) {
       setMensaje(error.response?.data?.message || 'No se pudo finalizar la unidad.')
     }
-  }
+  })
 
   const handleReabrirUnidad = useAsyncAction(async (unidad) => {
     if (!unidad?.id) return
@@ -1767,7 +1737,7 @@ function DocenteAsistenciasView() {
     try {
       await api.patch(`/unidades/${unidad.id}/reabrir`)
       await cargarTodo()
-      setMensaje(`${unidad.nombre} está activa de nuevo.`)
+      notify(`${unidad.nombre} está activa de nuevo.`, 'success')
     } catch (error) {
       setMensaje(getApiErrorMessage(error, 'No se pudo reabrir la unidad.'))
     }
@@ -1788,12 +1758,7 @@ function DocenteAsistenciasView() {
         sesionId = sesion.id
       }
 
-      setSelectedSessionId(sesionId)
-      setMensaje(
-        `Captura la lista del ${formatFechaClave(item.fecha)}. Se guardará con la fecha real de la clase.`,
-      )
-      await cargarTodo()
-      panelCapturaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      abrirPaseDeLista(sesionId)
     } catch (error) {
       setMensaje(getApiErrorMessage(error, 'No se pudo abrir la clase atrasada.'))
     } finally {
@@ -1814,7 +1779,7 @@ function DocenteAsistenciasView() {
           `${resultado.omitidas.length} se omitieron: ${resultado.omitidas[0].motivo}.`,
         )
       }
-      setMensaje(partes.join(' '))
+      notify(partes.join(' '), 'success')
       await cargarTodo()
     } catch (error) {
       setMensaje(getApiErrorMessage(error, 'No se pudo marcar la asistencia de las clases elegidas.'))
@@ -1839,14 +1804,6 @@ function DocenteAsistenciasView() {
       semana: filters.semana || undefined,
       mes: filters.mes || undefined,
     })
-  }
-
-  const abrirPaseDeLista = (sesionId) => {
-    if (!sesionId) {
-      setMensaje('Primero debes iniciar la clase para poder tomar asistencia.')
-      return
-    }
-    navigate(`/docente/pasar-lista/${sesionId}`)
   }
 
   const handleFilterChange = (key, value) => {
@@ -1902,94 +1859,59 @@ function DocenteAsistenciasView() {
 
   return (
     <div className="space-y-6">
-      <header className="space-y-2">
-        <h1 className="text-3xl font-semibold tracking-tight text-foreground">Asistencia docente</h1>
-        <p className="max-w-3xl text-sm text-muted-foreground">
-          La pantalla prioriza tu horario real del día. Inicia la clase, captura la lista del grupo y materia correctos, y edita el historial cuando sea necesario.
-        </p>
+      <header>
+        <h1 className="text-[1.75rem] font-semibold leading-tight tracking-[-0.02em] text-foreground">Asistencias</h1>
+        <p className="mt-1.5 text-sm text-muted-foreground">Inicia tus clases de hoy, pasa lista y consulta el historial.</p>
       </header>
 
       {mensaje && (
-        <div className="rounded-3xl border border-warning/30 bg-warning/10 px-5 py-4 text-sm text-warning-foreground">
+        <p role="alert" className="rounded-[var(--radius-item)] border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground">
           {mensaje}
-        </div>
+        </p>
       )}
 
       {exportSuggestion && (
-        <div className="rounded-3xl border border-border bg-card p-5 shadow-sm">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <p className="text-sm text-muted-foreground">{exportSuggestion.label}</p>
-            <ExportActions
-              label={exportSuggestion.type === 'unidad' ? 'Reporte de unidad' : 'Reporte de clase'}
-              onExportPdf={() => exportar(exportSuggestion.materiaId, {
-                formato: 'pdf',
-                sesionId: exportSuggestion.sesionId,
-                unidadId: exportSuggestion.unidadId,
-              })}
-              onExportExcel={() => exportar(exportSuggestion.materiaId, {
-                formato: 'excel',
-                sesionId: exportSuggestion.sesionId,
-                unidadId: exportSuggestion.unidadId,
-              })}
-            />
-          </div>
+        <div role="status" className="flex flex-col gap-3 rounded-[var(--radius-item)] border border-success/30 bg-success/10 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
+          <p className="text-sm text-foreground">{exportSuggestion.label}</p>
+          <ExportActions
+            label={exportSuggestion.type === 'unidad' ? 'Reporte de unidad' : 'Reporte de clase'}
+            onExportPdf={() => exportar(exportSuggestion.materiaId, {
+              formato: 'pdf',
+              sesionId: exportSuggestion.sesionId,
+              unidadId: exportSuggestion.unidadId,
+            })}
+            onExportExcel={() => exportar(exportSuggestion.materiaId, {
+              formato: 'excel',
+              sesionId: exportSuggestion.sesionId,
+              unidadId: exportSuggestion.unidadId,
+            })}
+          />
         </div>
       )}
 
-      <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-foreground">Clase actual</h2>
-          <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
-            Docente: {user?.nombre}
-          </span>
-        </div>
-
-        {clasePrincipal ? (
-          <ClaseCard
-            principal
-            clase={clasePrincipal}
-            onIniciar={() => handleStartClass(clasePrincipal)}
-            onTomarAsistencia={() => abrirPaseDeLista(clasePrincipal.sesion?.id)}
-            onFinalizar={() => handleFinalizeClass(clasePrincipal)}
-            onIniciarUnidad={handleIniciarUnidad}
-            onFinalizarUnidad={handleFinalizarUnidad}
-            onReabrirUnidad={handleReabrirUnidad}
-          />
-        ) : (
-          <div className="rounded-3xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
-            {clasesHoy.some((clase) => clase.estado === 'SUSPENDIDA')
-              ? `Hoy no habrá clases: ${clasesHoy.find((clase) => clase.suspensionMotivo)?.suspensionMotivo ?? 'día sin clases'}.`
-              : 'No tienes clases programadas para hoy.'}
+      {/* Una sola lista del día: la clase actual va en su lugar, sin repetirse arriba. */}
+      <section aria-labelledby="clases-hoy" className="rounded-[var(--radius-card)] border border-border bg-card px-4 sm:px-6">
+        <h2 id="clases-hoy" className="pt-5 text-lg font-semibold text-foreground">Hoy</h2>
+        {clasesHoy.length ? (
+          <div className="divide-y divide-border">
+            {clasesHoy.map((clase) => (
+              <ClaseCard
+                key={`${clase.horarioId}-${clase.grupoId ?? 'sin-grupo'}`}
+                clase={clase}
+                principal={clase.horarioId === clasePrincipal?.horarioId}
+                ocupado={iniciandoId === clase.horarioId}
+                onIniciar={() => handleStartClass(clase)}
+                onTomarAsistencia={() => abrirPaseDeLista(clase.sesion.id)}
+                onFinalizar={() => handleFinalizeClass(clase)}
+                onIniciarUnidad={handleIniciarUnidad}
+                onFinalizarUnidad={handleFinalizarUnidad}
+                onReabrirUnidad={handleReabrirUnidad}
+              />
+            ))}
           </div>
+        ) : (
+          <p className="pb-6 pt-2 text-sm text-muted-foreground">No tienes clases programadas para hoy.</p>
         )}
-      </section>
-
-      <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-foreground">Mis clases de hoy</h2>
-          <Button variant="outline"
-            type="button"
-            onClick={() => cargarTodo()}
-            className="border px-3 py-2 text-sm font-medium"
-          >
-            Actualizar
-          </Button>
-        </div>
-
-        <div className="grid gap-4 xl:grid-cols-2">
-          {clasesHoy.map((clase) => (
-            <ClaseCard
-              key={`${clase.horarioId}-${clase.grupoId ?? 'sin-grupo'}`}
-              clase={clase}
-              onIniciar={() => handleStartClass(clase)}
-              onTomarAsistencia={() => abrirPaseDeLista(clase.sesion?.id)}
-              onFinalizar={() => handleFinalizeClass(clase)}
-              onIniciarUnidad={handleIniciarUnidad}
-              onFinalizarUnidad={handleFinalizarUnidad}
-              onReabrirUnidad={handleReabrirUnidad}
-            />
-          ))}
-        </div>
       </section>
 
       <ClasesAtrasadasSection
@@ -2001,25 +1923,6 @@ function DocenteAsistenciasView() {
         onMarcarTodas={handleMarcarAtrasadas}
         marcandoLote={marcandoLote}
       />
-
-      <section ref={panelCapturaRef} className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-foreground">Toma de asistencia</h2>
-          {selectedSessionId && (
-            <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
-              Sesión #{selectedSessionId}
-            </span>
-          )}
-        </div>
-
-        <AsistenciaSesionPanel
-          sesionId={selectedSessionId}
-          onSaved={() => {
-            cargarTodo()
-            if (filters.materiaId) obtenerHistorial(filters)
-          }}
-        />
-      </section>
 
       <section className="space-y-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -2060,7 +1963,7 @@ function DocenteAsistenciasView() {
           gruposRestringidos
         />
 
-        <div className="flex flex-col gap-2 rounded-3xl border border-border bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-2 rounded-[var(--radius-card)] border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <p className="text-sm font-medium text-foreground">Reporte de lo filtrado</p>
             <p className="mt-0.5 text-xs text-muted-foreground">{resumenFiltro}</p>
@@ -2092,7 +1995,7 @@ function DocenteAsistenciasView() {
           items={historial}
           abierto={historialAbierto}
           onToggle={() => setHistorialAbierto((prev) => !prev)}
-          onEditar={(item) => setSelectedSessionId(item.id)}
+          onEditar={(item) => abrirPaseDeLista(item.id)}
           onVer={(item) => setVistaPrevia({ materiaId: item.materia.id, opciones: opcionesReporteItem(item), descripcion: describirSesion(item) })}
           onExportarPdf={(item) => exportar(item.materia.id, { formato: 'pdf', ...opcionesReporteItem(item) })}
           onExportarExcel={(item) => exportar(item.materia.id, { formato: 'excel', ...opcionesReporteItem(item) })}
@@ -2246,7 +2149,7 @@ function AdminAsistenciasView() {
         showDocente
       />
 
-      <div className="flex flex-col gap-2 rounded-3xl border border-border bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-2 rounded-[var(--radius-card)] border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <p className="text-sm font-medium text-foreground">Reporte de lo filtrado</p>
           <p className="mt-0.5 text-xs text-muted-foreground">

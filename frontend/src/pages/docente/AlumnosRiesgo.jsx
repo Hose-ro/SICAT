@@ -43,7 +43,7 @@ function borradorAviso(fila) {
 
 function Tendencia({ estados }) {
   return (
-    <span className="flex gap-1" aria-label={`Últimas clases: ${estados.map((e) => ESTADO[e]?.label ?? e).join(', ')}`}>
+    <span role="img" className="flex gap-1" aria-label={`Últimas clases: ${estados.map((e) => ESTADO[e]?.label ?? e).join(', ')}`}>
       {estados.map((estado, indice) => (
         <span key={indice} aria-hidden="true"
           className={cn('grid size-6 place-items-center rounded-md text-xs font-semibold', ESTADO[estado]?.className)}>
@@ -154,7 +154,7 @@ export default function AlumnosRiesgo() {
                 </div>
               </div>
               <div className="flex flex-col items-start gap-1.5 sm:items-end">
-                <Button variant={fila.ultimoAviso ? 'outline' : 'default'} onClick={() => abrirAviso(fila)} disabled={!fila.grupo}
+                <Button variant="outline" onClick={() => abrirAviso(fila)} disabled={!fila.grupo}
                   title={fila.grupo ? undefined : 'Las clases sin grupo no admiten avisos'} className="gap-2">
                   <Megaphone className="size-4" aria-hidden="true" />{fila.ultimoAviso ? 'Avisar de nuevo' : 'Enviar aviso'}
                 </Button>

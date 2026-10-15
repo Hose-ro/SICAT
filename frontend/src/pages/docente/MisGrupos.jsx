@@ -11,7 +11,6 @@ import {
   Search,
   Trash2,
   UserPlus,
-  UsersRound,
 } from 'lucide-react'
 import api from '../../api/axios'
 import Modal from '../../components/Modal'
@@ -68,6 +67,11 @@ export default function MisGrupos() {
   }
 
   const quitar = async (grupo) => {
+    if (!(await confirmAction({
+      title: `Quitar ${grupo.nombre} de tus grupos`,
+      description: 'Dejará de aparecer aquí. El grupo y sus alumnos no se borran, y puedes volver a agregarlo cuando quieras.',
+      confirmLabel: 'Quitar grupo',
+    }))) return
     setError('')
     try {
       await api.delete(`/grupos/mis-grupos/${grupo.id}`)
@@ -85,12 +89,9 @@ export default function MisGrupos() {
   return (
     <div className="space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary-ink">
-            <UsersRound className="h-5 w-5" />
-          </div>
+        <div>
           <div>
-            <h1 className="text-xl font-bold text-foreground sm:text-2xl">
+            <h1 className="text-[1.75rem] font-semibold leading-tight tracking-[-0.02em] text-foreground">
               Mis grupos
             </h1>
             <p className="text-sm text-muted-foreground">
@@ -104,7 +105,7 @@ export default function MisGrupos() {
         <Button variant="default"
           type="button"
           onClick={() => setModalAgregar(true)}
-          className="inline-flex items-center gap-2 self-start px-4 py-2 text-sm font-medium shadow-sm sm:self-auto"
+          className="inline-flex items-center gap-2 self-start px-4 py-2 text-sm font-medium sm:self-auto"
         >
           <Plus className="h-4 w-4" />
           Agregar grupo
@@ -202,17 +203,17 @@ function TarjetaGrupo({
   onQuitar,
 }) {
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5">
+    <div className="flex flex-col gap-3 rounded-[var(--radius-card)] border border-border bg-card p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="truncate text-2xl font-bold text-primary-ink">
+          <h2 className="truncate text-xl font-semibold text-foreground">
             {grupo.nombre}
           </h2>
           <p className="mt-0.5 truncate text-sm text-muted-foreground">
             {grupo.carrera?.nombre ?? 'Sin carrera'}
           </p>
         </div>
-        <span className="shrink-0 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary-ink">
+        <span className="shrink-0 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
           Sem. {grupo.semestre}
         </span>
       </div>
@@ -222,7 +223,7 @@ function TarjetaGrupo({
           {grupo.periodo}
         </span>
         {grupo.modalidad === 'MIXTO' && (
-          <span className="rounded-full bg-primary/10 px-2.5 py-1 font-semibold text-primary-ink">
+          <span className="rounded-full bg-accent px-2.5 py-1 font-medium text-primary-ink">
             Mixto
           </span>
         )}
@@ -267,7 +268,7 @@ function TarjetaGrupo({
       )}
 
       <div className="mt-auto flex flex-wrap gap-2 pt-1">
-        <Button variant="default"
+        <Button variant="outline"
           type="button"
           onClick={onAgregarAlumnos}
           className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium"
@@ -293,10 +294,10 @@ function TarjetaGrupo({
           </Button>
         )}
         {grupo.agregado && (
-          <Button variant="destructive"
+          <Button variant="ghost"
             type="button"
             onClick={onQuitar}
-            className="inline-flex items-center gap-1.5 border px-3 py-2 text-sm font-medium"
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/10 hover:text-destructive-foreground"
           >
             <Trash2 className="h-4 w-4" />
             Quitar

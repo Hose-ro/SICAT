@@ -121,10 +121,9 @@ export default function DesempenoUnidad({ materias = [], claseActual, proximaCla
     : '/calificaciones'
 
   return (
-    <section aria-labelledby={idTitulo} className="@container rounded-2xl border border-border bg-card p-5">
+    <section aria-labelledby={idTitulo} className="@container rounded-[var(--radius-card)] border border-border bg-card p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="agenda-eyebrow">Calificaciones</p>
           <h2 id={idTitulo} className="text-xl font-semibold tracking-tight text-foreground">Desempeño por unidad</h2>
         </div>
         <div className="flex flex-wrap items-center gap-2">

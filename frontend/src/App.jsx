@@ -39,6 +39,8 @@ const MateriaDetalleAlumno = lazy(() => import("./pages/alumno/MateriaDetalleAlu
 const TareaDetalleAlumno = lazy(() => import("./pages/alumno/TareaDetalleAlumno"));
 const MiHorarioAlumno = lazy(() => import("./pages/alumno/MiHorarioAlumno"));
 const PasarLista = lazy(() => import("./pages/docente/PasarLista"));
+const IrAPasarLista = lazy(() => import("./pages/docente/IrAPasarLista"));
+const MiPerfil = lazy(() => import("./pages/MiPerfil"));
 const TareaForm = lazy(() => import("./pages/docente/TareaForm"));
 const TareaDetalle = lazy(() => import("./pages/docente/TareaDetalle"));
 const MiHorario = lazy(() => import("./pages/docente/MiHorario"));
@@ -187,6 +189,7 @@ function App() {
               path="/notificaciones"
               element={<NotificacionesHistorial />}
             />
+            <Route path="/perfil" element={<MiPerfil />} />
 
             <Route
               element={
@@ -206,6 +209,7 @@ function App() {
             </Route>
 
             <Route element={<RoleGate allowedRoles={["DOCENTE"]} />}>
+              <Route path="/docente/pasar-lista" element={<IrAPasarLista />} />
               <Route
                 path="/docente/pasar-lista/:sesionId"
                 element={<PasarLista />}
