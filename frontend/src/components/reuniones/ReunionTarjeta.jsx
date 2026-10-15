@@ -12,9 +12,10 @@ const fechaCorta = (clave) => {
 /**
  * Una reunión en lista: fecha, título, hora y lugar a la vista; orden del día,
  * acuerdos y (para la jefatura) convocados al desplegar. `acciones` va a la
- * derecha del encabezado y `pie` debajo del detalle.
+ * derecha del encabezado, `aviso` siempre visible bajo él y `pie` debajo del
+ * detalle.
  */
-export default function ReunionTarjeta({ reunion: r, acciones, pie, abiertaInicial = false, mostrarConvocados = false, extra }) {
+export default function ReunionTarjeta({ reunion: r, acciones, aviso, pie, abiertaInicial = false, mostrarConvocados = false, extra }) {
   const id = useId()
   const [abierta, setAbierta] = useState(abiertaInicial)
   const { dia, mes, semana } = diaMes(r.fecha)
@@ -47,6 +48,7 @@ export default function ReunionTarjeta({ reunion: r, acciones, pie, abiertaInici
         </div>
         {acciones && <div className="hidden shrink-0 items-start gap-2 sm:flex">{acciones}</div>}
       </div>
+      {aviso}
 
       <div className="flex flex-wrap items-center gap-2 border-t border-border px-4 py-2">
         <Button variant="ghost" size="sm" aria-expanded={abierta} aria-controls={id} onClick={() => setAbierta((v) => !v)}>
@@ -113,6 +115,18 @@ export default function ReunionTarjeta({ reunion: r, acciones, pie, abiertaInici
                   </li>
                 ))}
               </ul>
+              {r.clasesJustificadas?.length > 0 && (
+                <>
+                  <h4 className="mt-4 text-xs font-medium text-muted-foreground">Clases justificadas por esta reunión</h4>
+                  <ul className="mt-1.5 space-y-1">
+                    {r.clasesJustificadas.map((j) => (
+                      <li key={j.horarioId} className="text-foreground">
+                        {j.docente ?? 'Docente'} · {j.materia}{j.grupo && ` · ${j.grupo}`} <span className="tabular-nums text-muted-foreground">{j.horaInicio}–{j.horaFin}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
             </section>
           )}
           {pie && <div className="md:col-span-2">{pie}</div>}

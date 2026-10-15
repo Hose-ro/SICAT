@@ -13,6 +13,8 @@ const periodosFalsos = (inicio: Date, fin: Date) =>
       fin,
     }),
     obtenerSuspension: jest.fn().mockResolvedValue(null),
+    obtenerSuspensionDeClase: jest.fn().mockResolvedValue(null),
+    clasesJustificadas: jest.fn().mockResolvedValue([]),
     listarSuspensiones: jest.fn().mockResolvedValue([]),
   }) as unknown as PeriodosService;
 
@@ -196,6 +198,8 @@ describe('ClasesService asistencias atrasadas', () => {
     const porModalidad = {
       obtenerRangoActual: rangoPorModalidad,
       obtenerSuspension: jest.fn().mockResolvedValue(null),
+      obtenerSuspensionDeClase: jest.fn().mockResolvedValue(null),
+      clasesJustificadas: jest.fn().mockResolvedValue([]),
       listarSuspensiones: jest.fn().mockResolvedValue([]),
     } as unknown as PeriodosService;
     horarioFindMany.mockResolvedValue([

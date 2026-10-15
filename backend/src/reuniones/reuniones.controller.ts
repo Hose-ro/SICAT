@@ -23,6 +23,7 @@ import {
   CrearReunionDto,
   EditarReunionDto,
   GuardarActaDto,
+  JustificarClasesDto,
   ReunionQueryDto,
 } from './dto/reunion.dto';
 
@@ -101,6 +102,27 @@ export class ReunionesController {
   @Roles('DOCENTE')
   mias(@Req() req: AuthenticatedRequest) {
     return this.reuniones.mias(req.user.id);
+  }
+
+  /** Justifica las clases que se cruzan con la reunión, como un día sin clases. */
+  @Post(':id/justificaciones')
+  @Roles('DOCENTE')
+  justificar(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: JustificarClasesDto,
+  ) {
+    return this.reuniones.justificarClases(req.user.id, id, dto);
+  }
+
+  @Delete(':id/justificaciones/:horarioId')
+  @Roles('DOCENTE')
+  quitarJustificacion(
+    @Req() req: AuthenticatedRequest,
+    @Param('id', ParseIntPipe) id: number,
+    @Param('horarioId', ParseIntPipe) horarioId: number,
+  ) {
+    return this.reuniones.quitarJustificacion(req.user.id, id, horarioId);
   }
 
   @Get(':id/ics')

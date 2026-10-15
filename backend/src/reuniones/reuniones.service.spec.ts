@@ -6,6 +6,7 @@ import {
 import { PrismaService } from '../prisma.service';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import { ReunionesService } from './reuniones.service';
+import { ClasesJustificadasService } from './clases-justificadas.service';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 function clave(dias: number) {
@@ -20,7 +21,8 @@ describe('ReunionesService', () => {
   const reunionFindUnique = jest.fn();
   const reunionUpdate = jest.fn();
   const convocadoCount = jest.fn();
-  const crearParaVarios = jest.fn();
+  const crearVarias = jest.fn();
+  const choques = jest.fn();
   const prisma = {
     jefeCarreraAsignacion: { count: asignacionCount },
     usuario: { findMany: usuarioFindMany },
@@ -31,9 +33,11 @@ describe('ReunionesService', () => {
     },
     reunionConvocado: { count: convocadoCount },
   } as unknown as PrismaService;
-  const service = new ReunionesService(prisma, {
-    crearParaVarios,
-  } as unknown as NotificacionesService);
+  const service = new ReunionesService(
+    prisma,
+    { crearVarias } as unknown as NotificacionesService,
+    { choques } as unknown as ClasesJustificadasService,
+  );
 
   const base = {
     carreraId: 3,
@@ -82,6 +86,7 @@ describe('ReunionesService', () => {
       { id: 32, nombre: 'Beto' },
     ]);
     reunionCreate.mockImplementation(() => Promise.resolve(reunion()));
+    choques.mockResolvedValue(new Map());
   });
 
   it('convoca a todos los docentes de la carrera y les avisa', async () => {
@@ -93,12 +98,39 @@ describe('ReunionesService', () => {
       { docenteId: 31 },
       { docenteId: 32 },
     ]);
-    expect(crearParaVarios).toHaveBeenCalledWith(
-      [31, 32],
-      expect.objectContaining({
-        tipo: 'REUNION_ACADEMICA',
-        referenciaTipo: 'ReunionAcademica',
-      }),
+    expect(crearVarias).toHaveBeenCalledWith(
+      [31, 32].map(
+        (usuarioId) =>
+          expect.objectContaining({
+            usuarioId,
+            tipo: 'REUNION_ACADEMICA',
+            referenciaTipo: 'ReunionAcademica',
+          }) as unknown,
+      ),
+    );
+  });
+
+  it('avisa al convocado que la reunión se cruza con su clase', async () => {
+    const choque = {
+      horarioId: 7,
+      materia: { id: 1, nombre: 'Cálculo', clave: 'C1' },
+      grupo: { id: 2, nombre: '3A' },
+      horaInicio: '12:00',
+      horaFin: '13:00',
+      justificacion: null,
+      sinClases: null,
+      listaCapturada: false,
+    };
+    choques.mockResolvedValue(new Map([[31, [choque]]]));
+    await service.crear(9, base);
+    const [items] = crearVarias.mock.calls[0] as [
+      { usuarioId: number; mensaje: string }[],
+    ];
+    expect(items.find((i) => i.usuarioId === 31)?.mensaje).toContain(
+      'Se cruza con tu clase de Cálculo (3A, 12:00–13:00)',
+    );
+    expect(items.find((i) => i.usuarioId === 32)?.mensaje).not.toContain(
+      'Se cruza',
     );
   });
 

@@ -489,7 +489,7 @@ function EstadoClase({ clase, iniciando, onPasarLista }) {
         className="shrink-0 rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive-foreground"
         title={clase.suspensionMotivo ?? undefined}
       >
-        Sin clases
+        {clase.reunionId ? 'Reunión de academia' : 'Sin clases'}
       </span>
     )
   }

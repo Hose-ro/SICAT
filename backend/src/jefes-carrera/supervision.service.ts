@@ -226,10 +226,7 @@ export class SupervisionService {
       },
       select: { ...grupoCampos, createdAt: true },
     });
-    if (
-      !grupoEncontrado ||
-      !grupoPerteneceAPeriodo(grupoEncontrado, periodo)
-    )
+    if (!grupoEncontrado || !grupoPerteneceAPeriodo(grupoEncontrado, periodo))
       throw new NotFoundException(
         'Grupo fuera de la carrera o periodo seleccionado',
       );
@@ -285,62 +282,56 @@ export class SupervisionService {
       calendarios,
       reticula,
       cierres,
-    ] = await Promise.all(
-      [
-        this.ofertas(consulta.carreraId, grupoIdsPeriodo),
-        this.ofertas(consulta.carreraId),
-        this.prisma.grupo.findMany({
-          where: {
-            carreraId: consulta.carreraId,
-            id: { in: grupoIdsPeriodo },
-            activo: true,
-          },
-          select: {
-            ...grupoCampos,
-            _count: { select: { alumnos: { where: { activo: true } } } },
-          },
-          orderBy: [{ semestre: 'asc' }, { nombre: 'asc' }],
-        }),
-        this.prisma.grupo.findMany({
-          where: { carreraId: consulta.carreraId, activo: true },
-          select: {
-            ...grupoCampos,
-            createdAt: true,
-            _count: { select: { alumnos: { where: { activo: true } } } },
-          },
-          orderBy: [
-            { periodo: 'desc' },
-            { semestre: 'asc' },
-            { nombre: 'asc' },
-          ],
-        }),
-        this.calendarios(periodo),
-        this.prisma.materia.findMany({
-          where: { carreraId: consulta.carreraId },
-          select: {
-            id: true,
-            clave: true,
-            nombre: true,
-            semestre: true,
-            numUnidades: true,
-          },
-          orderBy: [{ semestre: 'asc' }, { nombre: 'asc' }],
-        }),
-        this.prisma.cierreCurso.findMany({
-          where: {
-            periodo,
-            materia: { carreraId: consulta.carreraId },
-            grupo: { carreraId: consulta.carreraId },
-          },
-          select: {
-            materiaId: true,
-            grupoId: true,
-            cerradoEn: true,
-            concentrado: true,
-          },
-        }),
-      ],
-    );
+    ] = await Promise.all([
+      this.ofertas(consulta.carreraId, grupoIdsPeriodo),
+      this.ofertas(consulta.carreraId),
+      this.prisma.grupo.findMany({
+        where: {
+          carreraId: consulta.carreraId,
+          id: { in: grupoIdsPeriodo },
+          activo: true,
+        },
+        select: {
+          ...grupoCampos,
+          _count: { select: { alumnos: { where: { activo: true } } } },
+        },
+        orderBy: [{ semestre: 'asc' }, { nombre: 'asc' }],
+      }),
+      this.prisma.grupo.findMany({
+        where: { carreraId: consulta.carreraId, activo: true },
+        select: {
+          ...grupoCampos,
+          createdAt: true,
+          _count: { select: { alumnos: { where: { activo: true } } } },
+        },
+        orderBy: [{ periodo: 'desc' }, { semestre: 'asc' }, { nombre: 'asc' }],
+      }),
+      this.calendarios(periodo),
+      this.prisma.materia.findMany({
+        where: { carreraId: consulta.carreraId },
+        select: {
+          id: true,
+          clave: true,
+          nombre: true,
+          semestre: true,
+          numUnidades: true,
+        },
+        orderBy: [{ semestre: 'asc' }, { nombre: 'asc' }],
+      }),
+      this.prisma.cierreCurso.findMany({
+        where: {
+          periodo,
+          materia: { carreraId: consulta.carreraId },
+          grupo: { carreraId: consulta.carreraId },
+        },
+        select: {
+          materiaId: true,
+          grupoId: true,
+          cerradoEn: true,
+          concentrado: true,
+        },
+      }),
+    ]);
     // Limit concurrent calculations; each report uses the existing criteria engine.
     const reportes: Array<Awaited<ReturnType<SupervisionService['reporte']>>> =
       [];
@@ -574,6 +565,7 @@ export class SupervisionService {
       calendarios,
       institucionales,
       suspensiones,
+      justificadas,
     ] = await Promise.all([
       this.prisma.horarioMateria.findMany({
         where: {
@@ -640,7 +632,23 @@ export class SupervisionService {
           },
         },
       }),
+      this.prisma.claseJustificada.findMany({
+        where: {
+          fecha: { gte: desde, lte: hasta },
+          horario: {
+            activo: true,
+            grupo: {
+              id: { in: grupoIdsPeriodo },
+              carreraId: consulta.carreraId,
+            },
+          },
+        },
+        select: { horarioId: true, fecha: true, motivo: true },
+      }),
     ]);
+    const justificadaPorClase = new Map(
+      justificadas.map((j) => [`${j.horarioId}:${j.fecha}`, j]),
+    );
     const ahora = new Date();
     const resultado: ClaseSupervision[] = [];
     const sesionPorClase = new Map(
@@ -665,7 +673,9 @@ export class SupervisionService {
           institucionales.find((s) => s.fecha === clave) ??
           suspensiones.find(
             (s) => s.fecha === clave && s.docenteId === horario.docenteId,
-          );
+          ) ??
+          // La clase que el docente justificó por una reunión de academia.
+          justificadaPorClase.get(`${horario.id}:${clave}`);
         const sesion = sesionPorClase.get(`${horario.id}:${clave}`);
         const inscritos = inscripciones.filter(
           (i) =>
@@ -837,10 +847,7 @@ export class SupervisionService {
       },
       select: { ...grupoCampos, createdAt: true },
     });
-    if (
-      !grupoEncontrado ||
-      !grupoPerteneceAPeriodo(grupoEncontrado, periodo)
-    )
+    if (!grupoEncontrado || !grupoPerteneceAPeriodo(grupoEncontrado, periodo))
       throw new NotFoundException(
         'Grupo fuera de la carrera o periodo seleccionado',
       );

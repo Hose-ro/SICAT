@@ -12,6 +12,11 @@ import { asegurarCarreraDeJefe } from '../common/materia-ownership';
 import { instanteEnZona, partesEnZona } from '../common/zona-horaria.util';
 import { construirEventoUnico } from '../calendario/ics';
 import {
+  ChoqueReunion,
+  ClasesJustificadasService,
+  DURACION_REUNION_DEFAULT_MIN,
+} from './clases-justificadas.service';
+import {
   CrearReunionDto,
   EditarReunionDto,
   GuardarActaDto,
@@ -27,13 +32,28 @@ const reunionInclude = {
     include: { docente: { select: docenteCampos } },
     orderBy: { docente: { nombre: 'asc' } },
   },
+  clasesJustificadas: {
+    select: {
+      docenteId: true,
+      motivo: true,
+      horario: {
+        select: {
+          id: true,
+          horaInicio: true,
+          horaFin: true,
+          materia: { select: { nombre: true } },
+          grupo: { select: { nombre: true } },
+        },
+      },
+    },
+    orderBy: { horario: { horaInicio: 'asc' } },
+  },
 } satisfies Prisma.ReunionAcademicaInclude;
 type ReunionCompleta = Prisma.ReunionAcademicaGetPayload<{
   include: typeof reunionInclude;
 }>;
 
-/** Duración que se asume cuando la convocatoria no dice a qué hora termina. */
-const DURACION_DEFAULT_MIN = 60;
+const DURACION_DEFAULT_MIN = DURACION_REUNION_DEFAULT_MIN;
 
 function instante(fecha: string, hora: string) {
   const [year, month, day] = fecha.split('-').map(Number);
@@ -78,11 +98,21 @@ function dondeTexto(r: {
 
 const limpio = (texto: string | null | undefined) => texto?.trim() || null;
 
+/** "Se cruza con tu clase de Cálculo (3A, 10:00–11:00)…" para la notificación. */
+function textoChoques(choques: ChoqueReunion[]) {
+  const clase = (c: ChoqueReunion) =>
+    `${c.materia.nombre} (${c.grupo ? `${c.grupo.nombre}, ` : ''}${c.horaInicio}–${c.horaFin})`;
+  return choques.length === 1
+    ? `Se cruza con tu clase de ${clase(choques[0])}: puedes justificarla desde Reuniones.`
+    : `Se cruza con ${choques.length} de tus clases (${choques.map(clase).join('; ')}): puedes justificarlas desde Reuniones.`;
+}
+
 @Injectable()
 export class ReunionesService {
   constructor(
     private prisma: PrismaService,
     private notificaciones: NotificacionesService,
+    private justificadas: ClasesJustificadasService,
   ) {}
 
   /**
@@ -137,16 +167,38 @@ export class ReunionesService {
       include: reunionInclude,
       orderBy: [{ fecha: 'desc' }, { horaInicio: 'desc' }],
     });
-    return reuniones.map((r) => {
-      const propia = r.convocados.find((c) => c.docenteId === docenteId);
-      // El docente ve el acta, no la lista de asistencia de sus compañeros.
-      const { convocados, ...resto } = this.serializar(r);
-      return {
-        ...resto,
-        totalConvocados: convocados.length,
-        miAsistencia: propia?.asistio ?? null,
-      };
-    });
+    return Promise.all(
+      reuniones.map(async (r) => {
+        const propia = r.convocados.find((c) => c.docenteId === docenteId);
+        // El docente ve el acta, no la lista de asistencia de sus compañeros.
+        const { convocados, clasesJustificadas, ...resto } = this.serializar(r);
+        void clasesJustificadas;
+        return {
+          ...resto,
+          totalConvocados: convocados.length,
+          miAsistencia: propia?.asistio ?? null,
+          // Sus clases a la misma hora, para justificar que no las dará.
+          choques:
+            r.estado === 'CANCELADA'
+              ? []
+              : ((await this.justificadas.choques([docenteId], r)).get(
+                  docenteId,
+                ) ?? []),
+        };
+      }),
+    );
+  }
+
+  justificarClases(
+    docenteId: number,
+    id: number,
+    dto: { horarioIds: number[]; motivo: string },
+  ) {
+    return this.justificadas.justificar(docenteId, id, dto);
+  }
+
+  quitarJustificacion(docenteId: number, id: number, horarioId: number) {
+    return this.justificadas.quitar(docenteId, id, horarioId);
   }
 
   async crear(usuarioId: number, dto: CrearReunionDto) {
@@ -186,7 +238,7 @@ export class ReunionesService {
       include: reunionInclude,
     });
 
-    await this.notificar(
+    await this.convocar(
       convocados,
       reunion,
       `Reunión de academia: ${reunion.titulo}`,
@@ -268,26 +320,34 @@ export class ReunionesService {
       });
     });
 
+    // Lo justificado que ya no se cruza (otro horario, docente quitado) se cae.
+    const retiradas = await this.justificadas.retirarInvalidas(
+      reunion,
+      convocados,
+    );
     const cuando = `el ${fechaTexto(reunion.fecha)} a las ${reunion.horaInicio}, ${dondeTexto(reunion)}`;
-    await this.notificar(
+    await this.convocar(
       nuevos,
       reunion,
       `Reunión de academia: ${reunion.titulo}`,
       `Se te convoca ${cuando}.`,
     );
     if (cambioLogistica) {
-      await this.notificar(
+      await this.convocar(
         convocados.filter((d) => !nuevos.includes(d)),
         reunion,
         `Cambió la reunión: ${reunion.titulo}`,
         `Ahora es ${cuando}.`,
+        retiradas,
       );
     }
-    await this.notificar(
+    await this.convocar(
       quitados,
       reunion,
       `Ya no estás convocado: ${reunion.titulo}`,
       `La jefatura te quitó de la reunión del ${fechaTexto(reunion.fecha)}.`,
+      retiradas,
+      { sinChoques: true },
     );
     return this.serializar(reunion);
   }
@@ -304,11 +364,14 @@ export class ReunionesService {
       data: { estado: 'CANCELADA' },
       include: reunionInclude,
     });
-    await this.notificar(
+    const retiradas = await this.justificadas.retirarInvalidas(reunion, []);
+    await this.convocar(
       reunion.convocados.map((c) => c.docenteId),
       reunion,
       `Reunión cancelada: ${reunion.titulo}`,
       `Se canceló la reunión del ${fechaTexto(reunion.fecha)} a las ${reunion.horaInicio}.`,
+      retiradas,
+      { sinChoques: true },
     );
     return this.serializar(reunion);
   }
@@ -508,6 +571,55 @@ export class ReunionesService {
     return ids;
   }
 
+  /**
+   * Notifica a cada docente y, si la reunión se cruza con alguna de sus
+   * clases sin justificar, se lo dice para que la justifique. `retiradas`
+   * agrega las justificaciones que se cayeron con el cambio.
+   */
+  private async convocar(
+    docenteIds: number[],
+    reunion: {
+      id: number;
+      fecha: string;
+      horaInicio: string;
+      horaFin: string | null;
+    },
+    titulo: string,
+    mensaje: string,
+    retiradas = new Map<number, string[]>(),
+    { sinChoques = false } = {},
+  ) {
+    const ids = [...new Set(docenteIds)];
+    if (!ids.length) return;
+    const choques = sinChoques
+      ? new Map<number, ChoqueReunion[]>()
+      : await this.justificadas.choques(ids, reunion);
+    await this.notificaciones.crearVarias(
+      ids.map((docenteId) => {
+        const pendientes = (choques.get(docenteId) ?? []).filter(
+          (c) => !c.justificacion && !c.sinClases && !c.listaCapturada,
+        );
+        const caidas = retiradas.get(docenteId) ?? [];
+        return {
+          usuarioId: docenteId,
+          tipo: TipoNotificacion.REUNION_ACADEMICA,
+          titulo: titulo.slice(0, 200),
+          mensaje: [
+            mensaje,
+            pendientes.length ? textoChoques(pendientes) : null,
+            caidas.length
+              ? `Se retiró la justificación de ${caidas.join(', ')}: ${caidas.length === 1 ? 'esa clase se imparte' : 'esas clases se imparten'} normalmente.`
+              : null,
+          ]
+            .filter(Boolean)
+            .join(' '),
+          referenciaId: reunion.id,
+          referenciaTipo: 'ReunionAcademica',
+        };
+      }),
+    );
+  }
+
   private async notificar(
     docenteIds: number[],
     reunion: { id: number },
@@ -556,6 +668,19 @@ export class ReunionesService {
       convocados: r.convocados.map((c) => ({
         ...c.docente,
         asistio: c.asistio,
+      })),
+      // Clases que los convocados justificaron por esta reunión.
+      clasesJustificadas: (r.clasesJustificadas ?? []).map((j) => ({
+        docenteId: j.docenteId,
+        docente:
+          r.convocados.find((c) => c.docenteId === j.docenteId)?.docente
+            .nombre ?? null,
+        motivo: j.motivo,
+        horarioId: j.horario.id,
+        materia: j.horario.materia.nombre,
+        grupo: j.horario.grupo?.nombre ?? null,
+        horaInicio: j.horario.horaInicio,
+        horaFin: j.horario.horaFin,
       })),
       asistencia: {
         convocados: r.convocados.length,

@@ -29,6 +29,7 @@ describe('AsistenciasService filtros de historial', () => {
   const notificaciones = {} as unknown as NotificacionesService;
   const periodos = {
     listarSuspensionesDeDocentes,
+    clasesJustificadas: jest.fn().mockResolvedValue([]),
   } as unknown as PeriodosService;
   const service = new AsistenciasService(prisma, notificaciones, periodos);
 
@@ -152,6 +153,7 @@ describe('AsistenciasService.obtenerAsistenciasAlumno (IDOR)', () => {
   const notificaciones = {} as unknown as NotificacionesService;
   const periodos = {
     listarSuspensionesDeDocentes,
+    clasesJustificadas: jest.fn().mockResolvedValue([]),
   } as unknown as PeriodosService;
   const service = new AsistenciasService(prisma, notificaciones, periodos);
 
@@ -280,7 +282,10 @@ describe('AsistenciasService rangos de día, semana y mes', () => {
   const service = new AsistenciasService(
     prisma,
     {} as unknown as NotificacionesService,
-    { listarSuspensionesDeDocentes } as unknown as PeriodosService,
+    {
+      listarSuspensionesDeDocentes,
+      clasesJustificadas: jest.fn().mockResolvedValue([]),
+    } as unknown as PeriodosService,
   );
   const docente = { id: 9, rol: 'DOCENTE' } as never;
 
@@ -378,6 +383,7 @@ describe('AsistenciasService días sin clases', () => {
   } as unknown as PrismaService;
   const periodos = {
     listarSuspensionesDeDocentes,
+    clasesJustificadas: jest.fn().mockResolvedValue([]),
     obtenerSuspension,
   } as unknown as PeriodosService;
   const service = new AsistenciasService(

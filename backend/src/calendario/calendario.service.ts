@@ -166,7 +166,7 @@ export class CalendarioService {
         : [];
 
     const docenteIds = [...new Set(horarios.map((h) => h.docenteId))];
-    const [propias, institucionales, tareas] = await Promise.all([
+    const [propias, institucionales, justificadas, tareas] = await Promise.all([
       this.prisma.suspensionClase.findMany({
         where: { docenteId: { in: docenteIds }, periodoClave: { in: claves } },
         select: { docenteId: true, fecha: true },
@@ -174,6 +174,13 @@ export class CalendarioService {
       this.prisma.suspensionInstitucional.findMany({
         where: { periodoClave: { in: claves } },
         select: { fecha: true, motivo: true },
+      }),
+      this.prisma.claseJustificada.findMany({
+        where: {
+          horarioId: { in: horarios.map((h) => h.id) },
+          periodoClave: { in: claves },
+        },
+        select: { horarioId: true, fecha: true },
       }),
       esDocente
         ? this.tareasDocente(usuario.id, inicio)
@@ -198,6 +205,9 @@ export class CalendarioService {
           ...institucionales.map((s) => s.fecha),
           ...propias
             .filter((s) => s.docenteId === horario.docenteId)
+            .map((s) => s.fecha),
+          ...justificadas
+            .filter((s) => s.horarioId === horario.id)
             .map((s) => s.fecha),
         ],
       };

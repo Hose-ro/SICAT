@@ -38,6 +38,9 @@ export default function ProximasReuniones() {
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm text-foreground">{r.titulo}</span>
                   <span className="block truncate text-xs text-muted-foreground">{horarioReunion(r)} · {lugarReunion(r)}</span>
+                  {r.choques?.some((c) => !c.justificacion && !c.sinClases && !c.listaCapturada) && (
+                    <span className="mt-0.5 block text-xs font-medium text-warning-foreground">Se cruza con tu clase · justifícala</span>
+                  )}
                 </span>
                 <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
               </Link>

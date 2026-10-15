@@ -179,3 +179,20 @@ export class GuardarActaDto {
   @Transform(toBoolean)
   finalizar?: boolean;
 }
+
+/** Clases que el docente no dará por la reunión, con el porqué. */
+export class JustificarClasesDto {
+  @V.Min(1, { each: true })
+  @V.Max(2147483647, { each: true })
+  @V.ArrayMaxSize(20)
+  @V.ArrayMinSize(1, { message: 'Elige al menos una clase' })
+  @V.IsArray()
+  @V.IsInt({ each: true })
+  horarioIds: number[];
+
+  @V.Matches(/\S/, { message: 'Escribe por qué no darás la clase' })
+  @V.MaxLength(500)
+  @SanitizeText()
+  @V.IsString()
+  motivo: string;
+}

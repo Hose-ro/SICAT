@@ -282,6 +282,7 @@ model Usuario {
   participacionesDadas  Participacion[]            @relation("ParticipacionDocente")
   reunionesCreadas      ReunionAcademica[]         @relation("ReunionCreador")
   reunionesConvocado    ReunionConvocado[]
+  clasesJustificadas    ClaseJustificada[]
 }
 
 model AuthToken {
@@ -500,23 +501,24 @@ model MateriaPausada {
 }
 
 model HorarioMateria {
-  id            Int           @id @default(autoincrement())
-  materiaId     Int
-  docenteId     Int
-  aulaId        Int?
-  grupoId       Int?
-  dias          String
-  horaInicio    String
-  horaFin       String
-  semestre      Int?
-  activo        Boolean       @default(true)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  materia       Materia       @relation(fields: [materiaId], references: [id], onDelete: Cascade)
-  docente       Usuario       @relation("HorarioDocente", fields: [docenteId], references: [id])
-  aula          Aula?         @relation("HorarioAula", fields: [aulaId], references: [id])
-  grupo         Grupo?        @relation("HorarioGrupo", fields: [grupoId], references: [id])
-  claseSesiones ClaseSesion[]
+  id              Int                @id @default(autoincrement())
+  materiaId       Int
+  docenteId       Int
+  aulaId          Int?
+  grupoId         Int?
+  dias            String
+  horaInicio      String
+  horaFin         String
+  semestre        Int?
+  activo          Boolean            @default(true)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  materia         Materia            @relation(fields: [materiaId], references: [id], onDelete: Cascade)
+  docente         Usuario            @relation("HorarioDocente", fields: [docenteId], references: [id])
+  aula            Aula?              @relation("HorarioAula", fields: [aulaId], references: [id])
+  grupo           Grupo?             @relation("HorarioGrupo", fields: [grupoId], references: [id])
+  claseSesiones   ClaseSesion[]
+  justificaciones ClaseJustificada[]
 
   @@index([materiaId, activo])
   @@index([docenteId, activo])
@@ -1059,28 +1061,29 @@ model IncorporacionJefatura {
 /// convocados con su asistencia y acuerdos del acta. `fecha` es AAAA-MM-DD y
 /// las horas HH:MM, en hora local del plantel, igual que los horarios.
 model ReunionAcademica {
-  id            Int                @id @default(autoincrement())
-  carreraId     Int
-  creadaPorId   Int?
-  titulo        String             @db.VarChar(200)
-  asunto        String?            @db.VarChar(2000)
-  tipo          TipoReunion        @default(ORDINARIA)
-  numeroActa    String?            @db.VarChar(50)
-  fecha         String             @db.VarChar(10)
-  horaInicio    String             @db.VarChar(5)
-  horaFin       String?            @db.VarChar(5)
-  modalidad     ModalidadReunion   @default(PRESENCIAL)
-  lugar         String?            @db.VarChar(255)
-  enlace        String?            @db.VarChar(255)
-  estado        EstadoReunion      @default(PROGRAMADA)
-  observaciones String?            @db.VarChar(5000)
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
-  carrera       Carrera            @relation(fields: [carreraId], references: [id], onDelete: Cascade)
-  creadaPor     Usuario?           @relation("ReunionCreador", fields: [creadaPorId], references: [id], onDelete: SetNull)
-  puntos        ReunionPunto[]
-  convocados    ReunionConvocado[]
-  acuerdos      ReunionAcuerdo[]
+  id                 Int                @id @default(autoincrement())
+  carreraId          Int
+  creadaPorId        Int?
+  titulo             String             @db.VarChar(200)
+  asunto             String?            @db.VarChar(2000)
+  tipo               TipoReunion        @default(ORDINARIA)
+  numeroActa         String?            @db.VarChar(50)
+  fecha              String             @db.VarChar(10)
+  horaInicio         String             @db.VarChar(5)
+  horaFin            String?            @db.VarChar(5)
+  modalidad          ModalidadReunion   @default(PRESENCIAL)
+  lugar              String?            @db.VarChar(255)
+  enlace             String?            @db.VarChar(255)
+  estado             EstadoReunion      @default(PROGRAMADA)
+  observaciones      String?            @db.VarChar(5000)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  carrera            Carrera            @relation(fields: [carreraId], references: [id], onDelete: Cascade)
+  creadaPor          Usuario?           @relation("ReunionCreador", fields: [creadaPorId], references: [id], onDelete: SetNull)
+  puntos             ReunionPunto[]
+  convocados         ReunionConvocado[]
+  acuerdos           ReunionAcuerdo[]
+  clasesJustificadas ClaseJustificada[]
 
   @@index([carreraId, fecha])
 }
@@ -1106,6 +1109,28 @@ model ReunionConvocado {
 
   @@id([reunionId, docenteId])
   @@index([docenteId])
+}
+
+/// Una clase concreta (horario + fecha) que el docente no impartió porque se
+/// cruzaba con una reunión de academia a la que estaba convocado. Cuenta como
+/// un día sin clases, pero sólo para ese horario: el resto del día sigue igual.
+model ClaseJustificada {
+  id           Int              @id @default(autoincrement())
+  periodoClave String
+  docenteId    Int
+  horarioId    Int
+  reunionId    Int
+  fecha        String           @db.VarChar(10)
+  motivo       String           @db.VarChar(500)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  docente      Usuario          @relation(fields: [docenteId], references: [id], onDelete: Cascade)
+  horario      HorarioMateria   @relation(fields: [horarioId], references: [id], onDelete: Cascade)
+  reunion      ReunionAcademica @relation(fields: [reunionId], references: [id], onDelete: Cascade)
+
+  @@unique([horarioId, fecha])
+  @@index([docenteId, fecha])
+  @@index([reunionId])
 }
 
 /// Acuerdo del acta, con su responsable y fecha límite.
