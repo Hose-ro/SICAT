@@ -623,11 +623,18 @@ function ModalDetalleGrupo({ grupo, onClose }) {
   }
 
   const quitarAlumno = useAsyncAction(async (alumno) => {
-    if (!(await confirmAction(`¿Quitar a ${alumno.nombre} de este grupo?`))) return
+    const pregunta = alumno.externo
+      ? `¿Quitar a ${alumno.nombre} de ${materiasDelExterno(alumno)}? Su grupo de origen no cambia.`
+      : `¿Quitar a ${alumno.nombre} de este grupo?`
+    if (!(await confirmAction(pregunta))) return
     setError('')
     try {
       await api.delete(`/grupos/mis-grupos/${grupo.id}/alumnos/${alumno.id}`)
-      setAviso(`${alumno.nombre} salió del grupo.`)
+      setAviso(
+        alumno.externo
+          ? `${alumno.nombre} salió de ${materiasDelExterno(alumno)}.`
+          : `${alumno.nombre} salió del grupo.`,
+      )
       await cargarDetalle()
     } catch (err) {
       setError(mensajeError(err, 'No se pudo quitar al alumno'))
@@ -823,6 +830,14 @@ function ModalDetalleGrupo({ grupo, onClose }) {
                           <p className="flex items-center gap-2 truncate text-sm font-medium text-foreground">
                             <SexoBadge sexo={alumno.sexo} />
                             <span className="truncate">{alumno.nombre}</span>
+                            {alumno.externo && (
+                              <span
+                                title="Agregado de fuera del grupo: sólo está en esta materia"
+                                className="inline-flex shrink-0 items-center rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary-ink"
+                              >
+                                Sólo en {materiasDelExterno(alumno)}
+                              </span>
+                            )}
                             {datosIncompletos && (
                               <span className="inline-flex shrink-0 items-center rounded-full bg-warning/15 px-2 py-0.5 text-[11px] font-medium text-warning-foreground">
                                 Datos incompletos
@@ -890,6 +905,11 @@ function ModalDetalleGrupo({ grupo, onClose }) {
       )}
     </Modal>
   )
+}
+
+/** Materias del docente en las que está un alumno agregado de fuera del grupo. */
+function materiasDelExterno(alumno) {
+  return (alumno.materias ?? []).map((materia) => materia.nombre).join(', ')
 }
 
 function ModalEditarAlumnoGrupo({ grupo, alumno, onClose, onGuardado }) {
