@@ -56,6 +56,8 @@ enum TipoAlertaCarrera {
   MATERIA_SIN_HORARIO
   UNIDAD_ATRASADA
   ALUMNO_RIESGO
+  CALIFICACIONES_PENDIENTES
+  SEGUIMIENTO_DOCENTE
 }
 
 enum EstadoAlertaCarrera {
@@ -249,6 +251,7 @@ model Usuario {
   incorporacionesJefe   IncorporacionJefatura[]
   carrerasJefe          JefeCarreraAsignacion[]
   alertasResponsable    AlertaCarrera[]            @relation("AlertaCarreraResponsable")
+  seguimientoNotas      SeguimientoNota[]
   authTokens            AuthToken[]
   authEventos           AuthAudit[]
   sesiones              Sesion[]
@@ -333,14 +336,35 @@ model AlertaCarrera {
   observacion      String?
   fechaSeguimiento DateTime?
   carreraId        Int
+  /// Periodo escolar ("2026-B") al que pertenece el seguimiento.
+  periodo          String?
   responsableId    Int?
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
   carrera          Carrera             @relation(fields: [carreraId], references: [id], onDelete: Cascade)
   responsable      Usuario?            @relation("AlertaCarreraResponsable", fields: [responsableId], references: [id])
+  notas            SeguimientoNota[]
 
   @@index([carreraId, estado, createdAt])
+  @@index([carreraId, periodo, estado])
   @@index([responsableId])
+}
+
+/// Historial de seguimiento de jefatura: cada nota queda con su autor, el
+/// estado que dejó y la fecha en que se revisará de nuevo. No se edita.
+model SeguimientoNota {
+  id            Int                 @id @default(autoincrement())
+  alertaId      Int
+  autorId       Int?
+  texto         String              @db.VarChar(2000)
+  estado        EstadoAlertaCarrera
+  fechaRevision DateTime?
+  createdAt     DateTime            @default(now())
+  alerta        AlertaCarrera       @relation(fields: [alertaId], references: [id], onDelete: Cascade)
+  autor         Usuario?            @relation(fields: [autorId], references: [id], onDelete: SetNull)
+
+  @@index([alertaId, createdAt])
+  @@index([autorId])
 }
 
 /// Fechas reales del periodo escolar. Una fila por clave de periodo ("2026-B")
@@ -723,7 +747,8 @@ model CalificacionUnidad {
   calificacionManual  Float?
   observacion         String?
   /// Evaluación de segunda oportunidad (TecNM) de una unidad no alcanzada en
-  /// la primera. `segundaNoPresento` la deja como no alcanzada sin calificación.
+  /// la primera. `segundaNoPresento`: el docente la reprobó sin calificación
+  /// (en pantalla, "Reprobar"; p. ej. no se presentó).
   calificacionSegunda Float?
   segundaNoPresento   Boolean  @default(false)
   docenteId           Int?

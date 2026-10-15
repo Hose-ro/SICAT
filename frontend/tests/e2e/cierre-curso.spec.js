@@ -85,12 +85,16 @@ test('la segunda oportunidad desbloquea el cierre y el curso se cierra y reabre'
   await expect(page.getByText('1 alumno tiene segunda oportunidad sin capturar.')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Cerrar curso' })).toBeDisabled()
 
-  const campo = page.getByLabel('Segunda oportunidad de Luis Pérez en Unidad 1')
+  // Luis es el único que falta decidir; Marta ya está reprobada.
+  await expect(page.getByText('Reprobado', { exact: true })).toHaveCount(1)
+  const campo = page.getByRole('textbox', { name: 'Calificación' })
   await campo.fill('120')
-  await expect(page.getByText('Entre 0 y 100')).toBeVisible()
+  await expect(page.getByText('Escribe un número de 0 a 100')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Guardar', exact: true })).toBeDisabled()
+  await campo.fill('65')
+  await expect(page.getByText('Reprueba la unidad (menos de 70)')).toBeVisible()
   await campo.fill('72')
-  await expect(page.getByText('Alcanzada', { exact: false }).first()).toBeVisible()
+  await expect(page.getByText('Acredita la unidad con 72')).toBeVisible()
   await page.getByRole('button', { name: 'Guardar', exact: true }).click()
   await expect(page.getByText('Guardaste 1 calificación de segunda oportunidad.')).toBeVisible()
   expect(llamadas.find((item) => item.metodo === 'PATCH').cuerpo).toEqual({
@@ -106,7 +110,8 @@ test('la segunda oportunidad desbloquea el cierre y el curso se cierra y reabre'
   await expect(dialogo).toContainText('2 acreditados y 1 no acreditado')
   await dialogo.getByRole('button', { name: 'Cerrar curso' }).click()
   await expect(page.getByRole('heading', { name: 'Curso cerrado' })).toBeVisible()
-  await expect(page.getByLabel('Segunda oportunidad de Luis Pérez en Unidad 1')).toBeDisabled()
+  await expect(page.getByRole('textbox', { name: 'Calificación' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: /^Reprobar/ })).toHaveCount(0)
 
   await page.getByRole('button', { name: 'Reabrir curso' }).click()
   await page.getByRole('dialog', { name: 'Reabrir el curso' }).getByRole('button', { name: 'Reabrir' }).click()
@@ -114,13 +119,31 @@ test('la segunda oportunidad desbloquea el cierre y el curso se cierra y reabre'
   expect(llamadas.map((item) => item.metodo)).toEqual(expect.arrayContaining(['POST', 'DELETE']))
 })
 
-test('"No se presentó" deja la unidad no alcanzada y se manda sin calificación', async ({ page }) => {
+test('reprobar deja la unidad sin calificación, se puede deshacer y se manda así', async ({ page }) => {
   const llamadas = await abrir(page)
-  await page.getByRole('checkbox', { name: 'No se presentó' }).first().check()
-  await expect(page.getByLabel('Segunda oportunidad de Luis Pérez en Unidad 1')).toBeDisabled()
+  await page.getByRole('button', { name: 'Reprobar a Luis Pérez en Unidad 1' }).click()
+  await expect(page.getByText('Reprobado', { exact: true })).toHaveCount(2)
+  await expect(page.getByText(/^Reprueba la unidad(Sin guardar)?$/)).toHaveCount(2)
+  await page.getByRole('button', { name: 'Deshacer: quitar el reprobado de Luis Pérez en Unidad 1' }).click()
+  await expect(page.getByRole('textbox', { name: 'Calificación' })).toBeVisible()
+
+  // El atajo de la unidad reprueba sólo a los que faltan decidir.
+  await page.getByRole('button', { name: 'Reprobar al que falta' }).click()
   await page.getByRole('button', { name: 'Guardar', exact: true }).click()
   await expect(page.getByText('Guardaste 1 calificación')).toBeVisible()
-  expect(llamadas.find((item) => item.metodo === 'PATCH').cuerpo.capturas[0]).toMatchObject({ noPresento: true, calificacion: null })
+  expect(llamadas.find((item) => item.metodo === 'PATCH').cuerpo.capturas).toEqual([
+    { alumnoId: 2, unidadId: 11, noPresento: true, calificacion: null },
+  ])
+  await expect(page.getByRole('region', { name: 'Concentrado de calificaciones' }).getByRole('row', { name: /Luis Pérez/ })).toContainText('NA')
+})
+
+test('acepta la calificación con coma decimal', async ({ page }) => {
+  const llamadas = await abrir(page)
+  await page.getByRole('textbox', { name: 'Calificación' }).fill('85,5')
+  await expect(page.getByText('Acredita la unidad con 85.5')).toBeVisible()
+  await page.getByRole('button', { name: 'Guardar', exact: true }).click()
+  await expect(page.getByText('Guardaste 1 calificación')).toBeVisible()
+  expect(llamadas.find((item) => item.metodo === 'PATCH').cuerpo.capturas[0].calificacion).toBe(85.5)
 })
 
 test('descarga el concentrado preliminar', async ({ page }) => {

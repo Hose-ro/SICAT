@@ -59,7 +59,7 @@ function fechaHora(valor: Date | string) {
 
 function textoUnidad(celda: CeldaUnidad | undefined) {
   if (!celda || celda.estado === 'SIN_CALIFICAR') return '';
-  if (celda.calificacion == null) return 'NP';
+  if (celda.calificacion == null) return 'NA';
   const valor = Math.round(celda.calificacion * 10) / 10;
   return celda.oportunidad === 2 ? `${valor} (2ª)` : `${valor}`;
 }
@@ -122,7 +122,7 @@ export async function excelConcentrado(
   };
   for (const fila of encabezado(datos)) hoja.addRow([...fila]);
   hoja.addRow([
-    'Unidades marcadas con (2ª) se acreditaron o evaluaron en segunda oportunidad. NP: no se presentó a la segunda oportunidad. NA: no acreditado.',
+    '(2ª): calificación de segunda oportunidad. NA en una unidad: reprobada en segunda oportunidad; NA en la final: curso no acreditado.',
   ]);
   hoja.addRow([]);
 
@@ -306,7 +306,7 @@ export function pdfConcentrado(datos: DatosConcentrado): Promise<Buffer> {
       .fontSize(8)
       .fillColor('#6a7790')
       .text(
-        '(2ª) segunda oportunidad · NP no se presentó · NA no acreditado. Generado por SICAT; no sustituye el acta oficial.',
+        '(2ª) segunda oportunidad · NA reprobada o no acreditado. Generado por SICAT; no sustituye el acta oficial.',
       );
     doc.end();
   });

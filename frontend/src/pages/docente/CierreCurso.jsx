@@ -43,9 +43,11 @@ function borradoresDe(datos) {
   return borradores
 }
 
+const aNumero = (texto) => Number(String(texto).trim().replace(',', '.'))
+
 function invalida({ calificacion, noPresento }) {
   if (noPresento || calificacion.trim() === '') return false
-  const valor = Number(calificacion)
+  const valor = aNumero(calificacion)
   return !Number.isFinite(valor) || valor < 0 || valor > 100
 }
 
@@ -127,7 +129,7 @@ export default function CierreCurso() {
         capturas: cambiados.map((llave) => {
           const [alumnoId, unidadId] = llave.split(':').map(Number)
           const { calificacion, noPresento } = borradores[llave]
-          return { alumnoId, unidadId, noPresento, calificacion: noPresento || calificacion.trim() === '' ? null : Number(calificacion) }
+          return { alumnoId, unidadId, noPresento, calificacion: noPresento || calificacion.trim() === '' ? null : aNumero(calificacion) }
         }),
       })
       aplicar(data)
@@ -345,6 +347,11 @@ function Estado({ datos, accion, onCerrar, onReabrir, onDescargar }) {
   )
 }
 
+/**
+ * Lo que decide el docente por cada alumno que no alcanzó la unidad: le pone
+ * la calificación de segunda oportunidad o lo reprueba (sin calificación).
+ * En los datos, "reprobar" es `noPresento`.
+ */
 function SegundaOportunidad({ datos, borradores, servidor, cerrado, onCambiar }) {
   const porUnidad = datos.unidades
     .map((unidad) => ({
@@ -359,59 +366,100 @@ function SegundaOportunidad({ datos, borradores, servidor, cerrado, onCambiar })
   return (
     <section aria-labelledby="segunda-oportunidad" className="rounded-[var(--radius-card)] border border-border bg-card p-5 sm:p-6">
       <h2 id="segunda-oportunidad" className="text-lg font-semibold text-foreground">Segunda oportunidad</h2>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Alumnos que no alcanzaron {datos.aprobatoria} en la primera oportunidad de una unidad. Su calificación de segunda oportunidad es la que cuenta para el curso.
-        {cerrado && ' El curso está cerrado: reábrelo para cambiarlas.'}
+      <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+        Estos alumnos sacaron menos de {datos.aprobatoria} en la unidad. Ponles la calificación de su segunda oportunidad
+        (con {datos.aprobatoria} o más acreditan la unidad) o repruébalos.
+        {cerrado && ' El curso está cerrado: reábrelo para cambiar algo.'}
       </p>
-      <div className="mt-4 space-y-5">
-        {porUnidad.map(({ unidad, filas }) => (
-          <div key={unidad.id}>
-            <h3 className="text-sm font-semibold text-foreground">
-              {unidad.nombre} <span className="font-normal text-muted-foreground">· {plural(filas.length, 'alumno', 'alumnos')}</span>
-            </h3>
-            <ul className="mt-2 divide-y divide-border border-y border-border">
-              {filas.map(({ item, celda }) => {
-                const llave = clave(item.alumno.id, unidad.id)
-                const borrador = borradores[llave] ?? { calificacion: '', noPresento: false }
-                const mal = invalida(borrador)
-                const valor = Number(borrador.calificacion)
-                const capturada = !borrador.noPresento && borrador.calificacion.trim() !== '' && !mal
-                const sinGuardar = borrador.calificacion !== servidor[llave]?.calificacion || borrador.noPresento !== servidor[llave]?.noPresento
-                const id = `segunda-${llave.replace(':', '-')}`
-                return (
-                  <li key={llave} className="grid grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-x-4 gap-y-2 py-3 sm:grid-cols-[minmax(0,1fr)_7rem_auto_8rem]">
-                    <div className="col-span-2 min-w-0 sm:col-span-1">
-                      <p className="text-sm font-medium text-foreground">{item.alumno.nombre}</p>
-                      <p className="text-xs tabular-nums text-muted-foreground">
-                        {item.alumno.numeroControl ?? 'Sin número de control'} · 1ª oportunidad <span className="font-medium text-destructive-foreground">{nota(celda.primera)}</span>
-                      </p>
-                    </div>
-                    <div>
-                      <label htmlFor={id} className="sr-only">Segunda oportunidad de {item.alumno.nombre} en {unidad.nombre}</label>
-                      <input id={id} type="number" inputMode="decimal" min={0} max={100} step="0.1" placeholder="2ª"
-                        className={CAMPO} disabled={cerrado || borrador.noPresento} aria-invalid={mal}
-                        value={borrador.noPresento ? '' : borrador.calificacion}
-                        onChange={(event) => onCambiar(llave, { calificacion: event.target.value })} />
-                    </div>
-                    <label className="flex min-h-9 items-center gap-2 text-sm text-foreground">
-                      <input type="checkbox" className="size-4 accent-[var(--primary)]" disabled={cerrado} checked={borrador.noPresento}
-                        onChange={(event) => onCambiar(llave, { noPresento: event.target.checked })} />
-                      No se presentó
-                    </label>
-                    <p className={cn('col-span-2 text-xs font-medium sm:col-span-1', mal ? 'text-destructive-foreground'
-                      : borrador.noPresento || (capturada && valor < datos.aprobatoria) ? 'text-destructive-foreground'
-                        : capturada ? 'text-success-foreground' : 'text-warning-foreground')}>
-                      {mal ? 'Entre 0 y 100' : borrador.noPresento ? 'No alcanzada' : capturada ? (valor >= datos.aprobatoria ? 'Alcanzada' : 'No alcanzada') : 'Por capturar'}
-                      {sinGuardar && !mal && <span className="font-normal text-muted-foreground"> · sin guardar</span>}
-                    </p>
-                  </li>
-                )
-              })}
-            </ul>
-          </div>
-        ))}
+      <div className="mt-4 space-y-6">
+        {porUnidad.map(({ unidad, filas }) => {
+          const faltan = filas.filter(({ item }) => {
+            const borrador = borradores[clave(item.alumno.id, unidad.id)]
+            return borrador && !borrador.noPresento && borrador.calificacion.trim() === ''
+          })
+          return (
+            <div key={unidad.id}>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold text-foreground">
+                  {unidad.nombre} <span className="font-normal text-muted-foreground">· {plural(filas.length, 'alumno', 'alumnos')}</span>
+                </h3>
+                {!cerrado && faltan.length > 0 && (
+                  <Button variant="ghost" type="button" className="h-8 px-2 text-sm text-destructive-foreground hover:bg-destructive/10 hover:text-destructive-foreground"
+                    onClick={() => faltan.forEach(({ item }) => onCambiar(clave(item.alumno.id, unidad.id), { noPresento: true, calificacion: '' }))}>
+                    {faltan.length === filas.length ? 'Reprobar a todos' : faltan.length === 1 ? 'Reprobar al que falta' : `Reprobar a los ${faltan.length} que faltan`}
+                  </Button>
+                )}
+              </div>
+              <ul className="mt-2 divide-y divide-border border-y border-border">
+                {filas.map(({ item, celda }) => (
+                  <FilaSegunda key={item.alumno.id} item={item} celda={celda} unidad={unidad} cerrado={cerrado}
+                    aprobatoria={datos.aprobatoria} borrador={borradores[clave(item.alumno.id, unidad.id)]}
+                    guardado={servidor[clave(item.alumno.id, unidad.id)]}
+                    onCambiar={(cambio) => onCambiar(clave(item.alumno.id, unidad.id), cambio)} />
+                ))}
+              </ul>
+            </div>
+          )
+        })}
       </div>
     </section>
+  )
+}
+
+function FilaSegunda({ item, celda, unidad, cerrado, aprobatoria, borrador = { calificacion: '', noPresento: false }, guardado, onCambiar }) {
+  const id = `segunda-${item.alumno.id}-${unidad.id}`
+  const mal = invalida(borrador)
+  const vacia = borrador.calificacion.trim() === ''
+  const valor = aNumero(borrador.calificacion)
+  const sinGuardar = borrador.calificacion !== guardado?.calificacion || borrador.noPresento !== guardado?.noPresento
+
+  let resultado = { texto: 'Falta decidir', tono: 'text-warning-foreground' }
+  if (borrador.noPresento) resultado = { texto: 'Reprueba la unidad', tono: 'text-destructive-foreground' }
+  else if (mal) resultado = { texto: 'Escribe un número de 0 a 100', tono: 'text-destructive-foreground' }
+  else if (!vacia && valor >= aprobatoria) resultado = { texto: `Acredita la unidad con ${nota(valor)}`, tono: 'text-success-foreground' }
+  else if (!vacia) resultado = { texto: `Reprueba la unidad (menos de ${aprobatoria})`, tono: 'text-destructive-foreground' }
+
+  return (
+    <li className="grid gap-x-5 gap-y-2 py-3 sm:grid-cols-[minmax(0,1fr)_auto_14rem] sm:items-center">
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-foreground">{item.alumno.nombre}</p>
+        <p className="text-xs tabular-nums text-muted-foreground">
+          {item.alumno.numeroControl ?? 'Sin número de control'} · sacó <span className="font-medium text-destructive-foreground">{nota(celda.primera)}</span> en primera oportunidad
+        </p>
+      </div>
+
+      <div className="flex items-center gap-2">
+        {borrador.noPresento ? (
+          <p className="flex h-9 w-[10.5rem] items-center rounded-[10px] bg-destructive/10 px-3 text-sm font-medium text-destructive-foreground">Reprobado</p>
+        ) : (
+          <div className="flex w-[10.5rem] items-center justify-between gap-2">
+            <label htmlFor={id} className="text-sm text-muted-foreground">Calificación</label>
+            <input id={id} type="text" inputMode="decimal" autoComplete="off" placeholder="0–100"
+              className={cn(CAMPO, 'w-20 text-center tabular-nums')} disabled={cerrado} aria-invalid={mal}
+              aria-describedby={`${id}-resultado`}
+              value={borrador.calificacion}
+              onChange={(event) => onCambiar({ calificacion: event.target.value })} />
+          </div>
+        )}
+        {!cerrado && (borrador.noPresento ? (
+          <Button variant="ghost" type="button" className="h-9 px-2" onClick={() => onCambiar({ noPresento: false })}
+            aria-label={`Deshacer: quitar el reprobado de ${item.alumno.nombre} en ${unidad.nombre}`}>
+            Deshacer
+          </Button>
+        ) : (
+          <Button variant="outline" type="button" className="h-9 text-destructive-foreground hover:bg-destructive/10 hover:text-destructive-foreground"
+            onClick={() => onCambiar({ noPresento: true, calificacion: '' })}
+            aria-label={`Reprobar a ${item.alumno.nombre} en ${unidad.nombre}`}>
+            Reprobar
+          </Button>
+        ))}
+      </div>
+
+      <p id={`${id}-resultado`} className={cn('text-sm font-medium', resultado.tono)}>
+        {resultado.texto}
+        {sinGuardar && <span className="block text-xs font-normal text-muted-foreground">Sin guardar</span>}
+      </p>
+    </li>
   )
 }
 
@@ -426,12 +474,12 @@ function CeldaUnidad({ celda }) {
       </span>
     )
   }
-  const texto = celda.calificacion == null ? 'NP' : nota(celda.calificacion)
+  const texto = celda.calificacion == null ? 'NA' : nota(celda.calificacion)
   return (
     <span className={celda.estado === 'NO_ALCANZADA' ? 'font-medium text-destructive-foreground' : 'text-foreground'}>
       {texto}
       {celda.oportunidad === 2 && <sup className="ml-0.5 text-[10px] font-semibold text-muted-foreground">2ª<span className="sr-only"> (segunda oportunidad)</span></sup>}
-      {celda.calificacion == null && <span className="sr-only"> (no se presentó)</span>}
+      {celda.calificacion == null && <span className="sr-only"> (reprobada en segunda oportunidad)</span>}
     </span>
   )
 }
@@ -551,7 +599,7 @@ function Concentrado({ datos, filtro, onFiltro }) {
         ))}
       </ul>
       <p className="mt-4 text-xs text-muted-foreground">
-        <sup>2ª</sup> segunda oportunidad · NP no se presentó · NA no acreditado.{' '}
+        <sup>2ª</sup> segunda oportunidad · NA reprobada o no acreditado.{' '}
         Para corregir una calificación de primera oportunidad, ve a <Link className="font-medium text-primary-ink underline-offset-4 hover:underline" to={`/calificaciones?materia=${datos.materia.id}&grupo=${datos.grupo?.id ?? ''}`}>Calificaciones</Link>.
       </p>
     </section>
