@@ -848,6 +848,11 @@ function DocenteCalificaciones() {
             <p className="mt-2 text-sm text-muted-foreground">Selecciona el grupo, revisa sus criterios y captura las calificaciones.</p>
           </div>
           <div className="flex flex-wrap gap-2">
+            {/* Al final del semestre: segunda oportunidad, final y concentrado. */}
+            <Link to={`/calificaciones/cierre${filters.materiaId ? `?materia=${filters.materiaId}${filters.grupoId ? `&grupo=${filters.grupoId}` : ''}` : ''}`}
+              className="inline-flex min-h-9 items-center rounded-[10px] border border-border bg-background px-5 text-sm font-semibold text-foreground transition-colors hover:bg-muted">
+              Cierre de curso
+            </Link>
             <Button variant="outline"
               type="button"
               disabled={!canExport || downloading !== null}

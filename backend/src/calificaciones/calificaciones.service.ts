@@ -524,6 +524,29 @@ export class CalificacionesService {
     });
 
     const periodo = getCurrentAcademicPeriod();
+    // Un curso cerrado ya se entregó: sus calificaciones no cambian sin reabrirlo.
+    const grupoIds = [
+      ...new Set(
+        capturas
+          .map((captura) => captura.grupoId)
+          .filter((id): id is number => id != null),
+      ),
+    ];
+    const cerrado = grupoIds.length
+      ? await this.prisma.cierreCurso.findFirst({
+          where: {
+            materiaId: dto.materiaId,
+            grupoId: { in: grupoIds },
+            periodo,
+          },
+          select: { grupo: { select: { nombre: true } } },
+        })
+      : null;
+    if (cerrado) {
+      throw new ConflictException(
+        `El curso de ${cerrado.grupo.nombre} está cerrado. Reábrelo en "Cierre de curso" para cambiar calificaciones.`,
+      );
+    }
     await this.prisma.$transaction(
       capturas.map(({ alumnoId, unidadId, ...datos }) =>
         this.prisma.calificacionUnidad.upsert({

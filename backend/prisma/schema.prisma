@@ -436,6 +436,7 @@ model Materia {
   avisos         Aviso[]
   whatsapp       GrupoWhatsapp[]
   pausas         MateriaPausada[]
+  cierres        CierreCurso[]
 
   @@unique([clave, carreraId])
 }
@@ -555,16 +556,16 @@ model BloqueImportacionHorario {
 }
 
 model Unidad {
-  id             Int                  @id @default(autoincrement())
+  id             Int                   @id @default(autoincrement())
   nombre         String
   orden          Int
-  status         EstadoUnidad         @default(PENDIENTE)
+  status         EstadoUnidad          @default(PENDIENTE)
   fechaInicio    DateTime?
   fechaFin       DateTime?
   materiaId      Int
-  materia        Materia              @relation(fields: [materiaId], references: [id])
+  materia        Materia               @relation(fields: [materiaId], references: [id])
   claseSesiones  ClaseSesion[]
-  tareas         Tarea[]              @relation("TareaUnidad")
+  tareas         Tarea[]               @relation("TareaUnidad")
   calificaciones CalificacionUnidad[]
   pesosCriterio  CategoriaPesoUnidad[]
 }
@@ -713,42 +714,64 @@ model Participacion {
 }
 
 model CalificacionUnidad {
-  id                 Int      @id @default(autoincrement())
-  alumnoId           Int
-  materiaId          Int
-  grupoId            Int?
-  unidadId           Int
-  periodo            String
-  calificacionManual Float?
-  observacion        String?
-  docenteId          Int?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-  alumno             Usuario  @relation("CalificacionAlumno", fields: [alumnoId], references: [id], onDelete: Cascade)
-  materia            Materia  @relation(fields: [materiaId], references: [id], onDelete: Cascade)
-  grupo              Grupo?   @relation(fields: [grupoId], references: [id], onDelete: SetNull)
-  unidad             Unidad   @relation(fields: [unidadId], references: [id], onDelete: Cascade)
-  docente            Usuario? @relation("CalificacionDocente", fields: [docenteId], references: [id], onDelete: SetNull)
+  id                  Int      @id @default(autoincrement())
+  alumnoId            Int
+  materiaId           Int
+  grupoId             Int?
+  unidadId            Int
+  periodo             String
+  calificacionManual  Float?
+  observacion         String?
+  /// Evaluación de segunda oportunidad (TecNM) de una unidad no alcanzada en
+  /// la primera. `segundaNoPresento` la deja como no alcanzada sin calificación.
+  calificacionSegunda Float?
+  segundaNoPresento   Boolean  @default(false)
+  docenteId           Int?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  alumno              Usuario  @relation("CalificacionAlumno", fields: [alumnoId], references: [id], onDelete: Cascade)
+  materia             Materia  @relation(fields: [materiaId], references: [id], onDelete: Cascade)
+  grupo               Grupo?   @relation(fields: [grupoId], references: [id], onDelete: SetNull)
+  unidad              Unidad   @relation(fields: [unidadId], references: [id], onDelete: Cascade)
+  docente             Usuario? @relation("CalificacionDocente", fields: [docenteId], references: [id], onDelete: SetNull)
 
   @@unique([alumnoId, materiaId, unidadId, periodo])
   @@index([materiaId, grupoId, unidadId, periodo])
   @@index([docenteId])
 }
 
+/// Curso cerrado de una materia en un grupo y periodo: congela la calificación
+/// final de cada alumno (primera y segunda oportunidad, nivel de desempeño)
+/// para el concentrado. Reabrirlo borra el registro.
+model CierreCurso {
+  id          Int      @id @default(autoincrement())
+  materiaId   Int
+  grupoId     Int
+  periodo     String
+  /// Quién cerró. Sin relación a Usuario a propósito: el nombre va en la foto.
+  docenteId   Int?
+  cerradoEn   DateTime @default(now())
+  concentrado Json
+  materia     Materia  @relation(fields: [materiaId], references: [id], onDelete: Cascade)
+  grupo       Grupo    @relation(fields: [grupoId], references: [id], onDelete: Cascade)
+
+  @@unique([materiaId, grupoId, periodo])
+}
+
 model Inscripcion {
-  aceptadaAt DateTime?
+  aceptadaAt      DateTime?
   incorporaciones IncorporacionJefatura[]
-  id        Int               @id @default(autoincrement())
-  alumnoId  Int
-  materiaId Int
-  grupoId   Int?
-  estado    EstadoInscripcion @default(PENDIENTE)
-  periodo   String
-  createdAt DateTime          @default(now())
-  updatedAt DateTime          @updatedAt
-  alumno    Usuario           @relation("InscripcionAlumno", fields: [alumnoId], references: [id])
-  materia   Materia           @relation(fields: [materiaId], references: [id])
-  grupo     Grupo?            @relation(fields: [grupoId], references: [id], onDelete: SetNull)
+  id              Int                     @id @default(autoincrement())
+  alumnoId        Int
+  materiaId       Int
+  grupoId         Int?
+  estado          EstadoInscripcion       @default(PENDIENTE)
+  periodo         String
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+  alumno          Usuario                 @relation("InscripcionAlumno", fields: [alumnoId], references: [id])
+  materia         Materia                 @relation(fields: [materiaId], references: [id])
+  grupo           Grupo?                  @relation(fields: [grupoId], references: [id], onDelete: SetNull)
 
   @@unique([alumnoId, materiaId, periodo])
   @@index([materiaId, grupoId, estado])
@@ -909,23 +932,23 @@ model Notificacion {
 }
 
 model Grupo {
-  id                   Int                  @id @default(autoincrement())
+  id                   Int                   @id @default(autoincrement())
   nombre               String
   semestre             Int
   seccion              String
   carreraId            Int
-  carrera              Carrera              @relation(fields: [carreraId], references: [id])
+  carrera              Carrera               @relation(fields: [carreraId], references: [id])
   periodo              String
-  modalidad            ModalidadGrupo       @default(ESCOLARIZADO)
-  activo               Boolean              @default(true)
-  createdAt            DateTime             @default(now())
-  updatedAt            DateTime             @updatedAt
-  alumnos              Usuario[]            @relation("AlumnoGrupo")
-  docentes             Usuario[]            @relation("DocenteGrupo")
-  materias             Materia[]            @relation("GrupoMateria")
+  modalidad            ModalidadGrupo        @default(ESCOLARIZADO)
+  activo               Boolean               @default(true)
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  alumnos              Usuario[]             @relation("AlumnoGrupo")
+  docentes             Usuario[]             @relation("DocenteGrupo")
+  materias             Materia[]             @relation("GrupoMateria")
   inscripciones        Inscripcion[]
-  horarios             HorarioMateria[]     @relation("HorarioGrupo")
-  claseSesiones        ClaseSesion[]        @relation("ClaseSesionGrupo")
+  horarios             HorarioMateria[]      @relation("HorarioGrupo")
+  claseSesiones        ClaseSesion[]         @relation("ClaseSesionGrupo")
   tareas               Tarea[]
   importacionesHorario ImportacionHorario[]
   calificaciones       CalificacionUnidad[]
@@ -934,20 +957,22 @@ model Grupo {
   pesosCriterioUnidad  CategoriaPesoUnidad[]
   avisos               Aviso[]
   whatsapp             GrupoWhatsapp[]
+  cierres              CierreCurso[]
 
   @@unique([semestre, seccion, carreraId, periodo, modalidad])
 }
 
 /// Historial inmutable de incorporaciones realizadas por jefatura.
 model IncorporacionJefatura {
-  id Int @id @default(autoincrement())
-  inscripcionId Int
-  actorId Int
-  motivo String @db.VarChar(500)
+  id             Int                @id @default(autoincrement())
+  inscripcionId  Int
+  actorId        Int
+  motivo         String             @db.VarChar(500)
   estadoAnterior EstadoInscripcion?
-  createdAt DateTime @default(now())
-  inscripcion Inscripcion @relation(fields: [inscripcionId], references: [id], onDelete: Cascade)
-  actor Usuario @relation(fields: [actorId], references: [id])
+  createdAt      DateTime           @default(now())
+  inscripcion    Inscripcion        @relation(fields: [inscripcionId], references: [id], onDelete: Cascade)
+  actor          Usuario            @relation(fields: [actorId], references: [id])
+
   @@index([inscripcionId, createdAt])
   @@index([actorId, createdAt])
 }

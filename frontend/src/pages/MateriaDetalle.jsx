@@ -162,6 +162,7 @@ export default function MateriaDetalle() {
           <Link to={`/asistencias?${contexto}`} className={enlace}>Asistencias</Link>
           <Link to={`/tareas?${contexto}`} className={enlace}>Tareas</Link>
           <Link to={`/calificaciones?${contexto}`} className={enlace}>Calificaciones</Link>
+          <Link to={`/calificaciones/cierre?${contexto}`} className={enlace}>Cierre de curso</Link>
         </nav>
       </header>
 

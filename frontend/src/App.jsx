@@ -41,6 +41,7 @@ const MiHorarioAlumno = lazy(() => import("./pages/alumno/MiHorarioAlumno"));
 const PasarLista = lazy(() => import("./pages/docente/PasarLista"));
 const IrAPasarLista = lazy(() => import("./pages/docente/IrAPasarLista"));
 const MiPerfil = lazy(() => import("./pages/MiPerfil"));
+const CierreCurso = lazy(() => import("./pages/docente/CierreCurso"));
 const TareaForm = lazy(() => import("./pages/docente/TareaForm"));
 const TareaDetalle = lazy(() => import("./pages/docente/TareaDetalle"));
 const MiHorario = lazy(() => import("./pages/docente/MiHorario"));
@@ -206,6 +207,7 @@ function App() {
               <Route path="/materias/:id" element={<MateriaDetalle />} />
               <Route path="/docente/tareas/crear" element={<TareaForm />} />
               <Route path="/docente/tareas/:id" element={<TareaDetalle />} />
+              <Route path="/calificaciones/cierre" element={<CierreCurso />} />
             </Route>
 
             <Route element={<RoleGate allowedRoles={["DOCENTE"]} />}>

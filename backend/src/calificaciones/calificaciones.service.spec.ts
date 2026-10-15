@@ -19,6 +19,7 @@ describe('CalificacionesService: política docente–materia–grupo', () => {
   const ponderacionGrupoUpsert = jest.fn();
   const asistenciaFindMany = jest.fn();
   const participacionFindMany = jest.fn();
+  const cierreCursoFindFirst = jest.fn();
   const prisma = {
     materia: {
       findUnique: materiaFindUnique,
@@ -41,6 +42,7 @@ describe('CalificacionesService: política docente–materia–grupo', () => {
     claseSesion: { findMany: claseSesionFindMany },
     asistencia: { findMany: asistenciaFindMany },
     participacion: { findMany: participacionFindMany },
+    cierreCurso: { findFirst: cierreCursoFindFirst },
     $transaction: transaction,
   } as unknown as PrismaService;
   const service = new CalificacionesService(prisma);
@@ -497,7 +499,10 @@ describe('CalificacionesService: política docente–materia–grupo', () => {
       calificaciones,
     });
 
-    beforeEach(() => horarioMateriaCount.mockResolvedValue(1));
+    beforeEach(() => {
+      horarioMateriaCount.mockResolvedValue(1);
+      cierreCursoFindFirst.mockResolvedValue(null);
+    });
 
     it('guarda todo en una transacción y arma el reporte una sola vez', async () => {
       const reporte = jest
@@ -557,6 +562,19 @@ describe('CalificacionesService: política docente–materia–grupo', () => {
           ]) as never,
         ),
       ).rejects.toThrow('La unidad no pertenece a la materia seleccionada');
+      expect(transaction).not.toHaveBeenCalled();
+    });
+
+    it('no cambia calificaciones de un curso cerrado', async () => {
+      cierreCursoFindFirst.mockResolvedValue({ grupo: { nombre: '8A' } });
+      await expect(
+        service.guardarManualLote(
+          docente,
+          lote([
+            { alumnoId: 500, unidadId: 5, calificacionManual: 90 },
+          ]) as never,
+        ),
+      ).rejects.toThrow('El curso de 8A está cerrado');
       expect(transaction).not.toHaveBeenCalled();
     });
   });
