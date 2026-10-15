@@ -8,11 +8,6 @@
       "gzip": 114059
     },
     {
-      "name": "/assets/Modal--E2Era79.js",
-      "bytes": 8313,
-      "gzip": 3158
-    },
-    {
       "name": "/assets/BaseLayout-BSpClmpT.js",
       "bytes": 37783,
       "gzip": 11705
@@ -23,14 +18,19 @@
       "gzip": 148
     },
     {
-      "name": "/assets/feedback-DcgQ8eg4.js",
-      "bytes": 741,
-      "gzip": 418
+      "name": "/assets/Modal--E2Era79.js",
+      "bytes": 8313,
+      "gzip": 3158
     },
     {
       "name": "/assets/useOpenInteractionType-BtyIlFLW.js",
       "bytes": 55492,
       "gzip": 19319
+    },
+    {
+      "name": "/assets/feedback-DcgQ8eg4.js",
+      "bytes": 741,
+      "gzip": 418
     },
     {
       "name": "/assets/avisos-BGZDmwA7.js",
@@ -48,14 +48,14 @@
       "gzip": 252
     },
     {
-      "name": "/assets/tareas-sjn5RpMO.js",
-      "bytes": 6415,
-      "gzip": 2893
-    },
-    {
       "name": "/assets/useThemeStore-Drz5yqtM.js",
       "bytes": 726,
       "gzip": 402
+    },
+    {
+      "name": "/assets/tareas-sjn5RpMO.js",
+      "bytes": 6415,
+      "gzip": 2893
     },
     {
       "name": "/assets/notificacionStore-I3RIkn6I.js",
@@ -63,14 +63,14 @@
       "gzip": 1881
     },
     {
-      "name": "/assets/megaphone-WvxIlfho.js",
-      "bytes": 347,
-      "gzip": 243
-    },
-    {
       "name": "/assets/avisosSistema-dr-kv3Ci.js",
       "bytes": 7617,
       "gzip": 3084
+    },
+    {
+      "name": "/assets/megaphone-WvxIlfho.js",
+      "bytes": 347,
+      "gzip": 243
     },
     {
       "name": "/assets/calendar-check-Dir6SCRT.js",
@@ -128,24 +128,24 @@
       "gzip": 216
     },
     {
-      "name": "/assets/search-U_Myi2-t.js",
-      "bytes": 170,
-      "gzip": 167
-    },
-    {
       "name": "/assets/BrandMark-BOuLguih.js",
       "bytes": 288,
       "gzip": 252
     },
     {
-      "name": "/assets/ToolbarRootContext-4GL0cEC3.js",
-      "bytes": 39924,
-      "gzip": 14520
+      "name": "/assets/search-U_Myi2-t.js",
+      "bytes": 170,
+      "gzip": 167
     },
     {
       "name": "/assets/list-D9c98_We.js",
       "bytes": 303,
       "gzip": 189
+    },
+    {
+      "name": "/assets/ToolbarRootContext-4GL0cEC3.js",
+      "bytes": 39924,
+      "gzip": 14520
     },
     {
       "name": "/assets/graduation-cap-D-aFX8hs.js",
@@ -198,6 +198,11 @@
       "gzip": 15404
     },
     {
+      "name": "/assets/useAsyncAction-be_5064y.js",
+      "bytes": 208,
+      "gzip": 180
+    },
+    {
       "name": "/assets/AttendanceBadge-DzuuTAWy.js",
       "bytes": 2683,
       "gzip": 921
@@ -208,11 +213,6 @@
       "gzip": 1116
     },
     {
-      "name": "/assets/useAsyncAction-be_5064y.js",
-      "bytes": 208,
-      "gzip": 180
-    },
-    {
       "name": "/assets/SexoBadge-DCENWEUp.js",
       "bytes": 330,
       "gzip": 275
@@ -221,6 +221,11 @@
       "name": "/assets/AsistenciaSesionPanel-C7P19rmt.js",
       "bytes": 10083,
       "gzip": 3274
+    },
+    {
+      "name": "/assets/chevron-down-B8byoX7s.js",
+      "bytes": 129,
+      "gzip": 141
     },
     {
       "name": "/assets/hand-B1B-KQdY.js",
@@ -235,11 +240,6 @@
     {
       "name": "/assets/chevron-right-CEgcYBW4.js",
       "bytes": 131,
-      "gzip": 141
-    },
-    {
-      "name": "/assets/chevron-down-B8byoX7s.js",
-      "bytes": 129,
       "gzip": 141
     }
   ],

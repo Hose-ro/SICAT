@@ -8,16 +8,6 @@
       "gzip": 114059
     },
     {
-      "name": "/assets/x-CoXmfTbj.js",
-      "bytes": 155,
-      "gzip": 148
-    },
-    {
-      "name": "/assets/feedback-DcgQ8eg4.js",
-      "bytes": 741,
-      "gzip": 418
-    },
-    {
       "name": "/assets/BaseLayout-BSpClmpT.js",
       "bytes": 37783,
       "gzip": 11705
@@ -26,6 +16,16 @@
       "name": "/assets/Modal--E2Era79.js",
       "bytes": 8313,
       "gzip": 3158
+    },
+    {
+      "name": "/assets/x-CoXmfTbj.js",
+      "bytes": 155,
+      "gzip": 148
+    },
+    {
+      "name": "/assets/feedback-DcgQ8eg4.js",
+      "bytes": 741,
+      "gzip": 418
     },
     {
       "name": "/assets/avisos-BGZDmwA7.js",
@@ -38,6 +38,21 @@
       "gzip": 19319
     },
     {
+      "name": "/assets/compartirWhatsappStore-yg1ddd-b.js",
+      "bytes": 3248,
+      "gzip": 1569
+    },
+    {
+      "name": "/assets/tareas-sjn5RpMO.js",
+      "bytes": 6415,
+      "gzip": 2893
+    },
+    {
+      "name": "/assets/file-text-BGpGYDIR.js",
+      "bytes": 386,
+      "gzip": 252
+    },
+    {
       "name": "/assets/useThemeStore-Drz5yqtM.js",
       "bytes": 726,
       "gzip": 402
@@ -46,21 +61,6 @@
       "name": "/assets/notificacionStore-I3RIkn6I.js",
       "bytes": 5053,
       "gzip": 1881
-    },
-    {
-      "name": "/assets/tareas-sjn5RpMO.js",
-      "bytes": 6415,
-      "gzip": 2893
-    },
-    {
-      "name": "/assets/compartirWhatsappStore-yg1ddd-b.js",
-      "bytes": 3248,
-      "gzip": 1569
-    },
-    {
-      "name": "/assets/file-text-BGpGYDIR.js",
-      "bytes": 386,
-      "gzip": 252
     },
     {
       "name": "/assets/avisosSistema-dr-kv3Ci.js",
@@ -133,6 +133,11 @@
       "gzip": 252
     },
     {
+      "name": "/assets/search-U_Myi2-t.js",
+      "bytes": 170,
+      "gzip": 167
+    },
+    {
       "name": "/assets/ToolbarRootContext-4GL0cEC3.js",
       "bytes": 39924,
       "gzip": 14520
@@ -141,11 +146,6 @@
       "name": "/assets/list-D9c98_We.js",
       "bytes": 303,
       "gzip": 189
-    },
-    {
-      "name": "/assets/search-U_Myi2-t.js",
-      "bytes": 170,
-      "gzip": 167
     },
     {
       "name": "/assets/graduation-cap-D-aFX8hs.js",
@@ -158,19 +158,24 @@
       "gzip": 216
     },
     {
-      "name": "/assets/book-open-check-_zkdz2Bc.js",
-      "bytes": 336,
-      "gzip": 230
-    },
-    {
       "name": "/assets/bell-ring-Drk2TPeX.js",
       "bytes": 398,
       "gzip": 279
     },
     {
+      "name": "/assets/book-open-check-_zkdz2Bc.js",
+      "bytes": 336,
+      "gzip": 230
+    },
+    {
       "name": "/assets/calendar-days-_E-hErcT.js",
       "bytes": 495,
       "gzip": 265
+    },
+    {
+      "name": "/assets/scan-line-CJNGLFvu.js",
+      "bytes": 332,
+      "gzip": 222
     },
     {
       "name": "/assets/school-Myjl4pHi.js",
@@ -183,11 +188,6 @@
       "gzip": 253
     },
     {
-      "name": "/assets/scan-line-CJNGLFvu.js",
-      "bytes": 332,
-      "gzip": 222
-    },
-    {
       "name": "/assets/DialogClose-BcpEQ3_8.js",
       "bytes": 500,
       "gzip": 356
@@ -198,9 +198,9 @@
       "gzip": 141
     },
     {
-      "name": "/assets/Dashboard-Cg9XK-uf.js",
-      "bytes": 10215,
-      "gzip": 3073
+      "name": "/assets/user-check-DggBJgSg.js",
+      "bytes": 607,
+      "gzip": 351
     },
     {
       "name": "/assets/layers-3TN00YJb.js",
@@ -208,9 +208,9 @@
       "gzip": 236
     },
     {
-      "name": "/assets/user-check-DggBJgSg.js",
-      "bytes": 607,
-      "gzip": 351
+      "name": "/assets/Dashboard-Cg9XK-uf.js",
+      "bytes": 10215,
+      "gzip": 3073
     }
   ],
   "bytes": 529498,

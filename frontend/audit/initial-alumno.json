@@ -8,11 +8,6 @@
       "gzip": 114059
     },
     {
-      "name": "/assets/Modal--E2Era79.js",
-      "bytes": 8313,
-      "gzip": 3158
-    },
-    {
       "name": "/assets/BaseLayout-BSpClmpT.js",
       "bytes": 37783,
       "gzip": 11705
@@ -23,9 +18,9 @@
       "gzip": 148
     },
     {
-      "name": "/assets/useOpenInteractionType-BtyIlFLW.js",
-      "bytes": 55492,
-      "gzip": 19319
+      "name": "/assets/Modal--E2Era79.js",
+      "bytes": 8313,
+      "gzip": 3158
     },
     {
       "name": "/assets/feedback-DcgQ8eg4.js",
@@ -33,9 +28,14 @@
       "gzip": 418
     },
     {
-      "name": "/assets/avisos-BGZDmwA7.js",
-      "bytes": 244,
-      "gzip": 203
+      "name": "/assets/useOpenInteractionType-BtyIlFLW.js",
+      "bytes": 55492,
+      "gzip": 19319
+    },
+    {
+      "name": "/assets/tareas-sjn5RpMO.js",
+      "bytes": 6415,
+      "gzip": 2893
     },
     {
       "name": "/assets/compartirWhatsappStore-yg1ddd-b.js",
@@ -43,9 +43,9 @@
       "gzip": 1569
     },
     {
-      "name": "/assets/tareas-sjn5RpMO.js",
-      "bytes": 6415,
-      "gzip": 2893
+      "name": "/assets/avisos-BGZDmwA7.js",
+      "bytes": 244,
+      "gzip": 203
     },
     {
       "name": "/assets/file-text-BGpGYDIR.js",
@@ -68,24 +68,24 @@
       "gzip": 3084
     },
     {
-      "name": "/assets/calendar-check-Dir6SCRT.js",
-      "bytes": 306,
-      "gzip": 225
-    },
-    {
       "name": "/assets/megaphone-WvxIlfho.js",
       "bytes": 347,
       "gzip": 243
     },
     {
-      "name": "/assets/book-open-Dsdnt5VZ.js",
-      "bytes": 280,
-      "gzip": 206
+      "name": "/assets/calendar-check-Dir6SCRT.js",
+      "bytes": 306,
+      "gzip": 225
     },
     {
       "name": "/assets/calendar-range-CWephhAg.js",
       "bytes": 416,
       "gzip": 255
+    },
+    {
+      "name": "/assets/book-open-Dsdnt5VZ.js",
+      "bytes": 280,
+      "gzip": 206
     },
     {
       "name": "/assets/user-round-DuCrNlW9.js",
@@ -108,19 +108,14 @@
       "gzip": 247
     },
     {
-      "name": "/assets/clipboard-check-CelrFbvq.js",
-      "bytes": 300,
-      "gzip": 230
-    },
-    {
       "name": "/assets/calendar-clock-Ci5MDDtE.js",
       "bytes": 374,
       "gzip": 248
     },
     {
-      "name": "/assets/check-B2h1CG_8.js",
-      "bytes": 120,
-      "gzip": 137
+      "name": "/assets/clipboard-check-CelrFbvq.js",
+      "bytes": 300,
+      "gzip": 230
     },
     {
       "name": "/assets/trash-2-D6_pwIUb.js",
@@ -128,19 +123,14 @@
       "gzip": 216
     },
     {
-      "name": "/assets/ToolbarRootContext-4GL0cEC3.js",
-      "bytes": 39924,
-      "gzip": 14520
+      "name": "/assets/check-B2h1CG_8.js",
+      "bytes": 120,
+      "gzip": 137
     },
     {
       "name": "/assets/search-U_Myi2-t.js",
       "bytes": 170,
       "gzip": 167
-    },
-    {
-      "name": "/assets/graduation-cap-D-aFX8hs.js",
-      "bytes": 333,
-      "gzip": 248
     },
     {
       "name": "/assets/BrandMark-BOuLguih.js",
@@ -151,6 +141,16 @@
       "name": "/assets/list-D9c98_We.js",
       "bytes": 303,
       "gzip": 189
+    },
+    {
+      "name": "/assets/ToolbarRootContext-4GL0cEC3.js",
+      "bytes": 39924,
+      "gzip": 14520
+    },
+    {
+      "name": "/assets/graduation-cap-D-aFX8hs.js",
+      "bytes": 333,
+      "gzip": 248
     },
     {
       "name": "/assets/users-round-zwL1zWpP.js",
@@ -168,14 +168,14 @@
       "gzip": 230
     },
     {
+      "name": "/assets/scan-line-CJNGLFvu.js",
+      "bytes": 332,
+      "gzip": 222
+    },
+    {
       "name": "/assets/calendar-days-_E-hErcT.js",
       "bytes": 495,
       "gzip": 265
-    },
-    {
-      "name": "/assets/door-open-DbbGvCtk.js",
-      "bytes": 373,
-      "gzip": 253
     },
     {
       "name": "/assets/school-Myjl4pHi.js",
@@ -183,9 +183,9 @@
       "gzip": 285
     },
     {
-      "name": "/assets/scan-line-CJNGLFvu.js",
-      "bytes": 332,
-      "gzip": 222
+      "name": "/assets/door-open-DbbGvCtk.js",
+      "bytes": 373,
+      "gzip": 253
     },
     {
       "name": "/assets/DialogClose-BcpEQ3_8.js",
@@ -196,6 +196,11 @@
       "name": "/assets/MiHorarioAlumno-ubnt86bT.js",
       "bytes": 4064,
       "gzip": 1547
+    },
+    {
+      "name": "/assets/generarHorarioPdf-BCzCPghs.js",
+      "bytes": 11866,
+      "gzip": 4759
     },
     {
       "name": "/assets/TarjetaMateria-DnWh7rar.js",
@@ -213,24 +218,19 @@
       "gzip": 238
     },
     {
-      "name": "/assets/generarHorarioPdf-BCzCPghs.js",
-      "bytes": 11866,
-      "gzip": 4759
-    },
-    {
       "name": "/assets/copy-CDJL_Nki.js",
       "bytes": 232,
       "gzip": 202
     },
     {
-      "name": "/assets/download-CkacXV81.js",
-      "bytes": 233,
-      "gzip": 191
-    },
-    {
       "name": "/assets/nombreArchivo-BTXgI7IX.js",
       "bytes": 121,
       "gzip": 125
+    },
+    {
+      "name": "/assets/download-CkacXV81.js",
+      "bytes": 233,
+      "gzip": 191
     }
   ],
   "bytes": 536664,
