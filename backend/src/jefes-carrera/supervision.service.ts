@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { EstadoAsistencia, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { CalificacionesService } from '../calificaciones/calificaciones.service';
 import { getCurrentAcademicPeriod } from '../common/periodo.util';
@@ -621,6 +621,79 @@ export class SupervisionService {
         a.fecha.localeCompare(b.fecha) ||
         a.horaInicio.localeCompare(b.horaInicio),
     );
+  }
+
+  /** Lista capturada de una sesión, solo si la materia pertenece a la carrera seleccionada. */
+  async asistenciaSesion(
+    usuarioId: number,
+    consulta: Consulta,
+    sesionId: number,
+  ) {
+    await this.alcance(usuarioId, consulta.carreraId);
+    const sesion = await this.prisma.claseSesion.findFirst({
+      where: { id: sesionId, materia: { carreraId: consulta.carreraId } },
+      include: {
+        materia: { select: { id: true, nombre: true, clave: true } },
+        docente: { select: { id: true, nombre: true, email: true } },
+        grupo: { select: { id: true, nombre: true } },
+        unidadRef: { select: { id: true, nombre: true, orden: true } },
+        horarioMateria: {
+          include: {
+            aula: { select: { id: true, nombre: true, edificio: true } },
+          },
+        },
+        asistencias: {
+          include: {
+            alumno: {
+              select: {
+                id: true,
+                nombre: true,
+                numeroControl: true,
+                sexo: true,
+              },
+            },
+          },
+          orderBy: { alumno: { nombre: 'asc' } },
+        },
+      },
+    });
+    if (!sesion)
+      throw new NotFoundException('Sesión no encontrada en esta carrera');
+    const cuenta = (estado: EstadoAsistencia) =>
+      sesion.asistencias.filter((a) => a.estado === estado).length;
+    return {
+      sesion: {
+        id: sesion.id,
+        fecha: formatearFechaClave(sesion.fecha),
+        activa: sesion.activa,
+        fueFueraDeHorario: sesion.fueFueraDeHorario,
+        horaInicio: sesion.horaInicio,
+        horaFin: sesion.horaFin,
+        horaInicioProgramada: sesion.horarioMateria?.horaInicio ?? null,
+        horaFinProgramada: sesion.horarioMateria?.horaFin ?? null,
+        materia: sesion.materia,
+        grupo: sesion.grupo,
+        docente: sesion.docente,
+        aula: sesion.horarioMateria?.aula ?? null,
+        unidad: sesion.unidadRef,
+      },
+      resumen: {
+        asistencias: cuenta(EstadoAsistencia.ASISTENCIA),
+        faltas: cuenta(EstadoAsistencia.FALTA),
+        retardos: cuenta(EstadoAsistencia.RETARDO),
+        justificadas: cuenta(EstadoAsistencia.JUSTIFICADA),
+        total: sesion.asistencias.length,
+      },
+      asistencias: sesion.asistencias.map((registro) => ({
+        id: registro.id,
+        alumnoId: registro.alumnoId,
+        nombre: registro.alumno.nombre,
+        numeroControl: registro.alumno.numeroControl,
+        sexo: registro.alumno.sexo,
+        estado: registro.estado,
+        observacion: registro.observacion,
+      })),
+    };
   }
 
   /** Alumnos del grupo base y los incorporados a sus ofertas, con todas sus inscripciones aceptadas del periodo. */

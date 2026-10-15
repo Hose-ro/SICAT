@@ -89,3 +89,53 @@ export function estadoCaptura({
   if (activa) return 'REGISTRO_EN_CURSO';
   return registros ? 'CAPTURA_PARCIAL' : 'SIN_CAPTURA';
 }
+
+/** Tipos de seguimiento que la jefatura puede registrar desde la supervisión. */
+export const TIPOS_SEGUIMIENTO = [
+  'ASISTENCIA_SIN_CAPTURA',
+  'ALUMNO_RIESGO',
+  'CALIFICACIONES_PENDIENTES',
+  'SEGUIMIENTO_DOCENTE',
+] as const;
+export type TipoSeguimiento = (typeof TIPOS_SEGUIMIENTO)[number];
+
+/** Lo que identifica al caso: una clase en una fecha, un alumno, una materia en un grupo o un docente. */
+export type ReferenciaSeguimiento =
+  | { tipo: 'ASISTENCIA_SIN_CAPTURA'; horarioId: number; fecha: string }
+  | { tipo: 'ALUMNO_RIESGO'; alumnoId: number }
+  | { tipo: 'CALIFICACIONES_PENDIENTES'; materiaId: number; grupoId: number }
+  | { tipo: 'SEGUIMIENTO_DOCENTE'; docenteId: number };
+
+/**
+ * Huella estable de un caso dentro de una carrera y un periodo: el mismo caso
+ * siempre cae en el mismo seguimiento, sin importar desde qué vista se registre.
+ */
+export function huellaSeguimiento(
+  carreraId: number,
+  periodo: string,
+  ref: ReferenciaSeguimiento,
+) {
+  const partes =
+    ref.tipo === 'ASISTENCIA_SIN_CAPTURA'
+      ? [ref.horarioId, ref.fecha]
+      : ref.tipo === 'ALUMNO_RIESGO'
+        ? [ref.alumnoId]
+        : ref.tipo === 'CALIFICACIONES_PENDIENTES'
+          ? [ref.materiaId, ref.grupoId]
+          : [ref.docenteId];
+  return ['SEG', ref.tipo, carreraId, periodo, ...partes].join(':');
+}
+
+/** Recupera la referencia de una huella creada por huellaSeguimiento; null si es una alerta anterior. */
+export function leerHuella(huella: string): ReferenciaSeguimiento | null {
+  const [marca, tipo, , , a, b] = huella.split(':');
+  if (marca !== 'SEG') return null;
+  const n = (v?: string) => (v && /^\d+$/.test(v) ? Number(v) : null);
+  if (tipo === 'ASISTENCIA_SIN_CAPTURA' && n(a) && b)
+    return { tipo, horarioId: n(a)!, fecha: b };
+  if (tipo === 'ALUMNO_RIESGO' && n(a)) return { tipo, alumnoId: n(a)! };
+  if (tipo === 'CALIFICACIONES_PENDIENTES' && n(a) && n(b))
+    return { tipo, materiaId: n(a)!, grupoId: n(b)! };
+  if (tipo === 'SEGUIMIENTO_DOCENTE' && n(a)) return { tipo, docenteId: n(a)! };
+  return null;
+}
