@@ -86,6 +86,22 @@ enum Sexo {
 
 /// Escolarizado va de lunes a viernes; mixto (antes "sabatino") sólo los
 /// sábados y con su propio calendario de semestre.
+enum TipoReunion {
+  ORDINARIA
+  EXTRAORDINARIA
+}
+
+enum ModalidadReunion {
+  PRESENCIAL
+  VIRTUAL
+}
+
+enum EstadoReunion {
+  PROGRAMADA
+  FINALIZADA
+  CANCELADA
+}
+
 enum ModalidadGrupo {
   ESCOLARIZADO
   MIXTO
@@ -173,6 +189,7 @@ enum TipoNotificacion {
   HORARIO_APROBADO
   HORARIO_RECHAZADO
   AVISO_DOCENTE
+  REUNION_ACADEMICA
 }
 
 // ==================== MODELS ====================
@@ -200,6 +217,7 @@ model Carrera {
   reticulaMaterias     ReticulaMateria[]
   jefes                JefeCarreraAsignacion[]
   alertas              AlertaCarrera[]
+  reuniones            ReunionAcademica[]
   importacionesHorario ImportacionHorario[]
 }
 
@@ -262,6 +280,8 @@ model Usuario {
   avisosRecibidos       Aviso[]                    @relation("AvisoAlumno")
   participaciones       Participacion[]            @relation("ParticipacionAlumno")
   participacionesDadas  Participacion[]            @relation("ParticipacionDocente")
+  reunionesCreadas      ReunionAcademica[]         @relation("ReunionCreador")
+  reunionesConvocado    ReunionConvocado[]
 }
 
 model AuthToken {
@@ -1032,4 +1052,71 @@ model IncorporacionJefatura {
 
   @@index([inscripcionId, createdAt])
   @@index([actorId, createdAt])
+}
+
+/// Reunión de academia que convoca la jefatura de carrera (modelo tomado de
+/// Reuniones-Academia): datos de la convocatoria, orden del día, docentes
+/// convocados con su asistencia y acuerdos del acta. `fecha` es AAAA-MM-DD y
+/// las horas HH:MM, en hora local del plantel, igual que los horarios.
+model ReunionAcademica {
+  id            Int                @id @default(autoincrement())
+  carreraId     Int
+  creadaPorId   Int?
+  titulo        String             @db.VarChar(200)
+  asunto        String?            @db.VarChar(2000)
+  tipo          TipoReunion        @default(ORDINARIA)
+  numeroActa    String?            @db.VarChar(50)
+  fecha         String             @db.VarChar(10)
+  horaInicio    String             @db.VarChar(5)
+  horaFin       String?            @db.VarChar(5)
+  modalidad     ModalidadReunion   @default(PRESENCIAL)
+  lugar         String?            @db.VarChar(255)
+  enlace        String?            @db.VarChar(255)
+  estado        EstadoReunion      @default(PROGRAMADA)
+  observaciones String?            @db.VarChar(5000)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  carrera       Carrera            @relation(fields: [carreraId], references: [id], onDelete: Cascade)
+  creadaPor     Usuario?           @relation("ReunionCreador", fields: [creadaPorId], references: [id], onDelete: SetNull)
+  puntos        ReunionPunto[]
+  convocados    ReunionConvocado[]
+  acuerdos      ReunionAcuerdo[]
+
+  @@index([carreraId, fecha])
+}
+
+/// Punto del orden del día.
+model ReunionPunto {
+  id          Int              @id @default(autoincrement())
+  reunionId   Int
+  orden       Int
+  descripcion String           @db.VarChar(1000)
+  reunion     ReunionAcademica @relation(fields: [reunionId], references: [id], onDelete: Cascade)
+
+  @@index([reunionId, orden])
+}
+
+/// Docente convocado. `asistio` queda en null hasta que se pasa asistencia.
+model ReunionConvocado {
+  reunionId Int
+  docenteId Int
+  asistio   Boolean?
+  reunion   ReunionAcademica @relation(fields: [reunionId], references: [id], onDelete: Cascade)
+  docente   Usuario          @relation(fields: [docenteId], references: [id], onDelete: Cascade)
+
+  @@id([reunionId, docenteId])
+  @@index([docenteId])
+}
+
+/// Acuerdo del acta, con su responsable y fecha límite.
+model ReunionAcuerdo {
+  id          Int              @id @default(autoincrement())
+  reunionId   Int
+  orden       Int
+  descripcion String           @db.VarChar(2000)
+  responsable String?          @db.VarChar(150)
+  fechaLimite String?          @db.VarChar(10)
+  reunion     ReunionAcademica @relation(fields: [reunionId], references: [id], onDelete: Cascade)
+
+  @@index([reunionId, orden])
 }

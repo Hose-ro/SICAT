@@ -1,7 +1,7 @@
 import {
   AlarmClock, Bell, BookOpen, CalendarCheck, CalendarClock, CalendarRange, CalendarX, ChartColumn,
   CircleCheck, CircleX, ClipboardCheck, Clock, Inbox, ListChecks, Megaphone, MessageSquareText, StickyNote,
-  Sun, Upload, UserRound,
+  Sun, Upload, UserRound, UsersRound,
 } from 'lucide-react'
 
 // `tone` maps the event to the status tokens (DESIGN.md: status is semantic):
@@ -39,6 +39,7 @@ export const NOTIFICATION_META = {
   HORARIO_APROBADO: { icon: CalendarCheck, label: 'Horario aprobado', tone: 'success' },
   HORARIO_RECHAZADO: { icon: CalendarX, label: 'Horario rechazado', tone: 'destructive' },
   AVISO_DOCENTE: { icon: Megaphone, label: 'Aviso del docente', tone: 'neutral' },
+  REUNION_ACADEMICA: { icon: UsersRound, label: 'Reunión de academia', tone: 'neutral' },
 }
 
 export const NOTIFICATION_TONE_CLASS = {
@@ -87,6 +88,9 @@ export function resolveNotificationRoute(notificacion, rol) {
     return '/jefe-carrera/seguimientos'
   }
 
+  if (referenciaTipo === 'ReunionAcademica') {
+    return `/docente/reuniones${referenciaId ? `?reunion=${referenciaId}` : ''}`
+  }
   switch (referenciaTipo) {
     case 'Tarea':
       if (!referenciaId) return '/tareas'

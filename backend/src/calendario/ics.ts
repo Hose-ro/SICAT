@@ -222,3 +222,41 @@ export function construirCalendario(cal: Calendario) {
   ];
   return `${lineas.map(plegarLinea).join('\r\n')}\r\n`;
 }
+
+export type EventoUnico = {
+  uid: string;
+  resumen: string;
+  descripcion?: string;
+  lugar?: string;
+  inicio: Date;
+  fin: Date;
+  cancelado?: boolean;
+};
+
+/** Un solo evento (p. ej. una reunión) listo para importar en cualquier calendario. */
+export function construirEventoUnico(
+  evento: EventoUnico,
+  generado = new Date(),
+) {
+  const lineas = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//SICAT//Reuniones//ES',
+    'CALSCALE:GREGORIAN',
+    `METHOD:${evento.cancelado ? 'CANCEL' : 'PUBLISH'}`,
+    'BEGIN:VEVENT',
+    `UID:${evento.uid}`,
+    `DTSTAMP:${utcCompacto(generado)}`,
+    `DTSTART:${utcCompacto(evento.inicio)}`,
+    `DTEND:${utcCompacto(evento.fin)}`,
+    `SUMMARY:${escaparTexto(evento.resumen)}`,
+    ...(evento.descripcion
+      ? [`DESCRIPTION:${escaparTexto(evento.descripcion)}`]
+      : []),
+    ...(evento.lugar ? [`LOCATION:${escaparTexto(evento.lugar)}`] : []),
+    `STATUS:${evento.cancelado ? 'CANCELLED' : 'CONFIRMED'}`,
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ];
+  return `${lineas.map(plegarLinea).join('\r\n')}\r\n`;
+}

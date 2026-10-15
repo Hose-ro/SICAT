@@ -62,6 +62,25 @@ export function materiasActivasDelDocenteWhere(
   };
 }
 
+/**
+ * La jefatura sólo gestiona materias de las carreras que tiene asignadas y
+ * activas. Una materia sin carrera queda fuera de su alcance.
+ */
+export async function asegurarCarreraDeJefe(
+  prisma: PrismaLike,
+  usuarioId: number,
+  carreraId: number | null | undefined,
+): Promise<void> {
+  const asignada = carreraId
+    ? await prisma.jefeCarreraAsignacion.count({
+        where: { usuarioId, carreraId, activa: true },
+      })
+    : 0;
+  if (!asignada) {
+    throw new ForbiddenException('Carrera fuera de tu alcance');
+  }
+}
+
 export async function asegurarAccesoMateria(
   prisma: PrismaLike,
   actor: ActorMateria | undefined,
@@ -69,6 +88,15 @@ export async function asegurarAccesoMateria(
   grupoId?: number | null,
 ): Promise<void> {
   if (!actor || actor.rol === 'ADMIN') return;
+  if (actor.rol === 'JEFE_CARRERA') {
+    const materia = await prisma.materia.findUnique({
+      where: { id: materiaId },
+      select: { carreraId: true },
+    });
+    if (!materia) throw new NotFoundException('Materia no encontrada');
+    await asegurarCarreraDeJefe(prisma, actor.id, materia.carreraId);
+    return;
+  }
   if (actor.rol !== 'DOCENTE') {
     throw new ForbiddenException('No tienes acceso a esta materia');
   }

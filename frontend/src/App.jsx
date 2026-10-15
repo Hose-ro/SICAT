@@ -61,6 +61,8 @@ const JefeMateriaDetalle = lazy(() => import("./pages/jefe-carrera/JefeMateriaDe
 const JefeHorarios = lazy(() => import("./pages/jefe-carrera/JefeHorarios"));
 const JefeSeguimientos = lazy(() => import("./pages/jefe-carrera/JefeSeguimientos"));
 const JefeReportes = lazy(() => import("./pages/jefe-carrera/JefeReportes"));
+const JefeReuniones = lazy(() => import("./pages/jefe-carrera/JefeReuniones"));
+const MisReuniones = lazy(() => import("./pages/docente/MisReuniones"));
 import PwaInstallPrompt from "@/components/PwaInstallPrompt";
 import { EMAIL_AUTH_ENABLED, REGISTRO_PUBLICO_ENABLED } from "./lib/authFeatures";
 
@@ -218,6 +220,7 @@ function App() {
               <Route path="/docente/horario" element={<MiHorario />} />
               <Route path="/docente/grupos" element={<MisGrupos />} />
               <Route path="/docente/riesgo" element={<AlumnosRiesgo />} />
+              <Route path="/docente/reuniones" element={<MisReuniones />} />
               <Route
                 path="/docente/solicitudes"
                 element={<SolicitudesPendientes />}
@@ -274,6 +277,7 @@ function App() {
                 element={<Navigate to="/jefe-carrera/seguimientos" replace />}
               />
               <Route path="/jefe-carrera/reportes" element={<JefeReportes />} />
+              <Route path="/jefe-carrera/reuniones" element={<JefeReuniones />} />
             </Route>
 
             <Route element={<RoleGate allowedRoles={["ADMIN"]} />}>

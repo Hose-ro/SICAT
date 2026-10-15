@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
-import { FileSpreadsheet, FileText, LoaderCircle, Printer } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
+import { ChevronDown, FileSpreadsheet, FileText, LoaderCircle, Printer } from 'lucide-react'
 import api from '@/api/axios'
 import { Button } from '@/components/ui/button'
 import SexoBadge from '@/components/SexoBadge'
 import { descargarArchivo, mensajeDeBlob } from '@/lib/descargas'
 import { claveFecha, fechaCorta, fechaHoraCorta, hoyClave, parseClave, periodoTexto } from './supervision/formato'
 import { ESTADO_UNIDAD } from './supervision/estados'
+import { cn } from '@/lib/utils'
 import { Aviso, Esqueleto, JefaturaPage, SeccionTitulo, Vacio, selectClass } from './supervision/ui'
 import { mensajeError } from './supervision/useJefatura'
 
@@ -54,6 +56,15 @@ function Informe({ j, resumen }) {
   // La respuesta guarda la consulta que la produjo: mientras no coincide con la actual, se está cargando.
   const [respuesta, setRespuesta] = useState({ clave: '', data: null, error: '' })
   const [descarga, setDescarga] = useState({ formato: '', error: '' })
+  // Una lista a la vez: la sección abierta vive en la URL para sobrevivir a recargas.
+  const [params, setParams] = useSearchParams()
+  const abierta = params.get('seccion') ?? ''
+  const alternar = (clave) => {
+    const n = new URLSearchParams(params)
+    if (abierta === clave) n.delete('seccion'); else n.set('seccion', clave)
+    setParams(n, { replace: true })
+  }
+  const seccion = (clave) => ({ clave, abierta: abierta === clave, onAlternar: () => alternar(clave) })
   const mes = meses.find((m) => m.desde === rango.desde && m.hasta === rango.hasta)?.value ?? ''
   const valido = Boolean(rango.desde && rango.hasta && rango.desde <= rango.hasta)
   const clave = `${j.carreraId}|${j.periodo}|${rango.desde}|${rango.hasta}`
@@ -135,7 +146,9 @@ function Informe({ j, resumen }) {
           {estado.error && <p role="alert" className="mt-4 text-[0.8125rem] text-warning-foreground">{estado.error} Se muestra el intervalo anterior.</p>}
           <Encabezado data={data} />
           <Totales data={data} />
-          <Seccion titulo="Cobertura de captura por docente" descripcion="Clases concluidas con lista esperada en el intervalo. El registro en SICAT es evidencia de captura; no confirma presencia física del docente.">
+          <p className="print-hidden mt-10 text-xs text-muted-foreground">Abre la lista que necesites; al imprimir se incluyen todas.</p>
+          <div className="mt-3 border-t border-border print:border-0">
+          <Seccion {...seccion('cobertura')} conteo={data.docentes.length} titulo="Cobertura de captura por docente" descripcion="Clases concluidas con lista esperada en el intervalo. El registro en SICAT es evidencia de captura; no confirma presencia física del docente.">
             <Tabla
               columnas={['Docente', 'Horas/semana', 'Esperadas', 'Completas', 'Parciales', 'Sin captura', 'Tardías', 'Cobertura']}
               numericas={[1, 2, 3, 4, 5, 6, 7]}
@@ -143,14 +156,14 @@ function Informe({ j, resumen }) {
               vacio="Sin docentes con clases en la carrera."
             />
           </Seccion>
-          <Seccion titulo="Listas sin captura o parciales">
+          <Seccion {...seccion('listas')} conteo={data.listasPendientes.length} titulo="Listas sin captura o parciales">
             <Tabla
               columnas={['Fecha', 'Horario', 'Materia', 'Grupo', 'Docente', 'Estado']}
               filas={data.listasPendientes.map((l) => [fechaCorta(l.fecha), `${l.horaInicio}–${l.horaFin}`, l.materia, l.grupo, l.docente, l.estado === 'CAPTURA_PARCIAL' ? `Captura parcial (${l.registros} de ${l.alumnos})` : 'Sin captura'])}
               vacio="Todas las listas del intervalo están completas."
             />
           </Seccion>
-          <Seccion titulo="Avance de unidades por materia y grupo" descripcion="Estado al día de hoy; las unidades son de la materia y se comparten entre grupos.">
+          <Seccion {...seccion('avance')} conteo={data.avance.length} titulo="Avance de unidades por materia y grupo" descripcion="Estado al día de hoy; las unidades son de la materia y se comparten entre grupos.">
             <Tabla
               columnas={['Materia', 'Grupo', 'Docente', 'Unidades', 'Calificaciones pendientes', 'Entregas sin revisar', 'Cierre']}
               numericas={[4, 5]}
@@ -158,20 +171,21 @@ function Informe({ j, resumen }) {
               vacio="Sin materias ofertadas en el periodo."
             />
           </Seccion>
-          <Seccion titulo="Alumnos en riesgo" descripcion="Al corte de hoy, con el mismo criterio de Inicio y Grupos.">
+          <Seccion {...seccion('riesgo')} conteo={data.riesgos.length} titulo="Alumnos en riesgo" descripcion="Al corte de hoy, con el mismo criterio de Inicio y Grupos.">
             <Tabla
               columnas={['Alumno', 'Número de control', 'Grupo', 'Materias', 'Motivos']}
-              filas={data.riesgos.map((a) => [<span key="n" className="flex items-center gap-2">{a.nombre}<SexoBadge sexo={a.sexo} /></span>, a.numeroControl ?? '—', a.grupos.join(', '), a.materias.join(', '), a.motivos.join(' · ')])}
+              filas={data.riesgos.map((a) => [<span key="n" className="flex items-center gap-2"><span className="inline-flex w-5 shrink-0"><SexoBadge sexo={a.sexo} /></span>{a.nombre}</span>, a.numeroControl ?? '—', a.grupos.join(', '), a.materias.join(', '), a.motivos.join(' · ')])}
               vacio="Sin alumnos en riesgo con el criterio vigente."
             />
           </Seccion>
-          <Seccion titulo="Seguimientos registrados en el intervalo">
+          <Seccion {...seccion('seguimientos')} conteo={data.seguimientos.length} titulo="Seguimientos registrados en el intervalo">
             <Tabla
               columnas={['Fecha', 'Caso', 'Nota', 'Estado', 'Registró']}
               filas={data.seguimientos.map((n) => [fechaHoraCorta(n.fecha), n.caso, n.texto, n.estado === 'CERRADA' ? 'Cerrado' : 'Abierto', n.autor])}
               vacio="Sin notas de seguimiento en el intervalo."
             />
           </Seccion>
+          </div>
         </div>
       )}
     </>
@@ -222,12 +236,30 @@ function Totales({ data }) {
   )
 }
 
-function Seccion({ titulo, descripcion, children }) {
-  const id = `informe-${titulo.toLowerCase().replace(/[^a-z]+/g, '-')}`
+/** Título como botón: la lista se despliega solo cuando el jefe la pide. Al imprimir, todas abiertas. */
+function Seccion({ clave, titulo, descripcion, conteo, abierta, onAlternar, children }) {
+  const id = `informe-${clave}`
   return (
-    <section aria-labelledby={id} className="mt-10 break-inside-avoid-page">
-      <SeccionTitulo id={id} titulo={titulo} descripcion={descripcion} />
-      {children}
+    <section aria-labelledby={`${id}-titulo`} className="break-inside-avoid-page border-b border-border print:mt-8 print:border-0">
+      <h2 id={`${id}-titulo`} className="m-0">
+        <button
+          type="button"
+          aria-expanded={abierta}
+          aria-controls={`${id}-lista`}
+          onClick={onAlternar}
+          className="group flex min-h-14 w-full items-center gap-3 py-3 text-left focus-visible:rounded-md focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
+        >
+          <span className="min-w-0 flex-1">
+            <span className="text-[1.0625rem] font-semibold tracking-[-0.015em] text-foreground group-hover:text-primary-ink">{titulo}</span>
+            <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs font-medium tabular-nums text-muted-foreground">{conteo}</span>
+            {descripcion && <span className="mt-0.5 block text-xs font-normal text-muted-foreground">{descripcion}</span>}
+          </span>
+          <ChevronDown aria-hidden="true" className={cn('size-5 shrink-0 text-muted-foreground transition-transform duration-150 ease-out print:hidden', abierta && 'rotate-180')} />
+        </button>
+      </h2>
+      <div id={`${id}-lista`} className={cn('pb-5', !abierta && 'hidden print:block')}>
+        {children}
+      </div>
     </section>
   )
 }

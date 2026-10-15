@@ -8,6 +8,7 @@ import { horaCorta, periodoTexto } from './formato'
 import { useJefatura, useResumen } from './useJefatura'
 
 export const selectClass = 'h-11 w-full rounded-[0.7rem] border border-border bg-card pl-3 pr-8 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40'
+export const campoClass = 'w-full rounded-[0.7rem] border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40'
 export const linkClass = 'font-medium text-primary-ink underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40'
 
 /**

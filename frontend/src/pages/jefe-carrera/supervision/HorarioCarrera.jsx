@@ -185,7 +185,7 @@ export default function HorarioCarrera({ j, resumen, fijo = {}, titulo = 'Horari
       {pendientesHorario.length > 0 && (
         <section aria-labelledby={`${headingId}-sin-horario`} className="mb-4 rounded-[var(--radius-item)] border border-warning-foreground/25 bg-warning/35 px-4 py-3.5">
           <h3 id={`${headingId}-sin-horario`} className="text-sm font-semibold text-foreground">Pendientes de programar</h3>
-          <p className="mt-1 text-xs text-muted-foreground">
+          <p className="mt-1 text-xs text-foreground">
             Estas asignaciones pertenecen al periodo, pero todavía no tienen días y horas; por eso no pueden colocarse en la cuadrícula.
           </p>
           <ul className="mt-3 grid gap-2 text-xs sm:grid-cols-2 xl:grid-cols-3">

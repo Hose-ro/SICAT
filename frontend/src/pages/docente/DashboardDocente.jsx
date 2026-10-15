@@ -19,6 +19,7 @@ import api from '../../api/axios'
 import { useAuthStore } from '../../store/authStore'
 import PeriodoEscolarCard from '../../components/PeriodoEscolarCard'
 import DesempenoUnidad from './components/DesempenoUnidad'
+import ProximasReuniones from './components/ProximasReuniones'
 import { fechaDeClave } from '../../lib/periodo'
 import './dashboard-agenda.css'
 
@@ -184,6 +185,7 @@ export default function DashboardDocente() {
         <aside className="min-w-0 space-y-4" aria-label="Acciones del docente">
           <AccesosRapidos claseActual={panel?.claseActual} onPasarLista={pasarLista} iniciando={iniciando} />
           <Pendientes pendientes={pendientes} />
+          <ProximasReuniones />
         </aside>
       </div>
       {/* A todo lo ancho: la tabla lleva una columna por criterio. */}

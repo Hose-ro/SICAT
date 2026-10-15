@@ -1,14 +1,18 @@
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Search } from 'lucide-react'
+import { Pencil, Plus, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { esDeLaParidad, semestreTexto } from './supervision/formato'
+import { esDeLaParidad, periodoTexto, semestreTexto } from './supervision/formato'
+import MateriaDialog from './supervision/MateriaDialog'
 import { JefaturaPage, Segmento, Vacio, linkClass } from './supervision/ui'
 
 export default function JefeMaterias() {
   const [params, setParams] = useSearchParams()
   const [busqueda, setBusqueda] = useState('')
+  // null: cerrado; { materia: null } agrega; { materia } edita.
+  const [dialogo, setDialogo] = useState(null)
+  const [aviso, setAviso] = useState('')
   const setVarios = (patch) => {
     const n = new URLSearchParams(params)
     Object.entries(patch).forEach(([k, v]) => { if (v) n.set(k, v); else n.delete(k) })
@@ -21,8 +25,12 @@ export default function JefeMaterias() {
   const soloIncompletas = params.get('revision') === 'incompleta'
 
   return (
-    <JefaturaPage titulo="Materias" subtitulo="Lo que se imparte en el periodo frente a la retícula de la carrera.">
-      {({ j, resumen }) => {
+    <JefaturaPage
+      titulo="Materias"
+      subtitulo="La retícula de la carrera y lo que se imparte en el periodo."
+      accion={<Button onClick={() => { setAviso(''); setDialogo({ materia: null }) }}><Plus aria-hidden="true" /> Agregar materia</Button>}
+    >
+      {({ j, resumen, estado }) => {
         const ofertasPorMateria = new Map()
         resumen.ofertas.forEach((o) => ofertasPorMateria.set(o.materia.id, [...(ofertasPorMateria.get(o.materia.id) ?? []), o]))
         const sinOferta = resumen.reticula.filter((m) => esDeLaParidad(m.semestre, j.periodo) && !m.ofertas.length)
@@ -42,14 +50,24 @@ export default function JefeMaterias() {
 
         return (
           <>
-            <ul className="mt-6 flex flex-wrap gap-x-6 gap-y-1 border-y border-border py-3 text-[0.8125rem]" aria-label="Revisión de la oferta">
-              <li>{sinOferta.length ? <button type="button" className={linkClass} onClick={() => set('vista', 'reticula')}>{sinOferta.length} {sinOferta.length === 1 ? 'materia' : 'materias'} de la retícula sin oferta</button> : <span className="text-muted-foreground">Retícula del ciclo cubierta</span>}</li>
+            {dialogo && (
+              <MateriaDialog
+                j={j}
+                materia={dialogo.materia}
+                semestre={dialogo.semestre}
+                onClose={() => setDialogo(null)}
+                onGuardada={(texto) => { setDialogo(null); setAviso(texto); estado.reintentar() }}
+              />
+            )}
+            {aviso && <p role="status" className="mt-4 text-[0.8125rem] text-success-foreground">{aviso}</p>}
+            <ul className="mt-6 flex flex-wrap gap-x-6 gap-y-1 border-y border-border py-3 text-[0.8125rem]" aria-label="Revisión del periodo">
+              <li>{sinOferta.length ? <button type="button" className={linkClass} onClick={() => setVarios({ vista: 'reticula', paridad: 'ciclo' })}>{sinOferta.length} {sinOferta.length === 1 ? 'materia del ciclo sin grupo' : 'materias del ciclo sin grupo'}</button> : <span className="text-muted-foreground">Retícula del ciclo cubierta</span>}</li>
               <li>{sinDocente.length ? <button type="button" aria-pressed={soloIncompletas} className={cn(linkClass, 'text-warning-foreground')} onClick={() => setVarios({ vista: 'ofertas', revision: soloIncompletas ? '' : 'incompleta' })}>{sinDocente.length} {sinDocente.length === 1 ? 'materia en un grupo sin docente' : 'materias en grupos sin docente'}</button> : <span className="text-muted-foreground">Todas las materias con docente</span>}</li>
               <li>{sinHorario.length ? <button type="button" aria-pressed={soloIncompletas} className={cn(linkClass, 'text-warning-foreground')} onClick={() => setVarios({ vista: 'ofertas', revision: soloIncompletas ? '' : 'incompleta' })}>{sinHorario.length} {sinHorario.length === 1 ? 'materia en un grupo sin horario' : 'materias en grupos sin horario'}</button> : <span className="text-muted-foreground">Todas las materias con horario</span>}</li>
             </ul>
 
             <div className="mt-5 flex flex-wrap items-center gap-3">
-              <Segmento label="Vista" value={vista} onChange={(v) => set('vista', v)} options={[{ value: 'reticula', label: 'Todas las materias' }, { value: 'ofertas', label: 'Ofertas del periodo' }]} />
+              <Segmento label="Vista" value={vista} onChange={(v) => set('vista', v)} options={[{ value: 'reticula', label: 'Retícula completa' }, { value: 'ofertas', label: 'Con grupo este periodo' }]} />
               <label className="relative min-w-[200px] flex-1 sm:max-w-xs">
                 <span className="sr-only">Buscar materia</span>
                 <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
@@ -76,10 +94,13 @@ export default function JefeMaterias() {
 
             {vista === 'reticula' ? (
               <>
-                <p className="mt-4 text-xs text-muted-foreground">{todas ? 'Toda la retícula de la carrera.' : `Semestres ${paridad}, los que corresponden a ${j.periodo}.`} La oferta real manda: una materia de otro semestre puede impartirse como recursamiento.</p>
+                <p className="mt-4 text-xs text-muted-foreground">{todas ? 'Toda la retícula de la carrera.' : `Semestres ${paridad}, los que corresponden a ${periodoTexto(j.periodo)}.`} La oferta real manda: una materia de otro semestre puede impartirse como recursamiento.</p>
                 {semestres.length ? semestres.map((s) => (
                   <section key={s} className="mt-6" aria-labelledby={`ret-${s}`}>
-                    <h2 id={`ret-${s}`} className="mb-2 text-base font-semibold text-foreground">{s ? semestreTexto(s) : 'Sin semestre en retícula'}</h2>
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                      <h2 id={`ret-${s}`} className="text-base font-semibold text-foreground">{s ? semestreTexto(s) : 'Sin semestre en retícula'}</h2>
+                      <Button variant="ghost" size="sm" onClick={() => { setAviso(''); setDialogo({ materia: null, semestre: s || undefined }) }}><Plus aria-hidden="true" /> Agregar</Button>
+                    </div>
                     <ul className="divide-y divide-border rounded-[var(--radius-item)] border border-border bg-card">
                       {reticula.filter((m) => (m.semestre ?? 0) === s).map((m) => (
                         <li key={m.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-[0.8125rem]">
@@ -87,17 +108,25 @@ export default function JefeMaterias() {
                             {m.ofertas.length ? <Link className={cn(linkClass, 'text-foreground')} to={j.to(`/jefe-carrera/materias/${m.id}`)}>{m.nombre}</Link> : <span className="text-foreground">{m.nombre}</span>}
                             <span className="ml-2 text-xs text-muted-foreground">{m.clave}</span>
                           </span>
-                          {m.ofertas.length
-                            ? <span className="text-xs text-muted-foreground">{m.ofertas.length === 1 ? 'Ofertada en 1 grupo' : `Ofertada en ${m.ofertas.length} grupos`}</span>
-                            : <span className="text-xs font-medium text-warning-foreground">Sin oferta en el periodo</span>}
+                          <span className="flex items-center gap-2">
+                            {m.ofertas.length
+                              ? <span className="text-xs text-muted-foreground">{m.ofertas.length === 1 ? 'En 1 grupo este periodo' : `En ${m.ofertas.length} grupos este periodo`}</span>
+                              : <span className="text-xs font-medium text-warning-foreground">Sin grupo en el periodo</span>}
+                            <Button variant="ghost" size="sm" aria-label={`Editar ${m.nombre}`} onClick={() => { setAviso(''); setDialogo({ materia: m }) }}>
+                              <Pencil aria-hidden="true" /> Editar
+                            </Button>
+                          </span>
                         </li>
                       ))}
                     </ul>
                   </section>
                 )) : <Vacio titulo="Ninguna materia coincide" />}
               </>
-            ) : !resumen.ofertas.length ? (
-              <Vacio titulo="Sin oferta en el periodo">Ninguna materia de la carrera está asignada a un grupo activo en este periodo.</Vacio>
+            ) : (
+              <p className="mt-4 text-xs text-muted-foreground">Materias asignadas a un grupo activo en {periodoTexto(j.periodo)}: quién las imparte, cuántos alumnos tienen y si les falta horario o calificaciones.</p>
+            )}
+            {vista === 'reticula' ? null : !resumen.ofertas.length ? (
+              <Vacio titulo="Ninguna materia con grupo este periodo">Ninguna materia de la carrera está asignada a un grupo activo en este periodo.</Vacio>
             ) : !materiasOfertadas.length ? (
               <Vacio titulo={soloIncompletas ? 'Todas las materias tienen docente y horario' : soloPendientes ? 'Sin calificaciones pendientes' : 'Ninguna materia coincide'} accion={<Button variant="outline" onClick={() => { setBusqueda(''); const n = new URLSearchParams(params); n.delete('pendientes'); n.delete('revision'); setParams(n, { replace: true }) }}>Restablecer filtros</Button>} />
             ) : (

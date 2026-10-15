@@ -14,6 +14,7 @@ import {
   MoreHorizontal,
   CalendarClock,
   DoorOpen,
+  Handshake,
   GraduationCap,
   UsersRound,
   UserPlus,
@@ -141,6 +142,10 @@ export function BaseLayout({ children }) {
                     <AlertTriangle className="nav__icon" />
                     <span className="nav__label">Alumnos en riesgo</span>
                   </NavLink>
+                  <NavLink to="/docente/reuniones" className={navClass} data-tip="Reuniones de academia" hidden={!'Reuniones de academia'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
+                    <Handshake className="nav__icon" />
+                    <span className="nav__label">Reuniones</span>
+                  </NavLink>
                   <NavLink to="/docente/solicitudes" className={navClass} data-tip="Solicitudes" hidden={!'Solicitudes de inscripción'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
                     <UserPlus className="nav__icon" />
                     <span className="nav__label">Solicitudes</span>
@@ -183,6 +188,10 @@ export function BaseLayout({ children }) {
               <NavLink to="/jefe-carrera/reportes" className={navClass} data-tip="Informe del periodo" hidden={!'Informe del periodo'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
                 <BarChart3 className="nav__icon" />
                 <span className="nav__label">Informe del periodo</span>
+              </NavLink>
+              <NavLink to="/jefe-carrera/reuniones" className={navClass} data-tip="Reuniones de academia" hidden={!'Reuniones de academia'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
+                <Handshake className="nav__icon" />
+                <span className="nav__label">Reuniones</span>
               </NavLink>
             </>
           )}

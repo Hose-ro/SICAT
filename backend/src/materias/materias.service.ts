@@ -11,6 +11,7 @@ import { PrismaService } from '../prisma.service';
 import {
   ActorMateria,
   asegurarAccesoMateria,
+  asegurarCarreraDeJefe,
   esDocenteDeMateria,
   materiasActivasDelDocenteWhere,
   materiasDelDocenteWhere,
@@ -33,10 +34,27 @@ export class MateriasService {
     actor?: { id: number; rol: string },
     docenteId?: number | null,
   ) {
+    if (actor?.rol === 'JEFE_CARRERA') {
+      await asegurarCarreraDeJefe(this.prisma, actor.id, dto.carreraId);
+      const existente = await this.prisma.materia.count({
+        where: {
+          clave: dto.clave.trim().toUpperCase(),
+          carreraId: dto.carreraId,
+        },
+      });
+      if (existente) {
+        throw new ConflictException(
+          'Ya existe una materia con esa clave en la carrera',
+        );
+      }
+    }
     const materia = await this.prisma.materia.create({
       data: {
         nombre: dto.nombre,
-        clave: dto.clave,
+        clave:
+          actor?.rol === 'JEFE_CARRERA'
+            ? dto.clave.trim().toUpperCase()
+            : dto.clave,
         descripcion: dto.descripcion,
         horaInicio: dto.horaInicio ?? '',
         horaFin: dto.horaFin ?? '',
@@ -392,6 +410,11 @@ export class MateriasService {
       }
     }
 
+    // Mover la materia a otra carrera también tiene que quedar en su alcance.
+    if (actor?.rol === 'JEFE_CARRERA' && dto.carreraId !== undefined) {
+      await asegurarCarreraDeJefe(this.prisma, actor.id, dto.carreraId);
+    }
+
     if (dto.carreraId !== undefined && dto.carreraId !== null) {
       const carrera = await this.prisma.carrera.findUnique({
         where: { id: dto.carreraId },
@@ -588,6 +611,27 @@ export class MateriasService {
   }
 
   /**
+   * La jefatura sólo elimina materias recién dadas de alta o capturadas por
+   * error: en cuanto se imparten en un grupo o tienen registros, el borrado
+   * le corresponde a coordinación.
+   */
+  private async asegurarSinHistorial(id: number) {
+    const [grupos, inscripciones, calificaciones, tareas, sesiones] =
+      await Promise.all([
+        this.prisma.grupo.count({ where: { materias: { some: { id } } } }),
+        this.prisma.inscripcion.count({ where: { materiaId: id } }),
+        this.prisma.calificacionUnidad.count({ where: { materiaId: id } }),
+        this.prisma.tarea.count({ where: { materiaId: id } }),
+        this.prisma.claseSesion.count({ where: { materiaId: id } }),
+      ]);
+    if (grupos + inscripciones + calificaciones + tareas + sesiones > 0) {
+      throw new ConflictException(
+        'La materia ya se imparte o tiene registros; quítala de sus grupos o pide a coordinación que la elimine',
+      );
+    }
+  }
+
+  /**
    * Borrado definitivo. Se lleva lo que cuelga de la materia: horarios,
    * sesiones de clase con sus asistencias, tareas con sus entregas,
    * inscripciones, calificaciones y unidades. Los grupos y las academias
@@ -596,6 +640,7 @@ export class MateriasService {
   async remove(id: number, actor?: ActorMateria) {
     await asegurarAccesoMateria(this.prisma, actor, id);
     await this.findOne(id);
+    if (actor?.rol === 'JEFE_CARRERA') await this.asegurarSinHistorial(id);
 
     return this.prisma.$transaction(
       async (tx) => {

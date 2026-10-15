@@ -121,7 +121,7 @@ function filasReporte(materiaId, grupoId) {
 }
 
 export const riesgos = [0, 1].map((i) => ({
-  id: 800 + i, nombre: nombres[i], numeroControl: `2280${i}`, email: null, telefono: null,
+  id: 800 + i, nombre: nombres[i], numeroControl: `2280${i}`, sexo: i ? 'HOMBRE' : 'MUJER', email: null, telefono: null,
   causas: [{ materia: { id: 411, nombre: 'Cálculo diferencial', clave: 'ACF-0901' }, grupo: grupos[0], unidad: unidades(411)[1], motivos: i ? ['CALIFICACION_LIMITE', 'ASISTENCIA'] : ['CALIFICACION_BAJA', 'ASISTENCIA'], calificacion: 64 + i * 8, asistencia: { porcentaje: 60 } }],
 }))
 
@@ -158,7 +158,34 @@ function resumen() {
       { id: 431, clave: 'ACA-0907', nombre: 'Taller de ética', semestre: 2, numUnidades: 3, ofertas: [] },
     ],
     indicadores: { listasPendientes: pendientes.length, calificacionesPendientes: 15, entregasPendientes: 5, alumnosRiesgo: 2 },
+    // Catálogo activo (Docentes y Grupos): cada grupo con el periodo en que se consulta.
+    catalogo: {
+      ofertas: ofertas.map((o) => ({ id: o.id, materia: o.materia, grupo: { ...o.grupo, periodoConsulta: '2026-B' }, docentes: o.docentes, tieneHorario: o.horarios.length > 0 })),
+      docentes: docentes.map((d) => ({ ...d, ofertas: ofertas.filter((o) => o.docentes.some((x) => x.id === d.id)).map((o) => o.id) })),
+      grupos: grupos.map((x) => ({ ...x, periodoConsulta: '2026-B', ofertas: ofertas.filter((o) => o.grupo.id === x.id).map((o) => o.id) })),
+    },
   }
+}
+
+// Reuniones de academia: una próxima y una pasada ya finalizada con su acta.
+const diasDesdeHoy = (n) => clave(new Date(Date.now() + n * 86400000))
+const convocado = (d, asistio = null) => ({ id: d.id, nombre: d.nombre, email: d.email, asistio })
+export function reunionesIniciales() {
+  return [
+    {
+      id: 1, carrera, creadaPor: { id: 1, nombre: 'Persona de prueba' }, titulo: 'Reunión ordinaria de academia', asunto: 'Revisión del avance programático del primer parcial.',
+      tipo: 'ORDINARIA', numeroActa: null, fecha: diasDesdeHoy(6), horaInicio: '12:00', horaFin: '13:30', modalidad: 'PRESENCIAL', lugar: 'Sala de juntas, edificio K', enlace: null,
+      estado: 'PROGRAMADA', observaciones: null, puntos: [{ id: 1, orden: 1, descripcion: 'Pase de lista' }, { id: 2, orden: 2, descripcion: 'Avance programático por materia' }], acuerdos: [],
+      convocados: docentes.slice(0, 5).map((d) => convocado(d)), asistencia: { convocados: 5, asistieron: 0, registrada: false },
+    },
+    {
+      id: 2, carrera, creadaPor: { id: 1, nombre: 'Persona de prueba' }, titulo: 'Reunión de inicio de semestre', asunto: null,
+      tipo: 'ORDINARIA', numeroActa: 'ISC-01/2026', fecha: '2026-08-27', horaInicio: '10:00', horaFin: null, modalidad: 'VIRTUAL', lugar: null, enlace: 'https://meet.google.com/abc-defg-hij',
+      estado: 'FINALIZADA', observaciones: 'Sin observaciones.', puntos: [{ id: 3, orden: 1, descripcion: 'Asignación de materias' }],
+      acuerdos: [{ id: 1, orden: 1, descripcion: 'Entregar planeación didáctica', responsable: 'Todos los docentes', fechaLimite: '2026-09-04' }],
+      convocados: docentes.slice(0, 3).map((d, i) => convocado(d, i !== 2)), asistencia: { convocados: 3, asistieron: 2, registrada: true },
+    },
+  ]
 }
 
 const informe = (q) => ({
@@ -178,6 +205,7 @@ const informe = (q) => ({
 export async function mockJefatura(page, { seguimientos = [] } = {}) {
   const requests = []
   const guardados = [...seguimientos]
+  const reuniones = reunionesIniciales()
   await page.route('**/api/jefe-carrera/**', async (route) => {
     const req = route.request()
     const url = new URL(req.url())
@@ -186,7 +214,19 @@ export async function mockJefatura(page, { seguimientos = [] } = {}) {
     requests.push({ path: p, method: req.method(), query: q, body: req.postDataJSON?.() })
     let data = []
     let status = 200
-    if (p === '/contexto') data = { carreras: [carrera], periodoActual: '2026-B', periodos: ['2026-B', '2026-A'] }
+    if (p === '/reuniones/docentes') data = docentes.map(({ id, nombre, email }) => ({ id, nombre, email }))
+    else if (p === '/reuniones' && req.method() === 'GET') data = reuniones
+    else if (p === '/reuniones' && req.method() === 'POST') {
+      const body = req.postDataJSON()
+      data = { ...body, id: 99, carrera, creadaPor: null, estado: 'PROGRAMADA', observaciones: null, puntos: body.puntos.map((descripcion, i) => ({ id: 900 + i, orden: i + 1, descripcion })), acuerdos: [], convocados: docentes.filter((d) => body.convocados.includes(d.id)).map((d) => convocado(d)), asistencia: { convocados: body.convocados.length, asistieron: 0, registrada: false } }
+      reuniones.unshift(data)
+    } else if (/^\/reuniones\/\d+\/acta$/.test(p)) {
+      const body = req.postDataJSON()
+      const r = reuniones.find((x) => x.id === Number(p.split('/')[2]))
+      Object.assign(r, { estado: body.finalizar ? 'FINALIZADA' : r.estado, observaciones: body.observaciones, acuerdos: body.acuerdos.map((a, i) => ({ id: 500 + i, orden: i + 1, ...a })) })
+      r.convocados = r.convocados.map((c) => ({ ...c, asistio: body.asistencia.find((a) => a.docenteId === c.id)?.asistio ?? c.asistio }))
+      data = r
+    } else if (p === '/contexto') data = { carreras: [carrera], periodoActual: '2026-B', periodos: ['2026-B', '2026-A'] }
     else if (p === '/supervision') data = resumen()
     else if (p === '/calendario') data = clasesEntre(q.desde, q.hasta, q)
     else if (/^\/ofertas\/\d+\/grupos\/\d+$/.test(p)) {
