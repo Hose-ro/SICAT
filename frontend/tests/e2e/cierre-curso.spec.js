@@ -56,6 +56,15 @@ function cierre({ segunda = null, noPresento = false, cerrado = false } = {}) {
 async function abrir(page) {
   const llamadas = []
   let estado = cierre()
+  const manuales = new Map()
+  const reporteManual = () => ({
+    rows: estado.alumnos.flatMap((item) => item.unidades.map((celda) => ({
+      alumno: item.alumno,
+      unidad: unidades.find((unidad) => unidad.id === celda.unidadId),
+      calificacionManual: manuales.get(`${item.alumno.id}:${celda.unidadId}`) ?? null,
+      calificacionCalculada: celda.primera,
+    }))),
+  })
   await mockApi(page, 'DOCENTE')
   await page.route('**/api/calificaciones/cierre**', async (route) => {
     const req = route.request()
@@ -73,6 +82,17 @@ async function abrir(page) {
       estado = cierre({ segunda: 72 })
     }
     return route.fulfill({ json: estado })
+  })
+  await page.route('**/api/calificaciones/docente**', (route) => route.fulfill({ json: reporteManual() }))
+  await page.route('**/api/calificaciones/manual/lote**', async (route) => {
+    const cuerpo = route.request().postDataJSON()
+    llamadas.push({ metodo: route.request().method(), ruta: new URL(route.request().url()).pathname, cuerpo })
+    cuerpo.calificaciones.forEach((item) => {
+      const llave = `${item.alumnoId}:${item.unidadId}`
+      if (item.calificacionManual == null) manuales.delete(llave)
+      else manuales.set(llave, item.calificacionManual)
+    })
+    return route.fulfill({ json: reporteManual() })
   })
   await page.goto('/calificaciones/cierre?materia=1&grupo=1')
   await expect(page.getByRole('heading', { level: 1, name: 'Cierre de curso' })).toBeVisible()
@@ -146,6 +166,41 @@ test('acepta la calificación con coma decimal', async ({ page }) => {
   expect(llamadas.find((item) => item.metodo === 'PATCH').cuerpo.capturas[0].calificacion).toBe(85.5)
 })
 
+test('la captura manual permite calificar a todos los alumnos en todas las unidades', async ({ page }) => {
+  const llamadas = await abrir(page)
+  await page.getByRole('button', { name: 'Capturar manualmente' }).click()
+
+  await expect(page.getByRole('note')).toContainText('todos los alumnos en todas las unidades')
+  const anaU1 = page.getByRole('textbox', { name: 'Calificación manual de Ana López en Unidad 1' })
+  const luisU1 = page.getByRole('textbox', { name: 'Calificación manual de Luis Pérez en Unidad 1' })
+  const luisU2 = page.getByRole('textbox', { name: 'Calificación manual de Luis Pérez en Unidad 2' })
+  await expect(anaU1).toHaveAttribute('placeholder', '90')
+  await expect(page.getByText('Calculada 90').first()).toBeVisible()
+  await anaU1.focus()
+  await anaU1.press('Enter')
+  await expect(luisU1).toBeFocused()
+
+  await anaU1.fill('0')
+  await expect(page.getByText('De 1 a 100').first()).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Guardar calificaciones' }).first()).toBeDisabled()
+  await anaU1.fill('98')
+  await luisU2.fill('88,5')
+  await page.getByRole('button', { name: 'Guardar calificaciones' }).first().click()
+
+  await expect(page.getByText('Se guardaron 2 calificaciones manuales.')).toBeVisible()
+  const guardado = llamadas.find((item) => item.ruta.endsWith('/manual/lote'))
+  expect(guardado.cuerpo).toEqual({
+    materiaId: 1,
+    grupoId: 1,
+    calificaciones: [
+      { alumnoId: 1, unidadId: 11, calificacionManual: 98 },
+      { alumnoId: 2, unidadId: 12, calificacionManual: 88.5 },
+    ],
+  })
+  await expect(anaU1).toHaveValue('98')
+  await expect(luisU2).toHaveValue('88.5')
+})
+
 test('descarga el concentrado preliminar', async ({ page }) => {
   await abrir(page)
   const descarga = page.waitForEvent('download')
@@ -173,5 +228,11 @@ for (const width of [390, 1280]) {
     await page.screenshot({ path: `audit/docente/cierre-curso-${width}.png`, fullPage: true })
     const axe = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()
     expect(axe.violations.map((v) => `${v.id}: ${v.nodes[0]?.html}`)).toEqual([])
+
+    await page.getByRole('button', { name: 'Capturar manualmente' }).click()
+    await expect(page.getByRole('textbox', { name: 'Calificación manual de Ana López en Unidad 1' })).toBeVisible()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false)
+    const axeCaptura = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()
+    expect(axeCaptura.violations.map((v) => `${v.id}: ${v.nodes[0]?.html}`)).toEqual([])
   })
 }

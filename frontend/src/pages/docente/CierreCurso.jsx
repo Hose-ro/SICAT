@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { FileDown, FileSpreadsheet, Lock, LockOpen } from 'lucide-react'
+import { FileDown, FileSpreadsheet, Lock, LockOpen, PencilLine, RotateCcw } from 'lucide-react'
 import api from '@/api/axios'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import TaskNotice from '@/components/TaskNotice'
 import useUnsavedChangesGuard from '@/hooks/useUnsavedChangesGuard'
+import { moverFoco } from '@/lib/capturaTeclado'
 import { descargarArchivo, mensajeDeBlob } from '@/lib/descargas'
 import { confirmAction, notify } from '@/lib/feedback'
 import { cn } from '@/lib/utils'
@@ -51,6 +52,31 @@ function invalida({ calificacion, noPresento }) {
   return !Number.isFinite(valor) || valor < 0 || valor > 100
 }
 
+function manualInvalida(valor) {
+  if (String(valor).trim() === '') return false
+  const numero = aNumero(valor)
+  return !Number.isFinite(numero) || numero < 1 || numero > 100
+}
+
+/** Captura manual guardada y cálculo de respaldo por alumno y unidad. */
+function manualesDe(reporte, datos) {
+  const filas = new Map(
+    (reporte?.rows ?? []).map((fila) => [clave(fila.alumno?.id, fila.unidad?.id), fila]),
+  )
+  return Object.fromEntries((datos?.alumnos ?? []).flatMap((item) =>
+    (datos?.unidades ?? []).map((unidad) => {
+      const llave = clave(item.alumno.id, unidad.id)
+      const fila = filas.get(llave)
+      return [llave, {
+        alumnoId: item.alumno.id,
+        unidadId: unidad.id,
+        calificacion: fila?.calificacionManual == null ? '' : String(fila.calificacionManual),
+        calculada: typeof fila?.calificacionCalculada === 'number' ? fila.calificacionCalculada : null,
+      }]
+    }),
+  ))
+}
+
 /**
  * Cierre del curso (TecNM): primera y segunda oportunidad por unidad,
  * calificación final y nivel de desempeño, y el concentrado que se entrega.
@@ -68,6 +94,11 @@ export default function CierreCurso() {
   const [guardando, setGuardando] = useState(false)
   const [accion, setAccion] = useState(null)
   const [filtro, setFiltro] = useState('TODOS')
+  const [capturaManual, setCapturaManual] = useState(false)
+  const [cargandoManual, setCargandoManual] = useState(false)
+  const [guardandoManual, setGuardandoManual] = useState(false)
+  const [manualServidor, setManualServidor] = useState({})
+  const [manualBorradores, setManualBorradores] = useState({})
 
   useEffect(() => {
     api.get('/materias/mis-materias')
@@ -113,11 +144,98 @@ export default function CierreCurso() {
   const cambiados = Object.keys(borradores).filter((llave) =>
     borradores[llave].calificacion !== servidor[llave]?.calificacion || borradores[llave].noPresento !== servidor[llave]?.noPresento)
   const invalidos = cambiados.filter((llave) => invalida(borradores[llave]))
-  useUnsavedChangesGuard(cambiados.length > 0, useMemo(() => ({
-    title: 'Segunda oportunidad sin guardar',
-    description: 'Si sales ahora se pierden las calificaciones que capturaste.',
+  const manualCambiados = Object.keys(manualBorradores).filter((llave) =>
+    manualBorradores[llave].calificacion !== manualServidor[llave]?.calificacion)
+  const manualInvalidos = manualCambiados.filter((llave) => manualInvalida(manualBorradores[llave].calificacion))
+  const cambiosSinGuardar = cambiados.length + manualCambiados.length
+  useUnsavedChangesGuard(cambiosSinGuardar > 0, useMemo(() => ({
+    title: 'Calificaciones sin guardar',
+    description: `Si sales ahora se ${cambiosSinGuardar === 1 ? 'pierde' : 'pierden'} ${plural(cambiosSinGuardar, 'calificación', 'calificaciones')}.`,
     confirmLabel: 'Salir sin guardar',
-  }), []))
+  }), [cambiosSinGuardar]))
+
+  const limpiarCapturaManual = useCallback(() => {
+    setCapturaManual(false)
+    setManualServidor({})
+    setManualBorradores({})
+  }, [])
+
+  const abrirCapturaManual = async () => {
+    if (cambiados.length) {
+      notify('Guarda o descarta primero los cambios de segunda oportunidad.')
+      return
+    }
+    setCargandoManual(true)
+    try {
+      const { data: reporte } = await api.get('/calificaciones/docente', { params: { materiaId, grupoId } })
+      const base = manualesDe(reporte, datos)
+      setManualServidor(base)
+      setManualBorradores(base)
+      setCapturaManual(true)
+      setFiltro('TODOS')
+    } catch (err) {
+      notify(err.response?.data?.message ?? 'No se pudo abrir la captura manual.')
+    } finally {
+      setCargandoManual(false)
+    }
+  }
+
+  const cancelarCapturaManual = async () => {
+    if (manualCambiados.length && !(await confirmAction({
+      title: 'Salir de la captura manual',
+      description: `Se ${manualCambiados.length === 1 ? 'perderá' : 'perderán'} ${plural(manualCambiados.length, 'calificación', 'calificaciones')} sin guardar.`,
+      confirmLabel: 'Salir sin guardar',
+    }))) return
+    limpiarCapturaManual()
+  }
+
+  const guardarManuales = async () => {
+    if (!manualCambiados.length || manualInvalidos.length || guardandoManual) return
+    setGuardandoManual(true)
+    try {
+      const { data: reporte } = await api.patch('/calificaciones/manual/lote', {
+        materiaId,
+        grupoId,
+        calificaciones: manualCambiados.map((llave) => {
+          const item = manualBorradores[llave]
+          return {
+            alumnoId: item.alumnoId,
+            unidadId: item.unidadId,
+            calificacionManual: item.calificacion.trim() === '' ? null : aNumero(item.calificacion),
+          }
+        }),
+      }, { params: { grupoId } })
+      const cantidad = manualCambiados.length
+      const baseGuardada = manualesDe(reporte, datos)
+      setManualServidor(baseGuardada)
+      setManualBorradores(baseGuardada)
+      try {
+        const { data: cierreActualizado } = await api.get('/calificaciones/cierre', { params: { materiaId, grupoId } })
+        aplicar(cierreActualizado)
+        const baseActualizada = manualesDe(reporte, cierreActualizado)
+        setManualServidor(baseActualizada)
+        setManualBorradores(baseActualizada)
+      } catch {
+        notify('Las calificaciones sí se guardaron, pero no se pudo actualizar el concentrado. Recarga la página para ver el resultado.')
+        return
+      }
+      notify(`Se ${cantidad === 1 ? 'guardó' : 'guardaron'} ${plural(cantidad, 'calificación manual', 'calificaciones manuales')}.`, 'success')
+    } catch (err) {
+      notify(err.response?.data?.message ?? 'No se pudieron guardar las calificaciones manuales.')
+    } finally {
+      setGuardandoManual(false)
+    }
+  }
+
+  const cambiarSeleccion = async (cambios) => {
+    if (cambiosSinGuardar && !(await confirmAction({
+      title: 'Cambiar de curso',
+      description: `Se ${cambiosSinGuardar === 1 ? 'perderá' : 'perderán'} ${plural(cambiosSinGuardar, 'calificación', 'calificaciones')} sin guardar.`,
+      confirmLabel: 'Cambiar sin guardar',
+    }))) return
+    limpiarCapturaManual()
+    elegir(cambios)
+  }
 
   const guardarSegunda = async () => {
     if (!cambiados.length || invalidos.length || guardando) return
@@ -142,6 +260,10 @@ export default function CierreCurso() {
   }
 
   const cerrar = async () => {
+    if (cambiosSinGuardar) {
+      notify('Guarda o descarta las calificaciones antes de cerrar el curso.')
+      return
+    }
     if (!(await confirmAction({
       title: `Cerrar ${datos.materia.nombre} · ${datos.grupo?.nombre}`,
       description: `Se guarda el concentrado: ${plural(datos.resumen.acreditados, 'acreditado', 'acreditados')} y ${plural(datos.resumen.noAcreditados, 'no acreditado', 'no acreditados')}. Después, las calificaciones de este grupo no se pueden cambiar sin reabrir el curso.`,
@@ -209,7 +331,7 @@ export default function CierreCurso() {
     <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
       <label className="flex flex-col gap-1 sm:w-72">
         <span className="text-sm font-medium text-foreground">Materia</span>
-        <select className={CAMPO} value={materiaId ?? ''} onChange={(event) => elegir({ materia: event.target.value, grupo: null })}>
+        <select className={CAMPO} value={materiaId ?? ''} onChange={(event) => cambiarSeleccion({ materia: event.target.value, grupo: null })}>
           <option value="">Elige una materia</option>
           {materias.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}
         </select>
@@ -217,7 +339,7 @@ export default function CierreCurso() {
       {materia && (
         <label className="flex flex-col gap-1 sm:w-48">
           <span className="text-sm font-medium text-foreground">Grupo</span>
-          <select className={CAMPO} value={grupoId ?? ''} onChange={(event) => elegir({ grupo: event.target.value })}>
+          <select className={CAMPO} value={grupoId ?? ''} onChange={(event) => cambiarSeleccion({ grupo: event.target.value })}>
             <option value="">Elige un grupo</option>
             {(materia.grupos ?? []).map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}
             {/* Un grupo que llega por enlace y no está en la lista igual se ve elegido. */}
@@ -249,11 +371,19 @@ export default function CierreCurso() {
   } else {
     contenido = (
       <>
-        <Estado datos={datos} accion={accion} onCerrar={cerrar} onReabrir={reabrir} onDescargar={descargar} />
-        <SegundaOportunidad datos={datos} borradores={borradores} servidor={servidor} cerrado={Boolean(datos.cierre)}
+        <Estado datos={datos} accion={accion} bloqueoCierre={cambiosSinGuardar > 0 || capturaManual} onCerrar={cerrar} onReabrir={reabrir} onDescargar={descargar} />
+        <SegundaOportunidad datos={datos} borradores={borradores} servidor={servidor}
+          cerrado={Boolean(datos.cierre)} capturaManual={capturaManual}
           onCambiar={(llave, cambio) => setBorradores((prev) => ({ ...prev, [llave]: { ...prev[llave], ...cambio } }))} />
-        <Concentrado datos={datos} filtro={filtro} onFiltro={setFiltro} />
-        {cambiados.length > 0 && (
+        <Concentrado datos={datos} filtro={filtro} onFiltro={setFiltro}
+          capturaManual={capturaManual} cargandoManual={cargandoManual} guardandoManual={guardandoManual}
+          manuales={manualBorradores} manualCambiados={manualCambiados.length} manualInvalidos={manualInvalidos.length}
+          onAbrirManual={abrirCapturaManual} onCancelarManual={cancelarCapturaManual} onGuardarManual={guardarManuales}
+          onCambiarManual={(llave, calificacion) => setManualBorradores((prev) => ({
+            ...prev,
+            [llave]: { ...prev[llave], calificacion },
+          }))} />
+        {!capturaManual && cambiados.length > 0 && (
           <div className="sticky bottom-[calc(var(--barra-inferior,0px)+env(safe-area-inset-bottom,0px)+0.75rem)] z-10 flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-item)] border border-border bg-card p-3">
             <p className="text-sm font-medium text-foreground" role="status">
               {plural(cambiados.length, 'calificación', 'calificaciones')} de segunda oportunidad sin guardar
@@ -262,6 +392,18 @@ export default function CierreCurso() {
             <div className="flex gap-2">
               <Button variant="outline" type="button" disabled={guardando} onClick={() => setBorradores(servidor)}>Descartar</Button>
               <Button type="button" disabled={guardando || invalidos.length > 0} onClick={guardarSegunda}>{guardando ? 'Guardando…' : 'Guardar'}</Button>
+            </div>
+          </div>
+        )}
+        {capturaManual && manualCambiados.length > 0 && (
+          <div className="sticky bottom-[calc(var(--barra-inferior,0px)+env(safe-area-inset-bottom,0px)+0.75rem)] z-10 flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-item)] border border-border bg-card p-3">
+            <p className="text-sm font-medium text-foreground" role="status">
+              {plural(manualCambiados.length, 'calificación manual', 'calificaciones manuales')} sin guardar
+              {manualInvalidos.length > 0 && <span className="text-destructive-foreground"> · {plural(manualInvalidos.length, 'está', 'están')} fuera de 1 a 100</span>}
+            </p>
+            <div className="flex gap-2">
+              <Button variant="outline" type="button" disabled={guardandoManual} onClick={() => setManualBorradores(manualServidor)}>Descartar</Button>
+              <Button type="button" disabled={guardandoManual || manualInvalidos.length > 0} onClick={guardarManuales}>{guardandoManual ? 'Guardando…' : 'Guardar calificaciones'}</Button>
             </div>
           </div>
         )}
@@ -278,7 +420,7 @@ export default function CierreCurso() {
   )
 }
 
-function Estado({ datos, accion, onCerrar, onReabrir, onDescargar }) {
+function Estado({ datos, accion, bloqueoCierre, onCerrar, onReabrir, onDescargar }) {
   const { resumen, cierre } = datos
   const partes = [
     plural(resumen.total, 'alumno', 'alumnos'),
@@ -331,7 +473,7 @@ function Estado({ datos, accion, onCerrar, onReabrir, onDescargar }) {
               {accion === 'reabrir' ? 'Reabriendo…' : 'Reabrir curso'}
             </Button>
           ) : (
-            <Button type="button" disabled={ocupado || !datos.puedeCerrar} onClick={onCerrar}
+            <Button type="button" disabled={ocupado || bloqueoCierre || !datos.puedeCerrar} onClick={onCerrar}
               aria-describedby={datos.puedeCerrar ? undefined : 'estado-cierre'}>
               {accion === 'cerrar' ? 'Cerrando…' : 'Cerrar curso'}
             </Button>
@@ -352,7 +494,8 @@ function Estado({ datos, accion, onCerrar, onReabrir, onDescargar }) {
  * la calificación de segunda oportunidad o lo reprueba (sin calificación).
  * En los datos, "reprobar" es `noPresento`.
  */
-function SegundaOportunidad({ datos, borradores, servidor, cerrado, onCambiar }) {
+function SegundaOportunidad({ datos, borradores, servidor, cerrado, capturaManual, onCambiar }) {
+  const bloqueado = cerrado || capturaManual
   const porUnidad = datos.unidades
     .map((unidad) => ({
       unidad,
@@ -369,7 +512,9 @@ function SegundaOportunidad({ datos, borradores, servidor, cerrado, onCambiar })
       <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
         Estos alumnos sacaron menos de {datos.aprobatoria} en la unidad. Ponles la calificación de su segunda oportunidad
         (con {datos.aprobatoria} o más acreditan la unidad) o repruébalos.
-        {cerrado && ' El curso está cerrado: reábrelo para cambiar algo.'}
+        {cerrado
+          ? ' El curso está cerrado: reábrelo para cambiar algo.'
+          : capturaManual ? ' Sal de la captura manual para editar la segunda oportunidad.' : ''}
       </p>
       <div className="mt-4 space-y-6">
         {porUnidad.map(({ unidad, filas }) => {
@@ -383,7 +528,7 @@ function SegundaOportunidad({ datos, borradores, servidor, cerrado, onCambiar })
                 <h3 className="text-sm font-semibold text-foreground">
                   {unidad.nombre} <span className="font-normal text-muted-foreground">· {plural(filas.length, 'alumno', 'alumnos')}</span>
                 </h3>
-                {!cerrado && faltan.length > 0 && (
+                {!bloqueado && faltan.length > 0 && (
                   <Button variant="ghost" type="button" className="h-8 px-2 text-sm text-destructive-foreground hover:bg-destructive/10 hover:text-destructive-foreground"
                     onClick={() => faltan.forEach(({ item }) => onCambiar(clave(item.alumno.id, unidad.id), { noPresento: true, calificacion: '' }))}>
                     {faltan.length === filas.length ? 'Reprobar a todos' : faltan.length === 1 ? 'Reprobar al que falta' : `Reprobar a los ${faltan.length} que faltan`}
@@ -392,7 +537,7 @@ function SegundaOportunidad({ datos, borradores, servidor, cerrado, onCambiar })
               </div>
               <ul className="mt-2 divide-y divide-border border-y border-border">
                 {filas.map(({ item, celda }) => (
-                  <FilaSegunda key={item.alumno.id} item={item} celda={celda} unidad={unidad} cerrado={cerrado}
+                  <FilaSegunda key={item.alumno.id} item={item} celda={celda} unidad={unidad} cerrado={bloqueado}
                     aprobatoria={datos.aprobatoria} borrador={borradores[clave(item.alumno.id, unidad.id)]}
                     guardado={servidor[clave(item.alumno.id, unidad.id)]}
                     onCambiar={(cambio) => onCambiar(clave(item.alumno.id, unidad.id), cambio)} />
@@ -484,11 +629,67 @@ function CeldaUnidad({ celda }) {
   )
 }
 
-function Concentrado({ datos, filtro, onFiltro }) {
+function CampoManual({ item, unidad, manuales, disabled, onCambiar }) {
+  const llave = clave(item.alumno.id, unidad.id)
+  const captura = manuales[llave] ?? { calificacion: '', calculada: null }
+  const error = manualInvalida(captura.calificacion)
+  const manual = captura.calificacion.trim() !== ''
+  const ayudaId = `manual-${item.alumno.id}-${unidad.id}`
+
+  return (
+    <div className="inline-flex min-w-20 flex-col items-end">
+      <div className="flex items-center gap-1">
+        <input
+          type="text"
+          inputMode="decimal"
+          autoComplete="off"
+          aria-label={`Calificación manual de ${item.alumno.nombre} en ${unidad.nombre}`}
+          aria-describedby={ayudaId}
+          aria-invalid={error}
+          data-captura="calificacion"
+          data-columna={unidad.id}
+          value={captura.calificacion}
+          placeholder={captura.calculada == null ? '—' : nota(captura.calculada)}
+          disabled={disabled}
+          onChange={(event) => onCambiar(llave, event.target.value)}
+          onKeyDown={moverFoco}
+          className={cn(CAMPO, 'w-20 text-center font-medium tabular-nums placeholder:font-normal placeholder:text-muted-foreground')}
+        />
+        {manual && (
+          <Button variant="ghost" size="icon-sm" type="button" disabled={disabled}
+            onClick={() => onCambiar(llave, '')}
+            aria-label={`Usar la calificación calculada para ${item.alumno.nombre} en ${unidad.nombre}`}
+            title="Usar la calculada">
+            <RotateCcw aria-hidden="true" />
+          </Button>
+        )}
+      </div>
+      <span id={ayudaId} className={cn('mt-1 text-[11px]', error ? 'font-medium text-destructive-foreground' : 'text-muted-foreground')}>
+        {error ? 'De 1 a 100' : manual ? 'Manual' : captura.calculada == null ? 'Sin cálculo' : `Calculada ${nota(captura.calculada)}`}
+      </span>
+    </div>
+  )
+}
+
+function Concentrado({
+  datos,
+  filtro,
+  onFiltro,
+  capturaManual,
+  cargandoManual,
+  guardandoManual,
+  manuales,
+  manualCambiados,
+  manualInvalidos,
+  onAbrirManual,
+  onCancelarManual,
+  onGuardarManual,
+  onCambiarManual,
+}) {
   // Cerrado se muestra lo que se entregó; abierto, lo de hoy.
   const vista = datos.cierre?.foto ?? { unidades: datos.unidades, alumnos: datos.alumnos }
   const contar = (estado) => vista.alumnos.filter((item) => item.estado === estado).length
-  const visibles = filtro === 'TODOS' ? vista.alumnos : vista.alumnos.filter((item) => item.estado === filtro)
+  const visibles = capturaManual || filtro === 'TODOS' ? vista.alumnos : vista.alumnos.filter((item) => item.estado === filtro)
   const final = (item) => (item.estado === 'NO_ACREDITADO'
     ? <span className="font-semibold text-destructive-foreground">NA</span>
     : <span className="font-semibold tabular-nums text-foreground">{nota(item.final)}</span>)
@@ -510,17 +711,43 @@ function Concentrado({ datos, filtro, onFiltro }) {
         <div>
           <h2 id="concentrado" className="text-lg font-semibold text-foreground">Concentrado</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Final = promedio de las unidades, sólo si todas están alcanzadas; si alguna no, el curso queda NA.
+            {capturaManual
+              ? 'Captura sólo las excepciones manuales. Los campos vacíos conservan la calificación calculada por el sistema.'
+              : 'Final = promedio de las unidades, sólo si todas están alcanzadas; si alguna no, el curso queda NA.'}
           </p>
         </div>
-        <Segmentado apilado label="Mostrar alumnos" value={filtro} onChange={onFiltro} className="w-full sm:w-auto"
-          options={[
-            { value: 'TODOS', label: 'Todos', count: vista.alumnos.length },
-            { value: 'PENDIENTE', label: 'Pendientes', count: contar('PENDIENTE'), tono: 'text-warning-foreground' },
-            { value: 'NO_ACREDITADO', label: 'No acreditados', count: contar('NO_ACREDITADO'), tono: 'text-destructive-foreground' },
-            { value: 'ACREDITADO', label: 'Acreditados', count: contar('ACREDITADO'), tono: 'text-success-foreground' },
-          ]} />
+        {capturaManual ? (
+          <div className="flex w-full flex-wrap justify-end gap-2 sm:w-auto">
+            <Button variant="outline" type="button" disabled={guardandoManual} onClick={onCancelarManual}>Salir de captura</Button>
+            <Button type="button" disabled={guardandoManual || !manualCambiados || manualInvalidos > 0} onClick={onGuardarManual}>
+              {guardandoManual ? 'Guardando…' : 'Guardar calificaciones'}
+            </Button>
+          </div>
+        ) : (
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:items-end">
+            {!datos.cierre && (
+              <Button variant="outline" type="button" className="w-full gap-2 sm:w-auto" disabled={cargandoManual} onClick={onAbrirManual}>
+                <PencilLine className="size-4" aria-hidden="true" />
+                {cargandoManual ? 'Preparando captura…' : 'Capturar manualmente'}
+              </Button>
+            )}
+            <Segmentado apilado label="Mostrar alumnos" value={filtro} onChange={onFiltro} className="w-full sm:w-auto"
+              options={[
+                { value: 'TODOS', label: 'Todos', count: vista.alumnos.length },
+                { value: 'PENDIENTE', label: 'Pendientes', count: contar('PENDIENTE'), tono: 'text-warning-foreground' },
+                { value: 'NO_ACREDITADO', label: 'No acreditados', count: contar('NO_ACREDITADO'), tono: 'text-destructive-foreground' },
+                { value: 'ACREDITADO', label: 'Acreditados', count: contar('ACREDITADO'), tono: 'text-success-foreground' },
+              ]} />
+          </div>
+        )}
       </div>
+
+      {capturaManual && (
+        <div role="note" className="mt-4 rounded-[var(--radius-item)] border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-foreground">
+          Puedes capturar a todos los alumnos en todas las unidades. Una calificación manual sustituye el cálculo automático de esa celda;
+          usa el botón de restaurar para volver a la calculada. En unidades abiertas se guardará ahora y se reflejará en el concentrado cuando la unidad finalice.
+        </div>
+      )}
 
       {visibles.length === 0 ? (
         <p className="mt-4 rounded-[var(--radius-item)] border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
@@ -540,7 +767,7 @@ function Concentrado({ datos, filtro, onFiltro }) {
                   <th scope="col" className="py-2 pl-2 font-medium">Resultado</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
+              <tbody data-captura-grupo className="divide-y divide-border">
                 {visibles.map((item) => (
                   <tr key={item.alumno.id}>
                     <th scope="row" className="py-2.5 pr-3 text-left font-normal">
@@ -549,7 +776,11 @@ function Concentrado({ datos, filtro, onFiltro }) {
                     </th>
                     {vista.unidades.map((unidad) => (
                       <td key={unidad.id} className="px-2 py-2.5 text-right tabular-nums">
-                        <CeldaUnidad celda={item.unidades.find((celda) => celda.unidadId === unidad.id)} />
+                        {capturaManual ? (
+                          <CampoManual item={item} unidad={unidad} manuales={manuales} disabled={guardandoManual} onCambiar={onCambiarManual} />
+                        ) : (
+                          <CeldaUnidad celda={item.unidades.find((celda) => celda.unidadId === unidad.id)} />
+                        )}
                       </td>
                     ))}
                     <td className="px-2 py-2.5 text-right">{final(item)}</td>
@@ -561,7 +792,7 @@ function Concentrado({ datos, filtro, onFiltro }) {
             </table>
           </div>
 
-          <ul className="mt-4 divide-y divide-border border-y border-border sm:hidden" aria-label="Concentrado de calificaciones">
+          <ul data-captura-grupo className="mt-4 divide-y divide-border border-y border-border sm:hidden" aria-label="Concentrado de calificaciones">
             {visibles.map((item) => (
               <li key={item.alumno.id} className="py-3">
                 <div className="flex items-start justify-between gap-3">
@@ -574,11 +805,13 @@ function Concentrado({ datos, filtro, onFiltro }) {
                     <div className="mt-1">{resultado(item)}</div>
                   </div>
                 </div>
-                <dl className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm tabular-nums">
+                <dl className={cn('mt-2 text-sm tabular-nums', capturaManual ? 'grid grid-cols-2 gap-3 min-[420px]:grid-cols-3' : 'flex flex-wrap gap-x-4 gap-y-1')}>
                   {vista.unidades.map((unidad) => (
-                    <div key={unidad.id} className="flex gap-1.5">
-                      <dt className="text-muted-foreground">U{unidad.orden}</dt>
-                      <dd><CeldaUnidad celda={item.unidades.find((celda) => celda.unidadId === unidad.id)} /></dd>
+                    <div key={unidad.id} className={cn(capturaManual ? '' : 'flex gap-1.5')}>
+                      <dt className={cn('text-muted-foreground', capturaManual && 'mb-1 text-xs font-medium')}>{capturaManual ? unidad.nombre : `U${unidad.orden}`}</dt>
+                      <dd>{capturaManual
+                        ? <CampoManual item={item} unidad={unidad} manuales={manuales} disabled={guardandoManual} onCambiar={onCambiarManual} />
+                        : <CeldaUnidad celda={item.unidades.find((celda) => celda.unidadId === unidad.id)} />}</dd>
                     </div>
                   ))}
                 </dl>
@@ -588,19 +821,26 @@ function Concentrado({ datos, filtro, onFiltro }) {
         </>
       )}
 
-      <h3 className="mt-6 text-sm font-semibold text-foreground">Por unidad</h3>
-      <ul className="mt-2 space-y-1 text-sm tabular-nums text-muted-foreground">
-        {indices.map(({ unidad, primera, segunda, no, pendientes }) => (
-          <li key={unidad.id}>
-            <span className="font-medium text-foreground">{unidad.nombre}:</span>{' '}
-            {primera} en 1ª · {segunda} en 2ª · <span className={no ? 'text-destructive-foreground' : ''}>{plural(no, 'no la alcanzó', 'no la alcanzaron')}</span>
-            {pendientes > 0 && <> · <span className="text-warning-foreground">{plural(pendientes, 'pendiente', 'pendientes')}</span></>}
-          </li>
-        ))}
-      </ul>
+      {!capturaManual && (
+        <>
+          <h3 className="mt-6 text-sm font-semibold text-foreground">Por unidad</h3>
+          <ul className="mt-2 space-y-1 text-sm tabular-nums text-muted-foreground">
+            {indices.map(({ unidad, primera, segunda, no, pendientes }) => (
+              <li key={unidad.id}>
+                <span className="font-medium text-foreground">{unidad.nombre}:</span>{' '}
+                {primera} en 1ª · {segunda} en 2ª · <span className={no ? 'text-destructive-foreground' : ''}>{plural(no, 'no la alcanzó', 'no la alcanzaron')}</span>
+                {pendientes > 0 && <> · <span className="text-warning-foreground">{plural(pendientes, 'pendiente', 'pendientes')}</span></>}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
       <p className="mt-4 text-xs text-muted-foreground">
-        <sup>2ª</sup> segunda oportunidad · NA reprobada o no acreditado.{' '}
-        Para corregir una calificación de primera oportunidad, ve a <Link className="font-medium text-primary-ink underline-offset-4 hover:underline" to={`/calificaciones?materia=${datos.materia.id}&grupo=${datos.grupo?.id ?? ''}`}>Calificaciones</Link>.
+        {capturaManual ? (
+          <>Los campos vacíos usan la nota calculada que aparece como referencia. Sólo se guardan las celdas que cambiaste.</>
+        ) : (
+          <><sup>2ª</sup> segunda oportunidad · NA reprobada o no acreditado. Para ver el desglose completo, ve a <Link className="font-medium text-primary-ink underline-offset-4 hover:underline" to={`/calificaciones?materia=${datos.materia.id}&grupo=${datos.grupo?.id ?? ''}`}>Calificaciones</Link>.</>
+        )}
       </p>
     </section>
   )
