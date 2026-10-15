@@ -39,6 +39,8 @@ export async function mockApi(page,role='ALUMNO') {
   else if(p==='/asistencias/historial')data={items:[],estadisticas:null}
   else if(p==='/asistencias/sesion/10')data={sesion:{id:10,activa:true,materia,grupo,aula:horario.aula,fecha:'2026-09-10',horaInicio:'2026-09-10T08:00:00',unidad:{id:1,nombre:'Unidad 1'}},alumnos:[{alumnoId:1,nombre:'Ana Prueba',numeroControl:'225Q0103',estado:null},{alumnoId:3,nombre:'Luis Prueba',numeroControl:'225Q0104',estado:null}]}
   else if(p==='/asistencias/pasar-lista')data={asistencias:1,retardos:0,faltas:1,justificados:0}
+  else if(p.startsWith('/temario/sesion/'))data={sesion:{id:Number(p.split('/').pop()),fecha:'2026-09-10T14:00:00.000Z',unidadId:1,activa:true,nota:null},materia:{id:1,nombre:materia.nombre,clave:materia.clave},unidades:[]}
+  else if(p==='/temario')data={materia:{id:1,nombre:materia.nombre,clave:materia.clave,docente:null},grupo:null,periodo:null,unidades:[],avance:null}
   else if(p==='/asistencias/mis-asistencias/1')data=[{id:1,estado:'FALTA',unidad:1,claseSesion:{fecha:'2026-09-10',horaInicio:'08:00'},fecha:'2026-09-10'}]
   await route.fulfill({status,contentType:'application/json',body:JSON.stringify(data)})
  })

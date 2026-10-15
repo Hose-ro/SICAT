@@ -5,6 +5,7 @@ import { useAuthStore } from '../store/authStore'
 import UnidadesCard from './materia/UnidadesCard'
 import AlumnosMateriaCard from './materia/AlumnosMateriaCard'
 import AvisosMateriaCard from './materia/AvisosMateriaCard'
+import TemarioCard from './materia/TemarioCard'
 
 const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`
 
@@ -204,6 +205,8 @@ export default function MateriaDetalle() {
           onActualizado={recargarMateria}
         />
       </section>
+
+      <TemarioCard key={`temario-${grupo?.id ?? 'todos'}`} materia={materia} grupo={grupo} puedeEditar={puedeGestionar} />
 
       <section className="grid gap-6 xl:grid-cols-2">
         <article className="min-w-0 rounded-[var(--radius-card)] border border-border bg-card p-5">

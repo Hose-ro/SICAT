@@ -30,6 +30,7 @@ import { CalificacionesModule } from './calificaciones/calificaciones.module';
 import { HorarioImportacionesModule } from './horario-importaciones/horario-importaciones.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { PeriodosModule } from './periodos/periodos.module';
+import { TemarioModule } from './temario/temario.module';
 
 @Module({
   imports: [
@@ -105,6 +106,7 @@ import { PeriodosModule } from './periodos/periodos.module';
     HorarioImportacionesModule,
     DashboardModule,
     PeriodosModule,
+    TemarioModule,
   ],
   controllers: [AppController],
   providers: [

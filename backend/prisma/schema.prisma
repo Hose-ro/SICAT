@@ -592,6 +592,35 @@ model Unidad {
   tareas         Tarea[]               @relation("TareaUnidad")
   calificaciones CalificacionUnidad[]
   pesosCriterio  CategoriaPesoUnidad[]
+  temas          TemaUnidad[]
+}
+
+/// Tema del temario de una unidad (lo comparten todos los grupos de la
+/// materia). `semana` es la semana del curso en que se planea verlo.
+model TemaUnidad {
+  id        Int         @id @default(autoincrement())
+  unidadId  Int
+  orden     Int
+  nombre    String      @db.VarChar(300)
+  semana    Int?
+  createdAt DateTime    @default(now())
+  unidad    Unidad      @relation(fields: [unidadId], references: [id], onDelete: Cascade)
+  vistos    TemaVisto[]
+
+  @@index([unidadId, orden])
+}
+
+/// Bitácora: un tema que se vio en una clase. El avance de un grupo son los
+/// temas vistos en sus clases.
+model TemaVisto {
+  claseSesionId Int
+  temaId        Int
+  createdAt     DateTime    @default(now())
+  sesion        ClaseSesion @relation(fields: [claseSesionId], references: [id], onDelete: Cascade)
+  tema          TemaUnidad  @relation(fields: [temaId], references: [id], onDelete: Cascade)
+
+  @@id([claseSesionId, temaId])
+  @@index([temaId])
 }
 
 /// Qué mide un criterio de evaluación. Los de actividad (tareas, prácticas,
@@ -818,6 +847,8 @@ model ClaseSesion {
   fueFueraDeHorario   Boolean         @default(false)
   registroAtrasado    Boolean         @default(false)
   notificacionEnviada Boolean         @default(false)
+  /// Nota de la bitácora: qué pasó en la clase, en una línea.
+  bitacora            String?         @db.VarChar(500)
   createdAt           DateTime        @default(now())
   materia             Materia         @relation(fields: [materiaId], references: [id])
   docente             Usuario         @relation("ClaseSesionDocente", fields: [docenteId], references: [id])
@@ -826,6 +857,7 @@ model ClaseSesion {
   unidadRef           Unidad?         @relation(fields: [unidadId], references: [id])
   asistencias         Asistencia[]
   participaciones     Participacion[]
+  temasVistos         TemaVisto[]
 
   @@index([docenteId, fecha])
   @@index([horarioMateriaId, fecha])

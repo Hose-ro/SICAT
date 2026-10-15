@@ -75,7 +75,6 @@ export default function AsistenciaSesionPanel({
   const [intento, setIntento] = useState(0)
   const [datos, setDatos] = useState(SESION_VACIA)
   const [guardando, setGuardando] = useState(false)
-  const [finalizando, setFinalizando] = useState(false)
   const [resultado, setResultado] = useState(null)
   const [alumnoManualId, setAlumnoManualId] = useState('')
   const [busqueda, setBusqueda] = useState('')
@@ -387,22 +386,8 @@ export default function AsistenciaSesionPanel({
     }
   }
 
-  const handleFinalizar = async () => {
-    if (finalizando) return
-    if (!(await confirmAction({
-      title: 'Finalizar clase',
-      description: 'La clase se cierra con la lista que guardaste. Si hay que corregir algo, podrás editarla después desde Asistencias.',
-      confirmLabel: 'Finalizar clase',
-    }))) return
-    setFinalizando(true)
-    setResultado(null)
-    try {
-      await onFinalizar(sesion)
-    } catch (error) {
-      setResultado({ tono: 'error', mensaje: error.response?.data?.message || 'No se pudo finalizar la clase. Inténtalo de nuevo.' })
-      setFinalizando(false)
-    }
-  }
+  // La página decide cómo finalizar (pide la bitácora antes de cerrar la clase).
+  const handleFinalizar = () => onFinalizar(sesion)
 
   const cerrar = async () => {
     if (sinGuardar && !esperandoRed && !(await confirmAction(avisoSalida))) return
@@ -643,8 +628,8 @@ export default function AsistenciaSesionPanel({
             )}
           </div>
           {puedeFinalizar ? (
-            <Button type="button" variant="outline" onClick={handleFinalizar} disabled={finalizando} className="shrink-0 px-5">
-              {finalizando ? 'Finalizando…' : 'Finalizar clase'}
+            <Button type="button" variant="outline" onClick={handleFinalizar} className="shrink-0 px-5">
+              Finalizar clase
             </Button>
           ) : (
             <Button type="button" onClick={handleGuardar} disabled={guardando} className="shrink-0 px-5">
