@@ -101,6 +101,7 @@ test.describe('jefatura de carrera', () => {
     await expect(page.getByText(/Cobertura = clases con lista completa/)).toBeVisible()
     await expect(page.getByText('Clases sin evidencia de registro')).toBeVisible()
     await expect(page.getByText(/Cierre previsto el .* sin registrar/)).toBeVisible()
+    await expect(page.getByText(/Curso cerrado el .* por Laura Méndez · 2 de 3 acreditados · 1 NA/)).toBeVisible()
     await page.screenshot({ path: 'audit/jefatura-docente.png', fullPage: true })
     expect(await axe(page)).toEqual([])
   })

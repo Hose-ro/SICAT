@@ -3,6 +3,7 @@ import {
   estadoCaptura,
   horasSemanal,
   periodoSupervision,
+  resumenCierre,
 } from './supervision.utils';
 
 const base = {
@@ -77,5 +78,28 @@ describe('supervision.utils', () => {
   it('valida el periodo explícito', () => {
     expect(periodoSupervision('2026-b')).toBe('2026-B');
     expect(() => periodoSupervision('2026-2027')).toThrow();
+  });
+
+  it('resume el concentrado de un curso cerrado con la regla NA', () => {
+    const cierre = resumenCierre({
+      cerradoEn: new Date('2026-12-11T18:00:00Z'),
+      concentrado: {
+        docente: 'Laura Méndez',
+        alumnos: [
+          { alumno: { id: 1 }, estado: 'ACREDITADO', final: 90 },
+          { alumno: { id: 2 }, estado: 'ACREDITADO', final: 75 },
+          { alumno: { id: 3 }, estado: 'NO_ACREDITADO', final: null },
+        ],
+      },
+    });
+    expect(cierre).toMatchObject({
+      docente: 'Laura Méndez',
+      total: 3,
+      acreditados: 2,
+      noAcreditados: 1,
+      pendientes: 0,
+      promedio: 82.5,
+    });
+    expect(resumenCierre(null)).toBeNull();
   });
 });

@@ -5,7 +5,7 @@ import { Chip } from '@/components/Chip'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import IncorporarAlumno from './supervision/IncorporarAlumno'
-import { ESTADO_UNIDAD, MOTIVOS_RIESGO } from './supervision/estados'
+import { ESTADO_UNIDAD, MOTIVOS_RIESGO, textoCierre } from './supervision/estados'
 import { esDeLaParidad, modalidadTexto, semestreTexto, diasTexto } from './supervision/formato'
 import { Promedio } from './supervision/notas'
 import { resumenAlumno, useReportes } from './supervision/useReportes'
@@ -61,16 +61,17 @@ function Oferta({ j, oferta: o, estado, resaltada, onIncorporar }) {
     <section ref={ref} aria-labelledby={`oferta-${o.id}`} className={cn('mt-6 scroll-mt-6 rounded-[var(--radius-card)] border bg-card p-5 sm:p-6', resaltada ? 'border-primary/40' : 'border-border')}>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <h3 id={`oferta-${o.id}`} className="text-base font-semibold text-foreground">
+          <h2 id={`oferta-${o.id}`} className="text-base font-semibold text-foreground">
             Grupo <Link className={cn(linkClass, 'text-foreground')} to={j.to(`/jefe-carrera/grupos/${o.grupo.id}`)}>{o.grupo.nombre}</Link>
             <span className="ml-2 text-xs font-normal text-muted-foreground">{modalidadTexto(o.grupo.modalidad)} · {semestreTexto(o.grupo.semestre)}</span>
-          </h3>
+          </h2>
           <p className="mt-1 text-[0.8125rem] text-muted-foreground">
             {o.docentes.length ? o.docentes.map((d, i) => <span key={d.id}>{i > 0 && ', '}<Link className={linkClass} to={j.to(`/jefe-carrera/docentes/${d.id}`)}>{d.nombre}</Link></span>) : <span className="text-warning-foreground">Sin docente asignado</span>}
           </p>
           <p className="mt-1 text-xs tabular-nums text-muted-foreground">
             {o.horarios.length ? o.horarios.map((h) => `${diasTexto(h.dias)} ${h.horaInicio}–${h.horaFin}${h.aula ? ` · ${h.aula.nombre}` : ''}`).join(' | ') : <span className="text-warning-foreground">Sin horario publicado</span>}
           </p>
+          {o.cierre && <p className="mt-1 text-xs font-medium text-foreground">{textoCierre(o.cierre)}</p>}
         </div>
         {!j.historico && (
           <Button variant="outline" onClick={onIncorporar} className="min-h-11"><UserPlus aria-hidden="true" /> Incorporar alumno</Button>
@@ -101,7 +102,7 @@ function Oferta({ j, oferta: o, estado, resaltada, onIncorporar }) {
         {estado?.error ? <p role="alert" className="mt-2 text-sm text-destructive-foreground">{estado.error}</p> : !reporte ? (
           <div className="mt-2 h-24 animate-pulse rounded-[var(--radius-item)] bg-muted" aria-busy="true" />
         ) : alumnos.size ? (
-          <div className="mt-2 overflow-x-auto">
+          <div role="region" tabIndex={0} aria-label={`Alumnos de ${o.materia.nombre}, grupo ${o.grupo.nombre}`} className="mt-2 overflow-x-auto focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40">
             <table className="w-full min-w-[680px] border-collapse text-[0.8125rem]">
               <thead>
                 <tr className="text-left text-xs text-muted-foreground">

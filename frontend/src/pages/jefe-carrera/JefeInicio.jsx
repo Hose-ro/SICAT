@@ -4,7 +4,7 @@ import { ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import HorarioCarrera from './supervision/HorarioCarrera'
-import { MOTIVOS_RIESGO, estadoClase, senalUnidad } from './supervision/estados'
+import { CRITERIO_RIESGO, MOTIVOS_RIESGO, estadoClase, senalUnidad } from './supervision/estados'
 import { fechaCorta, haceTiempo, parseClave, plural } from './supervision/formato'
 import { JefaturaPage, SeccionTitulo, Senales, linkClass } from './supervision/ui'
 import { BotonSeguimiento, EstadoSeguimiento } from './supervision/Seguimiento'
@@ -127,7 +127,7 @@ function Contenido({ j, resumen }) {
         <SeccionTitulo
           id="alumnos-riesgo"
           titulo="Alumnos en riesgo"
-          descripcion="Calificación reprobatoria o entre 70 y 79, o faltas y retardos de 30 % o más, en alguna materia del periodo."
+          descripcion={CRITERIO_RIESGO}
           accion={riesgos.length > ALUMNOS_VISIBLES && <Link className={`${linkClass} inline-flex min-h-11 items-center text-[0.8125rem]`} to={j.to('/jefe-carrera/grupos', { riesgo: 1 })}>Ver los {riesgos.length} por grupo</Link>}
         />
         {riesgos.length ? (

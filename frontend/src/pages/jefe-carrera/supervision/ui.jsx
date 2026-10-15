@@ -59,7 +59,7 @@ export function JefaturaPage({ titulo, subtitulo, accion, volver, children, sinR
 
 function ContextoBar({ j, resumen }) {
   return (
-    <div className="flex flex-col gap-3 border-b border-border pb-4 text-[0.8125rem] sm:flex-row sm:items-center sm:justify-between">
+    <div className="print-hidden flex flex-col gap-3 border-b border-border pb-4 text-[0.8125rem] sm:flex-row sm:items-center sm:justify-between">
       <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-2">
         {j.carreras.length > 1 ? (
           <label className="min-w-0">
@@ -112,7 +112,7 @@ function ElegirCarrera({ j }) {
       <ul className="mt-6 divide-y divide-border rounded-[var(--radius-item)] border border-border bg-card">
         {j.carreras.map((c) => (
           <li key={c.id}>
-            <button type="button" onClick={() => j.setCarrera(c.id)} className="flex min-h-14 w-full items-center justify-between gap-4 px-4 text-left text-sm hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40">
+            <button type="button" onClick={() => j.setCarrera(c.id)} className="flex min-h-14 w-full items-center justify-between gap-4 px-4 text-left text-sm transition-colors duration-150 ease-out hover:bg-muted active:bg-accent focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40">
               <span className="font-medium text-foreground">{c.nombre}</span>
               <span className="text-xs text-muted-foreground">{c.codigo}</span>
             </button>
@@ -125,7 +125,8 @@ function ElegirCarrera({ j }) {
 
 export function Esqueleto({ compacto = false }) {
   return (
-    <div aria-busy="true" aria-label="Cargando información" className="space-y-4 pt-7">
+    <div role="status" aria-busy="true" aria-label="Cargando información" className="space-y-4 pt-7">
+      <span className="sr-only">Cargando información…</span>
       {!compacto && <div className="h-9 w-1/2 animate-pulse rounded-lg bg-muted" />}
       <div className="h-12 animate-pulse rounded-lg bg-muted" />
       <div className="h-72 animate-pulse rounded-[var(--radius-card)] bg-muted" />

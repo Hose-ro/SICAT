@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import Modal from '@/components/Modal'
-import { MOTIVOS_RIESGO } from './estados'
+import { MOTIVOS_RIESGO, resultadoCierre } from './estados'
 import { semestreTexto } from './formato'
 import { Nota, Promedio } from './notas'
 import { resumenAlumno, useReportes } from './useReportes'
@@ -10,7 +10,7 @@ import { FormSeguimiento } from './Seguimiento'
 import { useSeguimientos } from './useSeguimientos'
 
 /** Expediente del alumno: todas sus inscripciones aceptadas del periodo, también fuera de su grupo base. */
-export default function AlumnoExpediente({ j, alumno, enRiesgo = false, cargando, onClose }) {
+export default function AlumnoExpediente({ j, alumno, ofertas = [], enRiesgo = false, cargando, onClose }) {
   const seguimientos = useSeguimientos({ carreraId: j.carreraId, periodo: j.periodo })
   const caso = alumno ? { tipo: 'ALUMNO_RIESGO', alumnoId: alumno.id } : null
   const conSeguimiento = Boolean(caso && seguimientos.buscar(caso))
@@ -40,6 +40,8 @@ export default function AlumnoExpediente({ j, alumno, enRiesgo = false, cargando
                   const estado = inscripcion.grupo ? reportes[`${inscripcion.materia.id}:${inscripcion.grupo.id}`] : null
                   const filas = (estado?.data?.rows ?? []).filter((r) => r.alumno.id === alumno.id).sort((a, b) => (a.unidad?.orden ?? 0) - (b.unidad?.orden ?? 0))
                   const r = resumenAlumno(filas)
+                  const cierre = inscripcion.grupo ? ofertas.find((o) => o.id === `${inscripcion.materia.id}:${inscripcion.grupo.id}`)?.cierre : null
+                  const resultado = resultadoCierre(cierre, alumno.id)
                   return (
                     <li key={inscripcion.id} className="p-4">
                       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -50,7 +52,7 @@ export default function AlumnoExpediente({ j, alumno, enRiesgo = false, cargando
                             {inscripcion.grupo && alumno.grupo && inscripcion.grupo.id !== alumno.grupo.id ? ' · fuera de su grupo base' : ''}
                           </p>
                         </div>
-                        {estado?.data && <Promedio r={r} />}
+                        {resultado ? <p className={`text-sm font-semibold ${resultado.tono}`}>{resultado.texto}</p> : estado?.data && <Promedio r={r} />}
                       </div>
                       {estado?.error ? <p className="mt-2 text-xs text-destructive-foreground">{estado.error}</p> : !estado?.data ? (
                         <div className="mt-3 h-10 animate-pulse rounded-lg bg-muted" aria-hidden="true" />

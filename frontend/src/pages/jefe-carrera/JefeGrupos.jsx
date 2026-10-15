@@ -59,7 +59,7 @@ export default function JefeGrupos() {
             ) : semestres.map((semestre) => (
               <section key={semestre} aria-labelledby={`semestre-${semestre}`} className="mt-8">
                 <h2 id={`semestre-${semestre}`} className="mb-2 text-base font-semibold text-foreground">{semestreTexto(semestre)}</h2>
-                <div className="overflow-x-auto rounded-[var(--radius-item)] border border-border bg-card">
+                <div role="region" tabIndex={0} aria-label={`Grupos de ${semestreTexto(semestre)}`} className="overflow-x-auto rounded-[var(--radius-item)] border border-border bg-card focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40">
                   <table className="w-full min-w-[720px] border-collapse text-[0.8125rem]">
                     <thead>
                       <tr className="border-b border-border bg-background text-left text-xs text-muted-foreground">

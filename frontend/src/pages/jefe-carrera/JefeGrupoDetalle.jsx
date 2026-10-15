@@ -2,11 +2,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import api from '@/api/axios'
 import { Chip } from '@/components/Chip'
+import { Button } from '@/components/ui/button'
 import SexoBadge from '@/components/SexoBadge'
 import { cn } from '@/lib/utils'
 import AlumnoExpediente from './supervision/AlumnoExpediente'
 import HorarioCarrera from './supervision/HorarioCarrera'
-import { ESTADO_UNIDAD, MOTIVOS_RIESGO } from './supervision/estados'
+import { CRITERIO_RIESGO, ESTADO_UNIDAD, MOTIVOS_RIESGO } from './supervision/estados'
 import { modalidadTexto, semestreTexto } from './supervision/formato'
 import { Nota, Promedio } from './supervision/notas'
 import { mensajeError } from './supervision/useJefatura'
@@ -77,12 +78,22 @@ function Contenido({ j, resumen, grupoId }) {
     <>
       <Pestanas label="Secciones del grupo" activa={tab} items={TABS.map((t) => ({ ...t, to: tabTo(t.value), count: t.value === 'alumnos' && expediente.data ? alumnos.length : t.value === 'materias' ? ofertas.length : undefined }))} />
 
+      {alumnoId && !alumnoAbierto && (expediente.data || expediente.error) && (
+        <Aviso
+          tono={expediente.error ? 'error' : 'neutral'}
+          titulo={expediente.error ? 'No se pudo abrir el expediente' : 'El alumno no está en este grupo'}
+          accion={<Button variant="outline" onClick={cerrarAlumno}>Cerrar aviso</Button>}
+        >
+          {expediente.error || 'El enlace apunta a un alumno que no pertenece a este grupo en el periodo, o que ya no está inscrito.'}
+        </Aviso>
+      )}
+
       {tab === 'resumen' && <Resumen j={j} resumen={resumen} grupo={grupo} ofertas={ofertas} reportes={reportes} expediente={expediente} abrirAlumno={abrirAlumno} />}
       {tab === 'alumnos' && <Alumnos grupo={grupo} ofertas={ofertas} reportes={reportes} expediente={expediente} abrirAlumno={abrirAlumno} />}
       {tab === 'materias' && <MateriasUnidades j={j} ofertas={ofertas} reportes={reportes} />}
       {tab === 'horario' && <HorarioCarrera j={j} resumen={resumen} fijo={{ grupoId }} titulo={`Horario de ${grupo.nombre}`} descripcion="Las mismas vistas del horario general, solo con este grupo." />}
 
-      <AlumnoExpediente j={j} alumno={alumnoAbierto} enRiesgo={Boolean(alumnoAbierto && resumen.riesgos.some((a) => a.id === alumnoAbierto.id))} cargando={Boolean(alumnoId && expediente.cargando)} onClose={cerrarAlumno} />
+      <AlumnoExpediente j={j} alumno={alumnoAbierto} ofertas={ofertas} enRiesgo={Boolean(alumnoAbierto && resumen.riesgos.some((a) => a.id === alumnoAbierto.id))} cargando={Boolean(alumnoId && expediente.cargando)} onClose={cerrarAlumno} />
     </>
   )
 }
@@ -110,7 +121,7 @@ function Resumen({ j, resumen, grupo, ofertas, reportes, expediente, abrirAlumno
       <section className="mt-8" aria-labelledby="grupo-materias">
         <SeccionTitulo id="grupo-materias" titulo="Materias y docentes" descripcion="La unidad actual pertenece a cada materia del grupo, no al alumno." />
         {ofertas.length ? (
-          <div className="overflow-x-auto rounded-[var(--radius-item)] border border-border bg-card">
+          <div role="region" tabIndex={0} aria-label="Materias y docentes del grupo" className="overflow-x-auto rounded-[var(--radius-item)] border border-border bg-card focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40">
             <table className="w-full min-w-[820px] border-collapse text-[0.8125rem]">
               <thead>
                 <tr className="border-b border-border bg-background text-left text-xs text-muted-foreground">
@@ -154,7 +165,7 @@ function Resumen({ j, resumen, grupo, ofertas, reportes, expediente, abrirAlumno
       </section>
 
       <section className="mt-10" aria-labelledby="grupo-riesgo">
-        <SeccionTitulo id="grupo-riesgo" titulo="Alumnos en riesgo" descripcion="Criterio vigente: calificación menor a 80 en una unidad abierta, o al menos 3 registros con 30 % o más de faltas y retardos." />
+        <SeccionTitulo id="grupo-riesgo" titulo="Alumnos en riesgo" descripcion={`Criterio vigente: ${CRITERIO_RIESGO.charAt(0).toLowerCase()}${CRITERIO_RIESGO.slice(1)}`} />
         {riesgos.length ? (
           <ul className="divide-y divide-border border-y border-border">
             {riesgos.map((a) => (
@@ -187,7 +198,7 @@ function Alumnos({ grupo, ofertas, reportes, expediente, abrirAlumno }) {
       <p className="mt-5 max-w-3xl text-xs text-muted-foreground">
         Promedio y asistencia consideran las materias de este grupo. El promedio es el de SICAT (media de las unidades con calificación) y se marca provisional mientras alguna unidad siga abierta. El expediente reúne todas sus inscripciones del periodo.
       </p>
-      <div className="mt-4 overflow-x-auto rounded-[var(--radius-item)] border border-border bg-card">
+      <div role="region" tabIndex={0} aria-label="Alumnos del grupo" className="mt-4 overflow-x-auto rounded-[var(--radius-item)] border border-border bg-card focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40">
         <table className="w-full min-w-[820px] border-collapse text-[0.8125rem]">
           <thead>
             <tr className="border-b border-border bg-background text-left text-xs text-muted-foreground">
@@ -196,7 +207,7 @@ function Alumnos({ grupo, ofertas, reportes, expediente, abrirAlumno }) {
               <th scope="col" className="px-4 py-2.5 font-medium">Pertenencia</th>
               <th scope="col" className="px-4 py-2.5 text-right font-medium">Promedio</th>
               <th scope="col" className="px-4 py-2.5 font-medium">Asistencia</th>
-              <th scope="col" className="px-4 py-2.5 font-medium">Incidencias</th>
+              <th scope="col" className="px-4 py-2.5 font-medium">Señales de riesgo</th>
             </tr>
           </thead>
           <tbody>
@@ -261,7 +272,7 @@ function MateriasUnidades({ j, ofertas, reportes }) {
         </label>
         <p className="text-xs text-muted-foreground">
           {elegida.docentes.length ? elegida.docentes.map((d) => d.nombre).join(', ') : 'Sin docente asignado'}
-          {' · '}<Link className={linkClass} to={j.to(`/jefe-carrera/materias/${elegida.materia.id}`, { oferta: elegida.grupo.id })}>Consultar la oferta</Link>
+          {' · '}<Link className={linkClass} to={j.to(`/jefe-carrera/materias/${elegida.materia.id}`, { oferta: elegida.grupo.id })}>Ver materia en el grupo</Link>
         </p>
       </div>
 

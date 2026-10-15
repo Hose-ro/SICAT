@@ -101,7 +101,7 @@ export default function JefeMaterias() {
             ) : !materiasOfertadas.length ? (
               <Vacio titulo={soloIncompletas ? 'Todas las materias tienen docente y horario' : soloPendientes ? 'Sin calificaciones pendientes' : 'Ninguna materia coincide'} accion={<Button variant="outline" onClick={() => { setBusqueda(''); const n = new URLSearchParams(params); n.delete('pendientes'); n.delete('revision'); setParams(n, { replace: true }) }}>Restablecer filtros</Button>} />
             ) : (
-              <div className="mt-5 overflow-x-auto rounded-[var(--radius-item)] border border-border bg-card">
+              <div role="region" tabIndex={0} aria-label="Materias ofertadas en el periodo" className="mt-5 overflow-x-auto rounded-[var(--radius-item)] border border-border bg-card focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40">
                 <table className="w-full min-w-[860px] border-collapse text-[0.8125rem]">
                   <thead>
                     <tr className="border-b border-border bg-background text-left text-xs text-muted-foreground">

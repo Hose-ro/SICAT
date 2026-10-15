@@ -48,6 +48,9 @@ export const MOTIVOS_RIESGO = {
   ASISTENCIA: 'Faltas y retardos ≥ 30 %',
 }
 
+/** El criterio en palabras, generado de los mismos motivos que muestran las listas. */
+export const CRITERIO_RIESGO = `${MOTIVOS_RIESGO.CALIFICACION_BAJA} o ${MOTIVOS_RIESGO.CALIFICACION_LIMITE.toLowerCase()} en una unidad, o faltas y retardos de 30 % o más con al menos 3 registros, en alguna materia del periodo.`
+
 export const ESTADO_UNIDAD = {
   PENDIENTE: { label: 'Pendiente', tono: 'muted' },
   ACTIVA: { label: 'En curso', tono: 'accent' },
@@ -69,4 +72,23 @@ export function senalUnidad(u, hoy = new Date()) {
     if (dias > DIAS_REVISION_UNIDAD) return `Abierta hace ${dias} días; revisar avance`
   }
   return null
+}
+
+const fechaCierre = (iso) => new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })
+
+/** Una línea sobre el cierre del curso; null mientras el docente no lo cierra. */
+export function textoCierre(cierre) {
+  if (!cierre) return null
+  const partes = [`Curso cerrado el ${fechaCierre(cierre.cerradoEn)}${cierre.docente ? ` por ${cierre.docente}` : ''}`, `${cierre.acreditados} de ${cierre.total} acreditados`]
+  if (cierre.noAcreditados) partes.push(`${cierre.noAcreditados} NA`)
+  return partes.join(' · ')
+}
+
+/** Resultado de un alumno en un curso cerrado: la calificación final o NA. */
+export function resultadoCierre(cierre, alumnoId) {
+  const r = cierre?.alumnos?.find((a) => a.id === alumnoId)
+  if (!r) return null
+  if (r.estado === 'ACREDITADO') return { texto: `Final ${r.final} · acreditado`, tono: 'text-success-foreground' }
+  if (r.estado === 'NO_ACREDITADO') return { texto: 'NA · no acreditado', tono: 'text-destructive-foreground' }
+  return { texto: 'Cierre con resultado pendiente', tono: 'text-muted-foreground' }
 }

@@ -24,6 +24,7 @@ import {
   horasSemanal,
   periodoSupervision,
   rangoPeriodo,
+  resumenCierre,
 } from './supervision.utils';
 
 const persona = {
@@ -249,29 +250,44 @@ export class SupervisionService {
   async resumen(usuarioId: number, consulta: Consulta) {
     await this.alcance(usuarioId, consulta.carreraId);
     const periodo = periodoSupervision(consulta.periodo);
-    const [ofertas, grupos, calendarios, reticula] = await Promise.all([
-      this.ofertas(consulta.carreraId, periodo),
-      this.prisma.grupo.findMany({
-        where: { carreraId: consulta.carreraId, periodo, activo: true },
-        select: {
-          ...grupoCampos,
-          _count: { select: { alumnos: { where: { activo: true } } } },
-        },
-        orderBy: [{ semestre: 'asc' }, { nombre: 'asc' }],
-      }),
-      this.calendarios(periodo),
-      this.prisma.materia.findMany({
-        where: { carreraId: consulta.carreraId },
-        select: {
-          id: true,
-          clave: true,
-          nombre: true,
-          semestre: true,
-          numUnidades: true,
-        },
-        orderBy: [{ semestre: 'asc' }, { nombre: 'asc' }],
-      }),
-    ]);
+    const [ofertas, grupos, calendarios, reticula, cierres] = await Promise.all(
+      [
+        this.ofertas(consulta.carreraId, periodo),
+        this.prisma.grupo.findMany({
+          where: { carreraId: consulta.carreraId, periodo, activo: true },
+          select: {
+            ...grupoCampos,
+            _count: { select: { alumnos: { where: { activo: true } } } },
+          },
+          orderBy: [{ semestre: 'asc' }, { nombre: 'asc' }],
+        }),
+        this.calendarios(periodo),
+        this.prisma.materia.findMany({
+          where: { carreraId: consulta.carreraId },
+          select: {
+            id: true,
+            clave: true,
+            nombre: true,
+            semestre: true,
+            numUnidades: true,
+          },
+          orderBy: [{ semestre: 'asc' }, { nombre: 'asc' }],
+        }),
+        this.prisma.cierreCurso.findMany({
+          where: {
+            periodo,
+            materia: { carreraId: consulta.carreraId },
+            grupo: { carreraId: consulta.carreraId },
+          },
+          select: {
+            materiaId: true,
+            grupoId: true,
+            cerradoEn: true,
+            concentrado: true,
+          },
+        }),
+      ],
+    );
     // Limit concurrent calculations; each report uses the existing criteria engine.
     const reportes: Array<Awaited<ReturnType<SupervisionService['reporte']>>> =
       [];
@@ -315,6 +331,11 @@ export class SupervisionService {
     const enriquecidas = ofertas.map((o, i) => ({
       ...o,
       resumen: this.resumenFilas(reportes[i].rows),
+      cierre: resumenCierre(
+        cierres.find(
+          (c) => c.materiaId === o.materia.id && c.grupoId === o.grupo.id,
+        ),
+      ),
     }));
     const limite = calendarios.reduce(
       (a, c) => (c.fin > a ? c.fin : a),

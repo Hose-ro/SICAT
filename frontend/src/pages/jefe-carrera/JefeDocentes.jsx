@@ -44,7 +44,7 @@ export default function JefeDocentes() {
             ) : !filas.length ? (
               <Vacio titulo={filtro ? 'Sin pendientes detectados' : 'Ningún docente coincide'} accion={<Button variant="outline" onClick={() => { setBusqueda(''); setParams(new URLSearchParams({ carrera: j.carreraId, periodo: j.periodo }), { replace: true }) }}>Restablecer filtros</Button>} />
             ) : (
-              <div className="mt-5 overflow-x-auto rounded-[var(--radius-item)] border border-border bg-card">
+              <div role="region" tabIndex={0} aria-label="Docentes de la carrera" className="mt-5 overflow-x-auto rounded-[var(--radius-item)] border border-border bg-card focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40">
                 <table className="w-full min-w-[920px] border-collapse text-[0.8125rem]">
                   <thead>
                     <tr className="border-b border-border bg-background text-left text-xs text-muted-foreground">

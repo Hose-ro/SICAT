@@ -2,7 +2,7 @@ import { Link, useParams } from 'react-router-dom'
 import { Chip } from '@/components/Chip'
 import { cn } from '@/lib/utils'
 import HorarioCarrera from './supervision/HorarioCarrera'
-import { ESTADO_UNIDAD, ESTADOS_PENDIENTES, estadoClase, senalUnidad } from './supervision/estados'
+import { ESTADO_UNIDAD, ESTADOS_PENDIENTES, estadoClase, senalUnidad, textoCierre } from './supervision/estados'
 import { fechaCorta, fechaHoraCorta, haceTiempo, hoyClave, minutos, modalidadTexto, parseClave, diasTexto } from './supervision/formato'
 import { useClases } from './supervision/useClasesSemana'
 import { Aviso, Cifra, Contacto, JefaturaPage, SeccionTitulo, Vacio, linkClass } from './supervision/ui'
@@ -32,7 +32,7 @@ function Contenido({ j, resumen, docenteId }) {
 
   return (
     <>
-      <header className="mt-4 flex flex-col gap-4 border-b border-border pb-6 sm:flex-row sm:items-center sm:justify-between">
+      <header className="mt-4 flex flex-col gap-4 border-b border-border pb-6 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <p className="text-[0.8125rem] text-muted-foreground">{docente.pertenencia} · {[docente.email, docente.telefono].filter(Boolean).join(' · ') || 'Sin contacto registrado'}</p>
         </div>
@@ -66,7 +66,7 @@ function Carga({ ofertas, docente, j }) {
     <section className="mt-8" aria-labelledby="carga-docente">
       <SeccionTitulo id="carga-docente" titulo="Carga académica" descripcion={`${docente.horasSemanales} horas a la semana, calculadas con la duración y los días de cada bloque.`} />
       {ofertas.length ? (
-        <div className="overflow-x-auto rounded-[var(--radius-item)] border border-border bg-card">
+        <div role="region" tabIndex={0} aria-label="Carga académica" className="overflow-x-auto rounded-[var(--radius-item)] border border-border bg-card focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40">
           <table className="w-full min-w-[720px] border-collapse text-[0.8125rem]">
             <thead>
               <tr className="border-b border-border bg-background text-left text-xs text-muted-foreground">
@@ -172,6 +172,7 @@ function Avance({ ofertas, j }) {
                 <Link className={cn(linkClass, 'text-sm text-foreground')} to={j.to(`/jefe-carrera/materias/${o.materia.id}`, { oferta: o.grupo.id })}>{o.materia.nombre} · {o.grupo.nombre}</Link>
                 {o.docentes.length > 1 && <span className="text-xs text-muted-foreground">Avance compartido por {o.docentes.length} docentes</span>}
               </div>
+              {o.cierre && <p className="mt-1 text-xs font-medium text-foreground">{textoCierre(o.cierre)}</p>}
               <ul className="mt-2.5 flex flex-wrap gap-2" aria-label="Unidades">
                 {o.unidades.map((u) => {
                   const info = ESTADO_UNIDAD[u.status] ?? ESTADO_UNIDAD.PENDIENTE

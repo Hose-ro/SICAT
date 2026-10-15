@@ -184,6 +184,14 @@ export class InformeService {
       })),
       calificacionesPendientes: Number(o.resumen.calificacionesPendientes),
       entregasPendientes: Number(o.resumen.entregasPendientes),
+      cierre: o.cierre
+        ? {
+            cerradoEn: o.cierre.cerradoEn,
+            total: o.cierre.total,
+            acreditados: o.cierre.acreditados,
+            noAcreditados: o.cierre.noAcreditados,
+          }
+        : null,
     }));
 
     const riesgos = (resumen.riesgos as RiesgoResumen[])
@@ -345,8 +353,9 @@ export class InformeService {
           'Unidades',
           'Calif. pendientes',
           'Entregas sin revisar',
+          'Cierre',
         ],
-        anchos: [30, 10, 26, 44, 14, 14],
+        anchos: [28, 9, 24, 38, 12, 12, 24],
         filas: informe.avance.map(
           (o): Fila => [
             o.materia,
@@ -357,6 +366,9 @@ export class InformeService {
               .join(' · ') || 'Sin unidades',
             o.calificacionesPendientes,
             o.entregasPendientes,
+            o.cierre
+              ? `Cerrado el ${new Date(o.cierre.cerradoEn).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })} · ${o.cierre.acreditados} de ${o.cierre.total} acreditados`
+              : 'Sin cerrar',
           ],
         ),
         vacio: 'Sin materias ofertadas en el periodo.',

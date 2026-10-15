@@ -57,6 +57,8 @@ export const ofertas = [...new Map(horarios.map((h) => [`${h.materiaId}:${h.grup
 }))
 // Una oferta sin horario ni docente para la revisión de Materias.
 ofertas.push({ id: '424:12', materia: { id: 424, nombre: 'Gestión de proyectos de software', clave: 'SCG-1009', semestre: 9 }, grupo: grupos[4], docentes: [], horarios: [], unidades: unidades(424), resumen: { alumnos: 0, alumnosRiesgo: 0, calificacionesPendientes: 0, entregasPendientes: 0, sinEntrega: 0 } })
+// Taller de investigación II (9A) ya se cerró: la jefatura ve el resultado del concentrado.
+ofertas.find((o) => o.id === '421:12').cierre = { cerradoEn: '2026-10-09T18:00:00.000Z', docente: 'Laura Méndez', total: 3, acreditados: 2, noAcreditados: 1, pendientes: 0, promedio: 84, alumnos: [{ id: 1200, estado: 'ACREDITADO', final: 88 }, { id: 1201, estado: 'ACREDITADO', final: 80 }, { id: 1202, estado: 'NO_ACREDITADO', final: null }] }
 
 const hoy = clave(new Date())
 function estadoPara(h, fecha) {

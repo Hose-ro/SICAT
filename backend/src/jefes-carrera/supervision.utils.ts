@@ -139,3 +139,45 @@ export function leerHuella(huella: string): ReferenciaSeguimiento | null {
   if (tipo === 'SEGUIMIENTO_DOCENTE' && n(a)) return { tipo, docenteId: n(a)! };
   return null;
 }
+
+type FotoCierreMinima = {
+  docente?: string | null;
+  alumnos?: Array<{
+    alumno: { id: number };
+    estado: 'ACREDITADO' | 'NO_ACREDITADO' | 'PENDIENTE';
+    final: number | null;
+  }>;
+};
+
+/**
+ * Lo que la jefatura necesita del concentrado congelado al cerrar un curso:
+ * quién y cuándo, cuántos acreditaron y el resultado de cada alumno. Con una
+ * unidad no alcanzada el curso es NA aunque las demás tengan número.
+ */
+export function resumenCierre(
+  cierre: { cerradoEn: Date; concentrado: unknown } | null | undefined,
+) {
+  if (!cierre) return null;
+  const foto = (cierre.concentrado ?? {}) as FotoCierreMinima;
+  const alumnos = (foto.alumnos ?? []).map((a) => ({
+    id: a.alumno.id,
+    estado: a.estado,
+    final: a.final,
+  }));
+  const finales = alumnos
+    .map((a) => a.final)
+    .filter((f): f is number => typeof f === 'number');
+  return {
+    cerradoEn: cierre.cerradoEn.toISOString(),
+    docente: foto.docente ?? null,
+    total: alumnos.length,
+    acreditados: alumnos.filter((a) => a.estado === 'ACREDITADO').length,
+    noAcreditados: alumnos.filter((a) => a.estado === 'NO_ACREDITADO').length,
+    pendientes: alumnos.filter((a) => a.estado === 'PENDIENTE').length,
+    promedio: finales.length
+      ? Math.round((finales.reduce((s, f) => s + f, 0) / finales.length) * 10) /
+        10
+      : null,
+    alumnos,
+  };
+}

@@ -152,9 +152,9 @@ function Informe({ j, resumen }) {
           </Seccion>
           <Seccion titulo="Avance de unidades por materia y grupo" descripcion="Estado al día de hoy; las unidades son de la materia y se comparten entre grupos.">
             <Tabla
-              columnas={['Materia', 'Grupo', 'Docente', 'Unidades', 'Calificaciones pendientes', 'Entregas sin revisar']}
+              columnas={['Materia', 'Grupo', 'Docente', 'Unidades', 'Calificaciones pendientes', 'Entregas sin revisar', 'Cierre']}
               numericas={[4, 5]}
-              filas={data.avance.map((o) => [o.materia, o.grupo, o.docentes.join(', ') || 'Sin docente asignado', o.unidades.map((u) => `U${u.orden} ${ESTADO_UNIDAD[u.status]?.label.toLowerCase() ?? u.status}`).join(' · ') || 'Sin unidades', o.calificacionesPendientes, o.entregasPendientes])}
+              filas={data.avance.map((o) => [o.materia, o.grupo, o.docentes.join(', ') || 'Sin docente asignado', o.unidades.map((u) => `U${u.orden} ${ESTADO_UNIDAD[u.status]?.label.toLowerCase() ?? u.status}`).join(' · ') || 'Sin unidades', o.calificacionesPendientes, o.entregasPendientes, o.cierre ? `Cerrado el ${new Date(o.cierre.cerradoEn).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })} · ${o.cierre.acreditados} de ${o.cierre.total} acreditados` : 'Sin cerrar'])}
               vacio="Sin materias ofertadas en el periodo."
             />
           </Seccion>

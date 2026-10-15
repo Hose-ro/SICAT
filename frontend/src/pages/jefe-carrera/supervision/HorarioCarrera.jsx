@@ -132,7 +132,10 @@ export default function HorarioCarrera({ j, resumen, fijo = {}, titulo = 'Horari
           <h2 id={headingId} className="text-[1.1875rem] font-semibold tracking-[-0.015em] text-foreground">{titulo}</h2>
           {descripcion && <p className="mt-1 text-xs text-muted-foreground">{descripcion}</p>}
         </div>
-        <Segmento label="Vista del horario" value={v.vista} onChange={(vista) => v.set({ vista: vista === 'dia' ? null : vista })} options={[{ value: 'dia', label: 'Día' }, { value: 'semana', label: 'Semana' }]} />
+        {/* En Mixto el día y la semana son el mismo sábado: el selector no aporta nada. */}
+        {v.modalidad !== 'MIXTO' && (
+          <Segmento label="Vista del horario" value={v.vista} onChange={(vista) => v.set({ vista: vista === 'dia' ? null : vista })} options={[{ value: 'dia', label: 'Día' }, { value: 'semana', label: 'Semana' }]} />
+        )}
       </div>
 
       <div className="mb-4 grid grid-cols-2 gap-3 lg:flex lg:flex-wrap">
@@ -205,7 +208,7 @@ export default function HorarioCarrera({ j, resumen, fijo = {}, titulo = 'Horari
             {v.incidencias ? 'No hay listas pendientes, registros tardíos ni conflictos en lo que estás viendo.' : 'Prueba con otro grupo, docente o fecha.'}
           </Vacio>
         ) : verAgenda ? (
-          <Agenda dias={visibles} clases={delPeriodo} abrir={abrir} fijo={fijo} />
+          <Agenda key={`${v.fecha}|${v.vista}|${v.semestre}|${v.grupo}|${v.docente}|${v.incidencias}`} dias={visibles} clases={delPeriodo} abrir={abrir} fijo={fijo} />
         ) : v.vista === 'dia' ? (
           <TableroDia grupos={filasVisibles} clases={delPeriodo} semana={filtradas} abrir={abrir} j={j} fijo={fijo} />
         ) : (
@@ -366,11 +369,19 @@ function TablaSemana({ grupos, dias, clases, hoy, abrir, j, fijo }) {
   )
 }
 
+const CLASES_POR_PAGINA = 20
+
+/** Agenda por día; en carreras grandes se pagina para no empujar todo lo demás hacia abajo. */
 function Agenda({ dias, clases, abrir, fijo }) {
+  const [limite, setLimite] = useState(CLASES_POR_PAGINA)
+  const ordenadas = dias.flatMap((dia) => clases.filter((c) => c.fecha === dia).sort((a, b) => a.horaInicio.localeCompare(b.horaInicio) || a.grupo.nombre.localeCompare(b.grupo.nombre)))
+  const visibles = new Set(ordenadas.slice(0, limite).map((c) => c.id))
+  const restantes = ordenadas.length - visibles.size
+  const ultimoDia = ordenadas[limite - 1]?.fecha
   return (
     <div className="px-3.5 pb-2.5 sm:px-[18px]">
-      {dias.map((dia) => {
-        const propias = clases.filter((c) => c.fecha === dia).sort((a, b) => a.horaInicio.localeCompare(b.horaInicio) || a.grupo.nombre.localeCompare(b.grupo.nombre))
+      {dias.filter((dia) => !restantes || dia <= ultimoDia).map((dia) => {
+        const propias = ordenadas.filter((c) => c.fecha === dia && visibles.has(c.id))
         return (
           <section key={dia} aria-label={fechaLarga(dia)}>
             <h3 className="mb-2.5 mt-[18px] text-[0.8125rem] font-semibold text-foreground first-letter:uppercase">{fechaLarga(dia)}</h3>
@@ -380,7 +391,7 @@ function Agenda({ dias, clases, abrir, fijo }) {
                   const estado = estadoClase(c.estado)
                   return (
                     <li key={c.id}>
-                      <button type="button" onClick={() => abrir(c)} className="grid w-full grid-cols-[65px_1fr] items-center gap-x-2.5 gap-y-1 border-b border-border py-3.5 text-left focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring/40 sm:grid-cols-[100px_1fr_auto] sm:gap-4 sm:py-4 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-background">
+                      <button type="button" onClick={() => abrir(c)} className="grid w-full grid-cols-[65px_1fr] items-center gap-x-2.5 gap-y-1 border-b border-border py-3.5 text-left focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring/40 transition-colors duration-100 ease-out active:bg-muted sm:grid-cols-[100px_1fr_auto] sm:gap-4 sm:py-4 hover:bg-background">
                         <span className="row-span-2 text-xs tabular-nums text-foreground sm:row-span-1 sm:text-sm">{c.horaInicio}<br />{c.horaFin}</span>
                         <span className="min-w-0">
                           <strong className="block text-[0.8125rem] font-semibold text-foreground sm:text-sm">{c.materia.nombre}</strong>
@@ -399,6 +410,11 @@ function Agenda({ dias, clases, abrir, fijo }) {
           </section>
         )
       })}
+      {restantes > 0 && (
+        <Button variant="ghost" className="mt-2 min-h-11" onClick={() => setLimite((n) => n + CLASES_POR_PAGINA)}>
+          Mostrar {Math.min(CLASES_POR_PAGINA, restantes)} clases más de {ordenadas.length}
+        </Button>
+      )}
     </div>
   )
 }
