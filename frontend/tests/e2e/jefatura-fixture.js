@@ -132,14 +132,16 @@ function filasReporte(materiaId, grupoId) {
   if (materiaId === 419) base.push({ id: 999, nombre: 'Zoe Incorporada', numeroControl: '21Q999', sexo: 'MUJER', email: 'zoe@sicat.test', telefono: null, semestre: 9 })
   return base.flatMap((alumno, i) => oferta.unidades.map((u) => {
     const riesgo = materiaId === 411 && grupoId === 8 && i < 2
+    // Ana también debe tareas vencidas en Fundamentos: solo el motivo de entregas.
+    const debeTareas = materiaId === 412 && grupoId === 8 && i === 0 && u.status === 'ACTIVA'
     const nota = u.status === 'PENDIENTE' ? null : riesgo ? 64 + i * 8 : 82 + i * 3 + u.orden
     const asistencia = { totalSesiones: 10, registradas: 10, asistencias: riesgo ? 6 : 9, faltas: riesgo ? 3 : 1, retardos: riesgo ? 1 : 0, justificadas: 0, sinRegistro: 0, porcentaje: riesgo ? 60 : 90 }
     return {
       alumno, materia: oferta.materia, grupo: oferta.grupo, unidad: u,
       calificacionFinal: u.status === 'FINALIZADA' && materiaId === 414 && i === 0 ? null : nota,
       calificacionManual: u.status === 'FINALIZADA' ? nota : null, calificacionCalculada: nota,
-      motivos: riesgo && u.status === 'ACTIVA' ? (nota < 70 ? ['CALIFICACION_BAJA', 'ASISTENCIA'] : ['CALIFICACION_LIMITE', 'ASISTENCIA']) : [],
-      asistencia, tareas: { total: 4, entregadas: 3, calificadas: 2, pendientesRevision: 1, sinEntregar: 1 },
+      motivos: riesgo && u.status === 'ACTIVA' ? (nota < 70 ? ['CALIFICACION_BAJA', 'ASISTENCIA'] : ['CALIFICACION_LIMITE', 'ASISTENCIA']) : debeTareas ? ['ENTREGAS'] : [],
+      asistencia, tareas: { total: 4, entregadas: debeTareas ? 1 : 3, calificadas: 2, pendientesRevision: 1, sinEntregar: debeTareas ? 3 : 1, vencidas: u.status === 'PENDIENTE' ? 0 : 3, vencidasSinEntregar: debeTareas ? 2 : 0 },
       observacionManual: i === 1 && u.orden === 1 ? 'Entregó el proyecto fuera de tiempo; se acordó recuperación.' : null,
     }
   }))
@@ -147,8 +149,18 @@ function filasReporte(materiaId, grupoId) {
 
 export const riesgos = [0, 1].map((i) => ({
   id: 800 + i, nombre: nombres[i], numeroControl: `2280${i}`, sexo: i ? 'HOMBRE' : 'MUJER', email: null, telefono: null,
-  causas: [{ materia: { id: 411, nombre: 'Cálculo diferencial', clave: 'ACF-0901' }, grupo: grupos[0], unidad: unidades(411)[1], motivos: i ? ['CALIFICACION_LIMITE', 'ASISTENCIA'] : ['CALIFICACION_BAJA', 'ASISTENCIA'], calificacion: 64 + i * 8, asistencia: { porcentaje: 60 } }],
+  causas: [
+    { materia: { id: 411, nombre: 'Cálculo diferencial', clave: 'ACF-0901' }, grupo: grupos[0], unidad: unidades(411)[1], motivos: i ? ['CALIFICACION_LIMITE', 'ASISTENCIA'] : ['CALIFICACION_BAJA', 'ASISTENCIA'], calificacion: 64 + i * 8, asistencia: { porcentaje: 60 } },
+    ...(i ? [] : [{ materia: { id: 412, nombre: 'Fundamentos de programación', clave: 'SCD-1008' }, grupo: grupos[0], unidad: unidades(412)[1], motivos: ['ENTREGAS'], calificacion: 85, asistencia: { porcentaje: 90 } }]),
+  ],
 }))
+
+// Conteos del comparativo de Grupos: alumnos únicos con datos y por motivo.
+function riesgoGrupo(id) {
+  const evaluados = id === 13 ? 0 : 5 + (id === 11 ? 1 : 0)
+  const motivos = id === 8 ? { reprobando: 1, calificacion: 2, asistencia: 2, entregas: 1 } : id === 9 ? { reprobando: 0, calificacion: 1, asistencia: 0, entregas: 0 } : { reprobando: 0, calificacion: 0, asistencia: 0, entregas: 0 }
+  return { alumnosEvaluados: evaluados, riesgoPorMotivo: motivos }
+}
 
 function resumen() {
   const desde = '2026-08-29'
@@ -162,7 +174,7 @@ function resumen() {
       { modalidad: 'ESCOLARIZADO', configurado: true, inicio: '2026-08-31T06:00:00.000Z', fin: '2026-12-18T06:00:00.000Z' },
       { modalidad: 'MIXTO', configurado: true, inicio: '2026-08-29T06:00:00.000Z', fin: '2026-12-12T06:00:00.000Z' },
     ],
-    ofertas, grupos: grupos.map((x) => ({ ...x, ofertas: ofertas.filter((o) => o.grupo.id === x.id).map((o) => o.id), alumnosRiesgo: x.id === 8 ? 2 : x.id === 9 ? 1 : 0 })),
+    ofertas, grupos: grupos.map((x) => ({ ...x, ofertas: ofertas.filter((o) => o.grupo.id === x.id).map((o) => o.id), alumnosRiesgo: x.id === 8 ? 2 : x.id === 9 ? 1 : 0, ...riesgoGrupo(x.id) })),
     docentes: docentes.map((d) => {
       const propias = clases.filter((c) => c.docente.id === d.id && c.elegible)
       const completas = propias.filter((c) => ['LISTA_COMPLETA', 'REGISTRO_TARDIO'].includes(c.estado))

@@ -5,6 +5,7 @@ import { Chip } from '@/components/Chip'
 import { Button } from '@/components/ui/button'
 import SexoBadge from '@/components/SexoBadge'
 import { cn } from '@/lib/utils'
+import MapaRiesgoGrupo from './graficas/MapaRiesgoGrupo'
 import AlumnoExpediente from './supervision/AlumnoExpediente'
 import HorarioCarrera from './supervision/HorarioCarrera'
 import { CRITERIO_RIESGO, ESTADO_UNIDAD, MOTIVOS_RIESGO } from './supervision/estados'
@@ -16,6 +17,7 @@ import { Aviso, AvisoParcial, Cifra, JefaturaPage, Pestanas, SeccionTitulo, Vaci
 
 const TABS = [
   { value: 'resumen', label: 'Resumen' },
+  { value: 'riesgo', label: 'Riesgo' },
   { value: 'alumnos', label: 'Alumnos' },
   { value: 'materias', label: 'Materias y unidades' },
   { value: 'horario', label: 'Horario' },
@@ -76,7 +78,7 @@ function Contenido({ j, resumen, grupoId }) {
 
   return (
     <>
-      <Pestanas label="Secciones del grupo" activa={tab} items={TABS.map((t) => ({ ...t, to: tabTo(t.value), count: t.value === 'alumnos' && expediente.data ? alumnos.length : t.value === 'materias' ? ofertas.length : undefined }))} />
+      <Pestanas label="Secciones del grupo" activa={tab} items={TABS.map((t) => ({ ...t, to: tabTo(t.value), count: t.value === 'alumnos' && expediente.data ? alumnos.length : t.value === 'materias' ? ofertas.length : t.value === 'riesgo' ? grupo.alumnosRiesgo : undefined }))} />
 
       {alumnoId && !alumnoAbierto && (expediente.data || expediente.error) && (
         <Aviso
@@ -88,7 +90,8 @@ function Contenido({ j, resumen, grupoId }) {
         </Aviso>
       )}
 
-      {tab === 'resumen' && <Resumen j={j} resumen={resumen} grupo={grupo} ofertas={ofertas} reportes={reportes} expediente={expediente} abrirAlumno={abrirAlumno} />}
+      {tab === 'resumen' && <Resumen j={j} resumen={resumen} grupo={grupo} ofertas={ofertas} reportes={reportes} expediente={expediente} abrirAlumno={abrirAlumno} mapaTo={tabTo('riesgo')} />}
+      {tab === 'riesgo' && <MapaRiesgoGrupo j={j} grupo={grupo} ofertas={ofertas} reportes={reportes} expediente={expediente} abrirAlumno={abrirAlumno} alumnoActivo={alumnoAbierto?.id} />}
       {tab === 'alumnos' && <Alumnos grupo={grupo} ofertas={ofertas} reportes={reportes} expediente={expediente} abrirAlumno={abrirAlumno} />}
       {tab === 'materias' && <MateriasUnidades j={j} ofertas={ofertas} reportes={reportes} />}
       {tab === 'horario' && <HorarioCarrera j={j} resumen={resumen} fijo={{ grupoId }} titulo={`Horario de ${grupo.nombre}`} descripcion="Las mismas vistas del horario general, solo con este grupo." />}
@@ -103,7 +106,7 @@ function unidadActual(reporte) {
   return unidades.find((u) => u.status === 'ACTIVA') ?? null
 }
 
-function Resumen({ j, resumen, grupo, ofertas, reportes, expediente, abrirAlumno }) {
+function Resumen({ j, resumen, grupo, ofertas, reportes, expediente, abrirAlumno, mapaTo }) {
   const incorporados = (expediente.data?.alumnos ?? []).filter((a) => a.origen === 'INCORPORADO').length
   const listas = resumen.pendientes.filter((c) => c.grupo.id === grupo.id)
   const riesgos = resumen.riesgos.filter((a) => a.causas.some((c) => c.grupo.id === grupo.id))
@@ -168,7 +171,7 @@ function Resumen({ j, resumen, grupo, ofertas, reportes, expediente, abrirAlumno
       </section>
 
       <section className="mt-10" aria-labelledby="grupo-riesgo">
-        <SeccionTitulo id="grupo-riesgo" titulo="Alumnos en riesgo" descripcion={`Criterio vigente: ${CRITERIO_RIESGO.charAt(0).toLowerCase()}${CRITERIO_RIESGO.slice(1)}`} />
+        <SeccionTitulo id="grupo-riesgo" titulo="Alumnos en riesgo" descripcion={`Criterio vigente: ${CRITERIO_RIESGO.charAt(0).toLowerCase()}${CRITERIO_RIESGO.slice(1)}`} accion={riesgos.length > 0 && <Link className={cn(linkClass, 'inline-flex min-h-11 items-center text-[0.8125rem]')} to={mapaTo}>Ver mapa por materia</Link>} />
         {riesgos.length ? (
           <ul className="divide-y divide-border border-y border-border">
             {riesgos.map((a) => (

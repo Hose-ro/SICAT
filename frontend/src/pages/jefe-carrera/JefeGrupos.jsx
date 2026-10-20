@@ -1,6 +1,7 @@
 import { Link, useSearchParams } from 'react-router-dom'
 import { Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import ComparativoRiesgo from './graficas/ComparativoRiesgo'
 import { modalidadTexto, periodoTexto, semestreTexto } from './supervision/formato'
 import { JefaturaPage, Segmento, Vacio, linkClass } from './supervision/ui'
 
@@ -59,6 +60,14 @@ export default function JefeGrupos() {
             <p className="mt-4 max-w-3xl text-xs text-muted-foreground">
               <b className="font-medium text-foreground">Alumnos</b> son las personas cuyo grupo base es ese grupo. <b className="font-medium text-foreground">Inscripciones</b> son las materias aceptadas en el periodo: una persona tiene varias, por eso la cifra es mayor. <b className="font-medium text-foreground">Materias</b> incluye las asignadas a cada grupo activo. Inscripciones, riesgo y pendientes se calculan únicamente para {periodoTexto(j.periodo)}; cambia el periodo para consultar otro ciclo.
             </p>
+
+            <ComparativoRiesgo
+              j={j}
+              grupos={visibles.flatMap((g) => {
+                const seguimiento = gruposPeriodo.get(g.id)
+                return seguimiento ? [{ ...seguimiento, periodoConsulta: g.periodoConsulta, periodoDisponible: g.periodoDisponible }] : []
+              })}
+            />
 
             {!gruposActivos.length ? (
               <Vacio titulo="Sin grupos activos">La carrera no tiene grupos marcados como activos.</Vacio>

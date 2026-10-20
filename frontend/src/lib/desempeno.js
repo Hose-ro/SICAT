@@ -17,12 +17,19 @@ export function porcentajeAusencias(asistencia) {
   return Math.round(((asistencia.faltas + asistencia.retardos) / asistencia.registradas) * 100)
 }
 
+/** Tareas vencidas sin entregar, en palabras. */
+export function textoEntregas(entregas) {
+  if (!entregas?.vencidas) return 'Tareas vencidas sin entregar'
+  return `${entregas.sinEntregar} de ${entregas.vencidas} tareas vencidas sin entregar`
+}
+
 /** Por qué está en ese color, en palabras. */
 export function textoMotivos(item, umbrales = { aprobatoria: 70, sinRiesgo: 80 }) {
   return (item.motivos ?? []).map((motivo) => {
     if (motivo === 'CALIFICACION_BAJA') return `Promedio menor a ${umbrales.aprobatoria}`
     if (motivo === 'CALIFICACION_LIMITE') return `Promedio menor a ${umbrales.sinRiesgo}`
     if (motivo === 'ASISTENCIA') return `${porcentajeAusencias(item.asistencia) ?? 0} % de faltas y retardos`
+    if (motivo === 'ENTREGAS') return textoEntregas(item.entregas)
     return motivo
   })
 }

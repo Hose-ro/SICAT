@@ -87,7 +87,7 @@ test.describe('jefatura de carrera', () => {
     await page.screenshot({ path: 'audit/jefatura-grupos.png', fullPage: true })
     expect(await axe(page)).toEqual([])
 
-    await page.getByRole('link', { name: '7A' }).click()
+    await page.getByRole('link', { name: '7A', exact: true }).click()
     await expect(page.getByRole('link', { name: 'Resumen' })).toHaveAttribute('aria-current', 'page')
     await page.getByRole('link', { name: /^Alumnos/ }).click()
     await expect(page.getByText('Incorporado · grupo base 9A')).toBeVisible()
@@ -323,7 +323,7 @@ test.describe('jefatura de carrera', () => {
     await page.goto('/jefe-carrera/grupos')
     await page.getByPlaceholder('Buscar grupo').fill('7')
     await expect(page).toHaveURL(/q=7/)
-    await page.getByRole('link', { name: '7A' }).click()
+    await page.getByRole('link', { name: '7A', exact: true }).click()
     await page.getByRole('link', { name: /^Alumnos/ }).click()
     await page.goBack()
     await expect(page.getByRole('link', { name: 'Resumen' })).toHaveAttribute('aria-current', 'page')
@@ -367,6 +367,59 @@ test.describe('jefatura de carrera', () => {
     await celda.click()
     await expect(page).toHaveURL(/\/jefe-carrera\/horarios\?.*docente=37/)
     await expect(page.getByRole('combobox', { name: /^Docente/ })).toHaveValue('37')
+  })
+
+  test('riesgo: comparativo en Grupos y mapa alumno × materia', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 1000 })
+    await mockJefatura(page)
+    await page.goto('/jefe-carrera/grupos')
+    const comparativo = page.getByRole('region', { name: 'Riesgo por grupo' })
+    await expect(comparativo).toBeVisible()
+    // El grupo con más riesgo va primero y su enlace abre la pestaña Riesgo.
+    const primero = comparativo.getByRole('link').first()
+    await expect(primero).toHaveAccessibleName(/^1A: 40 % en riesgo, 2 alumnos de 5, 1 reprobando/)
+    await expect(comparativo.getByText('Calificación 2, asistencia 2, entregas 1')).toBeVisible()
+    await page.screenshot({ path: 'audit/jefatura-riesgo-grupos.png', fullPage: true })
+    expect(await axe(page)).toEqual([])
+
+    await primero.click()
+    await expect(page).toHaveURL(/\/jefe-carrera\/grupos\/8\?.*tab=riesgo/)
+    await expect(page.getByRole('link', { name: /^Riesgo/ })).toHaveAttribute('aria-current', 'page')
+    const mapa = page.getByRole('table', { name: /Estado de cada alumno en cada materia/ })
+    await expect(mapa).toBeVisible()
+    // Por defecto solo quien tiene señales: Ana (reprobando) arriba de Bruno.
+    const filas = mapa.locator('tbody tr')
+    await expect(filas).toHaveCount(2)
+    await expect(filas.first().getByRole('rowheader')).toContainText('Ana Prueba')
+    await expect(filas.first().getByRole('rowheader')).toContainText('2 materias en riesgo')
+    await expect(mapa.getByRole('button', { name: /^Ana Prueba, Cálculo diferencial: reprobado, promedio .*% de faltas y retardos/ })).toBeVisible()
+    const entregas = mapa.getByRole('button', { name: /^Ana Prueba, Fundamentos de programación: en riesgo.*2 de 6 tareas vencidas sin entregar/ })
+    await entregas.hover()
+    await expect(page.getByText('4 de 6 vencidas')).toBeVisible()
+    await page.screenshot({ path: 'audit/jefatura-riesgo-mapa.png', fullPage: true })
+    expect(await axe(page)).toEqual([])
+
+    // Las flechas recorren la matriz y la celda abre el expediente.
+    await mapa.getByRole('button', { name: /^Ana Prueba, Cálculo diferencial/ }).focus()
+    await page.keyboard.press('ArrowRight')
+    await expect(entregas).toBeFocused()
+    await page.keyboard.press('Enter')
+    await expect(page.getByRole('dialog', { name: 'Ana Prueba' })).toBeVisible()
+    await page.keyboard.press('Escape')
+
+    await page.getByRole('group', { name: 'Alumnos que se muestran' }).getByRole('button', { name: 'Todos' }).click()
+    await expect(filas).toHaveCount(5)
+    await expect(page).toHaveURL(/ver=todos/)
+    await expect(filas.first().getByRole('button', { name: 'Registrar seguimiento' })).toBeVisible()
+  })
+
+  test('riesgo: el mapa cabe en móvil con scroll propio', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await mockJefatura(page)
+    await page.goto('/jefe-carrera/grupos/8?carrera=1&periodo=2026-B&tab=riesgo&ver=todos')
+    await expect(page.getByRole('table', { name: /Estado de cada alumno en cada materia/ })).toBeVisible()
+    expect(await sinDesborde(page)).toBe(true)
+    await page.screenshot({ path: 'audit/jefatura-riesgo-movil.png', fullPage: true })
   })
 
   test('rutas anteriores de jefatura llevan a Seguimientos', async ({ page }) => {

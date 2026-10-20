@@ -35,7 +35,7 @@ function contextoCaso(s, resumen, j) {
       const alumno = resumen.riesgos.find((a) => a.id === ref.alumnoId)
       const grupo = alumno?.causas[0]?.grupo
       return {
-        enlace: grupo ? { label: 'Ver expediente', to: j.to(`/jefe-carrera/grupos/${grupo.id}`, { tab: 'alumnos', alumno: ref.alumnoId }) } : null,
+        enlace: grupo ? { label: 'Ver expediente', to: j.to(`/jefe-carrera/grupos/${grupo.id}`, { tab: 'riesgo', alumno: ref.alumnoId }) } : null,
         causa: alumno ? { texto: 'Sigue con señales de riesgo', tono: 'pendiente' } : { texto: 'No aparece entre los alumnos en riesgo del periodo; no se puede verificar la causa desde aquí', tono: 'sin-verificar' },
       }
     }
