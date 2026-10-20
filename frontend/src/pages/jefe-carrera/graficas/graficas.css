@@ -1,0 +1,85 @@
+/* Gráficas de jefatura (Inicio y Docentes). Los tokens de datos son por rol y cambian por tema;
+   el resto usa los tokens de SICAT (index.css). Paleta validada con el
+   script de dataviz contra las superficies card de SICAT. */
+.viz {
+  --viz-surface: #fcfdff;
+  --viz-grid: #e7e9ed;
+  --viz-axis: #c9cdd4;
+  --viz-ink: var(--foreground);
+  --viz-ink-2: var(--muted-foreground);
+  --viz-serie: #386be2;
+  --viz-serie-wash: rgb(56 107 226 / 0.08);
+  --viz-apagado: #c3c9d4;
+  --viz-apagado-activo: #8e97a8;
+  --viz-meta: #1f2635;
+  /* Escala divergente alrededor de la meta: rojo debajo, gris cerca, azul arriba. */
+  --viz-rojo-lejos: #c13c3b;
+  --viz-rojo-cerca: #e88f87;
+  --viz-neutro: #e2e5e9;
+  --viz-azul-cerca: #8baaeb;
+  --viz-azul-lejos: #386be2;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+}
+.dark .viz {
+  --viz-surface: #181b20;
+  --viz-grid: #262a31;
+  --viz-axis: #3c4048;
+  --viz-serie: #5987ec;
+  --viz-serie-wash: rgb(89 135 236 / 0.12);
+  --viz-apagado: #3a3f48;
+  --viz-apagado-activo: #6b7383;
+  --viz-meta: #e8eaee;
+  --viz-rojo-lejos: #d8625c;
+  --viz-rojo-cerca: #8a3330;
+  --viz-neutro: #2c2e32;
+  --viz-azul-cerca: #2d4a88;
+  --viz-azul-lejos: #5987ec;
+}
+
+.viz-plot { position: relative; touch-action: pan-y; }
+.viz-plot svg { display: block; overflow: visible; }
+.viz-plot:focus-visible { outline: 2px solid var(--ring); outline-offset: 4px; border-radius: 6px; }
+.viz-tick { fill: var(--viz-ink-2); font-size: 11px; font-variant-numeric: tabular-nums; }
+.viz-label { fill: var(--viz-ink); font-size: 12px; font-weight: 600; }
+.viz-label-2 { fill: var(--viz-ink-2); font-size: 11px; }
+
+/* Movimiento: cambiar de modalidad transforma la forma en su sitio (estado), sin rehacerla. */
+.viz-morph { transition: d 240ms var(--ease-out); }
+.viz-pos { transition: transform 240ms var(--ease-out); }
+/* Un solo momento al abrir: la línea se dibuja de izquierda a derecha. */
+.viz-revelar { animation: viz-revelar 560ms var(--ease-out) both; }
+@keyframes viz-revelar { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+
+.viz-tooltip {
+  position: absolute; z-index: 5; pointer-events: none; min-width: 180px;
+  background: var(--popover); color: var(--popover-foreground);
+  border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px;
+  box-shadow: 0 8px 24px oklch(0.12 0.015 264 / 0.12);
+  font-size: 12px; line-height: 1.45;
+  transition: opacity 120ms ease;
+}
+.viz-tooltip[data-oculto] { opacity: 0; }
+.viz-tooltip b { font-size: 15px; font-weight: 650; }
+.viz-key { display: inline-block; width: 12px; height: 2px; border-radius: 1px; vertical-align: middle; margin-right: 6px; }
+.viz-key--caja { height: 10px; width: 10px; border-radius: 3px; }
+
+/* Mapa de calor: el hueco de 2px entre celdas es la superficie. */
+.viz-heat { border-collapse: separate; border-spacing: 2px; }
+.viz-cell {
+  display: block; height: 30px; min-width: 44px; border-radius: 4px;
+  outline-offset: 2px;
+}
+/* Las celdas son enlaces: ganan a la regla táctil de jefatura que vuelve inline-flex los enlaces de tabla. */
+.viz td a.viz-cell { display: block; width: 100%; }
+@media (hover: hover) and (pointer: fine) {
+  .viz td a.viz-cell:hover { box-shadow: 0 0 0 2px var(--viz-surface), 0 0 0 4px var(--viz-apagado-activo); }
+}
+.viz-cell:focus-visible { outline: 2px solid var(--ring); }
+.viz-cell[data-activo] { box-shadow: 0 0 0 2px var(--viz-surface), 0 0 0 4px var(--viz-meta); }
+.viz-cell--vacia { background: repeating-linear-gradient(135deg, transparent 0 5px, var(--viz-grid) 5px 6px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .viz-morph, .viz-pos { transition: none; }
+  .viz-revelar { animation: none; }
+}
+

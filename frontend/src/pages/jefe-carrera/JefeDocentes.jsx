@@ -3,6 +3,7 @@ import { Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { fechaHoraCorta, periodoTexto, plural } from './supervision/formato'
+import MapaDocentes from './graficas/MapaDocentes'
 import { JefaturaPage, Segmento, Vacio, linkClass, selectClass } from './supervision/ui'
 
 function cobertura(d) {
@@ -104,6 +105,7 @@ export default function JefeDocentes() {
   const filtro = params.get('filtro') === 'pendientes' ? 'pendientes' : ''
   const busqueda = params.get('q') ?? ''
   const orden = ORDENES[params.get('orden')] ? params.get('orden') : 'nombre'
+  const vista = params.get('vista') === 'semanas' ? 'semanas' : 'tarjetas'
   const set = (k, v) => { const n = new URLSearchParams(params); if (v) n.set(k, v); else n.delete(k); setParams(n, { replace: true }) }
 
   return (
@@ -138,6 +140,7 @@ export default function JefeDocentes() {
         return (
           <>
             <div className="mt-6 flex flex-wrap items-center gap-3">
+              <Segmento label="Vista" value={vista} onChange={(v) => set('vista', v === 'tarjetas' ? '' : v)} options={[{ value: 'tarjetas', label: 'Tarjetas' }, { value: 'semanas', label: 'Por semana' }]} />
               <label className="relative min-w-[220px] flex-1 sm:max-w-sm">
                 <span className="sr-only">Buscar docente</span>
                 <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
@@ -160,6 +163,8 @@ export default function JefeDocentes() {
               <Vacio titulo="Sin docentes asignados">Ninguna materia de los grupos activos de la carrera tiene docente.</Vacio>
             ) : !filas.length ? (
               <Vacio titulo={filtro ? 'Sin pendientes detectados' : 'Ningún docente coincide'} accion={<Button variant="outline" onClick={() => setParams(new URLSearchParams({ carrera: j.carreraId, periodo: j.periodo }), { replace: true })}>Restablecer filtros</Button>} />
+            ) : vista === 'semanas' ? (
+              <MapaDocentes j={j} resumen={resumen} docentes={filas} />
             ) : (
               <ul aria-label="Docentes de la carrera" className="mt-5 grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
                 {filas.map((d) => <TarjetaDocente key={d.id} d={d} j={j} />)}

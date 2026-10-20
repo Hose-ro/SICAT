@@ -18,6 +18,7 @@ import {
 } from '../clases/clases.utils';
 import { IncorporarAlumnoDto } from './dto/incorporar-alumno.dto';
 import {
+  coberturaSemanal,
   coincidenHorarios,
   estadoCaptura,
   filtroGrupoVigente,
@@ -491,6 +492,7 @@ export class SupervisionService {
       ofertas: enriquecidas,
       docentes,
       intervalo: { desde: inicio, hasta: fin },
+      coberturaSemanal: coberturaSemanal(clases, inicio, fin),
       reticula: reticula.map((m) => ({
         ...m,
         ofertas: enriquecidas

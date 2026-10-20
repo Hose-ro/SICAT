@@ -10,6 +10,7 @@ import { useClases } from './supervision/useClasesSemana'
 import { Aviso, JefaturaPage, SeccionTitulo, Senales, linkClass } from './supervision/ui'
 import { BotonSeguimiento, EstadoSeguimiento } from './supervision/Seguimiento'
 import { esParaHoy, useSeguimientos } from './supervision/useSeguimientos'
+import TendenciaCobertura from './graficas/TendenciaCobertura'
 
 const DOCENTES_VISIBLES = 8
 const ALUMNOS_VISIBLES = 8
@@ -126,6 +127,8 @@ function Contenido({ j, resumen }) {
       <GuiaPrimerUso />
 
       <RequiereAtencion j={j} grupos={grupos} riesgos={riesgos} seguimientos={seguimientos} />
+
+      <TendenciaCobertura j={j} resumen={resumen} />
 
       <section aria-labelledby="pendientes-docentes" className="mt-10 scroll-mt-6">
         <SeccionTitulo

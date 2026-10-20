@@ -4,6 +4,7 @@ import {
   formatearFechaClave,
   normalizarTexto,
   parsearFechaClave,
+  sumarDias,
 } from '../clases/clases.utils';
 import { getCurrentAcademicPeriod } from '../common/periodo.util';
 
@@ -135,6 +136,85 @@ export function estadoCaptura({
     return tardia ? 'REGISTRO_TARDIO' : 'LISTA_COMPLETA';
   if (activa) return 'REGISTRO_EN_CURSO';
   return registros ? 'CAPTURA_PARCIAL' : 'SIN_CAPTURA';
+}
+
+/** Lunes (clave AAAA-MM-DD) de la semana de una fecha clave. */
+export function lunesDeClave(clave: string) {
+  const fecha = parsearFechaClave(clave)!;
+  return formatearFechaClave(sumarDias(fecha, -((fecha.getDay() + 6) % 7)));
+}
+
+type ClaseParaCobertura = {
+  fecha: string;
+  estado: string;
+  elegible: boolean;
+  docente: { id: number };
+  grupo: { modalidad: string | null };
+};
+
+/**
+ * Cobertura de captura por semana, docente y modalidad: la misma regla que
+ * los indicadores (clases elegibles; completas = lista completa o tardía),
+ * ya sumada para que las gráficas no descarguen cada clase del periodo.
+ */
+export function coberturaSemanal(
+  clases: ClaseParaCobertura[],
+  inicio: string,
+  fin: string,
+) {
+  const semanas: string[] = [];
+  if (inicio <= fin)
+    for (
+      let lunes = lunesDeClave(inicio);
+      lunes <= fin;
+      lunes = formatearFechaClave(sumarDias(parsearFechaClave(lunes)!, 7))
+    )
+      semanas.push(lunes);
+  const filas = new Map<
+    string,
+    {
+      lunes: string;
+      docenteId: number;
+      modalidad: string;
+      esperadas: number;
+      completas: number;
+      tardias: number;
+      parciales: number;
+      sinCaptura: number;
+      suspendidas: number;
+    }
+  >();
+  for (const c of clases) {
+    if (c.fecha < inicio || c.fecha > fin) continue;
+    const suspendida = c.estado === 'SUSPENDIDA';
+    if (!c.elegible && !suspendida) continue;
+    const lunes = lunesDeClave(c.fecha);
+    const modalidad = c.grupo.modalidad ?? 'ESCOLARIZADO';
+    const clave = `${lunes}|${c.docente.id}|${modalidad}`;
+    const fila = filas.get(clave) ?? {
+      lunes,
+      docenteId: c.docente.id,
+      modalidad,
+      esperadas: 0,
+      completas: 0,
+      tardias: 0,
+      parciales: 0,
+      sinCaptura: 0,
+      suspendidas: 0,
+    };
+    if (suspendida) fila.suspendidas += 1;
+    else {
+      fila.esperadas += 1;
+      if (c.estado === 'LISTA_COMPLETA') fila.completas += 1;
+      else if (c.estado === 'REGISTRO_TARDIO') {
+        fila.completas += 1;
+        fila.tardias += 1;
+      } else if (c.estado === 'CAPTURA_PARCIAL') fila.parciales += 1;
+      else if (c.estado === 'SIN_CAPTURA') fila.sinCaptura += 1;
+    }
+    filas.set(clave, fila);
+  }
+  return { semanas, filas: [...filas.values()] };
 }
 
 /** Tipos de seguimiento que la jefatura puede registrar desde la supervisión. */

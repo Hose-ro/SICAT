@@ -333,6 +333,38 @@ test.describe('jefatura de carrera', () => {
     await expect(page.getByPlaceholder('Buscar grupo')).toHaveValue('7')
   })
 
+  test('gráficas: tendencia en Inicio y cobertura por docente y semana', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 1000 })
+    await mockJefatura(page)
+    await page.goto('/dashboard')
+    const tendencia = page.getByRole('region', { name: 'Tendencia de captura' })
+    await expect(tendencia).toBeVisible()
+    const grafica = tendencia.getByRole('slider', { name: /Semana de la gráfica de cobertura/ })
+    await expect(grafica).toBeVisible()
+    await grafica.focus()
+    await page.keyboard.press('ArrowLeft')
+    await expect(grafica).toHaveAttribute('aria-valuetext', /Semana del .*% de cobertura/)
+    await expect(tendencia.getByRole('status').filter({ hasText: 'de cobertura' })).toBeVisible()
+    await tendencia.getByLabel('Ver como tabla').check()
+    await expect(tendencia.getByRole('table', { name: 'Cobertura de captura por semana' })).toBeVisible()
+    await tendencia.screenshot({ path: 'audit/jefatura-tendencia.png' })
+    expect(await axe(page)).toEqual([])
+
+    await tendencia.getByRole('link', { name: 'Ver por docente' }).click()
+    await expect(page).toHaveURL(/\/jefe-carrera\/docentes\?.*vista=semanas/)
+    const mapa = page.getByRole('table', { name: /Cobertura de captura por docente y semana/ })
+    await expect(mapa).toBeVisible()
+    const celda = mapa.getByRole('link', { name: /^Laura Méndez, semana del .*Abrir horario\.$/ }).last()
+    await expect(celda).toHaveAttribute('href', /\/jefe-carrera\/horarios\?.*vista=semana.*docente=37/)
+    await celda.hover()
+    await expect(page.getByRole('status').filter({ hasText: 'Abre el horario de esa semana' })).toBeVisible()
+    await page.screenshot({ path: 'audit/jefatura-docentes-semanas.png', fullPage: true })
+    expect(await axe(page)).toEqual([])
+    await celda.click()
+    await expect(page).toHaveURL(/\/jefe-carrera\/horarios\?.*docente=37/)
+    await expect(page.getByRole('combobox', { name: /^Docente/ })).toHaveValue('37')
+  })
+
   test('rutas anteriores de jefatura llevan a Seguimientos', async ({ page }) => {
     await mockJefatura(page)
     for (const ruta of ['/jefe-carrera/alertas', '/jefe-carrera/seguimiento']) {

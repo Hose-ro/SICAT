@@ -1,5 +1,6 @@
 import { getCurrentAcademicPeriod } from '../common/periodo.util';
 import {
+  coberturaSemanal,
   coincidenHorarios,
   estadoCaptura,
   filtroGrupoVigente,
@@ -133,5 +134,59 @@ describe('filtroGrupoVigente', () => {
       activo: true,
     });
     expect(filtroGrupoVigente('2020-A')).toEqual({});
+  });
+});
+
+describe('coberturaSemanal', () => {
+  const clase = (
+    fecha: string,
+    estado: string,
+    elegible = true,
+    docenteId = 4,
+    modalidad = 'ESCOLARIZADO',
+  ) => ({
+    fecha,
+    estado,
+    elegible,
+    docente: { id: docenteId },
+    grupo: { modalidad },
+  });
+
+  it('agrupa por lunes, docente y modalidad con la regla de los indicadores', () => {
+    const { semanas, filas } = coberturaSemanal(
+      [
+        clase('2026-10-12', 'LISTA_COMPLETA'),
+        clase('2026-10-13', 'REGISTRO_TARDIO'),
+        clase('2026-10-14', 'SIN_CAPTURA'),
+        clase('2026-10-15', 'CAPTURA_PARCIAL'),
+        clase('2026-10-16', 'SUSPENDIDA', false),
+        clase('2026-10-17', 'LISTA_COMPLETA', true, 9, 'MIXTO'),
+        // Una clase que todavía no concluye no cuenta.
+        clase('2026-10-19', 'PROGRAMADA', false),
+      ],
+      '2026-10-08',
+      '2026-10-20',
+    );
+    expect(semanas).toEqual(['2026-10-05', '2026-10-12', '2026-10-19']);
+    expect(filas).toEqual([
+      {
+        lunes: '2026-10-12',
+        docenteId: 4,
+        modalidad: 'ESCOLARIZADO',
+        esperadas: 4,
+        completas: 2,
+        tardias: 1,
+        parciales: 1,
+        sinCaptura: 1,
+        suspendidas: 1,
+      },
+      expect.objectContaining({
+        lunes: '2026-10-12',
+        docenteId: 9,
+        modalidad: 'MIXTO',
+        esperadas: 1,
+        completas: 1,
+      }),
+    ]);
   });
 });

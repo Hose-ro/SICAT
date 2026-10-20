@@ -100,6 +100,31 @@ export function clasesEntre(desde, hasta, { docenteId, grupoId } = {}) {
   return out.sort((a, b) => a.fecha.localeCompare(b.fecha) || a.horaInicio.localeCompare(b.horaInicio))
 }
 
+// Igual que coberturaSemanal del backend: clases elegibles por lunes, docente y modalidad.
+function coberturaDe(clases, inicio, fin) {
+  const lunesDe = (c) => { const d = parse(c); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return clave(d) }
+  const semanas = []
+  for (let l = parse(lunesDe(inicio)); clave(l) <= fin; l.setDate(l.getDate() + 7)) semanas.push(clave(l))
+  const filas = new Map()
+  for (const c of clases) {
+    const suspendida = c.estado === 'SUSPENDIDA'
+    if (!c.elegible && !suspendida) continue
+    const lunes = lunesDe(c.fecha)
+    const k = `${lunes}|${c.docente.id}|${c.grupo.modalidad}`
+    const f = filas.get(k) ?? { lunes, docenteId: c.docente.id, modalidad: c.grupo.modalidad, esperadas: 0, completas: 0, tardias: 0, parciales: 0, sinCaptura: 0, suspendidas: 0 }
+    if (suspendida) f.suspendidas++
+    else {
+      f.esperadas++
+      if (['LISTA_COMPLETA', 'REGISTRO_TARDIO'].includes(c.estado)) f.completas++
+      if (c.estado === 'REGISTRO_TARDIO') f.tardias++
+      if (c.estado === 'CAPTURA_PARCIAL') f.parciales++
+      if (c.estado === 'SIN_CAPTURA') f.sinCaptura++
+    }
+    filas.set(k, f)
+  }
+  return { semanas, filas: [...filas.values()] }
+}
+
 const nombres = ['Ana Prueba', 'Bruno Castillo', 'Carla Núñez', 'Diego Ramos', 'Elena Ortiz']
 function filasReporte(materiaId, grupoId) {
   const oferta = ofertas.find((o) => o.materia.id === materiaId && o.grupo.id === grupoId)
@@ -132,6 +157,7 @@ function resumen() {
   const pendientes = clases.filter((c) => c.elegible && ['SIN_CAPTURA', 'CAPTURA_PARCIAL'].includes(c.estado))
   return {
     periodo: '2026-B', generadoEn: new Date().toISOString(), intervalo: { desde, hasta: hoy },
+    coberturaSemanal: coberturaDe(clases, desde, hoy),
     calendarios: [
       { modalidad: 'ESCOLARIZADO', configurado: true, inicio: '2026-08-31T06:00:00.000Z', fin: '2026-12-18T06:00:00.000Z' },
       { modalidad: 'MIXTO', configurado: true, inicio: '2026-08-29T06:00:00.000Z', fin: '2026-12-12T06:00:00.000Z' },
