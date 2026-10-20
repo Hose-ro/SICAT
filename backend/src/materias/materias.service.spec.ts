@@ -207,8 +207,18 @@ describe('MateriasService', () => {
       materiaFindMany.mockResolvedValue([
         { id: 10, clave: 'SCD-1027', nombre: 'Fundamentos de BD', semestre: 5 },
         { id: 11, clave: 'AEF-1052', nombre: 'Cálculo', semestre: 1 },
-        { id: 12, clave: 'SCD-1027', nombre: 'Sección sin semestre', semestre: null },
-        { id: 13, clave: 'XXX-0000', nombre: 'Fuera de retícula', semestre: null },
+        {
+          id: 12,
+          clave: 'SCD-1027',
+          nombre: 'Sección sin semestre',
+          semestre: null,
+        },
+        {
+          id: 13,
+          clave: 'XXX-0000',
+          nombre: 'Fuera de retícula',
+          semestre: null,
+        },
       ]);
     });
 
@@ -323,9 +333,42 @@ describe('MateriasService', () => {
       ).rejects.toBeInstanceOf(ConflictException);
       expect(tareaCount).toHaveBeenCalledWith({
         where: {
-          OR: [{ unidadId: { in: [3] } }, { materiaId: 7, unidad: { in: [3] } }],
+          OR: [
+            { unidadId: { in: [3] } },
+            { materiaId: 7, unidad: { in: [3] } },
+          ],
         },
       });
+    });
+
+    it('edita datos y unidades en una sola transacción', async () => {
+      materiaFindUnique.mockResolvedValue({ ...materia, numUnidades: 3 });
+
+      await service.update(7, { nombre: 'Cálculo', numUnidades: 5 });
+
+      expect(transaction).toHaveBeenCalledTimes(1);
+      const [{ data }] = tx.materia.update.mock.calls[0] as [
+        { data: { nombre?: string } },
+      ];
+      expect(data.nombre).toBe('Cálculo');
+      expect(tx.unidad.createMany).toHaveBeenCalled();
+      expect(materiaUpdate).not.toHaveBeenCalled();
+    });
+
+    it('no guarda ningún dato si reducir unidades requiere confirmación', async () => {
+      materiaFindUnique.mockResolvedValue({ ...materia, numUnidades: 3 });
+      calificacionCount.mockResolvedValue(2);
+
+      const error: unknown = await service
+        .update(7, { nombre: 'Cálculo', numUnidades: 2 })
+        .catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(ConflictException);
+      expect((error as ConflictException).getResponse()).toMatchObject({
+        requiereConfirmacion: true,
+      });
+      expect(transaction).not.toHaveBeenCalled();
+      expect(materiaUpdate).not.toHaveBeenCalled();
     });
 
     it('rechaza al docente que no imparte la materia', async () => {
@@ -356,9 +399,11 @@ describe('MateriasService', () => {
       horarioMateria: { deleteMany: contador(2) },
       unidad: { deleteMany: contador(3) },
       materia: {
-        delete: jest
-          .fn()
-          .mockResolvedValue({ id: 7, nombre: 'Cálculo Diferencial', clave: 'ACF-0901' }),
+        delete: jest.fn().mockResolvedValue({
+          id: 7,
+          nombre: 'Cálculo Diferencial',
+          clave: 'ACF-0901',
+        }),
       },
     };
     transaction.mockImplementation(

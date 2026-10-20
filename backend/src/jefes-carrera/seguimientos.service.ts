@@ -11,6 +11,7 @@ import { formatearFechaClave, parsearFechaClave } from '../clases/clases.utils';
 import { RegistrarSeguimientoDto } from './dto/seguimiento.dto';
 import {
   fechaSupervision,
+  filtroGrupoVigente,
   grupoPerteneceAPeriodo,
   huellaSeguimiento,
   leerHuella,
@@ -68,7 +69,7 @@ export class SeguimientosService {
 
   private async grupoIdsDelPeriodo(carreraId: number, periodo: string) {
     const grupos = await this.prisma.grupo.findMany({
-      where: { carreraId, activo: true },
+      where: { carreraId, ...filtroGrupoVigente(periodo) },
       select: { id: true, periodo: true, createdAt: true },
     });
     return grupos

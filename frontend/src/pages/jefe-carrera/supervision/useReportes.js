@@ -22,10 +22,28 @@ function pedir({ carreraId, periodo }, materiaId, grupoId) {
 let version = 0
 const oyentes = new Set()
 const suscribir = (fn) => { oyentes.add(fn); return () => oyentes.delete(fn) }
+const avisar = () => { version += 1; oyentes.forEach((fn) => fn()) }
 export function invalidarReportes() {
   cache.clear()
-  version += 1
-  oyentes.forEach((fn) => fn())
+  avisar()
+}
+/** Vuelve a pedir solo lo que falló: un error nunca queda en caché. */
+export const reintentarReportes = avisar
+
+/**
+ * Estado conjunto de varios reportes: un cálculo que reúne materias solo es
+ * completo cuando todas respondieron. Nunca se lee un error como «sin señales».
+ */
+export function estadoConjunto(reportes, claves) {
+  const estados = claves.map((clave) => reportes[clave] ?? { cargando: true })
+  const fallidos = estados.filter((e) => e.error).length
+  return {
+    cargando: estados.some((e) => e.cargando),
+    fallidos,
+    completo: estados.every((e) => e.data),
+    parcial: fallidos > 0 && estados.some((e) => e.data),
+    error: estados.find((e) => e.error)?.error ?? '',
+  }
 }
 
 /** Reportes de varias ofertas; devuelve un mapa `materiaId:grupoId` → { data | error }. */
@@ -45,6 +63,8 @@ export function useReportes(j, pares) {
       pedir({ carreraId, periodo }, materiaId, grupoId)
         .then((data) => { if (vivo) setEstado((s) => (s[key]?.data === data ? s : { ...s, [key]: { data } })) })
         .catch((error) => { if (vivo) setEstado((s) => ({ ...s, [key]: { error: mensajeError(error, 'No se pudo consultar la oferta') } })) })
+      // Un reintento muestra «Cargando» en lugar del error anterior.
+      setEstado((s) => (s[key]?.error ? { ...s, [key]: { cargando: true } } : s))
     })
     return () => { vivo = false }
   }, [carreraId, periodo, firma, vigencia])

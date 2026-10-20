@@ -410,6 +410,22 @@ export class ReunionesService {
         'La asistencia incluye docentes que no están convocados',
       );
     }
+    // Finalizar exige confirmar a cada convocado: nadie queda presente por omisión.
+    if (dto.finalizar) {
+      const asistencia = new Map(
+        actual.convocados.map((c) => [c.docenteId, c.asistio]),
+      );
+      for (const a of dto.asistencia ?? [])
+        asistencia.set(a.docenteId, a.asistio);
+      const sinConfirmar = [...asistencia.values()].filter(
+        (asistio) => asistio == null,
+      ).length;
+      if (sinConfirmar) {
+        throw new BadRequestException(
+          `Confirma la asistencia de ${sinConfirmar === 1 ? '1 convocado' : `${sinConfirmar} convocados`} antes de finalizar`,
+        );
+      }
+    }
 
     const reunion = await this.prisma.$transaction(async (tx) => {
       for (const a of dto.asistencia ?? []) {

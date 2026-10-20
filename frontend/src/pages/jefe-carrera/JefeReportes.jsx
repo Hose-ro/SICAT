@@ -5,7 +5,7 @@ import api from '@/api/axios'
 import { Button } from '@/components/ui/button'
 import SexoBadge from '@/components/SexoBadge'
 import { descargarArchivo, mensajeDeBlob } from '@/lib/descargas'
-import { claveFecha, fechaCorta, fechaHoraCorta, hoyClave, parseClave, periodoTexto } from './supervision/formato'
+import { claveFecha, esClaveValida, fechaCorta, fechaHoraCorta, hoyClave, parseClave, periodoTexto } from './supervision/formato'
 import { ESTADO_UNIDAD } from './supervision/estados'
 import { cn } from '@/lib/utils'
 import { Aviso, Esqueleto, JefaturaPage, SeccionTitulo, Vacio, selectClass } from './supervision/ui'
@@ -43,7 +43,8 @@ const porcentaje = (v) => (v == null ? 'Sin clases' : `${v} %`)
 export default function JefeReportes() {
   return (
     <JefaturaPage titulo="Informe del periodo" subtitulo="Para juntas académicas y evidencia institucional. Usa el mismo cálculo que la supervisión en pantalla.">
-      {({ j, resumen }) => <Informe j={j} resumen={resumen} />}
+      {/* Cambiar de carrera o periodo empieza un informe nuevo: nada del anterior se conserva. */}
+      {({ j, resumen }) => <Informe key={`${j.carreraId}|${j.periodo}`} j={j} resumen={resumen} />}
     </JefaturaPage>
   )
 }
@@ -52,21 +53,41 @@ function Informe({ j, resumen }) {
   const limites = useMemo(() => limitesPeriodo(resumen.calendarios), [resumen.calendarios])
   const meses = useMemo(() => mesesDe(limites), [limites])
   const inicial = meses.at(-1) ?? { desde: limites.inicio, hasta: limites.fin }
-  const [rango, setRango] = useState({ desde: inicial.desde, hasta: inicial.hasta })
+  // El intervalo se refleja en la URL: un enlace o una recarga abren el mismo informe.
+  // En pantalla manda el estado local, para que dos cambios seguidos no se pisen.
+  const [params, setParams] = useSearchParams()
+  const enPeriodo = (clave) => esClaveValida(clave) && clave >= limites.inicio && clave <= limites.fin
+  const [visible, setVisible] = useState(() => (enPeriodo(params.get('desde')) && enPeriodo(params.get('hasta'))
+    ? { desde: params.get('desde'), hasta: params.get('hasta') }
+    : { desde: inicial.desde, hasta: inicial.hasta }))
+  const cambiarRango = (siguiente) => {
+    setVisible(siguiente)
+    if (!enPeriodo(siguiente.desde) || !enPeriodo(siguiente.hasta)) return
+    setParams((actual) => {
+      const n = new URLSearchParams(actual)
+      n.set('desde', siguiente.desde)
+      n.set('hasta', siguiente.hasta)
+      return n
+    }, { replace: true })
+  }
+  const cambiarFecha = (campo, valor) => cambiarRango({ ...visible, [campo]: valor })
+  // Lo escrito a mano puede salir del periodo; se conserva solo para explicar el error.
+  const fueraDelPeriodo = !enPeriodo(visible.desde) || !enPeriodo(visible.hasta)
+  const rango = visible
   // La respuesta guarda la consulta que la produjo: mientras no coincide con la actual, se está cargando.
   const [respuesta, setRespuesta] = useState({ clave: '', data: null, error: '' })
   const [descarga, setDescarga] = useState({ formato: '', error: '' })
   // Una lista a la vez: la sección abierta vive en la URL para sobrevivir a recargas.
-  const [params, setParams] = useSearchParams()
   const abierta = params.get('seccion') ?? ''
-  const alternar = (clave) => {
-    const n = new URLSearchParams(params)
-    if (abierta === clave) n.delete('seccion'); else n.set('seccion', clave)
-    setParams(n, { replace: true })
-  }
+  const alternar = (clave) => setParams((actual) => {
+    const n = new URLSearchParams(actual)
+    if (n.get('seccion') === clave) n.delete('seccion'); else n.set('seccion', clave)
+    return n
+  }, { replace: true })
   const seccion = (clave) => ({ clave, abierta: abierta === clave, onAlternar: () => alternar(clave) })
   const mes = meses.find((m) => m.desde === rango.desde && m.hasta === rango.hasta)?.value ?? ''
-  const valido = Boolean(rango.desde && rango.hasta && rango.desde <= rango.hasta)
+  const invertido = Boolean(visible.desde && visible.hasta && visible.desde > visible.hasta)
+  const valido = !fueraDelPeriodo && !invertido
   const clave = `${j.carreraId}|${j.periodo}|${rango.desde}|${rango.hasta}`
 
   useEffect(() => {
@@ -83,6 +104,9 @@ function Informe({ j, resumen }) {
     cargando: valido && respuesta.clave !== clave,
     error: respuesta.clave === clave ? respuesta.error : '',
   }
+  // Solo se descarga o imprime el informe que corresponde al intervalo elegido, ya cargado y sin error.
+  const vigente = valido && respuesta.clave === clave && !respuesta.error && Boolean(respuesta.data)
+  const anterior = Boolean(respuesta.data) && !vigente
 
   const descargar = async (formato) => {
     setDescarga({ formato, error: '' })
@@ -106,7 +130,7 @@ function Informe({ j, resumen }) {
             <span className="text-xs font-medium text-muted-foreground">Mes</span>
             <select
               value={mes}
-              onChange={(e) => { const m = meses.find((x) => x.value === e.target.value); if (m) setRango({ desde: m.desde, hasta: m.hasta }) }}
+              onChange={(e) => { const m = meses.find((x) => x.value === e.target.value); if (m) cambiarRango({ desde: m.desde, hasta: m.hasta }) }}
               className={`${selectClass} mt-1.5 first-letter:uppercase`}
             >
               {!mes && <option value="">Intervalo personalizado</option>}
@@ -115,35 +139,43 @@ function Informe({ j, resumen }) {
           </label>
           <label>
             <span className="text-xs font-medium text-muted-foreground">Desde</span>
-            <input type="date" className={`${campoFecha} mt-1.5 block`} value={rango.desde} min={limites.inicio} max={limites.fin} onChange={(e) => setRango((r) => ({ ...r, desde: e.target.value }))} />
+            <input type="date" className={`${campoFecha} mt-1.5 block`} value={visible.desde} min={limites.inicio} max={limites.fin} onChange={(e) => cambiarFecha('desde', e.target.value)} />
           </label>
           <label>
             <span className="text-xs font-medium text-muted-foreground">Hasta</span>
-            <input type="date" className={`${campoFecha} mt-1.5 block`} value={rango.hasta} min={limites.inicio} max={limites.fin} onChange={(e) => setRango((r) => ({ ...r, hasta: e.target.value }))} />
+            <input type="date" className={`${campoFecha} mt-1.5 block`} value={visible.hasta} min={limites.inicio} max={limites.fin} onChange={(e) => cambiarFecha('hasta', e.target.value)} />
           </label>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button onClick={() => descargar('excel')} disabled={!data || Boolean(descarga.formato)}>
+          <Button onClick={() => descargar('excel')} disabled={!vigente || Boolean(descarga.formato)}>
             {descarga.formato === 'excel' ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <FileSpreadsheet aria-hidden="true" />}
             {descarga.formato === 'excel' ? 'Generando…' : 'Descargar Excel'}
           </Button>
-          <Button variant="outline" onClick={() => descargar('pdf')} disabled={!data || Boolean(descarga.formato)}>
+          <Button variant="outline" onClick={() => descargar('pdf')} disabled={!vigente || Boolean(descarga.formato)}>
             {descarga.formato === 'pdf' ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <FileText aria-hidden="true" />}
             {descarga.formato === 'pdf' ? 'Generando…' : 'Descargar PDF'}
           </Button>
-          <Button variant="ghost" onClick={() => window.print()} disabled={!data}><Printer aria-hidden="true" /> Imprimir</Button>
+          <Button variant="ghost" onClick={() => window.print()} disabled={!vigente}><Printer aria-hidden="true" /> Imprimir</Button>
         </div>
       </section>
-      {!valido && <p role="alert" className="print-hidden mt-3 text-[0.8125rem] text-destructive-foreground">La fecha final debe ser igual o posterior a la inicial.</p>}
+      {invertido && <p role="alert" className="print-hidden mt-3 text-[0.8125rem] text-destructive-foreground">La fecha final debe ser igual o posterior a la inicial. Descargas e impresión quedan en pausa hasta corregirla.</p>}
+      {fueraDelPeriodo && !invertido && <p role="alert" className="print-hidden mt-3 text-[0.8125rem] text-destructive-foreground">Elige fechas dentro de {periodoTexto(j.periodo)}: del {fechaSinDia(limites.inicio)} al {fechaSinDia(limites.fin)}.</p>}
+      {!vigente && valido && !estado.error && <p role="status" className="print-hidden mt-3 text-xs text-muted-foreground">Las descargas se habilitan cuando termina de generarse el informe del intervalo elegido.</p>}
       {descarga.error && <p role="alert" className="print-hidden mt-3 text-[0.8125rem] text-destructive-foreground">{descarga.error}</p>}
 
+      {anterior && <p className="hidden print:block">Este informe no está vigente para el intervalo elegido; vuelve a generarlo en SICAT antes de imprimir.</p>}
       {estado.cargando && !data ? (
         <Esqueleto compacto />
       ) : estado.error && !data ? (
         <Aviso tono="error" titulo="No se pudo generar el informe">{estado.error}</Aviso>
       ) : data && (
-        <div aria-busy={estado.cargando || undefined} className={estado.cargando ? 'opacity-60' : undefined}>
-          {estado.error && <p role="alert" className="mt-4 text-[0.8125rem] text-warning-foreground">{estado.error} Se muestra el intervalo anterior.</p>}
+        <div aria-busy={estado.cargando || undefined} className={cn(anterior && 'opacity-60 print:hidden')}>
+          {anterior && (
+            <p role={estado.error ? 'alert' : 'status'} className="mt-4 rounded-[var(--radius-item)] border border-warning/35 bg-warning/10 px-4 py-3 text-[0.8125rem] text-foreground">
+              <b className="font-medium">Informe anterior: {fechaSinDia(data.intervalo.desde)} al {fechaSinDia(data.intervalo.hasta)}.</b>{' '}
+              {estado.error ? `${estado.error}. No corresponde al intervalo elegido.` : estado.cargando ? 'Generando el informe del intervalo elegido…' : 'No corresponde al intervalo elegido.'}
+            </p>
+          )}
           <Encabezado data={data} />
           <Totales data={data} />
           <p className="print-hidden mt-10 text-xs text-muted-foreground">Abre la lista que necesites; al imprimir se incluyen todas.</p>
@@ -210,28 +242,50 @@ function Encabezado({ data }) {
   )
 }
 
+/** Las listas y notas son del intervalo; calificaciones y riesgo son el estado al momento de generar el informe. */
 function Totales({ data }) {
   const t = data.totales
-  const filas = [
-    ['Clases con lista esperada', t.clasesEsperadas],
-    ['Listas completas', t.listasCompletas],
-    ['Listas sin captura o parciales', t.listasPendientes],
-    ['Cobertura de captura', porcentaje(t.cobertura)],
-    ['Calificaciones de unidad pendientes', t.calificacionesPendientes],
-    ['Alumnos en riesgo', t.alumnosRiesgo],
-    ['Notas de seguimiento', t.seguimientos],
+  const grupos = [
+    {
+      id: 'intervalo',
+      titulo: `En el intervalo · ${fechaSinDia(data.intervalo.desde)} al ${fechaSinDia(data.intervalo.hasta)}`,
+      filas: [
+        ['Clases con lista esperada', t.clasesEsperadas],
+        ['Listas completas', t.listasCompletas],
+        ['Listas sin captura o parciales', t.listasPendientes],
+        ['Cobertura de captura', porcentaje(t.cobertura)],
+        ['Notas de seguimiento', t.seguimientos],
+      ],
+    },
+    {
+      id: 'corte',
+      titulo: `Al corte · ${fechaHoraCorta(data.generadoEn)}`,
+      nota: 'No dependen del intervalo: es el estado del periodo cuando se generó el informe.',
+      filas: [
+        ['Calificaciones de unidades cerradas sin capturar', t.calificacionesPendientes],
+        ['Alumnos en riesgo', t.alumnosRiesgo],
+      ],
+    },
   ]
   return (
     <section aria-labelledby="informe-resumen" className="mt-8">
       <SeccionTitulo id="informe-resumen" titulo="Resumen" />
-      <dl className="grid border-t border-border text-[0.8125rem] sm:grid-cols-2">
-        {filas.map(([label, value]) => (
-          <div key={label} className="flex items-baseline justify-between gap-4 border-b border-border py-2.5 sm:odd:pr-6 sm:even:pl-6">
-            <dt className="text-muted-foreground">{label}</dt>
-            <dd className="font-semibold tabular-nums text-foreground">{value}</dd>
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+        {grupos.map((g) => (
+          <div key={g.id} className="min-w-0">
+            <h3 className="text-xs font-medium text-muted-foreground first-letter:uppercase">{g.titulo}</h3>
+            {g.nota && <p className="mt-0.5 text-xs text-muted-foreground">{g.nota}</p>}
+            <dl className="mt-2 border-t border-border text-[0.8125rem]">
+              {g.filas.map(([label, value]) => (
+                <div key={label} className="flex items-baseline justify-between gap-4 border-b border-border py-2.5">
+                  <dt className="text-muted-foreground">{label}</dt>
+                  <dd className="font-semibold tabular-nums text-foreground">{value}</dd>
+                </div>
+              ))}
+            </dl>
           </div>
         ))}
-      </dl>
+      </div>
     </section>
   )
 }

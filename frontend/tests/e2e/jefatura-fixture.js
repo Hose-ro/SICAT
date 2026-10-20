@@ -202,10 +202,10 @@ const informe = (q) => ({
   seguimientos: [{ fecha: '2026-10-13T16:00:00.000Z', caso: 'Seguimiento con Laura Méndez', detalle: '', tipo: 'SEGUIMIENTO_DOCENTE', estado: 'EN_SEGUIMIENTO', autor: 'Persona de prueba', texto: 'Acordamos capturar las listas pendientes el viernes.' }],
 })
 
-export async function mockJefatura(page, { seguimientos = [] } = {}) {
+export async function mockJefatura(page, { seguimientos = [], ajustarResumen = (r) => r, ajustarReuniones = (r) => r, reportesFallan = false } = {}) {
   const requests = []
   const guardados = [...seguimientos]
-  const reuniones = reunionesIniciales()
+  const reuniones = ajustarReuniones(reunionesIniciales())
   await page.route('**/api/jefe-carrera/**', async (route) => {
     const req = route.request()
     const url = new URL(req.url())
@@ -227,9 +227,12 @@ export async function mockJefatura(page, { seguimientos = [] } = {}) {
       r.convocados = r.convocados.map((c) => ({ ...c, asistio: body.asistencia.find((a) => a.docenteId === c.id)?.asistio ?? c.asistio }))
       data = r
     } else if (p === '/contexto') data = { carreras: [carrera], periodoActual: '2026-B', periodos: ['2026-B', '2026-A'] }
-    else if (p === '/supervision') data = resumen()
+    else if (p === '/supervision') data = ajustarResumen(resumen())
     else if (p === '/calendario') data = clasesEntre(q.desde, q.hasta, q)
-    else if (/^\/ofertas\/\d+\/grupos\/\d+$/.test(p)) {
+    else if (reportesFallan && /^\/ofertas\//.test(p)) {
+      await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ message: 'Error interno al calcular el reporte' }) })
+      return
+    } else if (/^\/ofertas\/\d+\/grupos\/\d+$/.test(p)) {
       const [, m, gr] = p.match(/ofertas\/(\d+)\/grupos\/(\d+)/)
       const oferta = ofertas.find((o) => o.materia.id === Number(m) && o.grupo.id === Number(gr))
       data = { materia: oferta.materia, unidades: oferta.unidades.map(({ id, nombre, orden, status }) => ({ id, nombre, orden, status })), rows: filasReporte(Number(m), Number(gr)), periodo: '2026-B', grupo: oferta.grupo }

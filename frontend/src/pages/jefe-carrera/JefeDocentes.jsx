@@ -1,10 +1,9 @@
-import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { fechaHoraCorta, periodoTexto, plural } from './supervision/formato'
-import { JefaturaPage, Segmento, Vacio, linkClass } from './supervision/ui'
+import { JefaturaPage, Segmento, Vacio, linkClass, selectClass } from './supervision/ui'
 
 function cobertura(d) {
   return d.clasesEsperadas ? `${d.cobertura} %` : 'No aplica'
@@ -21,6 +20,15 @@ function materiasDe(asignaciones) {
   return [...porMateria.values()]
     .map((m) => ({ ...m, grupos: m.grupos.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')) }))
     .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+}
+
+// Orden por urgencia: primero quien acumula más pendientes o lleva más tiempo sin capturar.
+const ORDENES = {
+  nombre: { label: 'Ordenar por nombre', comparar: () => 0 },
+  pendientes: { label: 'Más pendientes primero', comparar: (a, b) => (b.listasPendientes + b.calificacionesPendientes + b.entregasPendientes) - (a.listasPendientes + a.calificacionesPendientes + a.entregasPendientes) },
+  // Sin captura en el periodo va antes que una captura antigua; sin clases en el periodo, al final.
+  captura: { label: 'Captura más antigua primero', comparar: (a, b) => (b.tieneMetricas - a.tieneMetricas) || (a.ultimaCaptura ?? '').localeCompare(b.ultimaCaptura ?? '') },
+  cobertura: { label: 'Menor cobertura primero', comparar: (a, b) => (a.clasesEsperadas ? a.cobertura : 101) - (b.clasesEsperadas ? b.cobertura : 101) },
 }
 
 function Cifra({ label, value, alerta, detalle }) {
@@ -57,8 +65,8 @@ function TarjetaDocente({ d, j }) {
 
       <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 border-y border-border py-3 sm:grid-cols-4">
         <Cifra label="Horas / semana" value={d.tieneMetricas ? d.horasSemanales : '—'} />
-        <Cifra label="Listas pend." value={d.tieneMetricas ? d.listasPendientes : '—'} alerta={d.listasPendientes > 0} />
-        <Cifra label="Calif. pend." value={d.tieneMetricas ? d.calificacionesPendientes : '—'} alerta={d.calificacionesPendientes > 0} />
+        <Cifra label="Listas pendientes" value={d.tieneMetricas ? d.listasPendientes : '—'} alerta={d.listasPendientes > 0} />
+        <Cifra label="Calif. pendientes" value={d.tieneMetricas ? d.calificacionesPendientes : '—'} alerta={d.calificacionesPendientes > 0} />
         <Cifra
           label="Cobertura"
           value={d.tieneMetricas ? cobertura(d) : '—'}
@@ -93,8 +101,10 @@ function TarjetaDocente({ d, j }) {
 
 export default function JefeDocentes() {
   const [params, setParams] = useSearchParams()
-  const [busqueda, setBusqueda] = useState('')
   const filtro = params.get('filtro') === 'pendientes' ? 'pendientes' : ''
+  const busqueda = params.get('q') ?? ''
+  const orden = ORDENES[params.get('orden')] ? params.get('orden') : 'nombre'
+  const set = (k, v) => { const n = new URLSearchParams(params); if (v) n.set(k, v); else n.delete(k); setParams(n, { replace: true }) }
 
   return (
     <JefaturaPage titulo="Docentes" subtitulo="Carga académica y registro de cada docente dentro de esta carrera.">
@@ -123,7 +133,7 @@ export default function JefeDocentes() {
           })
           .filter((d) => !q || d.nombre.toLocaleLowerCase().includes(q))
           .filter((d) => !filtro || d.listasPendientes || d.calificacionesPendientes || d.entregasPendientes)
-          .sort((a, b) => a.nombre.localeCompare(b.nombre))
+          .sort((a, b) => ORDENES[orden].comparar(a, b) || a.nombre.localeCompare(b.nombre, 'es'))
 
         return (
           <>
@@ -131,18 +141,25 @@ export default function JefeDocentes() {
               <label className="relative min-w-[220px] flex-1 sm:max-w-sm">
                 <span className="sr-only">Buscar docente</span>
                 <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-                <input type="search" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="Buscar docente" className="h-11 w-full rounded-[0.7rem] border border-border bg-card pl-9 pr-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40" />
+                <input type="search" value={busqueda} onChange={(e) => set('q', e.target.value)} placeholder="Buscar docente" className="h-11 w-full rounded-[0.7rem] border border-border bg-card pl-9 pr-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40" />
               </label>
-              <Segmento label="Mostrar" value={filtro} onChange={(v) => { const n = new URLSearchParams(params); if (v) n.set('filtro', v); else n.delete('filtro'); setParams(n, { replace: true }) }} options={[{ value: '', label: 'Todos' }, { value: 'pendientes', label: 'Con pendientes' }]} />
+              <Segmento label="Mostrar" value={filtro} onChange={(v) => set('filtro', v)} options={[{ value: '', label: 'Todos' }, { value: 'pendientes', label: 'Con pendientes' }]} />
+              <label className="w-full sm:w-60">
+                <span className="sr-only">Ordenar docentes</span>
+                <select value={orden} onChange={(e) => set('orden', e.target.value === 'nombre' ? '' : e.target.value)} className={selectClass}>
+                  {Object.entries(ORDENES).map(([value, o]) => <option key={value} value={value}>{o.label}</option>)}
+                </select>
+              </label>
             </div>
             <p className="mt-4 max-w-3xl text-xs text-muted-foreground">
               Aparecen quienes tienen materias en grupos activos de la carrera. Las cifras corresponden a {periodoTexto(j.periodo)}; los grupos con borde punteado son de otro periodo.
+              {' '}<b className="font-medium text-foreground">Cobertura</b> = listas completas entre clases ya concluidas con lista esperada; no cuentan suspensiones, clases sin inscritos ni calendarios sin configurar. Es evidencia de captura en SICAT, no de asistencia del docente.
             </p>
 
             {!docentesActivos.length ? (
               <Vacio titulo="Sin docentes asignados">Ninguna materia de los grupos activos de la carrera tiene docente.</Vacio>
             ) : !filas.length ? (
-              <Vacio titulo={filtro ? 'Sin pendientes detectados' : 'Ningún docente coincide'} accion={<Button variant="outline" onClick={() => { setBusqueda(''); setParams(new URLSearchParams({ carrera: j.carreraId, periodo: j.periodo }), { replace: true }) }}>Restablecer filtros</Button>} />
+              <Vacio titulo={filtro ? 'Sin pendientes detectados' : 'Ningún docente coincide'} accion={<Button variant="outline" onClick={() => setParams(new URLSearchParams({ carrera: j.carreraId, periodo: j.periodo }), { replace: true })}>Restablecer filtros</Button>} />
             ) : (
               <ul aria-label="Docentes de la carrera" className="mt-5 grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
                 {filas.map((d) => <TarjetaDocente key={d.id} d={d} j={j} />)}

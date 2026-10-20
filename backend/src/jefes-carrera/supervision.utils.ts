@@ -22,10 +22,7 @@ export function periodoSupervision(value?: string) {
  * Cuando la institución omite el año se usa el año en que se creó el grupo,
  * que es una referencia más estable que la fecha en que se hace la consulta.
  */
-export function periodoCanonicoDeGrupo(
-  value: string,
-  referencia = new Date(),
-) {
+export function periodoCanonicoDeGrupo(value: string, referencia = new Date()) {
   const directo = value.trim().toUpperCase();
   if (/^\d{4}-[AB]$/.test(directo)) return directo;
 
@@ -46,6 +43,15 @@ export function periodoCanonicoDeGrupo(
 
   if (primero === segundo) return null;
   return `${anio}-${primero ? 'A' : 'B'}`;
+}
+
+/**
+ * Grupos que cuentan en un periodo. En el actual, solo los activos; al
+ * consultar un ciclo anterior también los dados de baja después, porque
+ * siguen siendo parte de la historia de ese periodo.
+ */
+export function filtroGrupoVigente(periodo: string): { activo?: true } {
+  return periodo === getCurrentAcademicPeriod() ? { activo: true } : {};
 }
 
 export function grupoPerteneceAPeriodo(

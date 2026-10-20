@@ -60,15 +60,29 @@ export const ESTADO_UNIDAD = {
 /** Días que una unidad puede seguir en curso antes de pedir revisar su avance. */
 export const DIAS_REVISION_UNIDAD = 28
 
-// Las fechas de unidad se guardan a medianoche UTC.
-const fechaUnidad = (iso) => new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', timeZone: 'UTC' })
+/** Zona del instituto: los plazos académicos son días civiles de esta zona, no instantes. */
+export const ZONA_INSTITUCIONAL = 'America/Mexico_City'
 
-/** Señal de una unidad sin cerrar: cierre previsto vencido o demasiados días abierta; null si va bien. */
-export function senalUnidad(u, hoy = new Date()) {
+const formatoClave = new Intl.DateTimeFormat('en-CA', { timeZone: ZONA_INSTITUCIONAL, year: 'numeric', month: '2-digit', day: '2-digit' })
+/** Fecha civil AAAA-MM-DD en la zona del instituto. */
+export const claveInstitucional = (instante = new Date()) => formatoClave.format(instante)
+
+// Las fechas de unidad se guardan a medianoche UTC: su día es la parte UTC.
+const claveUnidad = (iso) => new Date(iso).toISOString().slice(0, 10)
+const fechaUnidad = (iso) => new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', timeZone: 'UTC' })
+const diasEntre = (desde, hasta) => Math.round((Date.parse(`${hasta}T00:00:00Z`) - Date.parse(`${desde}T00:00:00Z`)) / 86400000)
+
+/**
+ * Señal de una unidad sin cerrar: cierre previsto vencido o demasiados días
+ * abierta; null si va bien. El cierre vence cuando su día ya terminó en la
+ * zona del instituto: el mismo día de cierre todavía está a tiempo.
+ */
+export function senalUnidad(u, ahora = new Date()) {
   if (u.status === 'FINALIZADA') return null
-  if (u.fechaFin && new Date(u.fechaFin) < hoy) return `Cierre previsto el ${fechaUnidad(u.fechaFin)} sin registrar`
+  const hoy = claveInstitucional(ahora)
+  if (u.fechaFin && claveUnidad(u.fechaFin) < hoy) return `Cierre previsto el ${fechaUnidad(u.fechaFin)} sin registrar`
   if (u.status === 'ACTIVA' && u.fechaInicio) {
-    const dias = Math.floor((hoy - new Date(u.fechaInicio)) / 86400000)
+    const dias = diasEntre(claveUnidad(u.fechaInicio), hoy)
     if (dias > DIAS_REVISION_UNIDAD) return `Abierta hace ${dias} días; revisar avance`
   }
   return null
@@ -80,7 +94,7 @@ const fechaCierre = (iso) => new Date(iso).toLocaleDateString('es-MX', { day: 'n
 export function textoCierre(cierre) {
   if (!cierre) return null
   const partes = [`Curso cerrado el ${fechaCierre(cierre.cerradoEn)}${cierre.docente ? ` por ${cierre.docente}` : ''}`, `${cierre.acreditados} de ${cierre.total} acreditados`]
-  if (cierre.noAcreditados) partes.push(`${cierre.noAcreditados} NA`)
+  if (cierre.noAcreditados) partes.push(`${cierre.noAcreditados} ${cierre.noAcreditados === 1 ? 'no acreditado' : 'no acreditados'} (NA)`)
   return partes.join(' · ')
 }
 

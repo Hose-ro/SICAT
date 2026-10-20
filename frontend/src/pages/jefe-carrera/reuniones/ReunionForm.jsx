@@ -5,6 +5,7 @@ import Modal from '@/components/Modal'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { hoyClaveLocal } from '@/lib/reuniones'
+import { useBorrador } from '../supervision/borrador'
 import { campoClass } from '../supervision/ui'
 import { mensajeError } from '../supervision/useJefatura'
 
@@ -34,7 +35,8 @@ function inicial(reunion) {
 export default function ReunionForm({ j, reunion, onClose, onGuardada }) {
   const ids = useId()
   const nueva = !reunion
-  const [form, setForm] = useState(() => inicial(reunion))
+  // Lo escrito se conserva en esta pestaña si el diálogo se cierra antes de guardar.
+  const [form, setForm, borrador] = useBorrador(`reunion:${reunion?.id ?? `nueva:${j.carreraId}`}`, () => inicial(reunion))
   const [docentes, setDocentes] = useState({ lista: null, error: '' })
   const [convocados, setConvocados] = useState(() => new Set(reunion?.convocados.map((d) => d.id) ?? []))
   const [estado, setEstado] = useState({ enviando: false, error: '' })
@@ -88,6 +90,7 @@ export default function ReunionForm({ j, reunion, onClose, onGuardada }) {
       const { data } = nueva
         ? await api.post('/jefe-carrera/reuniones', { ...datos, carreraId: Number(j.carreraId) })
         : await api.patch(`/jefe-carrera/reuniones/${reunion.id}`, datos)
+      borrador.limpiar()
       onGuardada(data, nueva ? `Reunión programada. Se avisó a ${data.convocados.length} ${data.convocados.length === 1 ? 'docente' : 'docentes'}.` : 'Cambios guardados.')
     } catch (error) {
       setEstado({ enviando: false, error: mensajeError(error, 'No se pudo guardar la reunión') })
@@ -97,6 +100,12 @@ export default function ReunionForm({ j, reunion, onClose, onGuardada }) {
   return (
     <Modal open wide onClose={onClose} busy={estado.enviando} title={nueva ? 'Programar reunión' : 'Editar reunión'} description={nueva ? 'Los docentes convocados la verán en su Inicio y recibirán una notificación.' : 'Si cambias fecha, hora o lugar, se avisa a los convocados.'}>
       <form onSubmit={guardar} className="space-y-5">
+        {borrador.recuperado && (
+          <p role="status" className="flex flex-wrap items-center gap-2 rounded-[var(--radius-item)] border border-border bg-muted px-3 py-2 text-xs text-foreground">
+            Se recuperó un borrador sin guardar de esta convocatoria.
+            <Button type="button" variant="ghost" size="sm" onClick={borrador.descartar}>Descartar borrador</Button>
+          </p>
+        )}
         <fieldset className="space-y-4">
           <legend className="sr-only">Datos de la reunión</legend>
           <label className="block">
@@ -209,7 +218,7 @@ export default function ReunionForm({ j, reunion, onClose, onGuardada }) {
 
         {estado.error && <p role="alert" className="text-[0.8125rem] text-destructive-foreground">{estado.error}</p>}
         <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onClose} disabled={estado.enviando}>Cancelar</Button>
+          <Button type="button" variant="outline" onClick={onClose} disabled={estado.enviando}>{borrador.modificado ? 'Cerrar y conservar borrador' : 'Cancelar'}</Button>
           <Button type="submit" disabled={estado.enviando || docentes.lista === null}>
             {estado.enviando && <LoaderCircle className="animate-spin" aria-hidden="true" />}
             {nueva ? 'Programar y avisar' : 'Guardar cambios'}

@@ -28,6 +28,8 @@ const mensaje = (error, fallback) => {
 }
 
 export const useJefaturaStore = create((set, get) => ({
+  // Lo que pertenece a la sesión: se vacía al cambiar de cuenta.
+  limpiar: () => set({ contexto: null, contextoError: '', contextoCargando: false, resumenes: {} }),
   contexto: null,
   contextoError: '',
   contextoCargando: false,

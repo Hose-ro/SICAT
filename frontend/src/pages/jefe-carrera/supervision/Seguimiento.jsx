@@ -1,11 +1,12 @@
 import { useId, useRef, useState } from 'react'
-import { LoaderCircle, NotebookPen } from 'lucide-react'
+import { LoaderCircle, NotebookPen, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import Modal from '@/components/Modal'
 import { cn } from '@/lib/utils'
 import { fechaCorta, fechaHoraCorta, hoyClave } from './formato'
 import { Segmento } from './ui'
-import { useSeguimientos } from './useSeguimientos'
+import { useBorrador } from './borrador'
+import { claveCaso, useSeguimientos } from './useSeguimientos'
 
 const campoClass = 'w-full rounded-[0.7rem] border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40'
 
@@ -46,14 +47,15 @@ export function HistorialSeguimiento({ seguimiento }) {
 
 /**
  * Nota de seguimiento sobre un caso. El borrador se conserva si el guardado
- * falla; en un periodo anterior solo se muestra el historial.
+ * falla o el diálogo se cierra; en un periodo anterior solo se muestra el
+ * historial. Si el historial no cargó, se dice antes de ofrecer una nota nueva.
  */
 export function FormSeguimiento({ j, caso, seguimientoId, onGuardado, onCancelar }) {
   const ids = useId()
   const seguimientos = useSeguimientos({ carreraId: j.carreraId, periodo: j.periodo })
   // Un seguimiento anterior sin caso legible se ubica por su id.
   const seguimiento = seguimientoId ? seguimientos.lista.find((s) => s.id === seguimientoId) ?? null : seguimientos.buscar(caso)
-  const [texto, setTexto] = useState('')
+  const [texto, setTexto, borrador] = useBorrador(`seguimiento:${j.carreraId}|${j.periodo}|${seguimientoId ?? claveCaso(caso)}`, '')
   const [estado, setEstado] = useState('EN_SEGUIMIENTO')
   const [revision, setRevision] = useState('')
   const [enviando, setEnviando] = useState(false)
@@ -81,6 +83,7 @@ export function FormSeguimiento({ j, caso, seguimientoId, onGuardado, onCancelar
         fechaRevision: estado === 'CERRADA' || !revision ? null : revision,
       })
       setTexto('')
+      borrador.limpiar()
       setRevision('')
       setAviso(estado === 'CERRADA' ? 'Caso cerrado. La nota quedó en el historial.' : 'Nota guardada en el historial.')
       onGuardado?.(guardado)
@@ -93,6 +96,14 @@ export function FormSeguimiento({ j, caso, seguimientoId, onGuardado, onCancelar
 
   return (
     <div className="space-y-4">
+      {seguimientos.error ? (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-item)] border border-warning/35 bg-warning/10 px-3 py-2.5 text-[0.8125rem] text-foreground">
+          <span>No se pudo cargar el historial de seguimientos: puede haber notas anteriores que no se ven aquí.</span>
+          <Button type="button" variant="outline" size="sm" onClick={seguimientos.reintentar}><RefreshCw aria-hidden="true" /> Reintentar</Button>
+        </div>
+      ) : seguimientos.cargando ? (
+        <p className="flex items-center gap-2 text-[0.8125rem] text-muted-foreground"><LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> Cargando historial…</p>
+      ) : null}
       {seguimiento && (
         <section aria-labelledby={`${ids}-historial`}>
           <h3 id={`${ids}-historial`} className="mb-2 text-sm font-semibold text-foreground">Historial <span className="font-normal tabular-nums text-muted-foreground">{seguimiento.notas.length}</span></h3>
@@ -112,7 +123,10 @@ export function FormSeguimiento({ j, caso, seguimientoId, onGuardado, onCancelar
               placeholder="Qué se acordó, con quién y qué sigue"
               className={cn(campoClass, 'mt-1.5 py-2.5')}
             />
-            <p id={`${ids}-ayuda`} className="mt-1 text-xs text-muted-foreground">Queda en el historial con tu nombre y la fecha.</p>
+            <p id={`${ids}-ayuda`} className="mt-1 text-xs text-muted-foreground">
+              Queda en el historial con tu nombre y la fecha. No envía mensajes ni corrige listas o calificaciones.
+              {borrador.recuperado && texto && ' Se recuperó lo que habías escrito.'}
+            </p>
           </div>
           <div className="flex flex-wrap items-end gap-x-5 gap-y-3">
             <div>

@@ -434,7 +434,24 @@ export class MateriasService {
       semestre: dto.semestre,
     };
 
-    await this.prisma.materia.update({ where: { id }, data });
+    // Unidades y datos generales se guardan juntos: si la reducción requiere
+    // confirmación (409) o algo falla, la materia queda como estaba.
+    const plan =
+      dto.numUnidades === undefined || dto.numUnidades === materia.numUnidades
+        ? null
+        : await this.planUnidades(id, dto.numUnidades, dto.forzar);
+
+    if (!plan) {
+      await this.prisma.materia.update({ where: { id }, data });
+      return this.findOne(id);
+    }
+    await this.prisma.$transaction(
+      async (tx) => {
+        await tx.materia.update({ where: { id }, data });
+        await this.aplicarUnidades(tx, id, plan);
+      },
+      { maxWait: 10_000, timeout: 30_000 },
+    );
     return this.findOne(id);
   }
 
@@ -490,19 +507,31 @@ export class MateriasService {
     });
     if (!materia) throw new NotFoundException('Materia no encontrada');
 
+    const plan = await this.planUnidades(id, dto.numUnidades, dto.forzar);
+    await this.prisma.$transaction((tx) => this.aplicarUnidades(tx, id, plan), {
+      maxWait: 10_000,
+      timeout: 30_000,
+    });
+
+    return this.findOne(id, actor);
+  }
+
+  /**
+   * Calcula el cambio de unidades sin escribir nada. Si reducir borraría
+   * registros y no se confirmó, responde 409 con el detalle de lo que se pierde.
+   */
+  private async planUnidades(id: number, objetivo: number, forzar?: boolean) {
     const unidades = await this.prisma.unidad.findMany({
       where: { materiaId: id },
       orderBy: { orden: 'asc' },
       select: { id: true, orden: true, nombre: true },
     });
-
-    const objetivo = dto.numUnidades;
     const sobrantes = unidades.filter((unidad) => unidad.orden > objetivo);
 
     if (sobrantes.length) {
       const resumen = await this.contarDatosDeUnidades(id, sobrantes);
       const total = resumen.calificaciones + resumen.tareas + resumen.sesiones;
-      if (total > 0 && !dto.forzar) {
+      if (total > 0 && !forzar) {
         throw new ConflictException({
           requiereConfirmacion: true,
           message: `Reducir a ${objetivo} unidades borrará ${this.describirResumen(resumen)} de ${sobrantes.map((u) => u.nombre).join(', ')}.`,
@@ -511,44 +540,48 @@ export class MateriasService {
         });
       }
     }
+    return { objetivo, unidades, sobrantes };
+  }
 
-    await this.prisma.$transaction(
-      async (tx) => {
-        if (sobrantes.length) {
-          await this.borrarUnidades(tx, id, sobrantes);
-        }
+  private async aplicarUnidades(
+    tx: Prisma.TransactionClient,
+    id: number,
+    {
+      objetivo,
+      unidades,
+      sobrantes,
+    }: Awaited<ReturnType<MateriasService['planUnidades']>>,
+  ) {
+    if (sobrantes.length) {
+      await this.borrarUnidades(tx, id, sobrantes);
+    }
 
-        // Se completan los órdenes que falten hasta el objetivo, por si la
-        // materia tenía huecos o ninguna unidad.
-        const conservadas = new Set(
-          unidades
-            .filter((unidad) => unidad.orden <= objetivo)
-            .map((unidad) => unidad.orden),
-        );
-        const faltantes: Prisma.UnidadCreateManyInput[] = [];
-        for (let orden = 1; orden <= objetivo; orden++) {
-          if (conservadas.has(orden)) continue;
-          faltantes.push({
-            nombre: `Unidad ${orden}`,
-            orden,
-            materiaId: id,
-          });
-        }
-        if (faltantes.length) {
-          await tx.unidad.createMany({ data: faltantes });
-        }
-
-        // numUnidades es sólo un contador: se recalcula de las filas reales.
-        const total = await tx.unidad.count({ where: { materiaId: id } });
-        await tx.materia.update({
-          where: { id },
-          data: { numUnidades: total },
-        });
-      },
-      { maxWait: 10_000, timeout: 30_000 },
+    // Se completan los órdenes que falten hasta el objetivo, por si la
+    // materia tenía huecos o ninguna unidad.
+    const conservadas = new Set(
+      unidades
+        .filter((unidad) => unidad.orden <= objetivo)
+        .map((unidad) => unidad.orden),
     );
+    const faltantes: Prisma.UnidadCreateManyInput[] = [];
+    for (let orden = 1; orden <= objetivo; orden++) {
+      if (conservadas.has(orden)) continue;
+      faltantes.push({
+        nombre: `Unidad ${orden}`,
+        orden,
+        materiaId: id,
+      });
+    }
+    if (faltantes.length) {
+      await tx.unidad.createMany({ data: faltantes });
+    }
 
-    return this.findOne(id, actor);
+    // numUnidades es sólo un contador: se recalcula de las filas reales.
+    const total = await tx.unidad.count({ where: { materiaId: id } });
+    await tx.materia.update({
+      where: { id },
+      data: { numUnidades: total },
+    });
   }
 
   private describirResumen(resumen: {

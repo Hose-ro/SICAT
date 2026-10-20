@@ -8,7 +8,7 @@ import IncorporarAlumno from './supervision/IncorporarAlumno'
 import { ESTADO_UNIDAD, MOTIVOS_RIESGO, textoCierre } from './supervision/estados'
 import { esDeLaParidad, modalidadTexto, semestreTexto, diasTexto } from './supervision/formato'
 import { Promedio } from './supervision/notas'
-import { resumenAlumno, useReportes } from './supervision/useReportes'
+import { reintentarReportes, resumenAlumno, useReportes } from './supervision/useReportes'
 import { Aviso, Cifra, JefaturaPage, Vacio, linkClass } from './supervision/ui'
 
 export default function JefeMateriaDetalle() {
@@ -99,7 +99,12 @@ function Oferta({ j, oferta: o, estado, resaltada, onIncorporar }) {
           <span className="text-xs font-normal text-primary-ink group-open:hidden">Mostrar</span>
           <span className="hidden text-xs font-normal text-primary-ink group-open:inline">Ocultar</span>
         </summary>
-        {estado?.error ? <p role="alert" className="mt-2 text-sm text-destructive-foreground">{estado.error}</p> : !reporte ? (
+        {estado?.error ? (
+          <p role="alert" className="mt-2 flex flex-wrap items-center gap-2 text-sm text-warning-foreground">
+            No disponible: {estado.error}.
+            <Button variant="outline" size="sm" onClick={reintentarReportes}>Reintentar</Button>
+          </p>
+        ) : !reporte ? (
           <div className="mt-2 h-24 animate-pulse rounded-[var(--radius-item)] bg-muted" aria-busy="true" />
         ) : alumnos.size ? (
           <div role="region" tabIndex={0} aria-label={`Alumnos de ${o.materia.nombre}, grupo ${o.grupo.nombre}`} className="mt-2 overflow-x-auto focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40">
@@ -126,7 +131,7 @@ function Oferta({ j, oferta: o, estado, resaltada, onIncorporar }) {
                       <td className="py-2.5 pr-4 text-muted-foreground">{alumno.semestre ? semestreTexto(alumno.semestre) : '—'}</td>
                       <td className="py-2.5 pr-4 text-right"><Promedio r={r} /></td>
                       <td className="py-2.5 pr-4 text-muted-foreground">{r.asistencia.porcentaje == null ? 'Sin registros' : `${r.asistencia.porcentaje} % · ${r.asistencia.faltas} F · ${r.asistencia.retardos} R · ${r.asistencia.justificadas} J`}</td>
-                      <td className="py-2.5 text-xs">{r.motivos.length ? <span className="text-warning-foreground">{r.motivos.map((m) => MOTIVOS_RIESGO[m] ?? m).join(' · ')}</span> : <span className="text-muted-foreground">Sin señales</span>}</td>
+                      <td className="py-2.5 text-xs">{r.motivos.length ? <span className="text-warning-foreground">{r.motivos.map((m) => MOTIVOS_RIESGO[m] ?? m).join(' · ')}</span> : <span className="text-muted-foreground">Sin señales detectadas</span>}</td>
                     </tr>
                   )
                 })}

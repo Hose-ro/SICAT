@@ -1,15 +1,15 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronDown, LoaderCircle } from 'lucide-react'
+import { ChevronDown, LoaderCircle, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import SexoBadge from '@/components/SexoBadge'
 import { cn } from '@/lib/utils'
 import { CRITERIO_RIESGO, ESTADOS_PENDIENTES, MOTIVOS_RIESGO, esIncidencia, estadoClase, senalUnidad } from './supervision/estados'
-import { fechaCorta, haceTiempo, hoyClave, parseClave, plural } from './supervision/formato'
+import { fechaCorta, haceTiempo, hoyClave, modalidadTexto, parseClave, plural } from './supervision/formato'
 import { useClases } from './supervision/useClasesSemana'
-import { JefaturaPage, SeccionTitulo, Senales, linkClass } from './supervision/ui'
+import { Aviso, JefaturaPage, SeccionTitulo, Senales, linkClass } from './supervision/ui'
 import { BotonSeguimiento, EstadoSeguimiento } from './supervision/Seguimiento'
-import { useSeguimientos } from './supervision/useSeguimientos'
+import { esParaHoy, useSeguimientos } from './supervision/useSeguimientos'
 
 const DOCENTES_VISIBLES = 8
 const ALUMNOS_VISIBLES = 8
@@ -81,6 +81,12 @@ export default function JefeInicio() {
   )
 }
 
+/** Modalidades con grupos en el periodo cuyo calendario escolar no está configurado. */
+function calendariosFaltantes(resumen) {
+  const modalidades = new Set(resumen.grupos.map((g) => g.modalidad ?? 'ESCOLARIZADO'))
+  return resumen.calendarios.filter((c) => !c.configurado && modalidades.has(c.modalidad))
+}
+
 function Contenido({ j, resumen }) {
   const [todosDocentes, setTodosDocentes] = useState(false)
   const seguimientos = useSeguimientos({ carreraId: j.carreraId, periodo: j.periodo })
@@ -89,21 +95,37 @@ function Contenido({ j, resumen }) {
   const unidadesPorRevisar = new Set(resumen.ofertas.flatMap((o) => o.unidades.filter((u) => senalUnidad(u)).map((u) => u.id))).size
   const ofertaIncompleta = resumen.ofertas.filter((o) => !o.docentes.length || !o.horarios.length).length
   const riesgos = [...resumen.riesgos].sort((a, b) => b.causas.length - a.causas.length || a.nombre.localeCompare(b.nombre, 'es'))
+  // Sin calendario no hay clases evaluables: cero pendientes no significa listas al día.
+  const sinCalendario = calendariosFaltantes(resumen)
+  const evaluables = resumen.calendarios.some((c) => c.configurado && !sinCalendario.includes(c))
+  const listasVacio = !sinCalendario.length ? 'Listas al día'
+    : evaluables ? `Listas al día en ${resumen.calendarios.filter((c) => c.configurado).map((c) => modalidadTexto(c.modalidad)).join(' y ')}`
+      : 'Listas no evaluables'
 
   return (
     <>
       <Senales
         items={[
-          { label: indicadores.listasPendientes === 1 ? 'Lista por completar' : 'Listas por completar', value: indicadores.listasPendientes, vacio: 'Listas al día', href: '#pendientes-docentes' },
-          { label: indicadores.calificacionesPendientes === 1 ? 'Calificación pendiente' : 'Calificaciones pendientes', value: indicadores.calificacionesPendientes, vacio: 'Sin calificaciones pendientes', to: j.to('/jefe-carrera/materias', { pendientes: 1 }) },
+          { label: indicadores.listasPendientes === 1 ? 'Lista por completar' : 'Listas por completar', value: indicadores.listasPendientes, vacio: listasVacio, href: '#pendientes-docentes' },
+          { label: indicadores.calificacionesPendientes === 1 ? 'Calificación pendiente' : 'Calificaciones pendientes', value: indicadores.calificacionesPendientes, vacio: 'Sin calificaciones pendientes', to: j.to('/jefe-carrera/materias', { vista: 'ofertas', pendientes: 1 }) },
           { label: unidadesPorRevisar === 1 ? 'Unidad por revisar' : 'Unidades por revisar', value: unidadesPorRevisar, vacio: 'Unidades al corriente', href: '#pendientes-docentes' },
           { label: indicadores.alumnosRiesgo === 1 ? 'Alumno en riesgo' : 'Alumnos en riesgo', value: indicadores.alumnosRiesgo, vacio: 'Sin alumnos en riesgo', href: '#alumnos-riesgo' },
-          { label: ofertaIncompleta === 1 ? 'Materia sin docente u horario' : 'Materias sin docente u horario', value: ofertaIncompleta, vacio: 'Oferta completa', to: j.to('/jefe-carrera/materias', { revision: 'incompleta' }) },
+          { label: ofertaIncompleta === 1 ? 'Materia sin docente u horario' : 'Materias sin docente u horario', value: ofertaIncompleta, vacio: 'Oferta completa', to: j.to('/jefe-carrera/materias', { vista: 'ofertas', revision: 'incompleta' }) },
         ]}
         nota={intervalo ? `Listas revisadas del ${fechaBreve(intervalo.desde)} al ${fechaBreve(intervalo.hasta)}` : null}
       />
 
-      <HoyEnLaCarrera j={j} />
+      {sinCalendario.length > 0 && (
+        <Aviso
+          titulo={`Pendientes de lista no evaluables en ${sinCalendario.map((c) => modalidadTexto(c.modalidad)).join(' y ')}`}
+        >
+          Falta configurar el calendario escolar de {sinCalendario.length === 1 ? 'esa modalidad' : 'esas modalidades'} para el periodo. Mientras tanto sus clases no cuentan como pendientes, así que un cero no significa que las listas estén al día. Lo configura coordinación en Calendario escolar.
+        </Aviso>
+      )}
+
+      <GuiaPrimerUso />
+
+      <RequiereAtencion j={j} grupos={grupos} riesgos={riesgos} seguimientos={seguimientos} />
 
       <section aria-labelledby="pendientes-docentes" className="mt-10 scroll-mt-6">
         <SeccionTitulo
@@ -123,12 +145,100 @@ function Contenido({ j, resumen }) {
             )}
           </>
         ) : (
-          <p className="border-y border-border py-6 text-sm text-muted-foreground">Sin pendientes de docentes en el periodo: listas, calificaciones, entregas y unidades al corriente.</p>
+          <p className="border-y border-border py-6 text-sm text-muted-foreground">
+            {sinCalendario.length && !evaluables
+              ? 'Sin pendientes de calificaciones, entregas ni unidades. Las listas no se pueden evaluar hasta configurar el calendario.'
+              : 'Sin pendientes de docentes en el periodo: listas, calificaciones, entregas y unidades al corriente.'}
+          </p>
         )}
       </section>
 
       <AlumnosRiesgo j={j} riesgos={riesgos} seguimientos={seguimientos} />
+
+      <HoyEnLaCarrera j={j} />
     </>
+  )
+}
+
+const GUIA_KEY = 'sicat.jefatura.guia'
+
+/** Ayuda opcional de primer uso: tres pasos, se oculta y se recuerda. */
+function GuiaPrimerUso() {
+  const [visible, setVisible] = useState(() => { try { return localStorage.getItem(GUIA_KEY) !== 'oculta' } catch { return true } })
+  if (!visible) {
+    return (
+      <p className="mt-4 text-xs text-muted-foreground">
+        <button type="button" className={cn(linkClass, 'inline-flex min-h-11 items-center md:min-h-0')} onClick={() => { setVisible(true); try { localStorage.removeItem(GUIA_KEY) } catch { /* sin almacenamiento */ } }}>Cómo revisar tu carrera</button>
+      </p>
+    )
+  }
+  const ocultar = () => { setVisible(false); try { localStorage.setItem(GUIA_KEY, 'oculta') } catch { /* sin almacenamiento */ } }
+  return (
+    <section aria-labelledby="guia-jefatura" className="mt-6 rounded-[var(--radius-item)] border border-border bg-card px-5 py-4">
+      <div className="flex items-start justify-between gap-3">
+        <h2 id="guia-jefatura" className="text-sm font-semibold text-foreground">Cómo revisar tu carrera</h2>
+        <Button variant="ghost" size="icon" aria-label="Ocultar la guía" onClick={ocultar}><X aria-hidden="true" /></Button>
+      </div>
+      <ol className="mt-1 grid gap-3 text-[0.8125rem] md:grid-cols-3">
+        <li><b className="block font-medium text-foreground">1. Revisa lo que requiere atención</b><span className="text-muted-foreground">Empieza por los casos de abajo: seguimientos para hoy, la lista más antigua sin captura y los alumnos en riesgo.</span></li>
+        <li><b className="block font-medium text-foreground">2. Consulta la evidencia</b><span className="text-muted-foreground">«Ver detalle» y «Ver clase» muestran lo registrado en SICAT. Sin captura no prueba que la clase no se impartiera.</span></li>
+        <li><b className="block font-medium text-foreground">3. Registra el acuerdo</b><span className="text-muted-foreground">«Registrar seguimiento» guarda una nota con tu nombre y fecha. No envía mensajes ni corrige listas; para contactar usa «Preparar correo».</span></li>
+      </ol>
+    </section>
+  )
+}
+
+/**
+ * Los pocos casos con los que conviene empezar: revisiones vencidas, la lista
+ * pendiente más antigua y el acceso a los alumnos en riesgo. El orden es
+ * operativo (antigüedad y fecha de revisión), no una gravedad.
+ */
+function RequiereAtencion({ j, grupos, riesgos, seguimientos }) {
+  const paraHoy = seguimientos.lista.filter(esParaHoy)
+  const masAntigua = grupos.find((g) => g.desde)
+  const items = []
+  if (seguimientos.error) {
+    items.push({ key: 'seg-error', texto: 'No se pudieron consultar los seguimientos; las revisiones para hoy no se muestran.', tono: 'text-warning-foreground', accion: <Button variant="outline" size="sm" onClick={seguimientos.reintentar}>Reintentar</Button> })
+  } else if (paraHoy.length) {
+    const vencidos = paraHoy.filter((s) => s.fechaRevision < hoyClave()).length
+    items.push({
+      key: 'seguimientos',
+      texto: `${plural(paraHoy.length, 'seguimiento para revisar hoy', 'seguimientos para revisar hoy')}${vencidos ? `, ${vencidos} con fecha ya pasada` : ''}`,
+      accion: <Link className={cn(linkClass, 'inline-flex min-h-11 items-center md:min-h-0')} to={j.to('/jefe-carrera/seguimientos', { vista: 'hoy' })}>Abrir seguimientos</Link>,
+    })
+  }
+  if (masAntigua) {
+    const c = masAntigua.listas[0]
+    items.push({
+      key: 'lista',
+      texto: `Lista más antigua sin captura completa: ${c.materia.nombre}, ${c.grupo.nombre}, ${fechaCorta(c.fecha)} (${haceTiempo(c.fecha).toLowerCase()}) · ${masAntigua.docente?.nombre ?? 'sin docente asignado'}`,
+      accion: <Link className={cn(linkClass, 'inline-flex min-h-11 items-center md:min-h-0')} to={j.to('/jefe-carrera/horarios', { fecha: c.fecha, clase: c.id, modalidad: c.grupo.modalidad === 'MIXTO' ? 'MIXTO' : undefined })}>Ver la evidencia</Link>,
+    })
+  }
+  if (riesgos.length) {
+    items.push({
+      key: 'riesgo',
+      texto: `${plural(riesgos.length, 'alumno cumple', 'alumnos cumplen')} el criterio de riesgo`,
+      accion: <a className={cn(linkClass, 'inline-flex min-h-11 items-center md:min-h-0')} href="#alumnos-riesgo">Revisar alumnos en riesgo</a>,
+    })
+  }
+
+  return (
+    <section aria-labelledby="requiere-atencion" className="mt-8">
+      <SeccionTitulo id="requiere-atencion" titulo="Requiere atención" descripcion="Por dónde empezar hoy. El detalle completo está más abajo." />
+      {items.length ? (
+        <ul className="divide-y divide-border border-y border-border text-[0.8125rem]">
+          {items.map((item) => (
+            <li key={item.key} className="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+              <span className={cn('min-w-0', item.tono ?? 'text-foreground')}>{item.texto}</span>
+              <span className="shrink-0">{item.accion}</span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="border-y border-border py-4 text-[0.8125rem] text-muted-foreground">Sin revisiones para hoy, listas atrasadas ni alumnos en riesgo.</p>
+      )}
+    </section>
   )
 }
 

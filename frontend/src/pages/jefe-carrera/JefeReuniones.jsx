@@ -16,6 +16,7 @@ export default function JefeReuniones() {
   return (
     <JefaturaPage
       sinResumen
+      alcance="global"
       titulo="Reuniones de academia"
       subtitulo="Programa las juntas de la carrera, convoca a los docentes y deja el acta con sus acuerdos."
       accion={<Button onClick={() => setDialogo({ tipo: 'form', reunion: null })}><Plus aria-hidden="true" /> Programar reunión</Button>}

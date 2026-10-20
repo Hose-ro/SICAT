@@ -1,3 +1,4 @@
+import { getCurrentAcademicPeriod } from '../common/periodo.util';
 import { SupervisionService } from './supervision.service';
 
 describe('SupervisionService - catálogos de jefatura', () => {
@@ -31,9 +32,9 @@ describe('SupervisionService - catálogos de jefatura', () => {
   function crearServicio() {
     const prisma = {
       carrera: {
-        findMany: jest.fn().mockResolvedValue([
-          { id: 1, nombre: 'Sistemas', codigo: 'ISC' },
-        ]),
+        findMany: jest
+          .fn()
+          .mockResolvedValue([{ id: 1, nombre: 'Sistemas', codigo: 'ISC' }]),
       },
       materia: { findMany: jest.fn().mockResolvedValue([materia]) },
       grupo: {
@@ -96,10 +97,31 @@ describe('SupervisionService - catálogos de jefatura', () => {
         where: {
           carreraId: 1,
           grupos: {
-            some: { carreraId: 1, activo: true, id: { in: [20] } },
+            // Los ids ya vienen filtrados por vigencia del periodo.
+            some: { carreraId: 1, id: { in: [20] } },
           },
         },
       }),
+    );
+  });
+
+  it('un ciclo anterior incluye grupos dados de baja después', async () => {
+    const { prisma, service } = crearServicio();
+    const privado = service as unknown as {
+      gruposDelPeriodo: (
+        carreraId: number,
+        periodo: string,
+      ) => Promise<unknown>;
+    };
+
+    await privado.gruposDelPeriodo(1, '2020-A');
+    expect(prisma.grupo.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { carreraId: 1 } }),
+    );
+
+    await privado.gruposDelPeriodo(1, getCurrentAcademicPeriod());
+    expect(prisma.grupo.findMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({ where: { carreraId: 1, activo: true } }),
     );
   });
 

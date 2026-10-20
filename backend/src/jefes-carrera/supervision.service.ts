@@ -20,6 +20,7 @@ import { IncorporarAlumnoDto } from './dto/incorporar-alumno.dto';
 import {
   coincidenHorarios,
   estadoCaptura,
+  filtroGrupoVigente,
   fechaSupervision,
   grupoPerteneceAPeriodo,
   horasSemanal,
@@ -151,17 +152,21 @@ export class SupervisionService {
 
   private async gruposDelPeriodo(carreraId: number, periodo: string) {
     const grupos = await this.prisma.grupo.findMany({
-      where: { carreraId, activo: true },
+      where: { carreraId, ...filtroGrupoVigente(periodo) },
       select: { id: true, periodo: true, createdAt: true },
     });
     return grupos.filter((grupo) => grupoPerteneceAPeriodo(grupo, periodo));
   }
 
+  /**
+   * Materias por grupo. Con `grupoIds` (los del periodo, ya filtrados por
+   * vigencia) incluye grupos dados de baja de un ciclo anterior; sin ellos,
+   * el catálogo de grupos activos.
+   */
   private async ofertas(carreraId: number, grupoIds?: number[]) {
     const gruposActivos = {
       carreraId,
-      activo: true,
-      ...(grupoIds ? { id: { in: grupoIds } } : {}),
+      ...(grupoIds ? { id: { in: grupoIds } } : { activo: true }),
     };
     const materias = await this.prisma.materia.findMany({
       where: {
@@ -222,7 +227,7 @@ export class SupervisionService {
       where: {
         id: grupoId,
         carreraId: consulta.carreraId,
-        activo: true,
+        ...filtroGrupoVigente(periodo),
       },
       select: { ...grupoCampos, createdAt: true },
     });
@@ -289,7 +294,6 @@ export class SupervisionService {
         where: {
           carreraId: consulta.carreraId,
           id: { in: grupoIdsPeriodo },
-          activo: true,
         },
         select: {
           ...grupoCampos,
@@ -576,7 +580,6 @@ export class SupervisionService {
           grupo: {
             id: { in: grupoIdsPeriodo },
             carreraId: consulta.carreraId,
-            activo: true,
           },
         },
         include: horarioInclude,
@@ -843,7 +846,7 @@ export class SupervisionService {
       where: {
         id: grupoId,
         carreraId: consulta.carreraId,
-        activo: true,
+        ...filtroGrupoVigente(periodo),
       },
       select: { ...grupoCampos, createdAt: true },
     });

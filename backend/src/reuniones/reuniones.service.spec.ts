@@ -166,6 +166,15 @@ describe('ReunionesService', () => {
     ).rejects.toBeInstanceOf(ConflictException);
   });
 
+  it('no finaliza el acta con asistencia sin confirmar', async () => {
+    reunionFindUnique.mockResolvedValue(reunion({ fecha: clave(-1) }));
+    await expect(
+      service.guardarActa(9, 5, { finalizar: true }),
+    ).rejects.toThrow(
+      'Confirma la asistencia de 1 convocado antes de finalizar',
+    );
+  });
+
   it('el .ics solo lo descarga un docente convocado', async () => {
     reunionFindUnique.mockResolvedValue({ ...reunion(), puntos: [] });
     convocadoCount.mockResolvedValue(0);

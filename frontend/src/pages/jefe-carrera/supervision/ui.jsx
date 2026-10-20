@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { AlertCircle, ArrowLeft, Check, Copy, LoaderCircle, Mail, Phone, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { buttonVariants } from '@/components/ui/buttonVariants'
 import { cn } from '@/lib/utils'
 import { horaCorta, periodoTexto } from './formato'
+import { actualizarJefatura, useActualizarAlVolver } from './actualizar'
 import { useJefatura, useResumen } from './useJefatura'
 
 export const selectClass = 'h-11 w-full rounded-[0.7rem] border border-border bg-card pl-3 pr-8 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40'
@@ -15,9 +16,26 @@ export const linkClass = 'font-medium text-primary-ink underline-offset-4 hover:
  * Marco de cada vista de jefatura: resuelve carrera y periodo, muestra su
  * contexto y los estados sin datos antes de entregar el resumen a la vista.
  */
-export function JefaturaPage({ titulo, subtitulo, accion, volver, children, sinResumen = false }) {
+// Última dirección de cada listado (con búsqueda y filtros) para volver a ella desde un expediente.
+const LISTADO_KEY = 'sicat.jefatura.listado:'
+function recordarListado(pathname, search) {
+  try { sessionStorage.setItem(LISTADO_KEY + pathname, pathname + search) } catch { /* sin almacenamiento */ }
+}
+function destinoVolver(j, path) {
+  try {
+    const guardado = sessionStorage.getItem(LISTADO_KEY + path)
+    const query = guardado && new URLSearchParams(guardado.split('?')[1] ?? '')
+    if (query && query.get('carrera') === j.carreraId && query.get('periodo') === j.periodo) return guardado
+  } catch { /* sin almacenamiento */ }
+  return j.to(path)
+}
+
+export function JefaturaPage({ titulo, subtitulo, accion, volver, children, sinResumen = false, alcance = 'periodo' }) {
   const j = useJefatura()
+  const location = useLocation()
+  useEffect(() => { if (!volver) recordarListado(location.pathname, location.search) }, [volver, location.pathname, location.search])
   const resumen = useResumen(sinResumen ? {} : { carreraId: j.carreraId, periodo: j.periodo })
+  useActualizarAlVolver(sinResumen ? null : j.carreraId, j.periodo)
 
   // En un expediente el título es la entidad (grupo, docente, materia), resuelta con el resumen.
   const texto = typeof titulo === 'function' ? (resumen.data && titulo(resumen.data)) || 'Expediente' : titulo
@@ -32,9 +50,9 @@ export function JefaturaPage({ titulo, subtitulo, accion, volver, children, sinR
 
   return (
     <div className="jefatura">
-      <ContextoBar j={j} resumen={sinResumen ? null : resumen} />
+      <ContextoBar j={j} resumen={sinResumen ? null : resumen} alcance={alcance} />
       {volver && (
-        <Link to={j.to(volver.to)} className={cn(linkClass, 'mt-4 inline-flex min-h-11 items-center gap-1 text-sm')}>
+        <Link to={destinoVolver(j, volver.to)} className={cn(linkClass, 'mt-4 inline-flex min-h-11 items-center gap-1 text-sm')}>
           <ArrowLeft className="size-4" aria-hidden="true" /> {volver.label}
         </Link>
       )}
@@ -58,50 +76,76 @@ export function JefaturaPage({ titulo, subtitulo, accion, volver, children, sinR
   )
 }
 
-function ContextoBar({ j, resumen }) {
+/**
+ * Carrera y periodo de la vista. Una vista global (reuniones) no depende del
+ * periodo y lo dice en lugar de ofrecer un selector que no filtra nada.
+ */
+function ContextoBar({ j, resumen, alcance }) {
   return (
-    <div className="print-hidden flex flex-col gap-3 border-b border-border pb-4 text-[0.8125rem] sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-2">
-        {j.carreras.length > 1 ? (
-          <label className="min-w-0">
-            <span className="sr-only">Carrera</span>
-            <select value={j.carreraId} onChange={(e) => j.setCarrera(e.target.value)} className={cn(selectClass, 'h-9 max-w-[22rem] font-medium')}>
-              {j.carreras.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-            </select>
-          </label>
-        ) : (
-          <strong className="font-medium text-foreground">{j.carrera?.nombre}</strong>
-        )}
-        <span aria-hidden="true" className="text-muted-foreground">·</span>
-        <label>
-          <span className="sr-only">Periodo escolar</span>
-          <select value={j.periodo} onChange={(e) => j.setPeriodo(e.target.value)} className={cn(selectClass, 'h-9 w-auto font-medium')}>
-            {j.periodos.map((p) => <option key={p} value={p}>{periodoTexto(p)}{p === j.periodoActual ? ' (actual)' : ''}</option>)}
-          </select>
-        </label>
-        {j.historico && <span className="rounded-md border border-border px-2 py-0.5 text-xs text-muted-foreground">Histórico · solo consulta</span>}
+    <div className="print-hidden border-b border-border pb-4 text-[0.8125rem]">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-2">
+          {j.carreras.length > 1 ? (
+            <label className="min-w-0">
+              <span className="sr-only">Carrera</span>
+              <select value={j.carreraId} onChange={(e) => j.setCarrera(e.target.value)} className={cn(selectClass, 'h-11 max-w-[22rem] font-medium md:h-9')}>
+                {j.carreras.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+              </select>
+            </label>
+          ) : (
+            <strong className="font-medium text-foreground">{j.carrera?.nombre}</strong>
+          )}
+          <span aria-hidden="true" className="text-muted-foreground">·</span>
+          {alcance === 'global' ? (
+            <span className="rounded-md border border-border px-2 py-0.5 text-xs text-muted-foreground">Todas las fechas · no depende del periodo</span>
+          ) : (
+            <>
+              <label>
+                <span className="sr-only">Periodo escolar</span>
+                <select value={j.periodo} onChange={(e) => j.setPeriodo(e.target.value)} className={cn(selectClass, 'h-11 w-auto font-medium md:h-9')}>
+                  {j.periodos.map((p) => <option key={p} value={p}>{periodoTexto(p)}{p === j.periodoActual ? ' (actual)' : ''}</option>)}
+                </select>
+              </label>
+              {j.historico && <span className="rounded-md border border-border px-2 py-0.5 text-xs text-muted-foreground">Periodo anterior · consulta</span>}
+            </>
+          )}
+        </div>
+        {resumen && <EstadoActualizacion resumen={resumen} onActualizar={() => actualizarJefatura(j.carreraId, j.periodo, { manual: true })} />}
       </div>
-      {resumen && <EstadoActualizacion resumen={resumen} />}
+      {j.historico && alcance !== 'global' && (
+        <p className="mt-2 text-xs text-muted-foreground">
+          Consulta de un ciclo anterior con los grupos, asignaciones y unidades registrados hoy: si después cambió un horario o un docente, aquí se ve el cambio. Seguimientos e incorporaciones solo se registran en el periodo actual.
+        </p>
+      )}
     </div>
   )
 }
 
-function EstadoActualizacion({ resumen }) {
+/** Hora de los datos y un solo botón que refresca todo lo que se ve en la vista. */
+function EstadoActualizacion({ resumen, onActualizar }) {
+  const actualizar = (
+    <Button variant="ghost" size="sm" className="max-md:min-h-11" onClick={onActualizar} disabled={resumen.actualizando}>
+      <RefreshCw aria-hidden="true" className={cn(resumen.actualizando && 'animate-spin')} /> {resumen.error && resumen.data ? 'Reintentar' : 'Actualizar'}
+    </Button>
+  )
   if (resumen.error && resumen.data) {
     return (
       <div role="status" className="flex flex-wrap items-center gap-2 text-xs text-warning-foreground">
         <AlertCircle className="size-3.5" aria-hidden="true" />
         Sin actualizar desde {horaCorta(resumen.actualizado)}
-        <Button variant="outline" size="sm" onClick={resumen.reintentar}><RefreshCw aria-hidden="true" /> Reintentar</Button>
+        {actualizar}
       </div>
     )
   }
   if (!resumen.actualizado) return null
   return (
-    <p role="status" className="flex items-center gap-1.5 text-xs text-muted-foreground">
-      {resumen.actualizando && <LoaderCircle className="size-3.5 animate-spin" aria-hidden="true" />}
-      {resumen.actualizando ? 'Actualizando…' : `Datos al ${new Date(resumen.actualizado).toLocaleString('es-MX', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`}
-    </p>
+    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+      <p role="status" className="flex items-center gap-1.5">
+        {resumen.actualizando && <LoaderCircle className="size-3.5 animate-spin" aria-hidden="true" />}
+        {resumen.actualizando ? 'Actualizando…' : `Datos al ${new Date(resumen.actualizado).toLocaleString('es-MX', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`}
+      </p>
+      {actualizar}
+    </div>
   )
 }
 
@@ -145,6 +189,25 @@ export function Aviso({ tono = 'neutral', titulo, children, accion }) {
   )
 }
 
+/**
+ * Aviso de cálculo incompleto: alguna materia no respondió. Las cifras que la
+ * incluyen no pueden leerse como «sin problemas».
+ */
+export function AvisoParcial({ conjunto, total, onReintentar }) {
+  if (!conjunto.fallidos) return null
+  const todas = conjunto.fallidos === total
+  return (
+    <div role="alert" className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-item)] border border-warning/35 bg-warning/10 px-4 py-3 text-[0.8125rem]">
+      <p className="min-w-0 text-foreground">
+        <b className="font-medium">{todas ? 'Datos no disponibles.' : 'Datos parciales.'}</b>{' '}
+        {todas ? 'No se pudo consultar ninguna materia' : `No se pudo consultar ${conjunto.fallidos} de ${total} materias`}; promedio, asistencia y señales de riesgo pueden estar incompletos.
+        {conjunto.error && <span className="block text-xs text-muted-foreground">{conjunto.error}</span>}
+      </p>
+      <Button variant="outline" size="sm" onClick={onReintentar}><RefreshCw aria-hidden="true" /> Reintentar</Button>
+    </div>
+  )
+}
+
 export function Vacio({ titulo, children, accion }) {
   return (
     <div className="px-6 py-12 text-center">
@@ -174,7 +237,7 @@ export function Segmento({ label, value, onChange, options }) {
   )
 }
 
-/** Pestañas como enlaces: cada vista queda en la URL y el botón Atrás funciona. */
+/** Pestañas como enlaces: cada sección es navegación, queda en el historial y Atrás regresa a la anterior. */
 export function Pestanas({ label, items, activa }) {
   return (
     <nav aria-label={label} className="-mx-1 mt-6 overflow-x-auto border-b border-border">
@@ -183,7 +246,6 @@ export function Pestanas({ label, items, activa }) {
           <li key={item.value}>
             <Link
               to={item.to}
-              replace
               aria-current={activa === item.value ? 'page' : undefined}
               className="relative inline-flex min-h-11 items-center px-3 text-sm text-muted-foreground hover:text-foreground focus-visible:rounded-md focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40 aria-[current=page]:font-medium aria-[current=page]:text-foreground aria-[current=page]:after:absolute aria-[current=page]:after:inset-x-3 aria-[current=page]:after:-bottom-px aria-[current=page]:after:h-0.5 aria-[current=page]:after:rounded-full aria-[current=page]:after:bg-primary"
             >

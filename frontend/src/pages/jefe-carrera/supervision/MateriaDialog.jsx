@@ -47,15 +47,16 @@ export default function MateriaDialog({ j, materia, semestre, onClose, onGuardad
           ...(form.descripcion.trim() ? { descripcion: form.descripcion.trim() } : {}),
         })
       } else {
-        await api.patch(`/materias/${materia.id}`, datos)
-        if (Number(form.numUnidades) !== materia.numUnidades) {
-          await api.patch(`/materias/${materia.id}/unidades`, { numUnidades: Number(form.numUnidades), forzar })
-        }
+        // Datos y unidades en una sola operación: o se guarda todo, o nada.
+        await api.patch(`/materias/${materia.id}`, {
+          ...datos,
+          ...(Number(form.numUnidades) !== materia.numUnidades ? { numUnidades: Number(form.numUnidades), forzar } : {}),
+        })
       }
-      onGuardada(nueva ? 'Materia agregada a la retícula.' : 'Cambios guardados.')
+      onGuardada(nueva ? 'Materia agregada a la retícula. Para impartirla falta asignarla a un grupo con docente y horario: lo registra coordinación o el docente al capturar su horario.' : 'Cambios guardados.')
     } catch (error) {
-      // Reducir unidades borra lo capturado en las sobrantes: el servidor pide confirmarlo.
-      if (error.response?.status === 409 && !nueva && Number(form.numUnidades) < materia.numUnidades && !forzar) {
+      // Reducir unidades borra lo capturado en las sobrantes: el servidor lo avisa antes de guardar nada.
+      if (error.response?.data?.requiereConfirmacion && !forzar) {
         setEstado((s) => ({ ...s, enviando: false, reducir: mensajeError(error, 'Reducir unidades borra lo registrado en las que se quitan.') }))
         return
       }
@@ -79,7 +80,7 @@ export default function MateriaDialog({ j, materia, semestre, onClose, onGuardad
       onClose={onClose}
       busy={ocupado}
       title={nueva ? 'Agregar materia' : `Editar ${materia.nombre}`}
-      description={nueva ? `Se agrega a la retícula de ${j.carrera?.nombre ?? 'la carrera'}. Para impartirla, asígnala a un grupo con su horario.` : 'Los cambios se ven en todos los grupos que la llevan.'}
+      description={nueva ? `Se agrega a la retícula de ${j.carrera?.nombre ?? 'la carrera'}, común a todos los periodos. Para impartirla falta asignarla a un grupo con docente y horario.` : 'La retícula es común a todos los periodos: los cambios se ven en todos los grupos que la llevan, también al consultar ciclos anteriores.'}
     >
       <form onSubmit={guardar} className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-[9rem_minmax(0,1fr)]">
@@ -116,7 +117,8 @@ export default function MateriaDialog({ j, materia, semestre, onClose, onGuardad
         {estado.reducir && (
           <div role="alert" className="rounded-[var(--radius-item)] border border-warning/35 bg-warning/10 p-3 text-[0.8125rem]">
             <p className="text-foreground">{estado.reducir}</p>
-            <Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => guardar(null, { forzar: true })}>Reducir de todos modos</Button>
+            <p className="mt-1 text-xs text-muted-foreground">Todavía no se ha guardado ningún cambio. Cancelar deja la materia como estaba.</p>
+            <Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => guardar(null, { forzar: true })}>Guardar y reducir de todos modos</Button>
           </div>
         )}
 

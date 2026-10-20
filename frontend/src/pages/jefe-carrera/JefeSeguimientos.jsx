@@ -13,7 +13,11 @@ const VISTAS = [
   { value: 'cerrados', label: 'Cerrados', filtro: (s) => !s.abierto },
 ]
 
-/** Enlace al registro que explica el caso y si su causa sigue presente en el resumen. */
+/**
+ * Enlace al registro que explica el caso y si su causa sigue presente. Que el
+ * caso ya no aparezca en el resumen no prueba que se resolvió (pudo cambiar
+ * la configuración o el alcance): solo se afirma lo que puede verificarse.
+ */
 function contextoCaso(s, resumen, j) {
   const ref = s.referencia
   if (!ref) return { enlace: null, causa: null }
@@ -24,7 +28,7 @@ function contextoCaso(s, resumen, j) {
       const modalidad = resumen.ofertas.flatMap((o) => o.horarios).find((h) => h.id === ref.horarioId)?.grupo?.modalidad
       return {
         enlace: { label: 'Ver clase', to: j.to('/jefe-carrera/horarios', { fecha: ref.fecha, clase: id, modalidad: modalidad === 'MIXTO' ? 'MIXTO' : undefined }) },
-        causa: pendiente ? { texto: 'La lista sigue sin captura completa', pendiente: true } : { texto: 'La lista ya está completa', pendiente: false },
+        causa: pendiente ? { texto: 'La lista sigue sin captura completa', tono: 'pendiente' } : { texto: 'Ya no aparece entre las listas pendientes; abre la clase para confirmar su estado', tono: 'sin-verificar' },
       }
     }
     case 'ALUMNO_RIESGO': {
@@ -32,7 +36,7 @@ function contextoCaso(s, resumen, j) {
       const grupo = alumno?.causas[0]?.grupo
       return {
         enlace: grupo ? { label: 'Ver expediente', to: j.to(`/jefe-carrera/grupos/${grupo.id}`, { tab: 'alumnos', alumno: ref.alumnoId }) } : null,
-        causa: alumno ? { texto: 'Sigue con señales de riesgo', pendiente: true } : { texto: 'Ya no tiene señales de riesgo', pendiente: false },
+        causa: alumno ? { texto: 'Sigue con señales de riesgo', tono: 'pendiente' } : { texto: 'No aparece entre los alumnos en riesgo del periodo; no se puede verificar la causa desde aquí', tono: 'sin-verificar' },
       }
     }
     case 'CALIFICACIONES_PENDIENTES': {
@@ -40,7 +44,9 @@ function contextoCaso(s, resumen, j) {
       const n = oferta?.resumen.calificacionesPendientes ?? 0
       return {
         enlace: { label: 'Ver materia en el grupo', to: j.to(`/jefe-carrera/materias/${ref.materiaId}`, { oferta: ref.grupoId }) },
-        causa: n ? { texto: `Siguen ${plural(n, 'calificación pendiente', 'calificaciones pendientes')}`, pendiente: true } : { texto: 'Calificaciones capturadas', pendiente: false },
+        causa: !oferta
+          ? { texto: 'La materia ya no aparece en el grupo para este periodo; no se puede verificar la causa', tono: 'sin-verificar' }
+          : n ? { texto: `Siguen ${plural(n, 'calificación pendiente', 'calificaciones pendientes')}`, tono: 'pendiente' } : { texto: 'Calificaciones de unidades cerradas capturadas', tono: 'resuelto' },
       }
     }
     case 'SEGUIMIENTO_DOCENTE':
@@ -49,6 +55,8 @@ function contextoCaso(s, resumen, j) {
       return { enlace: null, causa: null }
   }
 }
+
+const TONO_CAUSA = { pendiente: 'text-warning-foreground', resuelto: 'text-success-foreground', 'sin-verificar': 'text-muted-foreground' }
 
 export default function JefeSeguimientos() {
   return (
@@ -122,7 +130,7 @@ function Contenido({ j, resumen }) {
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-foreground">{s.titulo}</p>
                   <p className="mt-0.5 text-xs text-muted-foreground">{[TIPOS_SEGUIMIENTO[s.tipo], s.mensaje].filter(Boolean).join(' · ')}</p>
-                  {causa && <p className={`mt-1 text-xs ${causa.pendiente ? 'text-warning-foreground' : 'text-success-foreground'}`}>{causa.texto}</p>}
+                  {causa && <p className={`mt-1 text-xs ${TONO_CAUSA[causa.tono]}`}>{causa.texto}</p>}
                   {enlace && <Link className={`${linkClass} mt-1 inline-flex min-h-11 items-center text-xs md:min-h-0`} to={enlace.to}>{enlace.label}</Link>}
                 </div>
                 <div className="min-w-0 text-[0.8125rem]">

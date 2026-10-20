@@ -29,7 +29,7 @@ export const TIPOS_SEGUIMIENTO = {
 /** Para hoy: abierto y con fecha de revisión hoy o ya pasada. */
 export const esParaHoy = (s) => s.abierto && s.fechaRevision != null && s.fechaRevision <= hoyClave()
 
-const useSeguimientosStore = create((set, get) => ({
+export const useSeguimientosStore = create((set, get) => ({
   listas: {},
   cargar: async (carreraId, periodo) => {
     const key = `${carreraId}|${periodo}`

@@ -1,10 +1,11 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import Modal from '@/components/Modal'
+import { Button } from '@/components/ui/button'
 import { MOTIVOS_RIESGO, resultadoCierre } from './estados'
 import { semestreTexto } from './formato'
 import { Nota, Promedio } from './notas'
-import { resumenAlumno, useReportes } from './useReportes'
+import { reintentarReportes, resumenAlumno, useReportes } from './useReportes'
 import { Contacto, linkClass } from './ui'
 import { FormSeguimiento } from './Seguimiento'
 import { useSeguimientos } from './useSeguimientos'
@@ -54,7 +55,12 @@ export default function AlumnoExpediente({ j, alumno, ofertas = [], enRiesgo = f
                         </div>
                         {resultado ? <p className={`text-sm font-semibold ${resultado.tono}`}>{resultado.texto}</p> : estado?.data && <Promedio r={r} />}
                       </div>
-                      {estado?.error ? <p className="mt-2 text-xs text-destructive-foreground">{estado.error}</p> : !estado?.data ? (
+                      {estado?.error ? (
+                        <p role="alert" className="mt-2 flex flex-wrap items-center gap-2 text-xs text-warning-foreground">
+                          No disponible: {estado.error}. Promedio, asistencia y señales de esta materia no se pudieron verificar.
+                          <Button variant="outline" size="sm" onClick={reintentarReportes}>Reintentar</Button>
+                        </p>
+                      ) : !estado?.data ? (
                         <div className="mt-3 h-10 animate-pulse rounded-lg bg-muted" aria-hidden="true" />
                       ) : filas.length ? (
                         <>

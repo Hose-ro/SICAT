@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
 import api from '@/api/axios'
 import { sumarDias } from './formato'
 import { mensajeError } from './useJefatura'
@@ -22,12 +22,23 @@ function pedir({ carreraId, periodo, desde, hasta, grupoId, docenteId }) {
   return { key, promise: pendientes.get(key) }
 }
 
+// «Actualizar» vacía la caché y vuelve a pedir lo que esté en pantalla, sin borrar lo que se ve mientras llega.
+let version = 0
+const oyentes = new Set()
+const suscribir = (fn) => { oyentes.add(fn); return () => oyentes.delete(fn) }
+export function invalidarClases() {
+  cache.clear()
+  version += 1
+  oyentes.forEach((fn) => fn())
+}
+
 /** Clases esperadas de un intervalo, con su estado de registro. */
 export function useClases({ carreraId, periodo, desde, hasta, grupoId, docenteId, prefetch = 0 }) {
   const key = [carreraId, periodo, desde, hasta, grupoId ?? '', docenteId ?? ''].join('|')
   const [estado, setEstado] = useState({})
   const [intento, setIntento] = useState(0)
   const activo = Boolean(carreraId && periodo && desde && hasta)
+  const vigencia = useSyncExternalStore(suscribir, () => version)
 
   useEffect(() => {
     if (!activo) return undefined
@@ -46,7 +57,7 @@ export function useClases({ carreraId, periodo, desde, hasta, grupoId, docenteId
       })
       .catch((error) => { if (vivo) setEstado((s) => ({ ...s, [key]: { ...s[key], error: mensajeError(error, 'No se pudo consultar el horario') } })) })
     return () => { vivo = false }
-  }, [activo, key, carreraId, periodo, desde, hasta, grupoId, docenteId, prefetch, intento])
+  }, [activo, key, carreraId, periodo, desde, hasta, grupoId, docenteId, prefetch, intento, vigencia])
 
   const entry = estado[key] ?? (cache.has(key) ? { data: cache.get(key).data } : null)
   const reintentar = useCallback(() => { cache.delete(key); setEstado((s) => ({ ...s, [key]: undefined })); setIntento((n) => n + 1) }, [key])

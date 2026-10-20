@@ -1,16 +1,21 @@
-import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { modalidadTexto, periodoTexto, semestreTexto } from './supervision/formato'
 import { JefaturaPage, Segmento, Vacio, linkClass } from './supervision/ui'
 
+function textoPendientes(g) {
+  if (g.listas == null) return g.periodoDisponible ? `Consulta ${periodoTexto(g.periodoConsulta)}` : 'Periodo no compatible con supervisión'
+  if (!g.listas && !g.calificaciones) return 'Sin pendientes detectados'
+  return [g.listas && `${g.listas} ${g.listas === 1 ? 'lista' : 'listas'}`, g.calificaciones && `${g.calificaciones} ${g.calificaciones === 1 ? 'calificación' : 'calificaciones'}`].filter(Boolean).join(' · ')
+}
+
 export default function JefeGrupos() {
   const [params, setParams] = useSearchParams()
-  const [busqueda, setBusqueda] = useState('')
   const set = (k, v) => { const n = new URLSearchParams(params); if (v) n.set(k, v); else n.delete(k); setParams(n, { replace: true }) }
   const modalidad = params.get('modalidad') ?? ''
   const soloRiesgo = params.get('riesgo') === '1'
+  const busqueda = params.get('q') ?? ''
 
   return (
     <JefaturaPage titulo="Grupos" subtitulo="Todos los grupos activos de la carrera; el seguimiento académico corresponde al periodo seleccionado.">
@@ -43,7 +48,7 @@ export default function JefeGrupos() {
               <label className="relative min-w-[200px] flex-1 sm:max-w-xs">
                 <span className="sr-only">Buscar grupo</span>
                 <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-                <input type="search" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="Buscar grupo" className="h-11 w-full rounded-[0.7rem] border border-border bg-card pl-9 pr-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40" />
+                <input type="search" value={busqueda} onChange={(e) => set('q', e.target.value)} placeholder="Buscar grupo" className="h-11 w-full rounded-[0.7rem] border border-border bg-card pl-9 pr-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40" />
               </label>
               <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 text-[0.8125rem] text-foreground">
                 <input type="checkbox" checked={soloRiesgo} onChange={(e) => set('riesgo', e.target.checked ? '1' : '')} className="size-[17px] accent-primary" />
@@ -52,28 +57,45 @@ export default function JefeGrupos() {
             </div>
 
             <p className="mt-4 max-w-3xl text-xs text-muted-foreground">
-              <b className="font-medium text-foreground">Materias</b> incluye las asignadas a cada grupo activo. Alumnos, inscripciones, riesgo y pendientes se calculan únicamente para {periodoTexto(j.periodo)}; cambia el periodo para consultar el seguimiento de otro ciclo.
+              <b className="font-medium text-foreground">Alumnos</b> son las personas cuyo grupo base es ese grupo. <b className="font-medium text-foreground">Inscripciones</b> son las materias aceptadas en el periodo: una persona tiene varias, por eso la cifra es mayor. <b className="font-medium text-foreground">Materias</b> incluye las asignadas a cada grupo activo. Inscripciones, riesgo y pendientes se calculan únicamente para {periodoTexto(j.periodo)}; cambia el periodo para consultar otro ciclo.
             </p>
 
             {!gruposActivos.length ? (
               <Vacio titulo="Sin grupos activos">La carrera no tiene grupos marcados como activos.</Vacio>
             ) : !visibles.length ? (
-              <Vacio titulo="Ningún grupo coincide" accion={<Button variant="outline" onClick={() => { setBusqueda(''); setParams(new URLSearchParams({ carrera: j.carreraId, periodo: j.periodo }), { replace: true }) }}>Restablecer filtros</Button>}>
+              <Vacio titulo="Ningún grupo coincide" accion={<Button variant="outline" onClick={() => setParams(new URLSearchParams({ carrera: j.carreraId, periodo: j.periodo }), { replace: true })}>Restablecer filtros</Button>}>
                 {soloRiesgo ? 'Ningún grupo tiene alumnos con señales de riesgo.' : 'Prueba con otra modalidad o búsqueda.'}
               </Vacio>
             ) : semestres.map((semestre) => (
               <section key={semestre} aria-labelledby={`semestre-${semestre}`} className="mt-8">
                 <h2 id={`semestre-${semestre}`} className="mb-2 text-base font-semibold text-foreground">{semestreTexto(semestre)}</h2>
-                <div role="region" tabIndex={0} aria-label={`Grupos de ${semestreTexto(semestre)}`} className="overflow-x-auto rounded-[var(--radius-item)] border border-border bg-card focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40">
+                {/* En móvil, una tarjeta por grupo con lo necesario para decidir si abrirlo. */}
+                <ul className="divide-y divide-border rounded-[var(--radius-item)] border border-border bg-card md:hidden">
+                  {visibles.filter((g) => g.semestre === semestre).map((g) => (
+                    <li key={g.id} className="px-4 py-3 text-[0.8125rem]">
+                      <div className="flex items-baseline justify-between gap-3">
+                        {g.periodoDisponible
+                          ? <Link to={j.to(`/jefe-carrera/grupos/${g.id}`, { periodo: g.periodoConsulta })} className={`${linkClass} text-[0.9375rem] font-semibold text-foreground`}>{g.nombre}</Link>
+                          : <span className="text-[0.9375rem] font-semibold text-foreground">{g.nombre}</span>}
+                        <span className="shrink-0 text-xs text-muted-foreground">{modalidadTexto(g.modalidad)} · {periodoTexto(g.periodo)}</span>
+                      </div>
+                      <p className="mt-1 tabular-nums text-muted-foreground">
+                        {g.alumnosBase} alumnos · {g.inscripciones ?? '—'} inscripciones · <span className={g.alumnosRiesgo ? 'font-semibold text-warning-foreground' : undefined}>{g.alumnosRiesgo ?? '—'} en riesgo</span>
+                      </p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">{textoPendientes(g)}</p>
+                    </li>
+                  ))}
+                </ul>
+                <div role="region" tabIndex={0} aria-label={`Grupos de ${semestreTexto(semestre)}`} className="overflow-x-auto max-md:hidden rounded-[var(--radius-item)] border border-border bg-card focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40">
                   <table className="w-full min-w-[820px] border-collapse text-[0.8125rem]">
                     <thead>
                       <tr className="border-b border-border bg-background text-left text-xs text-muted-foreground">
                         <th scope="col" className="px-4 py-2.5 font-medium">Grupo</th>
                         <th scope="col" className="px-4 py-2.5 font-medium">Periodo</th>
                         <th scope="col" className="px-4 py-2.5 font-medium">Modalidad</th>
-                        <th scope="col" className="px-4 py-2.5 text-right font-medium">Alumnos</th>
+                        <th scope="col" className="px-4 py-2.5 text-right font-medium" title="Personas con este grupo como grupo base">Alumnos</th>
                         <th scope="col" className="px-4 py-2.5 text-right font-medium">Materias</th>
-                        <th scope="col" className="px-4 py-2.5 text-right font-medium">Inscripciones</th>
+                        <th scope="col" className="px-4 py-2.5 text-right font-medium" title="Materias aceptadas en el periodo; una persona puede tener varias">Inscripciones en materias</th>
                         <th scope="col" className="px-4 py-2.5 text-right font-medium">En riesgo</th>
                         <th scope="col" className="px-4 py-2.5 font-medium">Pendientes de registro</th>
                       </tr>
@@ -92,13 +114,7 @@ export default function JefeGrupos() {
                           <td className="px-4 py-3 text-right tabular-nums">{g.materias}</td>
                           <td className="px-4 py-3 text-right tabular-nums">{g.inscripciones ?? '—'}</td>
                           <td className={`px-4 py-3 text-right tabular-nums ${g.alumnosRiesgo ? 'font-semibold text-warning-foreground' : 'text-muted-foreground'}`}>{g.alumnosRiesgo ?? '—'}</td>
-                          <td className="px-4 py-3 text-muted-foreground">
-                            {g.listas == null
-                              ? (g.periodoDisponible ? `Consulta ${periodoTexto(g.periodoConsulta)}` : 'Periodo no compatible con supervisión')
-                              : g.listas || g.calificaciones
-                              ? [g.listas && `${g.listas} ${g.listas === 1 ? 'lista' : 'listas'}`, g.calificaciones && `${g.calificaciones} ${g.calificaciones === 1 ? 'calificación' : 'calificaciones'}`].filter(Boolean).join(' · ')
-                              : 'Sin pendientes detectados'}
-                          </td>
+                          <td className="px-4 py-3 text-muted-foreground">{textoPendientes(g)}</td>
                         </tr>
                       ))}
                     </tbody>

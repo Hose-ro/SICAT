@@ -1,6 +1,8 @@
+import { getCurrentAcademicPeriod } from '../common/periodo.util';
 import {
   coincidenHorarios,
   estadoCaptura,
+  filtroGrupoVigente,
   horasSemanal,
   grupoPerteneceAPeriodo,
   periodoCanonicoDeGrupo,
@@ -122,5 +124,14 @@ describe('supervision.utils', () => {
       promedio: 82.5,
     });
     expect(resumenCierre(null)).toBeNull();
+  });
+});
+
+describe('filtroGrupoVigente', () => {
+  it('en el periodo actual solo cuenta grupos activos; en uno anterior, también los dados de baja', () => {
+    expect(filtroGrupoVigente(getCurrentAcademicPeriod())).toEqual({
+      activo: true,
+    });
+    expect(filtroGrupoVigente('2020-A')).toEqual({});
   });
 });

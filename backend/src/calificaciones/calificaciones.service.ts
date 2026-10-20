@@ -172,7 +172,8 @@ export class CalificacionesService {
             id: grupoId,
             carreraId,
             periodo: { in: periodosGrupo },
-            activo: true,
+            // Un ciclo anterior también incluye grupos dados de baja después.
+            ...(periodo === getCurrentAcademicPeriod() ? { activo: true } : {}),
           },
         },
       },

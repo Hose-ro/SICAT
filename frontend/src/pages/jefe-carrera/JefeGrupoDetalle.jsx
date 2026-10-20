@@ -11,8 +11,8 @@ import { CRITERIO_RIESGO, ESTADO_UNIDAD, MOTIVOS_RIESGO } from './supervision/es
 import { modalidadTexto, semestreTexto } from './supervision/formato'
 import { Nota, Promedio } from './supervision/notas'
 import { mensajeError } from './supervision/useJefatura'
-import { resumenAlumno, useReportes } from './supervision/useReportes'
-import { Aviso, Cifra, JefaturaPage, Pestanas, SeccionTitulo, Vacio, linkClass, selectClass } from './supervision/ui'
+import { estadoConjunto, reintentarReportes, resumenAlumno, useReportes } from './supervision/useReportes'
+import { Aviso, AvisoParcial, Cifra, JefaturaPage, Pestanas, SeccionTitulo, Vacio, linkClass, selectClass } from './supervision/ui'
 
 const TABS = [
   { value: 'resumen', label: 'Resumen' },
@@ -107,6 +107,7 @@ function Resumen({ j, resumen, grupo, ofertas, reportes, expediente, abrirAlumno
   const incorporados = (expediente.data?.alumnos ?? []).filter((a) => a.origen === 'INCORPORADO').length
   const listas = resumen.pendientes.filter((c) => c.grupo.id === grupo.id)
   const riesgos = resumen.riesgos.filter((a) => a.causas.some((c) => c.grupo.id === grupo.id))
+  const conjunto = estadoConjunto(reportes, ofertas.map((o) => `${o.materia.id}:${grupo.id}`))
   return (
     <>
       <dl className="mt-6 grid grid-cols-2 gap-x-8 gap-y-4 border-b border-border pb-6 sm:grid-cols-3 lg:grid-cols-6">
@@ -120,6 +121,7 @@ function Resumen({ j, resumen, grupo, ofertas, reportes, expediente, abrirAlumno
 
       <section className="mt-8" aria-labelledby="grupo-materias">
         <SeccionTitulo id="grupo-materias" titulo="Materias y docentes" descripcion="La unidad actual pertenece a cada materia del grupo, no al alumno." />
+        <AvisoParcial conjunto={conjunto} total={ofertas.length} onReintentar={reintentarReportes} />
         {ofertas.length ? (
           <div role="region" tabIndex={0} aria-label="Materias y docentes del grupo" className="overflow-x-auto rounded-[var(--radius-item)] border border-border bg-card focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40">
             <table className="w-full min-w-[820px] border-collapse text-[0.8125rem]">
@@ -136,7 +138,8 @@ function Resumen({ j, resumen, grupo, ofertas, reportes, expediente, abrirAlumno
               </thead>
               <tbody>
                 {ofertas.map((o) => {
-                  const reporte = reportes[`${o.materia.id}:${grupo.id}`]?.data
+                  const estadoReporte = reportes[`${o.materia.id}:${grupo.id}`]
+                  const reporte = estadoReporte?.data
                   const actual = unidadActual(reporte)
                   const cerradas = (reporte?.unidades ?? []).filter((u) => u.status === 'FINALIZADA').length
                   return (
@@ -149,7 +152,7 @@ function Resumen({ j, resumen, grupo, ofertas, reportes, expediente, abrirAlumno
                         {o.docentes.length ? o.docentes.map((d) => <Link key={d.id} className={cn(linkClass, 'block')} to={j.to(`/jefe-carrera/docentes/${d.id}`)}>{d.nombre}</Link>) : <span className="text-muted-foreground">Sin docente asignado</span>}
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">
-                        {reporte ? <>{actual?.nombre ?? 'Sin unidad en curso'}<span className="block text-xs">{cerradas} de {reporte.unidades.length} cerradas</span></> : '…'}
+                        {reporte ? <>{actual?.nombre ?? 'Sin unidad en curso'}<span className="block text-xs">{cerradas} de {reporte.unidades.length} cerradas</span></> : estadoReporte?.error ? <span className="text-warning-foreground">No disponible</span> : 'Cargando…'}
                       </td>
                       <td className="px-4 py-3 text-right tabular-nums">{o.resumen.alumnos}</td>
                       <td className={cn('px-4 py-3 text-right tabular-nums', o.resumen.alumnosRiesgo ? 'font-semibold text-warning-foreground' : 'text-muted-foreground')}>{o.resumen.alumnosRiesgo}</td>
@@ -191,14 +194,42 @@ function Alumnos({ grupo, ofertas, reportes, expediente, abrirAlumno }) {
   if (expediente.error) return <Aviso tono="error" titulo="No se pudo cargar el alumnado">{expediente.error}</Aviso>
   const alumnos = expediente.data.alumnos
   if (!alumnos.length) return <Vacio titulo="Sin alumnos">Ningún alumno pertenece al grupo ni está incorporado a sus materias en este periodo.</Vacio>
-  const cargandoReportes = ofertas.some((o) => reportes[`${o.materia.id}:${grupo.id}`]?.cargando)
+  const conjunto = estadoConjunto(reportes, ofertas.map((o) => `${o.materia.id}:${grupo.id}`))
+  const filas = alumnos.map((alumno) => {
+    const propias = ofertas.flatMap((o) => (reportes[`${o.materia.id}:${grupo.id}`]?.data?.rows ?? []).filter((r) => r.alumno.id === alumno.id))
+    // Sin respuesta completa no se afirma nada: «Sin señales» solo con todas las materias consultadas.
+    const pendiente = conjunto.cargando ? 'Cargando…' : conjunto.fallidos ? (propias.length ? 'Datos parciales' : 'No disponible') : null
+    return { alumno, filas: propias, r: resumenAlumno(propias), pendiente }
+  })
 
   return (
     <>
+      <AvisoParcial conjunto={conjunto} total={ofertas.length} onReintentar={reintentarReportes} />
       <p className="mt-5 max-w-3xl text-xs text-muted-foreground">
         Promedio y asistencia consideran las materias de este grupo. El promedio es el de SICAT (media de las unidades con calificación) y se marca provisional mientras alguna unidad siga abierta. El expediente reúne todas sus inscripciones del periodo.
       </p>
-      <div role="region" tabIndex={0} aria-label="Alumnos del grupo" className="mt-4 overflow-x-auto rounded-[var(--radius-item)] border border-border bg-card focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40">
+      {/* En móvil, una tarjeta por alumno: señal y acción sin recorrer una tabla ancha. */}
+      <ul className="mt-4 divide-y divide-border rounded-[var(--radius-item)] border border-border bg-card md:hidden" aria-label="Alumnos del grupo">
+        {filas.map(({ alumno, filas: propias, r, pendiente }) => (
+          <li key={alumno.id} className="px-4 py-3 text-[0.8125rem]">
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={() => abrirAlumno(alumno.id)} className={cn(linkClass, 'min-w-0 text-left text-[0.9375rem] text-foreground')}>{alumno.nombre}</button>
+              <SexoBadge sexo={alumno.sexo} />
+            </div>
+            <p className="mt-0.5 text-xs text-muted-foreground">{alumno.numeroControl ?? 'Sin número de control'} · {alumno.origen === 'BASE' ? 'Grupo base' : `Incorporado de ${alumno.grupo?.nombre ?? 'sin grupo'}`}</p>
+            <p className="mt-1">
+              {r.motivos.length
+                ? <span className="text-warning-foreground">{r.motivos.map((m) => MOTIVOS_RIESGO[m] ?? m).join(' · ')}</span>
+                : pendiente ? <EstadoDato texto={pendiente} /> : <span className="text-muted-foreground">Sin señales detectadas</span>}
+            </p>
+            <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">
+              {!propias.length && pendiente ? null : <>Promedio {r.promedio ?? 'sin captura'}{r.promedio != null && ` (${r.tipo === 'REAL' ? 'definitivo' : 'provisional'})`} · </>}
+              Asistencia {r.asistencia.porcentaje == null ? (pendiente ? pendiente.toLowerCase() : 'sin registros') : `${r.asistencia.porcentaje} %`}
+            </p>
+          </li>
+        ))}
+      </ul>
+      <div role="region" tabIndex={0} aria-label="Alumnos del grupo" className="mt-4 overflow-x-auto rounded-[var(--radius-item)] max-md:hidden border border-border bg-card focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40">
         <table className="w-full min-w-[820px] border-collapse text-[0.8125rem]">
           <thead>
             <tr className="border-b border-border bg-background text-left text-xs text-muted-foreground">
@@ -211,9 +242,7 @@ function Alumnos({ grupo, ofertas, reportes, expediente, abrirAlumno }) {
             </tr>
           </thead>
           <tbody>
-            {alumnos.map((alumno) => {
-              const filas = ofertas.flatMap((o) => (reportes[`${o.materia.id}:${grupo.id}`]?.data?.rows ?? []).filter((r) => r.alumno.id === alumno.id))
-              const r = resumenAlumno(filas)
+            {filas.map(({ alumno, filas, r, pendiente }) => {
               return (
                 <tr key={alumno.id} className="border-b border-border last:border-b-0">
                   <th scope="row" className="px-4 py-3 text-left font-medium">
@@ -225,15 +254,17 @@ function Alumnos({ grupo, ofertas, reportes, expediente, abrirAlumno }) {
                   <td className="px-4 py-3 tabular-nums text-muted-foreground">{alumno.numeroControl ?? '—'}</td>
                   <td className="px-4 py-3 text-muted-foreground">{alumno.origen === 'BASE' ? 'Grupo base' : `Incorporado · grupo base ${alumno.grupo?.nombre ?? 'sin grupo'}`}</td>
                   <td className="px-4 py-3 text-right">
-                    {cargandoReportes && !filas.length ? '…' : <Promedio r={r} />}
+                    {!filas.length && pendiente ? <EstadoDato texto={pendiente} /> : <Promedio r={r} />}
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">
-                    {r.asistencia.porcentaje == null ? 'Sin registros' : (
+                    {r.asistencia.porcentaje == null ? (pendiente ? <EstadoDato texto={pendiente} /> : 'Sin registros') : (
                       <span className="tabular-nums"><span className="text-foreground">{r.asistencia.porcentaje} %</span> · {r.asistencia.faltas} F · {r.asistencia.retardos} R · {r.asistencia.justificadas} J</span>
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    {r.motivos.length ? <span className="text-warning-foreground">{r.motivos.map((m) => MOTIVOS_RIESGO[m] ?? m).join(' · ')}</span> : <span className="text-muted-foreground">Sin señales</span>}
+                    {r.motivos.length
+                      ? <span className="text-warning-foreground">{r.motivos.map((m) => MOTIVOS_RIESGO[m] ?? m).join(' · ')}{pendiente === 'Datos parciales' && <span className="block text-xs text-muted-foreground">Faltan materias por consultar</span>}</span>
+                      : pendiente ? <EstadoDato texto={pendiente} /> : <span className="text-muted-foreground">Sin señales detectadas</span>}
                   </td>
                 </tr>
               )
@@ -244,6 +275,11 @@ function Alumnos({ grupo, ofertas, reportes, expediente, abrirAlumno }) {
       <p className="mt-2.5 text-xs text-muted-foreground">F: faltas · R: retardos · J: justificadas. El criterio de riesgo vigente combina faltas y retardos; se muestran por separado.</p>
     </>
   )
+}
+
+/** Celda sin dato confiable: cargando, no disponible o parcial; nunca un cero ni «sin señales». */
+function EstadoDato({ texto }) {
+  return <span className={cn('text-xs', texto === 'Cargando…' ? 'text-muted-foreground' : 'font-medium text-warning-foreground')}>{texto}</span>
 }
 
 function MateriasUnidades({ j, ofertas, reportes }) {
@@ -276,7 +312,7 @@ function MateriasUnidades({ j, ofertas, reportes }) {
         </p>
       </div>
 
-      {estado.error ? <Aviso tono="error" titulo="No se pudo consultar la materia">{estado.error}</Aviso> : !reporte ? (
+      {estado.error ? <Aviso tono="error" titulo="No se pudo consultar la materia" accion={<Button variant="outline" onClick={reintentarReportes}>Reintentar</Button>}>{estado.error}</Aviso> : !reporte ? (
         <div className="mt-5 h-64 animate-pulse rounded-[var(--radius-item)] bg-muted" aria-busy="true" />
       ) : (
         <>
