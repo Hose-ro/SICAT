@@ -9,6 +9,7 @@ import {
   EstadoAsistencia,
   EstadoRevision,
   EstadoTarea,
+  TipoEntrega,
   EstadoUnidad,
   TipoCriterio,
 } from '@prisma/client';
@@ -1287,13 +1288,16 @@ export class CalificacionesService {
     // Solo una tarea vencida puede contar en contra: la que aún está abierta
     // todavía se puede entregar.
     const ahora = Date.now();
+    // En clase no hay entrega que esperar: una actividad presencial que el
+    // docente aún no captura no cuenta, y solo «no presentó» cuenta en contra.
     const vencidas = items.filter(
       (item) =>
-        item.tarea.estado === EstadoTarea.VENCIDA ||
-        item.tarea.estado === EstadoTarea.CERRADA ||
-        (item.tarea.tieneFechaLimite &&
-          item.tarea.fechaLimite &&
-          new Date(item.tarea.fechaLimite).getTime() < ahora),
+        (item.tarea.tipoEntrega !== TipoEntrega.PRESENCIAL || item.entrega) &&
+        (item.tarea.estado === EstadoTarea.VENCIDA ||
+          item.tarea.estado === EstadoTarea.CERRADA ||
+          (item.tarea.tieneFechaLimite &&
+            item.tarea.fechaLimite &&
+            new Date(item.tarea.fechaLimite).getTime() < ahora)),
     );
     const vencidasSinEntregar = vencidas.filter(
       (item) =>

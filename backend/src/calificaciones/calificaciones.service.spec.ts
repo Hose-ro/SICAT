@@ -499,6 +499,8 @@ describe('CalificacionesService: política docente–materia–grupo', () => {
         tarea(22, ayer, [calificada(500)]),
         // Aún no vence: no cuenta aunque nadie la haya entregado.
         tarea(23, manana, []),
+        // Presencial sin capturar: no es culpa del alumno.
+        { ...tarea(24, ayer, []), tipoEntrega: 'PRESENCIAL' },
       ]);
       asistenciaFindMany.mockResolvedValue([]);
       const vista = await service.obtenerDesempeno(admin, {

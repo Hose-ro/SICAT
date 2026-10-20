@@ -6,10 +6,17 @@ import {
   EstadoTarea,
   EstadoUnidad,
   Rol,
-  TipoEntrega,
 } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { ClasesService } from '../clases/clases.service';
+import { CalificacionesService } from '../calificaciones/calificaciones.service';
+import {
+  CALIFICACION_APROBATORIA,
+  CALIFICACION_SIN_RIESGO,
+  MIN_TAREAS_RIESGO,
+  UMBRAL_ENTREGAS,
+  resumirRiesgoFilas,
+} from '../common/desempeno.util';
 import {
   materiasActivasDelDocenteWhere,
   materiasDelDocenteWhere,
@@ -18,22 +25,55 @@ import {
   getAcademicPeriodStart,
   getCurrentAcademicPeriod,
 } from '../common/periodo.util';
-import {
-  esAusencia,
-  estaEnRiesgo,
-  MIN_REGISTROS_RIESGO,
-  UMBRAL_RIESGO,
-} from '../common/riesgo.util';
+import { MIN_REGISTROS_RIESGO, UMBRAL_RIESGO } from '../common/riesgo.util';
 
 /** Sesiones recientes que se muestran como tendencia de cada alumno en riesgo. */
 const SESIONES_TENDENCIA = 4;
 
-/** Tareas cuyo plazo ya pasó: si no hay entrega, ya no llegó a tiempo. */
-const ESTADOS_TAREA_CON_PLAZO: EstadoTarea[] = [
-  EstadoTarea.PUBLICADA,
-  EstadoTarea.VENCIDA,
-  EstadoTarea.CERRADA,
-];
+/** Reportes de calificaciones que se calculan a la vez. */
+const REPORTES_EN_PARALELO = 4;
+
+/** Lo que se usa de cada fila (alumno × unidad) del reporte de calificaciones. */
+type FilaReporte = {
+  alumno: { id: number; nombre: string; numeroControl: string | null };
+  unidad: { id: number; nombre: string };
+  calificacionFinal: number | null;
+  motivos: string[];
+  asistencia?: { registradas: number; faltas: number; retardos: number };
+  tareas?: { vencidas: number; vencidasSinEntregar: number };
+};
+type Clase = {
+  materia: { id: number; nombre: string; clave: string | null };
+  grupo: { id: number; nombre: string };
+};
+const claveClase = (materiaId: number, grupoId: number | null) =>
+  `${materiaId}:${grupoId ?? '-'}`;
+
+/** Grupos en los que el docente da la materia, según sus horarios activos. */
+function gruposDeHorarios(
+  horarios: Array<{ grupo: { id: number; nombre: string } | null }>,
+): Clase['grupo'][] {
+  return [
+    ...new Map(
+      horarios
+        .map((horario) => horario.grupo)
+        .filter((grupo): grupo is { id: number; nombre: string } =>
+          Boolean(grupo),
+        )
+        .map((grupo) => [grupo.id, grupo]),
+    ).values(),
+  ].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+}
+
+function promedio(valores: Array<number | null>) {
+  const numeros = valores.filter(
+    (valor): valor is number => typeof valor === 'number',
+  );
+  if (!numeros.length) return null;
+  return (
+    Math.round((numeros.reduce((a, b) => a + b, 0) / numeros.length) * 10) / 10
+  );
+}
 
 /** El alumno ya entregó pero el docente todavía no le puso calificación. */
 const REVISIONES_SIN_CALIFICAR: EstadoRevision[] = [
@@ -46,7 +86,35 @@ export class DashboardService {
   constructor(
     private prisma: PrismaService,
     private clases: ClasesService,
+    private calificaciones: CalificacionesService,
   ) {}
+
+  /**
+   * Filas (alumno × unidad) de cada clase con el mismo cálculo del semáforo
+   * y de la jefatura. Una clase que falla queda en null: no se lee como «sin
+   * riesgo».
+   */
+  private async reportesDeClases(docenteId: number, clases: Clase[]) {
+    const actor = { id: docenteId, rol: Rol.DOCENTE };
+    const reportes = new Map<string, FilaReporte[] | null>();
+    for (let i = 0; i < clases.length; i += REPORTES_EN_PARALELO) {
+      await Promise.all(
+        clases.slice(i, i + REPORTES_EN_PARALELO).map(async (clase) => {
+          const clave = claveClase(clase.materia.id, clase.grupo.id);
+          try {
+            const reporte = await this.calificaciones.obtenerReporteDocente(
+              actor,
+              { materiaId: clase.materia.id, grupoId: clase.grupo.id },
+            );
+            reportes.set(clave, reporte.rows as FilaReporte[]);
+          } catch {
+            reportes.set(clave, null);
+          }
+        }),
+      );
+    }
+    return reportes;
+  }
 
   /**
    * Todo lo que el panel del docente necesita en una sola respuesta. Sin esto
@@ -122,10 +190,6 @@ export class DashboardService {
         }),
       ]);
 
-    /** Cada (materia, grupo) es una clase distinta en el panel. */
-    const claveClase = (materiaId: number, grupoId: number | null) =>
-      `${materiaId}:${grupoId ?? '-'}`;
-
     // Una tarea sin grupo es para toda la materia: su entrega cuenta en el
     // grupo en el que está inscrito el alumno.
     const grupoDelAlumno = new Map<string, number | null>();
@@ -143,10 +207,6 @@ export class DashboardService {
       string,
       { asistencias: number; total: number }
     >();
-    const registrosPorAlumno = new Map<
-      string,
-      { clase: string; alumnoId: number; total: number; ausencias: number }
-    >();
 
     for (const registro of registros) {
       const clase = claveClase(
@@ -163,28 +223,6 @@ export class DashboardService {
         asistencia.asistencias += 1;
       }
       asistenciaPorClase.set(clase, asistencia);
-
-      const clave = `${clase}:${registro.alumnoId}`;
-      const alumno = registrosPorAlumno.get(clave) ?? {
-        clase,
-        alumnoId: registro.alumnoId,
-        total: 0,
-        ausencias: 0,
-      };
-      alumno.total += 1;
-      if (esAusencia(registro.estado)) alumno.ausencias += 1;
-      registrosPorAlumno.set(clave, alumno);
-    }
-
-    const riesgoPorClase = new Map<string, number>();
-    const alumnosEnRiesgo = new Set<number>();
-    for (const alumno of registrosPorAlumno.values()) {
-      if (!estaEnRiesgo(alumno.total, alumno.ausencias)) continue;
-      riesgoPorClase.set(
-        alumno.clase,
-        (riesgoPorClase.get(alumno.clase) ?? 0) + 1,
-      );
-      alumnosEnRiesgo.add(alumno.alumnoId);
     }
 
     const entregasPorClase = new Map<string, number>();
@@ -198,23 +236,37 @@ export class DashboardService {
       entregasPorClase.set(clave, (entregasPorClase.get(clave) ?? 0) + 1);
     }
 
+    // El riesgo sale del mismo cálculo que el semáforo y la jefatura:
+    // calificación, asistencia y entregas, por unidad.
+    const reportes = await this.reportesDeClases(
+      docenteId,
+      materias.flatMap((materia) =>
+        gruposDeHorarios(materia.horarios).map((grupo) => ({
+          materia,
+          grupo,
+        })),
+      ),
+    );
+    const alumnosEnRiesgo = new Set(
+      [...reportes.values()]
+        .flatMap((rows) => rows ?? [])
+        .filter((row) => row.motivos.length)
+        .map((row) => row.alumno.id),
+    );
+
     // Una fila por grupo en el que el docente da la materia; si todavía no
     // tiene horario con grupo, la materia aparece sola.
     const resumenMaterias = materias.flatMap((materia) => {
-      const grupos = [
-        ...new Map(
-          materia.horarios
-            .map((horario) => horario.grupo)
-            .filter((grupo): grupo is { id: number; nombre: string } =>
-              Boolean(grupo),
-            )
-            .map((grupo) => [grupo.id, grupo]),
-        ).values(),
-      ].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+      const grupos = gruposDeHorarios(materia.horarios);
 
-      return (grupos.length ? grupos : [null]).map((grupo) => {
+      const filas: Array<Clase['grupo'] | null> = grupos.length
+        ? grupos
+        : [null];
+      return filas.map((grupo) => {
         const clave = claveClase(materia.id, grupo?.id ?? null);
         const asistencia = asistenciaPorClase.get(clave);
+        const rows = reportes.get(clave);
+        const riesgo = rows ? resumirRiesgoFilas(rows) : null;
         return {
           id: materia.id,
           nombre: materia.nombre,
@@ -229,7 +281,9 @@ export class DashboardService {
               ? Math.round((asistencia.asistencias / asistencia.total) * 100)
               : null,
           entregasSinCalificar: entregasPorClase.get(clave) ?? 0,
-          alumnosEnRiesgo: riesgoPorClase.get(clave) ?? 0,
+          // null si el reporte de la clase no se pudo calcular.
+          alumnosEnRiesgo: riesgo ? riesgo.enRiesgo : null,
+          riesgo,
         };
       });
     });
@@ -256,110 +310,128 @@ export class DashboardService {
     };
   }
 
+  /** Clases del docente: cada materia activa en cada grupo de sus horarios. */
+  private async clasesDelDocente(docenteId: number): Promise<Clase[]> {
+    const materias = await this.prisma.materia.findMany({
+      where: materiasActivasDelDocenteWhere(docenteId),
+      select: {
+        id: true,
+        nombre: true,
+        clave: true,
+        horarios: {
+          where: { docenteId, activo: true },
+          select: { grupo: { select: { id: true, nombre: true } } },
+        },
+      },
+      orderBy: { nombre: 'asc' },
+    });
+    return materias.flatMap(({ horarios, ...materia }) =>
+      gruposDeHorarios(horarios).map((grupo) => ({ materia, grupo })),
+    );
+  }
+
   /**
-   * Alumnos en riesgo de cada clase del docente, con lo necesario para
-   * actuar: cuánto faltan, cómo van las últimas sesiones, qué tareas vencidas
-   * no entregaron y si ya se les avisó (un aviso individual queda registrado).
+   * Alumnos en riesgo de cada clase del docente con el criterio único
+   * (calificación, asistencia y entregas, por unidad), con lo necesario para
+   * actuar: qué unidad y por qué, cómo van las últimas sesiones y si ya se
+   * les avisó (un aviso individual queda registrado).
    */
   async obtenerRiesgoDocente(
     docenteId: number,
     filtros: { materiaId?: number; grupoId?: number } = {},
   ) {
     const desde = getAcademicPeriodStart();
-    const registros = await this.prisma.asistencia.findMany({
-      where: {
-        claseSesion: {
-          docenteId,
-          fecha: { gte: desde },
-          ...(filtros.materiaId ? { materiaId: filtros.materiaId } : {}),
-          ...(filtros.grupoId ? { grupoId: filtros.grupoId } : {}),
-        },
-      },
-      select: {
-        estado: true,
-        alumno: { select: { id: true, nombre: true, numeroControl: true } },
-        claseSesion: {
-          select: { materiaId: true, grupoId: true, fecha: true },
-        },
-      },
-      orderBy: { claseSesion: { fecha: 'asc' } },
-    });
-
-    type Fila = {
-      alumno: { id: number; nombre: string; numeroControl: string | null };
-      materiaId: number;
-      grupoId: number | null;
-      registros: number;
-      faltas: number;
-      retardos: number;
-      estados: EstadoAsistencia[];
-    };
-    const filas = new Map<string, Fila>();
-    for (const registro of registros) {
-      const { materiaId, grupoId } = registro.claseSesion;
-      const clave = `${materiaId}:${grupoId ?? '-'}:${registro.alumno.id}`;
-      const fila = filas.get(clave) ?? {
-        alumno: registro.alumno,
-        materiaId,
-        grupoId,
-        registros: 0,
-        faltas: 0,
-        retardos: 0,
-        estados: [],
-      };
-      fila.registros += 1;
-      if (registro.estado === EstadoAsistencia.FALTA) fila.faltas += 1;
-      if (registro.estado === EstadoAsistencia.RETARDO) fila.retardos += 1;
-      fila.estados.push(registro.estado);
-      filas.set(clave, fila);
-    }
-    const enRiesgo = [...filas.values()].filter((fila) =>
-      estaEnRiesgo(fila.registros, fila.faltas + fila.retardos),
-    );
-
     const criterio = {
       minRegistros: MIN_REGISTROS_RIESGO,
       porcentaje: Math.round(UMBRAL_RIESGO * 100),
+      aprobatoria: CALIFICACION_APROBATORIA,
+      sinRiesgo: CALIFICACION_SIN_RIESGO,
+      minTareas: MIN_TAREAS_RIESGO,
+      porcentajeEntregas: Math.round(UMBRAL_ENTREGAS * 100),
     };
-    if (!enRiesgo.length) {
-      return { desde, criterio, alumnos: [] };
+    const clases = (await this.clasesDelDocente(docenteId)).filter(
+      (clase) =>
+        (!filtros.materiaId || clase.materia.id === filtros.materiaId) &&
+        (!filtros.grupoId || clase.grupo.id === filtros.grupoId),
+    );
+    const reportes = await this.reportesDeClases(docenteId, clases);
+    const clasesSinDatos = clases
+      .filter(
+        (clase) =>
+          reportes.get(claveClase(clase.materia.id, clase.grupo.id)) === null,
+      )
+      .map(({ materia, grupo }) => ({
+        materia: { id: materia.id, nombre: materia.nombre },
+        grupo,
+      }));
+
+    const filas = clases.flatMap((clase) => {
+      const rows =
+        reportes.get(claveClase(clase.materia.id, clase.grupo.id)) ?? [];
+      const porAlumno = new Map<number, FilaReporte[]>();
+      for (const row of rows) {
+        porAlumno.set(row.alumno.id, [
+          ...(porAlumno.get(row.alumno.id) ?? []),
+          row,
+        ]);
+      }
+      return [...porAlumno.values()]
+        .filter((propias) => propias.some((row) => row.motivos.length))
+        .map((propias) => {
+          const suma = (valor: (row: FilaReporte) => number | undefined) =>
+            propias.reduce((total, row) => total + (valor(row) ?? 0), 0);
+          const registros = suma((row) => row.asistencia?.registradas);
+          const faltas = suma((row) => row.asistencia?.faltas);
+          const retardos = suma((row) => row.asistencia?.retardos);
+          const { id, nombre, numeroControl } = propias[0].alumno;
+          return {
+            alumno: { id, nombre, numeroControl },
+            materia: { id: clase.materia.id, nombre: clase.materia.nombre },
+            grupo: clase.grupo,
+            motivos: [...new Set(propias.flatMap((row) => row.motivos))],
+            unidades: propias
+              .filter((row) => row.motivos.length)
+              .map((row) => ({
+                id: row.unidad.id,
+                nombre: row.unidad.nombre,
+                motivos: row.motivos,
+                calificacion: row.calificacionFinal,
+              })),
+            calificacion: promedio(propias.map((row) => row.calificacionFinal)),
+            registros,
+            faltas,
+            retardos,
+            porcentajeAusencias: registros
+              ? Math.round(((faltas + retardos) / registros) * 100)
+              : null,
+            tareasVencidas: suma((row) => row.tareas?.vencidas),
+            tareasSinEntregar: suma((row) => row.tareas?.vencidasSinEntregar),
+          };
+        });
+    });
+
+    if (!filas.length) {
+      return { desde, criterio, clasesSinDatos, alumnos: [] };
     }
 
-    const materiaIds = [...new Set(enRiesgo.map((fila) => fila.materiaId))];
-    const alumnoIds = [...new Set(enRiesgo.map((fila) => fila.alumno.id))];
-    const grupoIds = [
-      ...new Set(
-        enRiesgo
-          .map((fila) => fila.grupoId)
-          .filter((id): id is number => id != null),
-      ),
-    ];
-    const [materias, grupos, tareas, avisos] = await Promise.all([
-      this.prisma.materia.findMany({
-        where: { id: { in: materiaIds } },
-        select: { id: true, nombre: true },
-      }),
-      this.prisma.grupo.findMany({
-        where: { id: { in: grupoIds } },
-        select: { id: true, nombre: true },
-      }),
-      this.prisma.tarea.findMany({
+    const alumnoIds = [...new Set(filas.map((fila) => fila.alumno.id))];
+    const materiaIds = [...new Set(filas.map((fila) => fila.materia.id))];
+    const [registros, avisos] = await Promise.all([
+      this.prisma.asistencia.findMany({
         where: {
-          materiaId: { in: materiaIds },
-          estado: { in: ESTADOS_TAREA_CON_PLAZO },
-          tieneFechaLimite: true,
-          fechaLimite: { gte: desde, lt: new Date() },
-        },
-        select: {
-          id: true,
-          materiaId: true,
-          grupoId: true,
-          tipoEntrega: true,
-          entregas: {
-            where: { alumnoId: { in: alumnoIds } },
-            select: { alumnoId: true, estadoRevision: true },
+          alumnoId: { in: alumnoIds },
+          claseSesion: {
+            docenteId,
+            materiaId: { in: materiaIds },
+            fecha: { gte: desde },
           },
         },
+        select: {
+          estado: true,
+          alumnoId: true,
+          claseSesion: { select: { materiaId: true, grupoId: true } },
+        },
+        orderBy: { claseSesion: { fecha: 'asc' } },
       }),
       this.prisma.aviso.findMany({
         where: { alumnoId: { in: alumnoIds }, materiaId: { in: materiaIds } },
@@ -374,51 +446,27 @@ export class DashboardService {
         orderBy: { createdAt: 'desc' },
       }),
     ]);
-    const nombreMateria = new Map(materias.map((m) => [m.id, m.nombre]));
-    const nombreGrupo = new Map(grupos.map((g) => [g.id, g.nombre]));
+    const estados = new Map<string, EstadoAsistencia[]>();
+    for (const registro of registros) {
+      const clave = `${claveClase(registro.claseSesion.materiaId, registro.claseSesion.grupoId)}:${registro.alumnoId}`;
+      estados.set(clave, [...(estados.get(clave) ?? []), registro.estado]);
+    }
 
-    const alumnos = enRiesgo.map((fila) => {
-      const tareasClase = tareas.filter(
-        (tarea) =>
-          tarea.materiaId === fila.materiaId &&
-          (tarea.grupoId == null || tarea.grupoId === fila.grupoId),
-      );
+    const alumnos = filas.map((fila) => {
       const ultimoAviso =
         avisos.find(
           (aviso) =>
             aviso.alumnoId === fila.alumno.id &&
-            aviso.materiaId === fila.materiaId &&
-            aviso.grupoId === fila.grupoId,
+            aviso.materiaId === fila.materia.id &&
+            aviso.grupoId === fila.grupo.id,
         ) ?? null;
       return {
-        alumno: fila.alumno,
-        materia: {
-          id: fila.materiaId,
-          nombre: nombreMateria.get(fila.materiaId),
-        },
-        grupo: fila.grupoId
-          ? { id: fila.grupoId, nombre: nombreGrupo.get(fila.grupoId) }
-          : null,
-        registros: fila.registros,
-        faltas: fila.faltas,
-        retardos: fila.retardos,
-        porcentajeAusencias: Math.round(
-          ((fila.faltas + fila.retardos) / fila.registros) * 100,
-        ),
-        tendencia: fila.estados.slice(-SESIONES_TENDENCIA),
-        tareasVencidas: tareasClase.length,
-        tareasSinEntregar: tareasClase.filter((tarea) => {
-          const entrega = tarea.entregas.find(
-            (item) => item.alumnoId === fila.alumno.id,
-          );
-          // En clase no hay entrega que esperar: sólo cuenta "no presentó".
-          if (tarea.tipoEntrega === TipoEntrega.PRESENCIAL) {
-            return entrega?.estadoRevision === EstadoRevision.NO_ENTREGADA;
-          }
-          return (
-            !entrega || entrega.estadoRevision === EstadoRevision.NO_ENTREGADA
-          );
-        }).length,
+        ...fila,
+        tendencia: (
+          estados.get(
+            `${claveClase(fila.materia.id, fila.grupo.id)}:${fila.alumno.id}`,
+          ) ?? []
+        ).slice(-SESIONES_TENDENCIA),
         ultimoAviso: ultimoAviso
           ? {
               id: ultimoAviso.id,
@@ -429,12 +477,17 @@ export class DashboardService {
       };
     });
 
+    // Primero quien ya reprueba, luego quien suma más motivos.
+    const reprueba = (fila: (typeof alumnos)[number]) =>
+      fila.motivos.includes('CALIFICACION_BAJA') ? 1 : 0;
     alumnos.sort(
       (a, b) =>
-        b.porcentajeAusencias - a.porcentajeAusencias ||
+        reprueba(b) - reprueba(a) ||
+        b.motivos.length - a.motivos.length ||
+        (b.porcentajeAusencias ?? 0) - (a.porcentajeAusencias ?? 0) ||
         a.alumno.nombre.localeCompare(b.alumno.nombre, 'es'),
     );
-    return { desde, criterio, alumnos };
+    return { desde, criterio, clasesSinDatos, alumnos };
   }
 
   /**

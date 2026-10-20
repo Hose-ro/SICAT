@@ -79,3 +79,32 @@ export function evaluarDesempeno({
   if (calificacion == null) return { estado: 'SIN_CALIFICAR', motivos };
   return { estado: 'APROBADO', motivos };
 }
+
+/**
+ * Riesgo de una clase a partir de sus filas (alumno × unidad): alumnos con
+ * datos, cuántos tienen alguna unidad con motivos y cuántos de cada motivo.
+ * Un alumno puede tener varios motivos; las cifras por motivo no se suman.
+ */
+export function resumirRiesgoFilas(
+  rows: Array<{ alumno: { id: number }; motivos: string[] }>,
+) {
+  const motivosPorAlumno = new Map<number, Set<string>>();
+  for (const row of rows) {
+    const motivos = motivosPorAlumno.get(row.alumno.id) ?? new Set<string>();
+    row.motivos.forEach((motivo) => motivos.add(motivo));
+    motivosPorAlumno.set(row.alumno.id, motivos);
+  }
+  const conMotivos = [...motivosPorAlumno.values()].filter((m) => m.size);
+  const con = (...buscados: string[]) =>
+    conMotivos.filter((m) => buscados.some((motivo) => m.has(motivo))).length;
+  return {
+    evaluados: motivosPorAlumno.size,
+    enRiesgo: conMotivos.length,
+    reprobando: con('CALIFICACION_BAJA'),
+    motivos: {
+      calificacion: con('CALIFICACION_BAJA', 'CALIFICACION_LIMITE'),
+      asistencia: con('ASISTENCIA'),
+      entregas: con('ENTREGAS'),
+    },
+  };
+}

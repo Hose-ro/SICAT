@@ -1,4 +1,8 @@
-import { evaluarDesempeno, faltanEntregas } from './desempeno.util';
+import {
+  evaluarDesempeno,
+  faltanEntregas,
+  resumirRiesgoFilas,
+} from './desempeno.util';
 
 const sinFaltas = { registradas: 10, faltas: 0, retardos: 0 };
 const conFaltas = { registradas: 10, faltas: 2, retardos: 1 };
@@ -95,5 +99,28 @@ describe('evaluarDesempeno', () => {
     expect(faltanEntregas({ vencidas: 10, sinEntregar: 2 })).toBe(false);
     expect(faltanEntregas({ vencidas: 10, sinEntregar: 3 })).toBe(true);
     expect(faltanEntregas(undefined)).toBe(false);
+  });
+});
+
+describe('resumirRiesgoFilas', () => {
+  it('cuenta alumnos únicos con y sin motivos', () => {
+    const fila = (id: number, motivos: string[]) => ({
+      alumno: { id },
+      motivos,
+    });
+    expect(
+      resumirRiesgoFilas([
+        fila(1, ['CALIFICACION_BAJA']),
+        fila(1, ['ASISTENCIA', 'ENTREGAS']),
+        fila(2, ['CALIFICACION_LIMITE']),
+        fila(2, []),
+        fila(3, []),
+      ]),
+    ).toEqual({
+      evaluados: 3,
+      enRiesgo: 2,
+      reprobando: 1,
+      motivos: { calificacion: 2, asistencia: 1, entregas: 1 },
+    });
   });
 });
