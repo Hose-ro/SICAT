@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { celdaRiesgo, comparativoGrupos, matrizRiesgo, textoMotivosGrupo } from '@/pages/jefe-carrera/graficas/riesgo'
+import { celdaRiesgo, comparativoGrupos, matrizRiesgo, matrizUnidades, motivosCelda, textoMotivosGrupo } from '@/components/graficas/riesgo'
 
 const fila = (alumnoId, unidad, extra = {}) => ({
   alumno: { id: alumnoId, nombre: `Alumno ${alumnoId}` },
@@ -73,5 +73,32 @@ describe('comparativo de grupos', () => {
 
   it('sin conteos del servidor no se dibuja', () => {
     expect(comparativoGrupos([{ id: 1, nombre: '1A', alumnosRiesgo: 2 }])).toBeNull()
+  })
+})
+
+describe('mapa alumno × unidad del docente', () => {
+  const u = (id, orden, status) => ({ id, nombre: `Unidad ${orden}`, orden, status })
+  const unidades = [u(1, 1, 'FINALIZADA'), u(2, 2, 'ACTIVA'), u(3, 3, 'PENDIENTE')]
+  const reporte = {
+    unidades,
+    rows: [
+      fila(1, 1, { unidad: unidades[0], calificacionFinal: 90 }),
+      fila(1, 2, { unidad: unidades[1], calificacionFinal: 72, motivos: ['CALIFICACION_LIMITE'] }),
+      fila(2, 1, { unidad: unidades[0], calificacionFinal: 60, motivos: ['CALIFICACION_BAJA'] }),
+      fila(2, 2, { unidad: unidades[1], calificacionFinal: null, motivos: ['ASISTENCIA'] }),
+    ],
+  }
+
+  it('deja fuera las unidades por iniciar y ordena por unidades en riesgo', () => {
+    const m = matrizUnidades(reporte)
+    expect(m.columnas.map((c) => [c.id, c.enRiesgo])).toEqual([[1, 1], [2, 2]])
+    expect(m.filas.map((f) => f.alumno.id)).toEqual([2, 1])
+    expect(m.filas[0].celdas.map((c) => c.estado)).toEqual(['REPROBADO', 'EN_RIESGO'])
+    expect(m.filas[1].celdas.map((c) => c.estado)).toEqual(['APROBADO', 'EN_RIESGO'])
+  })
+
+  it('explica los motivos con sus cifras', () => {
+    const c = celdaRiesgo([fila(1, 1, { motivos: ['ASISTENCIA', 'ENTREGAS'], asistencia: { registradas: 10, asistencias: 6, faltas: 3, retardos: 1, justificadas: 0 }, tareas: { total: 4, entregadas: 2, vencidas: 4, vencidasSinEntregar: 2 } })])
+    expect(motivosCelda(c)).toEqual(['40 % de faltas y retardos', '2 de 4 tareas vencidas sin entregar'])
   })
 })

@@ -75,20 +75,10 @@ export const semestreTexto = (semestre) => (semestre ? `${semestre}.º semestre`
 
 export const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`
 
-/** Igual que Calificaciones: promedio simple de las unidades con número, a un decimal. */
-export function promedio(values) {
-  const numeros = values.filter((value) => typeof value === 'number')
-  return numeros.length ? Number((numeros.reduce((suma, value) => suma + value, 0) / numeros.length).toFixed(1)) : null
-}
+export { promedio, tipoCalificacion } from '@/lib/resumenFilas'
 
 export const formatoNota = (value) => (typeof value === 'number' ? (Number.isInteger(value) ? String(value) : value.toFixed(1)) : '—')
 
-/** Calificación de una unidad: real si la unidad cerró o el docente la capturó, provisional si sigue abierta. */
-export function tipoCalificacion(row) {
-  if (row?.calificacionFinal == null) return 'SIN_CAPTURA'
-  if (row.unidad?.status === 'FINALIZADA' || row.calificacionManual != null) return 'REAL'
-  return 'PROVISIONAL'
-}
 
 /** Ciclo Ago–Dic: semestres impares; Ene–Jun: pares. Solo es el filtro predeterminado de la retícula. */
 export const esDeLaParidad = (semestre, periodo) => semestre != null && (periodo?.endsWith('B') ? semestre % 2 === 1 : semestre % 2 === 0)

@@ -1,4 +1,5 @@
-import { resumenAlumno } from '../supervision/useReportes'
+import { porcentajeAusencias, textoEntregas } from '@/lib/desempeno'
+import { resumenAlumno } from '@/lib/resumenFilas'
 
 /**
  * Estado de una celda alumno × materia. El semáforo lo calcula el servidor
@@ -72,6 +73,26 @@ export function ordenarFilas(filas) {
   return [...filas].sort((a, b) => b.reprobadas - a.reprobadas || b.enRiesgo - a.enRiesgo || a.alumno.nombre.localeCompare(b.alumno.nombre, 'es'))
 }
 
+/** Matriz alumno × unidad de una clase, a partir de las filas del reporte. */
+export function matrizUnidades(reporte) {
+  // Una unidad por iniciar todavía no dice nada del alumno.
+  const unidades = (reporte?.unidades ?? []).filter((u) => u.status !== 'PENDIENTE')
+  const alumnos = [...new Map((reporte?.rows ?? []).map((r) => [r.alumno.id, r.alumno])).values()]
+  const filas = alumnos.map((alumno) => {
+    const celdas = unidades.map((u) => celdaRiesgo((reporte.rows ?? []).filter((r) => r.alumno.id === alumno.id && r.unidad?.id === u.id)))
+    return {
+      alumno,
+      celdas,
+      reprobadas: celdas.filter((c) => c.estado === 'REPROBADO').length,
+      enRiesgo: celdas.filter((c) => conRiesgo(c.estado)).length,
+    }
+  })
+  return {
+    columnas: unidades.map((u, i) => ({ ...u, enRiesgo: filas.filter((f) => conRiesgo(f.celdas[i].estado)).length })),
+    filas: ordenarFilas(filas),
+  }
+}
+
 /**
  * Grupos comparados por la proporción de alumnos en riesgo. Devuelve null si
  * el servidor todavía no manda los conteos por grupo.
@@ -104,4 +125,32 @@ export function textoMotivosGrupo(motivos) {
   if (!partes.length) return ''
   const texto = partes.join(', ')
   return texto.charAt(0).toUpperCase() + texto.slice(1)
+}
+
+/** Motivo en pocas palabras, para listas dentro del tooltip. */
+export const MOTIVO_CORTO = {
+  CALIFICACION_BAJA: 'calificación reprobatoria',
+  CALIFICACION_LIMITE: 'calificación entre 70 y 79',
+  ASISTENCIA: 'faltas y retardos',
+  ENTREGAS: 'tareas sin entregar',
+}
+
+/** Motivos de una celda en palabras, con las cifras que los explican. */
+export function motivosCelda(c) {
+  return (c.motivos ?? []).map((m) => {
+    if (m === 'ASISTENCIA') return `${porcentajeAusencias(c.asistencia) ?? 0} % de faltas y retardos`
+    if (m === 'ENTREGAS') return textoEntregas({ vencidas: c.tareas.vencidas, sinEntregar: c.tareas.vencidasSinEntregar })
+    const texto = MOTIVO_CORTO[m] ?? m
+    return texto.charAt(0).toUpperCase() + texto.slice(1)
+  })
+}
+
+/** Lo que un lector de pantalla oye en una celda del mapa. */
+export function etiquetaCelda(alumno, columna, c, accion) {
+  const estado = ESTADO_CELDA[c.estado].label.toLowerCase()
+  if (c.estado === 'NO_INSCRITO') return `${alumno}, ${columna}: no inscrito.`
+  if (c.estado === 'CARGANDO' || c.estado === 'NO_DISPONIBLE') return `${alumno}, ${columna}: ${estado}.`
+  const promedio = c.promedio == null ? 'sin promedio' : `promedio ${c.promedio}`
+  const motivos = motivosCelda(c)
+  return `${alumno}, ${columna}: ${estado}, ${promedio}${motivos.length ? `. ${motivos.join('; ')}` : ''}. ${accion}.`
 }

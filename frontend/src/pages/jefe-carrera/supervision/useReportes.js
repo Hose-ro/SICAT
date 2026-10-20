@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import api from '@/api/axios'
-import { promedio, tipoCalificacion } from './formato'
 import { mensajeError } from './useJefatura'
 
 // Reporte de una oferta (materia + grupo): el mismo cálculo de calificaciones
@@ -72,33 +71,4 @@ export function useReportes(j, pares) {
   return useMemo(() => Object.fromEntries(claves.map((clave) => [clave, estado[`${carreraId}|${periodo}|${clave}`] ?? { cargando: true }])), [claves, estado, carreraId, periodo])
 }
 
-/** Filas (alumno × unidad) de un alumno en un reporte, resumidas con las reglas de SICAT. */
-export function resumenAlumno(rows) {
-  const notas = rows.map((r) => r.calificacionFinal)
-  const tipos = rows.map(tipoCalificacion)
-  const asistencia = rows.reduce((a, r) => ({
-    registradas: a.registradas + (r.asistencia?.registradas ?? 0),
-    asistencias: a.asistencias + (r.asistencia?.asistencias ?? 0),
-    faltas: a.faltas + (r.asistencia?.faltas ?? 0),
-    retardos: a.retardos + (r.asistencia?.retardos ?? 0),
-    justificadas: a.justificadas + (r.asistencia?.justificadas ?? 0),
-  }), { registradas: 0, asistencias: 0, faltas: 0, retardos: 0, justificadas: 0 })
-  const tareas = rows.reduce((a, r) => ({
-    total: a.total + (r.tareas?.total ?? 0),
-    entregadas: a.entregadas + (r.tareas?.entregadas ?? 0),
-    vencidas: a.vencidas + (r.tareas?.vencidas ?? 0),
-    vencidasSinEntregar: a.vencidasSinEntregar + (r.tareas?.vencidasSinEntregar ?? 0),
-  }), { total: 0, entregadas: 0, vencidas: 0, vencidasSinEntregar: 0 })
-  const valor = promedio(notas)
-  return {
-    promedio: valor,
-    tipo: valor == null ? 'SIN_CAPTURA' : tipos.every((t) => t === 'REAL') ? 'REAL' : 'PROVISIONAL',
-    calificadas: tipos.filter((t) => t !== 'SIN_CAPTURA').length,
-    unidades: rows.length,
-    asistencia: { ...asistencia, porcentaje: asistencia.registradas ? Math.round((asistencia.asistencias / asistencia.registradas) * 100) : null },
-    // Porcentaje entregado de lo ya vencido: lo que aún no vence no cuenta.
-    tareas: { ...tareas, porcentaje: tareas.vencidas ? Math.round(((tareas.vencidas - tareas.vencidasSinEntregar) / tareas.vencidas) * 100) : null },
-    motivos: [...new Set(rows.flatMap((r) => r.motivos ?? []))],
-    observaciones: rows.filter((r) => r.observacionManual).map((r) => ({ unidad: r.unidad?.nombre, texto: r.observacionManual })),
-  }
-}
+export { resumenAlumno } from '@/lib/resumenFilas'

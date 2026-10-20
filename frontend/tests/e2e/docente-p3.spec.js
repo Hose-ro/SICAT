@@ -16,7 +16,7 @@ test('Inicio: el día es el título y sólo aparece lo que está pendiente', asy
   await expect(page.getByText('Tienes 2 clases hoy.')).toBeVisible()
   await expect(page.getByText(/urgente/)).toHaveCount(0)
   const atencion = page.getByRole('article').filter({ has: page.getByRole('heading', { name: 'Requiere tu atención' }) })
-  await expect(atencion.getByRole('link')).toHaveText(['1 lista sin pasar', '3 alumnos en riesgo por inasistencias'])
+  await expect(atencion.getByRole('link')).toHaveText(['1 lista sin pasar', '3 alumnos en riesgo'])
   await expect(page.getByText(/^0 /)).toHaveCount(0)
 })
 

@@ -5,8 +5,8 @@ import { cn } from '@/lib/utils'
 import { modalidadTexto, plural } from '../supervision/formato'
 import { SeccionTitulo, Segmento, linkClass } from '../supervision/ui'
 import { META, modalidadesCon, serieSemanal } from './cobertura'
-import { posicionTooltip, useAncho } from './util'
-import './graficas.css'
+import { posicionTooltip, useAncho } from '@/components/graficas/util'
+import '@/components/graficas/graficas.css'
 
 const M = { izq: 44, der: 78, arriba: 14 }
 const ALTO_LINEA = 180

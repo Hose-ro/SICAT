@@ -4,8 +4,8 @@ import { cn } from '@/lib/utils'
 import { modalidadTexto, plural } from '../supervision/formato'
 import { linkClass } from '../supervision/ui'
 import { META, coberturaPorDocente, semanasDe } from './cobertura'
-import { posicionTooltip } from './util'
-import './graficas.css'
+import { posicionTooltip } from '@/components/graficas/util'
+import '@/components/graficas/graficas.css'
 
 // Escala divergente alrededor de la meta: dos pasos debajo, gris cerca, dos arriba.
 const CLASES = [

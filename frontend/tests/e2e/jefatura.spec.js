@@ -377,7 +377,7 @@ test.describe('jefatura de carrera', () => {
     await expect(comparativo).toBeVisible()
     // El grupo con más riesgo va primero y su enlace abre la pestaña Riesgo.
     const primero = comparativo.getByRole('link').first()
-    await expect(primero).toHaveAccessibleName(/^1A: 40 % en riesgo, 2 alumnos de 5, 1 reprobando/)
+    await expect(primero).toHaveAccessibleName(/^1A, Escolarizado: 40 % en riesgo, 2 de 5 alumnos, 1 reprobando/)
     await expect(comparativo.getByText('Calificación 2, asistencia 2, entregas 1')).toBeVisible()
     await page.screenshot({ path: 'audit/jefatura-riesgo-grupos.png', fullPage: true })
     expect(await axe(page)).toEqual([])

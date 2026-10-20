@@ -19,6 +19,7 @@ import api from '../../api/axios'
 import { useAuthStore } from '../../store/authStore'
 import PeriodoEscolarCard from '../../components/PeriodoEscolarCard'
 import DesempenoUnidad from './components/DesempenoUnidad'
+import MisClasesRiesgo from './components/MisClasesRiesgo'
 import ProximasReuniones from './components/ProximasReuniones'
 import { fechaDeClave } from '../../lib/periodo'
 import './dashboard-agenda.css'
@@ -75,6 +76,7 @@ export default function DashboardDocente() {
   const [errorClase, setErrorClase] = useState('')
   const [iniciando, setIniciando] = useState(false)
   const [busqueda, setBusqueda] = useState('')
+  const [claseRiesgo, setClaseRiesgo] = useState(null)
   // El "faltan X min" del encabezado se queda viejo si nadie lo refresca.
   const [ahora, setAhora] = useState(() => new Date())
 
@@ -189,12 +191,17 @@ export default function DashboardDocente() {
         </aside>
       </div>
       {/* A todo lo ancho: la tabla lleva una columna por criterio. */}
-      <div className="agenda-banda">
+      <div className="agenda-banda space-y-7">
+        <MisClasesRiesgo
+          materias={panel?.materias ?? []}
+          onElegir={(clave) => setClaseRiesgo((actual) => ({ clave, n: (actual?.n ?? 0) + 1 }))}
+        />
         <DesempenoUnidad
           materias={panel?.materias ?? []}
           claseActual={panel?.claseActual}
           proximaClase={panel?.proximaClase}
           userId={user?.id}
+          seleccion={claseRiesgo}
         />
       </div>
       <div className="docente-agenda-grid">
@@ -542,7 +549,7 @@ function Pendientes({ pendientes }) {
       icono: AlertTriangle,
       tono: 'text-destructive-foreground',
       n: pendientes.alumnosEnRiesgo ?? 0,
-      texto: (n) => `${plural(n, 'alumno', 'alumnos')} en riesgo por inasistencias`,
+      texto: (n) => `${plural(n, 'alumno', 'alumnos')} en riesgo`,
       to: '/docente/riesgo',
     },
     {

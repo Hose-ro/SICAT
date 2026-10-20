@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronDown, Eye, EyeOff, SlidersHorizontal } from 'lucide-react'
 import api from '@/api/axios'
@@ -12,9 +12,14 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import { resumenCriterios } from '@/lib/criterios'
 import { ordenarPorDesempeno, textoMotivos, valorCorto } from '@/lib/desempeno'
 import { cn } from '@/lib/utils'
+import MapaUnidades from './MapaUnidades'
 import { Segmentado } from './tareas/Controles'
 
 const VISIBLES = 10
+const VISTAS = [
+  { value: 'unidad', label: 'Por unidad' },
+  { value: 'todas', label: 'Todas las unidades' },
+]
 const ESTADO_UNIDAD = { ACTIVA: 'en curso', FINALIZADA: 'cerrada', PENDIENTE: 'por iniciar' }
 const CAMPO = 'h-10 w-full min-w-0 rounded-[10px] border border-input bg-background px-3 text-sm text-foreground outline-none transition-[border-color,box-shadow] duration-150 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40'
 
@@ -42,9 +47,10 @@ function mensajeError(error) {
  * criterio de evaluación y el semáforo. Abre en la clase que se está dando (o
  * la última que se eligió) y en la unidad en curso.
  */
-export default function DesempenoUnidad({ materias = [], claseActual, proximaClase, userId }) {
+export default function DesempenoUnidad({ materias = [], claseActual, proximaClase, userId, seleccion }) {
   const isMobile = useIsMobile()
   const idTitulo = useId()
+  const seccion = useRef(null)
   const claveRecordada = `sicat.desempeno.clase.${userId ?? 'docente'}`
   const clases = useMemo(
     () => materias
@@ -53,6 +59,20 @@ export default function DesempenoUnidad({ materias = [], claseActual, proximaCla
     [materias],
   )
   const [elegida, setElegida] = useState(null)
+  const [vista, setVista] = useState('unidad')
+  // Elegir una clase desde «Riesgo por clase» la abre aquí, en la vista por unidad.
+  const [seleccionVista, setSeleccionVista] = useState(seleccion?.n)
+  if (seleccion && seleccion.n !== seleccionVista) {
+    setSeleccionVista(seleccion.n)
+    setElegida(seleccion.clave)
+    setVista('unidad')
+  }
+  useEffect(() => {
+    if (!seleccion) return
+    guardar(claveRecordada, seleccion.clave)
+    const reducido = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    seccion.current?.scrollIntoView({ behavior: reducido ? 'auto' : 'smooth', block: 'start' })
+  }, [seleccion, claveRecordada])
   const porDefecto = useMemo(() => {
     const existe = (clave) => clave && clases.some((item) => item.clave === clave)
     return [
@@ -103,6 +123,7 @@ export default function DesempenoUnidad({ materias = [], claseActual, proximaCla
   const elegirUnidad = (id) => {
     setUnidadPedida({ clase: clase.clave, unidadId: id })
     setVerTodos(false)
+    setVista('unidad')
   }
   const alternarOcultas = () => {
     guardar('sicat.desempeno.ocultar', ocultas ? null : '1')
@@ -121,7 +142,7 @@ export default function DesempenoUnidad({ materias = [], claseActual, proximaCla
     : '/calificaciones'
 
   return (
-    <section aria-labelledby={idTitulo} className="@container rounded-[var(--radius-card)] border border-border bg-card p-5">
+    <section ref={seccion} aria-labelledby={idTitulo} className="@container scroll-mt-4 rounded-[var(--radius-card)] border border-border bg-card p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 id={idTitulo} className="text-xl font-semibold tracking-tight text-foreground">Desempeño por unidad</h2>
@@ -151,7 +172,13 @@ export default function DesempenoUnidad({ materias = [], claseActual, proximaCla
             ))}
           </select>
         </label>
-        {datos?.unidades?.length > 0 && (
+        {clase && (
+          <div className="flex min-w-0 flex-col items-start gap-1.5">
+            <span className="text-[13px] font-medium text-foreground" aria-hidden="true">Vista</span>
+            <Segmentado label="Vista" value={vista} onChange={setVista} options={VISTAS} />
+          </div>
+        )}
+        {vista === 'unidad' && datos?.unidades?.length > 0 && (
           <div className="flex min-w-0 flex-col items-start gap-1.5">
             <span className="text-[13px] font-medium text-foreground" aria-hidden="true">Unidad</span>
             <Segmentado label="Unidad" value={unidad?.id} onChange={elegirUnidad}
@@ -163,7 +190,9 @@ export default function DesempenoUnidad({ materias = [], claseActual, proximaCla
         )}
       </div>
 
-      {error ? (
+      {vista === 'todas' && clase ? (
+        <MapaUnidades clase={clase} ocultas={ocultas} onElegirUnidad={elegirUnidad} />
+      ) : error ? (
         <div className="mt-4"><TaskNotice error={error} onRetry={() => setVersion((actual) => actual + 1)} /></div>
       ) : !datos ? (
         cargando ? (
