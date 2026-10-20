@@ -341,6 +341,10 @@ test.describe('jefatura de carrera', () => {
     await expect(tendencia).toBeVisible()
     const grafica = tendencia.getByRole('slider', { name: /Semana de la gráfica de cobertura/ })
     await expect(grafica).toBeVisible()
+    // Los trazos usan geometría SVG nativa, visible también sin d en CSS.
+    await expect(grafica.locator('path[stroke="var(--viz-serie)"]').first()).toHaveAttribute('d', /^M[\d.,]+ L/)
+    await expect(grafica.locator('path[stroke-dasharray="2 4"]')).toHaveAttribute('d', /^M[\d.,]+ L/)
+    await expect(grafica.locator('path[fill="var(--viz-apagado)"]').first()).toHaveAttribute('d', /^M/)
     await grafica.focus()
     await page.keyboard.press('ArrowLeft')
     await expect(grafica).toHaveAttribute('aria-valuetext', /Semana del .*% de cobertura/)

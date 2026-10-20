@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { ChartColumn } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { modalidadTexto, plural } from '../supervision/formato'
 import { SeccionTitulo, Segmento, linkClass } from '../supervision/ui'
@@ -45,7 +46,7 @@ export default function TendenciaCobertura({ j, resumen }) {
   for (let i = cerradas.length - 1; i >= 0 && cerradas[i].cobertura < META; i--) debajo++
 
   return (
-    <section aria-labelledby="tendencia-captura" className="viz mt-10">
+    <section aria-labelledby="tendencia-captura" className="viz inicio-card inicio-tendencia">
       <SeccionTitulo
         id="tendencia-captura"
         titulo="Tendencia de captura"
@@ -53,7 +54,7 @@ export default function TendenciaCobertura({ j, resumen }) {
         accion={<Link className={cn(linkClass, 'inline-flex min-h-11 items-center text-[0.8125rem]')} to={j.to('/jefe-carrera/docentes', { vista: 'semanas' })}>Ver por docente</Link>}
       />
       {!serie.some((s) => s.cobertura != null) ? (
-        <p className="border-y border-border py-6 text-sm text-muted-foreground">Todavía no hay clases concluidas con lista esperada en el periodo.</p>
+        <div className="inicio-tendencia-vacia"><ChartColumn className="inicio-icono" aria-hidden="true" /><p>Todavía no hay clases concluidas con lista esperada en el periodo.</p></div>
       ) : (
         <>
           <div className="flex flex-wrap items-center gap-3">
@@ -152,10 +153,11 @@ function Grafica({ serie }) {
           {/* Columna activa: la semana elegida se marca en ambos gráficos */}
           {s && <rect x={cx(activa) - paso / 2} y={M.arriba} width={paso} height={baseC - M.arriba} fill="var(--viz-serie-wash)" />}
 
+          {/* El atributo SVG d mantiene el trazo visible también sin soporte de d en CSS. */}
           <g className="viz-revelar">
-            <path className="viz-morph" style={{ d: `path('${trazo(cerrados)}')` }} fill="none" stroke="var(--viz-serie)" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+            <path className="viz-morph" d={trazo(cerrados)} fill="none" stroke="var(--viz-serie)" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
             {enCurso && ultimoCerrado && (
-              <path className="viz-morph" style={{ d: `path('M${ultimoCerrado[0][0].toFixed(1)},${ultimoCerrado[0][1].toFixed(1)} L${enCurso[0][0].toFixed(1)},${enCurso[0][1].toFixed(1)}')` }} fill="none" stroke="var(--viz-serie)" strokeWidth="2" strokeDasharray="2 4" strokeLinecap="round" opacity="0.7" />
+              <path className="viz-morph" d={`M${ultimoCerrado[0][0].toFixed(1)},${ultimoCerrado[0][1].toFixed(1)} L${enCurso[0][0].toFixed(1)},${enCurso[0][1].toFixed(1)}`} fill="none" stroke="var(--viz-serie)" strokeWidth="2" strokeDasharray="2 4" strokeLinecap="round" opacity="0.7" />
             )}
             {conValor.map(([p, i]) => (
               <g key={i} className="viz-pos" style={{ transform: `translate(${p[0]}px, ${p[1]}px)` }}>
@@ -181,7 +183,7 @@ function Grafica({ serie }) {
             <path
               key={x.lunes}
               className="viz-morph"
-              style={{ d: `path('${columna(cx(i) - anchoBarra / 2, anchoBarra, baseC, yC(x.sinCompleta))}')` }}
+              d={columna(cx(i) - anchoBarra / 2, anchoBarra, baseC, yC(x.sinCompleta))}
               fill={activa === i ? 'var(--viz-apagado-activo)' : 'var(--viz-apagado)'}
             />
           ))}

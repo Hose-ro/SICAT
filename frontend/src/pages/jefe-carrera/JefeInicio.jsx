@@ -1,16 +1,18 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronDown, LoaderCircle, X } from 'lucide-react'
+import { BookOpen, CalendarClock, ChevronDown, LoaderCircle, NotebookPen, UsersRound, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { buttonVariants } from '@/components/ui/buttonVariants'
 import SexoBadge from '@/components/SexoBadge'
 import { cn } from '@/lib/utils'
 import { CRITERIO_RIESGO, ESTADOS_PENDIENTES, MOTIVOS_RIESGO, esIncidencia, estadoClase, senalUnidad } from './supervision/estados'
 import { fechaCorta, haceTiempo, hoyClave, modalidadTexto, parseClave, plural } from './supervision/formato'
 import { useClases } from './supervision/useClasesSemana'
-import { Aviso, JefaturaPage, SeccionTitulo, Senales, linkClass } from './supervision/ui'
+import { Aviso, JefaturaPage, SeccionTitulo, linkClass } from './supervision/ui'
 import { BotonSeguimiento, EstadoSeguimiento } from './supervision/Seguimiento'
 import { esParaHoy, useSeguimientos } from './supervision/useSeguimientos'
 import TendenciaCobertura from './graficas/TendenciaCobertura'
+import './inicio.css'
 
 const DOCENTES_VISIBLES = 8
 const ALUMNOS_VISIBLES = 8
@@ -105,16 +107,8 @@ function Contenido({ j, resumen }) {
 
   return (
     <>
-      <Senales
-        items={[
-          { label: indicadores.listasPendientes === 1 ? 'Lista por completar' : 'Listas por completar', value: indicadores.listasPendientes, vacio: listasVacio, href: '#pendientes-docentes' },
-          { label: indicadores.calificacionesPendientes === 1 ? 'Calificación pendiente' : 'Calificaciones pendientes', value: indicadores.calificacionesPendientes, vacio: 'Sin calificaciones pendientes', to: j.to('/jefe-carrera/materias', { vista: 'ofertas', pendientes: 1 }) },
-          { label: unidadesPorRevisar === 1 ? 'Unidad por revisar' : 'Unidades por revisar', value: unidadesPorRevisar, vacio: 'Unidades al corriente', href: '#pendientes-docentes' },
-          { label: indicadores.alumnosRiesgo === 1 ? 'Alumno en riesgo' : 'Alumnos en riesgo', value: indicadores.alumnosRiesgo, vacio: 'Sin alumnos en riesgo', href: '#alumnos-riesgo' },
-          { label: ofertaIncompleta === 1 ? 'Materia sin docente u horario' : 'Materias sin docente u horario', value: ofertaIncompleta, vacio: 'Oferta completa', to: j.to('/jefe-carrera/materias', { vista: 'ofertas', revision: 'incompleta' }) },
-        ]}
-        nota={intervalo ? `Listas revisadas del ${fechaBreve(intervalo.desde)} al ${fechaBreve(intervalo.hasta)}` : null}
-      />
+      <ResumenCards j={j} indicadores={indicadores} listasVacio={listasVacio} unidadesPorRevisar={unidadesPorRevisar} ofertaIncompleta={ofertaIncompleta} />
+      {intervalo && <p className="inicio-periodo">Listas revisadas del {fechaBreve(intervalo.desde)} al {fechaBreve(intervalo.hasta)}</p>}
 
       {sinCalendario.length > 0 && (
         <Aviso
@@ -124,9 +118,10 @@ function Contenido({ j, resumen }) {
         </Aviso>
       )}
 
-      <GuiaPrimerUso />
-
-      <RequiereAtencion j={j} grupos={grupos} riesgos={riesgos} seguimientos={seguimientos} />
+      <div className="inicio-principal">
+        <RequiereAtencion j={j} grupos={grupos} riesgos={riesgos} seguimientos={seguimientos} ofertaIncompleta={ofertaIncompleta} />
+        <GuiaPrimerUso />
+      </div>
 
       <TendenciaCobertura j={j} resumen={resumen} />
 
@@ -163,6 +158,34 @@ function Contenido({ j, resumen }) {
   )
 }
 
+/** Cuatro áreas del resumen; cada enlace conserva su conjunto de pendientes. */
+function ResumenCards({ j, indicadores, listasVacio, unidadesPorRevisar, ofertaIncompleta }) {
+  const cards = [
+    { titulo: 'Asistencia', icono: CalendarClock, value: indicadores.listasPendientes, label: indicadores.listasPendientes === 1 ? 'Lista por completar' : 'Listas por completar', vacio: listasVacio, href: '#pendientes-docentes', pie: 'Registro de listas en el periodo' },
+    { titulo: 'Calificaciones', icono: BookOpen, value: indicadores.calificacionesPendientes, label: indicadores.calificacionesPendientes === 1 ? 'Calificación pendiente' : 'Calificaciones pendientes', vacio: 'Sin calificaciones pendientes', to: j.to('/jefe-carrera/materias', { vista: 'ofertas', pendientes: 1 }), pie: unidadesPorRevisar ? plural(unidadesPorRevisar, 'Unidad por revisar', 'Unidades por revisar') : 'Unidades al corriente', pieHref: '#pendientes-docentes' },
+    { titulo: 'Alumnos', icono: UsersRound, value: indicadores.alumnosRiesgo, label: indicadores.alumnosRiesgo === 1 ? 'Alumno en riesgo' : 'Alumnos en riesgo', vacio: 'Sin alumnos en riesgo', href: '#alumnos-riesgo', pie: 'Seguimiento académico' },
+    { titulo: 'Asignaciones', icono: BookOpen, value: ofertaIncompleta, label: ofertaIncompleta === 1 ? 'Materia sin docente u horario' : 'Materias sin docente u horario', vacio: 'Oferta completa', to: j.to('/jefe-carrera/materias', { vista: 'ofertas', revision: 'incompleta' }), pie: 'Asignación de docentes y horarios' },
+  ]
+  return (
+    <div className="inicio-resumen" aria-label="Resumen de la carrera">
+      {cards.map((card) => {
+        const { titulo, icono: Icono, value, label, vacio, to, href, pie, pieHref } = card
+        const Destino = href ? 'a' : Link
+        return (
+          <div key={titulo} className="inicio-card inicio-indicador">
+            <p className="inicio-etiqueta">{titulo}</p>
+            <Destino {...(href ? { href } : { to })} className="inicio-estado">
+              <Icono aria-hidden="true" className="inicio-icono" />
+              <span>{value > 0 ? <><b className="font-semibold tabular-nums">{value}</b> {label}</> : vacio}</span>
+            </Destino>
+            <div className="inicio-pie">{pieHref ? <a href={pieHref} className={linkClass}>{pie}</a> : pie}</div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 const GUIA_KEY = 'sicat.jefatura.guia'
 
 /** Ayuda opcional de primer uso: tres pasos, se oculta y se recuerda. */
@@ -170,22 +193,22 @@ function GuiaPrimerUso() {
   const [visible, setVisible] = useState(() => { try { return localStorage.getItem(GUIA_KEY) !== 'oculta' } catch { return true } })
   if (!visible) {
     return (
-      <p className="mt-4 text-xs text-muted-foreground">
+      <p className="inicio-card inicio-guia-cerrada text-xs text-muted-foreground">
         <button type="button" className={cn(linkClass, 'inline-flex min-h-11 items-center md:min-h-0')} onClick={() => { setVisible(true); try { localStorage.removeItem(GUIA_KEY) } catch { /* sin almacenamiento */ } }}>Cómo revisar tu carrera</button>
       </p>
     )
   }
   const ocultar = () => { setVisible(false); try { localStorage.setItem(GUIA_KEY, 'oculta') } catch { /* sin almacenamiento */ } }
   return (
-    <section aria-labelledby="guia-jefatura" className="mt-6 rounded-[var(--radius-item)] border border-border bg-card px-5 py-4">
+    <section aria-labelledby="guia-jefatura" className="inicio-card inicio-guia">
       <div className="flex items-start justify-between gap-3">
-        <h2 id="guia-jefatura" className="text-sm font-semibold text-foreground">Cómo revisar tu carrera</h2>
+        <h2 id="guia-jefatura" className="text-[1.1875rem] font-semibold tracking-[-0.015em] text-foreground">Cómo revisar tu carrera</h2>
         <Button variant="ghost" size="icon" aria-label="Ocultar la guía" onClick={ocultar}><X aria-hidden="true" /></Button>
       </div>
-      <ol className="mt-1 grid gap-3 text-[0.8125rem] md:grid-cols-3">
-        <li><b className="block font-medium text-foreground">1. Revisa lo que requiere atención</b><span className="text-muted-foreground">Empieza por los casos de abajo: seguimientos para hoy, la lista más antigua sin captura y los alumnos en riesgo.</span></li>
-        <li><b className="block font-medium text-foreground">2. Consulta la evidencia</b><span className="text-muted-foreground">«Ver detalle» y «Ver clase» muestran lo registrado en SICAT. Sin captura no prueba que la clase no se impartiera.</span></li>
-        <li><b className="block font-medium text-foreground">3. Registra el acuerdo</b><span className="text-muted-foreground">«Registrar seguimiento» guarda una nota con tu nombre y fecha. No envía mensajes ni corrige listas; para contactar usa «Preparar correo».</span></li>
+      <ol className="inicio-pasos">
+        <li><span className="inicio-paso-numero" aria-hidden="true">01</span><div><b className="block font-medium text-foreground">Revisa lo que requiere atención</b><span className="text-muted-foreground">Empieza por los casos de abajo: seguimientos para hoy, la lista más antigua sin captura y los alumnos en riesgo.</span></div></li>
+        <li><span className="inicio-paso-numero" aria-hidden="true">02</span><div><b className="block font-medium text-foreground">Consulta la evidencia</b><span className="text-muted-foreground">«Ver detalle» y «Ver clase» muestran lo registrado en SICAT. Sin captura no prueba que la clase no se impartiera.</span></div></li>
+        <li><span className="inicio-paso-numero" aria-hidden="true">03</span><div><b className="block font-medium text-foreground">Registra el acuerdo</b><span className="text-muted-foreground">«Registrar seguimiento» guarda una nota con tu nombre y fecha. No envía mensajes ni corrige listas; para contactar usa «Preparar correo».</span></div></li>
       </ol>
     </section>
   )
@@ -196,7 +219,7 @@ function GuiaPrimerUso() {
  * pendiente más antigua y el acceso a los alumnos en riesgo. El orden es
  * operativo (antigüedad y fecha de revisión), no una gravedad.
  */
-function RequiereAtencion({ j, grupos, riesgos, seguimientos }) {
+function RequiereAtencion({ j, grupos, riesgos, seguimientos, ofertaIncompleta }) {
   const paraHoy = seguimientos.lista.filter(esParaHoy)
   const masAntigua = grupos.find((g) => g.desde)
   const items = []
@@ -227,10 +250,20 @@ function RequiereAtencion({ j, grupos, riesgos, seguimientos }) {
   }
 
   return (
-    <section aria-labelledby="requiere-atencion" className="mt-8">
+    <section aria-labelledby="requiere-atencion" className="inicio-card inicio-atencion">
       <SeccionTitulo id="requiere-atencion" titulo="Requiere atención" descripcion="Por dónde empezar hoy. El detalle completo está más abajo." />
+      {ofertaIncompleta > 0 && (
+        <div className="inicio-asignacion">
+          <BookOpen className="inicio-icono" aria-hidden="true" />
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold text-foreground"><span className="inicio-cifra">{ofertaIncompleta}</span> {ofertaIncompleta === 1 ? 'Materia sin docente u horario' : 'Materias sin docente u horario'}</p>
+            <p className="mt-1 text-[0.8125rem] text-muted-foreground">No cuentan con docente asignado o tienen horario sin registrar en el periodo actual.</p>
+          </div>
+          <Link className={cn(buttonVariants(), 'min-h-11 whitespace-normal')} to={j.to('/jefe-carrera/materias', { vista: 'ofertas', revision: 'incompleta' })}>Revisar materias</Link>
+        </div>
+      )}
       {items.length ? (
-        <ul className="divide-y divide-border border-y border-border text-[0.8125rem]">
+        <ul className="divide-y divide-border border-t border-border text-[0.8125rem]">
           {items.map((item) => (
             <li key={item.key} className="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
               <span className={cn('min-w-0', item.tono ?? 'text-foreground')}>{item.texto}</span>
@@ -239,7 +272,7 @@ function RequiereAtencion({ j, grupos, riesgos, seguimientos }) {
           ))}
         </ul>
       ) : (
-        <p className="border-y border-border py-4 text-[0.8125rem] text-muted-foreground">Sin revisiones para hoy, listas atrasadas ni alumnos en riesgo.</p>
+        <p className="inicio-sin-pendientes"><NotebookPen className="inicio-icono" aria-hidden="true" /><span>Sin revisiones para hoy, listas atrasadas ni alumnos en riesgo.</span></p>
       )}
     </section>
   )

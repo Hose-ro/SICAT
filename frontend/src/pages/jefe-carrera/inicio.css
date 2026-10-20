@@ -1,0 +1,82 @@
+.inicio-card {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  color: var(--foreground);
+  padding: 24px;
+}
+
+.inicio-resumen {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.inicio-indicador { display: flex; flex-direction: column; }
+.inicio-etiqueta {
+  color: var(--muted-foreground);
+  font-size: .6875rem;
+  font-weight: 600;
+  letter-spacing: .045em;
+  text-transform: uppercase;
+}
+
+.inicio-estado {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 16px;
+  min-height: 64px;
+  padding-block: 12px;
+  font-size: .9375rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.inicio-icono { width: 24px; height: 24px; flex-shrink: 0; stroke-width: 1.8; color: var(--foreground); }
+.inicio-estado:focus-visible { outline: 2px solid var(--ring); outline-offset: 4px; border-radius: 4px; }
+.inicio-pie { border-top: 1px solid var(--border); padding-top: 12px; font-size: .75rem; color: var(--muted-foreground); }
+.inicio-pie a { color: inherit; display: inline-flex; align-items: center; min-height: 24px; }
+.inicio-periodo { margin-top: 10px; text-align: right; font-size: .75rem; color: var(--muted-foreground); }
+.inicio-principal { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); align-items: stretch; gap: 16px; margin-top: 24px; }
+.inicio-atencion { display: flex; flex-direction: column; }
+.inicio-asignacion { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; padding-block: 24px; }
+.inicio-asignacion > div { flex-basis: 180px; }
+.inicio-cifra { margin-right: 10px; font-size: 1.75rem; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.inicio-sin-pendientes { display: flex; align-items: center; gap: 16px; margin-top: auto; border-top: 1px solid var(--border); padding-top: 20px; padding-bottom: 4px; color: var(--muted-foreground); font-size: .8125rem; }
+.inicio-pasos { margin-top: 12px; font-size: .8125rem; }
+.inicio-pasos li { display: flex; align-items: baseline; gap: 20px; padding-block: 14px; }
+.inicio-pasos li + li { border-top: 1px solid var(--border); }
+.inicio-pasos li:last-child { padding-bottom: 0; }
+.inicio-paso-numero { flex-shrink: 0; color: var(--muted-foreground); font-size: .875rem; font-variant-numeric: tabular-nums; }
+.inicio-pasos b { margin-bottom: 3px; }
+.inicio-guia-cerrada { align-self: start; }
+.inicio-tendencia { margin-top: 16px; }
+.inicio-tendencia-vacia { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; min-height: 120px; padding: 24px 0 8px; text-align: center; font-size: .8125rem; color: var(--muted-foreground); }
+.inicio-tendencia-vacia .inicio-icono { color: var(--muted-foreground); }
+
+@media (hover: hover) and (pointer: fine) {
+  .inicio-estado:hover { color: var(--primary-ink); }
+}
+
+@media (max-width: 1199px) {
+  .inicio-resumen { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .inicio-principal { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 639px) {
+  .inicio-card { padding: 20px; }
+  .inicio-resumen { gap: 12px; }
+  .inicio-indicador { padding: 16px; }
+  .inicio-estado { gap: 10px; font-size: .8125rem; }
+  .inicio-estado .inicio-icono { width: 20px; height: 20px; }
+  .inicio-pie a { min-height: 44px; }
+  .inicio-periodo { text-align: left; }
+  .inicio-asignacion > a { margin-left: 40px; }
+}
+
+@media (max-width: 359px) {
+  .inicio-resumen { grid-template-columns: minmax(0, 1fr); }
+}
