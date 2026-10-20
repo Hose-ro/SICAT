@@ -29,6 +29,7 @@ import {
   periodoSupervision,
   rangoPeriodo,
   resumenCierre,
+  riesgoDeGrupo,
 } from './supervision.utils';
 
 const persona = {
@@ -505,9 +506,7 @@ export class SupervisionService {
         ofertas: enriquecidas
           .filter((o) => o.grupo.id === g.id)
           .map((o) => o.id),
-        alumnosRiesgo: [...riesgo.values()].filter((a) =>
-          a.causas.some((c) => c.grupo.id === g.id),
-        ).length,
+        ...riesgoDeGrupo(g.id, reportes, [...riesgo.values()]),
       })),
       riesgos: [...riesgo.values()],
       indicadores: {

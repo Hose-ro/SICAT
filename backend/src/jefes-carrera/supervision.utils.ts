@@ -308,3 +308,44 @@ export function resumenCierre(
     alumnos,
   };
 }
+
+/**
+ * Riesgo de un grupo para compararlo con los demás: alumnos únicos con datos
+ * en sus materias y, de ellos, cuántos tienen cada motivo. Un alumno puede
+ * tener varios motivos, así que las cifras por motivo no se suman.
+ */
+export function riesgoDeGrupo(
+  grupoId: number,
+  reportes: Array<{
+    grupo: { id: number };
+    rows: Array<{ alumno: { id: number } }>;
+  }>,
+  riesgos: Array<{
+    id: number;
+    causas: Array<{ grupo: { id: number }; motivos: string[] }>;
+  }>,
+) {
+  const evaluados = new Set(
+    reportes
+      .filter((r) => r.grupo.id === grupoId)
+      .flatMap((r) => r.rows.map((row) => row.alumno.id)),
+  );
+  const motivosDe = riesgos
+    .map((a) =>
+      a.causas.filter((c) => c.grupo.id === grupoId).flatMap((c) => c.motivos),
+    )
+    .filter((motivos) => motivos.length);
+  const con = (...buscados: string[]) =>
+    motivosDe.filter((motivos) => motivos.some((m) => buscados.includes(m)))
+      .length;
+  return {
+    alumnosEvaluados: evaluados.size,
+    alumnosRiesgo: motivosDe.length,
+    riesgoPorMotivo: {
+      reprobando: con('CALIFICACION_BAJA'),
+      calificacion: con('CALIFICACION_BAJA', 'CALIFICACION_LIMITE'),
+      asistencia: con('ASISTENCIA'),
+      entregas: con('ENTREGAS'),
+    },
+  };
+}

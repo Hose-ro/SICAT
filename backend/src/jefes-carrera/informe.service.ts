@@ -37,6 +37,7 @@ const MOTIVOS: Record<string, string> = {
   CALIFICACION_BAJA: 'Calificación reprobatoria',
   CALIFICACION_LIMITE: 'Calificación entre 70 y 79',
   ASISTENCIA: 'Faltas y retardos ≥ 30 %',
+  ENTREGAS: 'Tareas vencidas sin entregar ≥ 30 %',
 };
 const ESTADO_LISTA: Record<string, string> = {
   SIN_CAPTURA: 'Sin captura',

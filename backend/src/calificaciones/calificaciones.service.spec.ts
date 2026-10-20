@@ -469,6 +469,50 @@ describe('CalificacionesService: política docente–materia–grupo', () => {
       );
     });
 
+    it('dos tareas vencidas sin entregar ponen en riesgo aunque la nota sea buena', async () => {
+      const ayer = new Date(Date.now() - 86_400_000);
+      const manana = new Date(Date.now() + 86_400_000);
+      const tarea = (
+        id: number,
+        fechaLimite: Date,
+        entregas: Array<Record<string, unknown>>,
+      ) => ({
+        id,
+        grupoId: 3,
+        unidadId: 6,
+        unidad: 2,
+        categoriaId: null,
+        estado: 'PUBLICADA',
+        tieneFechaLimite: true,
+        fechaLimite,
+        grupo: { id: 3, nombre: '8A' },
+        entregas,
+      });
+      const calificada = (alumnoId: number) => ({
+        alumnoId,
+        estadoRevision: 'CALIFICADA',
+        calificacion: 95,
+      });
+      tareaFindMany.mockResolvedValue([
+        tarea(20, ayer, [calificada(500), calificada(501), calificada(502)]),
+        tarea(21, ayer, [calificada(500), calificada(501)]),
+        tarea(22, ayer, [calificada(500)]),
+        // Aún no vence: no cuenta aunque nadie la haya entregado.
+        tarea(23, manana, []),
+      ]);
+      asistenciaFindMany.mockResolvedValue([]);
+      const vista = await service.obtenerDesempeno(admin, {
+        materiaId: 12,
+        grupoId: 3,
+      });
+      const alumno = (nombre: string) =>
+        vista.alumnos.find((item) => item.alumno.nombre === nombre);
+      expect(alumno('Ana')?.motivos).toEqual([]);
+      // 1 de 3 vencidas sin entregar: 33 %.
+      expect(alumno('Beto')?.motivos).toEqual(['ENTREGAS']);
+      expect(alumno('Carla')?.motivos).toEqual(['ENTREGAS']);
+    });
+
     it('en una unidad cerrada sólo hay aprobados y reprobados', async () => {
       tareaFindMany.mockResolvedValue([]);
       claseSesionFindMany.mockResolvedValue([]);

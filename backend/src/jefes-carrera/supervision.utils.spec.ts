@@ -9,6 +9,7 @@ import {
   periodoCanonicoDeGrupo,
   periodoSupervision,
   resumenCierre,
+  riesgoDeGrupo,
 } from './supervision.utils';
 
 const base = {
@@ -188,5 +189,43 @@ describe('coberturaSemanal', () => {
         completas: 1,
       }),
     ]);
+  });
+});
+
+describe('riesgoDeGrupo', () => {
+  const fila = (id: number) => ({ alumno: { id } });
+  const reportes = [
+    { grupo: { id: 1 }, rows: [fila(1), fila(1), fila(2), fila(3)] },
+    { grupo: { id: 1 }, rows: [fila(1), fila(4)] },
+    { grupo: { id: 2 }, rows: [fila(9)] },
+  ];
+  const causa = (grupo: number, motivos: string[]) => ({
+    grupo: { id: grupo },
+    motivos,
+  });
+
+  it('cuenta alumnos únicos y cada motivo sin sumar repetidos', () => {
+    const riesgos = [
+      {
+        id: 1,
+        causas: [
+          causa(1, ['CALIFICACION_BAJA', 'ASISTENCIA']),
+          causa(1, ['ENTREGAS']),
+        ],
+      },
+      { id: 2, causas: [causa(1, ['CALIFICACION_LIMITE'])] },
+      // Solo tiene riesgo en otro grupo.
+      { id: 9, causas: [causa(2, ['ASISTENCIA'])] },
+    ];
+    expect(riesgoDeGrupo(1, reportes, riesgos)).toEqual({
+      alumnosEvaluados: 4,
+      alumnosRiesgo: 2,
+      riesgoPorMotivo: {
+        reprobando: 1,
+        calificacion: 2,
+        asistencia: 1,
+        entregas: 1,
+      },
+    });
   });
 });

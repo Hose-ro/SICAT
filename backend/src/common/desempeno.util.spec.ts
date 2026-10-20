@@ -1,4 +1,4 @@
-import { evaluarDesempeno } from './desempeno.util';
+import { evaluarDesempeno, faltanEntregas } from './desempeno.util';
 
 const sinFaltas = { registradas: 10, faltas: 0, retardos: 0 };
 const conFaltas = { registradas: 10, faltas: 2, retardos: 1 };
@@ -56,5 +56,44 @@ describe('evaluarDesempeno', () => {
     expect(cerrada(70).estado).toBe('APROBADO');
     expect(cerrada(69).estado).toBe('REPROBADO');
     expect(cerrada(null).estado).toBe('SIN_CALIFICAR');
+  });
+
+  it('las tareas vencidas sin entregar ponen en riesgo desde 30 % con al menos 2 vencidas', () => {
+    const entregas = { vencidas: 5, sinEntregar: 2 };
+    expect(
+      evaluarDesempeno({
+        calificacion: 92,
+        unidadFinalizada: false,
+        asistencia: sinFaltas,
+        entregas,
+      }),
+    ).toEqual({ estado: 'EN_RIESGO', motivos: ['ENTREGAS'] });
+    expect(
+      evaluarDesempeno({
+        calificacion: 60,
+        unidadFinalizada: false,
+        asistencia: conFaltas,
+        entregas,
+      }),
+    ).toEqual({
+      estado: 'REPROBADO',
+      motivos: ['CALIFICACION_BAJA', 'ASISTENCIA', 'ENTREGAS'],
+    });
+    // La unidad cerrada no cambia por entregas.
+    expect(
+      evaluarDesempeno({
+        calificacion: 85,
+        unidadFinalizada: true,
+        asistencia: sinFaltas,
+        entregas,
+      }).estado,
+    ).toBe('APROBADO');
+  });
+
+  it('con menos de 2 vencidas o menos de 30 % sin entregar no hay riesgo por entregas', () => {
+    expect(faltanEntregas({ vencidas: 1, sinEntregar: 1 })).toBe(false);
+    expect(faltanEntregas({ vencidas: 10, sinEntregar: 2 })).toBe(false);
+    expect(faltanEntregas({ vencidas: 10, sinEntregar: 3 })).toBe(true);
+    expect(faltanEntregas(undefined)).toBe(false);
   });
 });

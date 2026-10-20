@@ -76,6 +76,8 @@ type DesempenoAlumno = {
     total: number;
     puntos?: number;
   }>;
+  /** Tareas ya vencidas de la unidad y cuántas faltan por entregar. */
+  entregas: { vencidas: number; sinEntregar: number };
   desempeno: EstadoDesempeno;
   motivos: MotivoDesempeno[];
 };
@@ -314,6 +316,10 @@ export class CalificacionesService {
               ...(puntos !== undefined ? { puntos } : {}),
             }),
           ),
+          entregas: {
+            vencidas: row.tareas.vencidas,
+            sinEntregar: row.tareas.vencidasSinEntregar,
+          },
           desempeno: row.desempeno,
           motivos: row.motivos,
         }),
@@ -912,6 +918,10 @@ export class CalificacionesService {
           calificacion: calificacionFinal,
           unidadFinalizada: unidad.status === EstadoUnidad.FINALIZADA,
           asistencia,
+          entregas: {
+            vencidas: tareasResumen.vencidas,
+            sinEntregar: tareasResumen.vencidasSinEntregar,
+          },
         });
         const observacionManual =
           calificacionGuardada?.observacion?.trim() || null;
@@ -1274,12 +1284,30 @@ export class CalificacionesService {
         ESTADOS_PENDIENTES_REVISION.has(item.entrega.estadoRevision),
     ).length;
 
+    // Solo una tarea vencida puede contar en contra: la que aún está abierta
+    // todavía se puede entregar.
+    const ahora = Date.now();
+    const vencidas = items.filter(
+      (item) =>
+        item.tarea.estado === EstadoTarea.VENCIDA ||
+        item.tarea.estado === EstadoTarea.CERRADA ||
+        (item.tarea.tieneFechaLimite &&
+          item.tarea.fechaLimite &&
+          new Date(item.tarea.fechaLimite).getTime() < ahora),
+    );
+    const vencidasSinEntregar = vencidas.filter(
+      (item) =>
+        !item.entrega || !ESTADOS_CON_ENTREGA.has(item.entrega.estadoRevision),
+    ).length;
+
     return {
       total: items.length,
       entregadas,
       calificadas,
       pendientesRevision,
       sinEntregar: Math.max(items.length - entregadas, 0),
+      vencidas: vencidas.length,
+      vencidasSinEntregar,
     };
   }
 
