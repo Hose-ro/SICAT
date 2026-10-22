@@ -8,6 +8,10 @@ export default defineConfig({
   migrations: {
     path: "prisma/migrations",
   },
+  // Prisma 6 sólo lee `datasource` de este archivo con engine "classic"; sin
+  // él lo ignora y migrate usa env("DIRECT_URL") del schema, que en Render
+  // apunta al pooler (P1002 otra vez el 2026-10-22).
+  engine: "classic",
   // Este bloque sobrescribe url/directUrl del schema.prisma, así que directUrl
   // tiene que ir aquí también o `migrate deploy` usa el pooler de Neon (P1002).
   datasource: {
