@@ -23,6 +23,7 @@ import { desglosePorCategoria } from '../lib/calificaciones'
 import CriteriosGuiados from '@/components/calificaciones/CriteriosGuiados'
 import DesempenoChip from '@/components/calificaciones/DesempenoChip'
 import FiltroDesempeno from '@/components/calificaciones/FiltroDesempeno'
+import { Chip } from '@/components/Chip'
 import { DESEMPENO } from '@/lib/desempeno'
 import { moverFoco } from '@/lib/capturaTeclado'
 import { Segmentado } from '@/pages/docente/components/tareas/Controles'
@@ -142,6 +143,51 @@ function nombreExportacion(reporte, materiaId) {
 
 function StatusBadge({ row }) {
   return <DesempenoChip estado={desempenoDe(row)} />
+}
+
+const ESTADO_UNIDAD = {
+  ACTIVA: { label: 'Abierta', tone: 'success' },
+  FINALIZADA: { label: 'Cerrada', tone: 'muted' },
+  PENDIENTE: { label: 'Sin abrir', tone: 'muted' },
+}
+const textoGrupo = (grupo) => (grupo ? `Grupo ${grupo.nombre}` : 'Todos los grupos')
+const textoUnidad = (unidad) => unidad?.nombre ?? 'Todas las unidades'
+
+// Qué se está capturando, siempre a la vista: los selectores quedan arriba y
+// la tabla es larga. En el teléfono cabe en una línea con etiquetas cortas.
+function ContextoCaptura({ materia, grupo, unidad }) {
+  const estado = ESTADO_UNIDAD[unidad?.status]
+  return (
+    <section
+      aria-label="Contexto de captura"
+      aria-live="polite"
+      className="sticky top-[var(--alto-topbar,0px)] z-20 flex items-center gap-x-3 gap-y-2 rounded-[var(--radius-card)] border border-l-4 border-border border-l-primary bg-[color-mix(in_oklab,var(--primary)_7%,var(--card))] px-3 py-2 md:flex-wrap md:justify-between md:gap-x-4 md:px-5 md:py-4"
+    >
+      <h2 className="min-w-0 flex-1 truncate text-sm font-semibold leading-snug text-foreground md:text-xl">
+        {materia.nombre}
+        {materia.clave && <span className="font-normal text-muted-foreground max-md:hidden"> · {materia.clave}</span>}
+      </h2>
+      <div className="flex shrink-0 items-center gap-1.5 md:gap-2">
+        <Chip tone="neutral" className="border border-border bg-card">
+          {grupo ? (
+            <><span className="max-md:sr-only">Grupo </span>{grupo.nombre}</>
+          ) : (
+            <>Todos<span className="max-md:sr-only"> los grupos</span></>
+          )}
+        </Chip>
+        <Chip tone={estado?.tone ?? 'neutral'} className={estado?.tone === 'success' ? undefined : 'border border-border bg-card'}>
+          {unidad ? (
+            unidad.orden ? (
+              <><span aria-hidden="true" className="md:hidden">U{unidad.orden}</span><span className="max-md:sr-only">{unidad.nombre}</span></>
+            ) : unidad.nombre
+          ) : (
+            <>Todas<span className="max-md:sr-only"> las unidades</span></>
+          )}
+          {estado && <><span aria-hidden="true">·</span>{estado.label}</>}
+        </Chip>
+      </div>
+    </section>
+  )
 }
 
 const FIELD_LABEL = 'text-sm font-medium text-foreground'
@@ -649,6 +695,11 @@ function DocenteCalificaciones() {
     ? unidadesReporte.find((unidad) => String(unidadKey(unidad)) === enUnidadParam) ?? unidadAbierta
     : null
   const unidadPorDefecto = Boolean(unidadLista) && unidadLista === unidadAbierta && !enUnidadParam
+  // La unidad que de verdad muestra la tabla: la del filtro o, si no hay, la
+  // de la pestaña. Con la matriz o con Todas, ninguna.
+  const unidadContexto = filters.unidadId
+    ? [...unidadesReporte, ...(selectedMateria?.unidades ?? [])].find((unidad) => String(unidad.id) === filters.unidadId) ?? null
+    : unidadLista
   const rowsLista = useMemo(
     () => (unidadLista ? rows.filter((row) => unidadKey(row.unidad) === unidadKey(unidadLista)) : rows),
     [rows, unidadLista],
@@ -828,6 +879,8 @@ function DocenteCalificaciones() {
         )}
       </section>
 
+      {selectedMateria && <ContextoCaptura materia={selectedMateria} grupo={selectedGrupo} unidad={unidadContexto} />}
+
       <div className="grid items-start gap-5 xl:grid-cols-[18rem_minmax(0,1fr)]">
         <section aria-labelledby="contexto-calificaciones" className="min-w-0 rounded-[var(--radius-card)] border border-border bg-card p-5 sm:p-6">
           <span className="text-xs font-semibold tabular-nums text-muted-foreground">01 · CONTEXTO ACADÉMICO</span>
@@ -900,6 +953,9 @@ function DocenteCalificaciones() {
         <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
           <div>
             <h2 className="text-lg font-semibold text-foreground">Lista para captura</h2>
+            {selectedMateria && (
+              <p className="text-sm font-medium text-foreground">{textoGrupo(selectedGrupo)} · {textoUnidad(unidadContexto)}</p>
+            )}
             {filters.materiaId && typeof metrics.totalAlumnos === 'number' && (
               <p className="text-sm text-muted-foreground">{plural(metrics.totalAlumnos, 'alumno', 'alumnos')}</p>
             )}

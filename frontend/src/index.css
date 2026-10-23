@@ -80,6 +80,8 @@
   --t:                      180ms;
   --radius-card:            22px;
   --radius-item:            14px;
+  /* Alto de .mobile-topbar, que es sticky: lo que también se pega arriba va debajo. */
+  --alto-topbar:            0px;
 
 
 }
@@ -279,6 +281,7 @@
 @media (prefers-reduced-motion: reduce) { .sheet-backdrop, .sheet-panel { transition: none; } }
 
 @media (max-width: 1023px) {
+  :root { --alto-topbar: 69px; }
   .mobile-topbar { display: flex; }
   .sidebar { top: 0; left: 0; bottom: 0; width: min(88vw, 320px); max-width: calc(100vw - 24px); padding: 16px 10px 14px; border-radius: 0; transform: translateX(0); transition: transform var(--t) var(--ease); }
   .sidebar[data-starting-style], .sidebar[data-ending-style] { transform: translateX(-100%); }
