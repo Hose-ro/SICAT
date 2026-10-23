@@ -2,7 +2,7 @@ import useAsyncAction from '@/hooks/useAsyncAction'
 import { Button } from '@/components/ui/button'
 import { confirmAction } from '@/lib/feedback'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import {
   BookOpen,
   CalendarClock,
@@ -40,6 +40,8 @@ export default function MisGrupos() {
   const [modalAgregar, setModalAgregar] = useState(false)
   const [grupoDetalle, setGrupoDetalle] = useState(null)
   const [grupoAlumnos, setGrupoAlumnos] = useState(null)
+  const [pestanaAlumnos, setPestanaAlumnos] = useState('existente')
+  const [searchParams, setSearchParams] = useSearchParams()
   const [grupoMaterias, setGrupoMaterias] = useState(null)
   const [aviso, setAviso] = useState('')
 
@@ -59,6 +61,23 @@ export default function MisGrupos() {
   useEffect(() => {
     cargar()
   }, [cargar])
+
+  // La guía de primeros pasos de Inicio llega con ?agregar=1 o con
+  // ?alumnos=<grupo>&pestana=importar: se abre el modal y se limpia la URL
+  // para que recargar no lo vuelva a abrir.
+  const agregarPedido = searchParams.get('agregar') === '1'
+  const alumnosPedido = Number(searchParams.get('alumnos')) || null
+  const pestanaPedida = searchParams.get('pestana')
+  useEffect(() => {
+    if (loading || (!agregarPedido && !alumnosPedido)) return
+    if (agregarPedido) setModalAgregar(true)
+    const grupo = alumnosPedido && grupos.find((g) => g.id === alumnosPedido)
+    if (grupo) {
+      setPestanaAlumnos(pestanaPedida ?? 'existente')
+      setGrupoAlumnos(grupo)
+    }
+    setSearchParams({}, { replace: true })
+  }, [loading, agregarPedido, alumnosPedido, pestanaPedida, grupos, setSearchParams])
 
   const alumnosAgregados = async (mensaje) => {
     setGrupoAlumnos(null)
@@ -148,6 +167,7 @@ export default function MisGrupos() {
               onVerMaterias={() => setGrupoMaterias(grupo)}
               onAgregarAlumnos={() => {
                 setAviso('')
+                setPestanaAlumnos('existente')
                 setGrupoAlumnos(grupo)
               }}
               onQuitar={() => quitar(grupo)}
@@ -187,6 +207,7 @@ export default function MisGrupos() {
       {grupoAlumnos && (
         <AgregarAlumnosGrupoModal
           grupo={grupoAlumnos}
+          pestanaInicial={pestanaAlumnos}
           onClose={() => setGrupoAlumnos(null)}
           onListo={alumnosAgregados}
         />

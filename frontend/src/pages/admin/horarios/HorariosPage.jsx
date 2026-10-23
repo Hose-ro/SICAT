@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button'
 import { useCallback, useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useHorarioStore } from '../../../store/horarioStore'
 import SelectorDocente from './components/SelectorDocente'
 import GridHorario from './components/GridHorario'
@@ -57,6 +58,19 @@ export default function HorariosPage({ soloPropias = false }) {
     },
     [eliminarClase],
   )
+
+  // Desde los primeros pasos de Inicio: ?nueva=1&grupo=<id> abre el editor
+  // con el grupo ya elegido, en cuanto se sabe de quién es el horario.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const nuevaPedida = soloPropias && searchParams.get('nueva') === '1'
+  const grupoPedido = Number(searchParams.get('grupo')) || null
+  const abrirPedida = nuevaPedida && Boolean(contexto)
+  if (abrirPedida && !editor) {
+    setEditor({ preset: grupoPedido ? { grupoId: grupoPedido } : null })
+  }
+  useEffect(() => {
+    if (abrirPedida) setSearchParams({}, { replace: true })
+  }, [abrirPedida, setSearchParams])
 
   function alternarEdicion() {
     setModoEdicion((previo) => {

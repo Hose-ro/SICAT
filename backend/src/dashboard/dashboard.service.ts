@@ -21,6 +21,7 @@ import {
   materiasActivasDelDocenteWhere,
   materiasDelDocenteWhere,
 } from '../common/materia-ownership';
+import { gruposDelDocenteWhere } from '../common/grupo-ownership';
 import {
   getAcademicPeriodStart,
   getCurrentAcademicPeriod,
@@ -128,67 +129,88 @@ export class DashboardService {
     // solicitudes pendientes sí se cuentan para que nadie quede sin respuesta.
     const materiasActivas = materiasActivasDelDocenteWhere(docenteId);
 
-    const [clases, materias, registros, entregas, inscritos, solicitudes] =
-      await Promise.all([
-        this.clases.obtenerPanelDocente(docenteId),
-        this.prisma.materia.findMany({
-          where: materiasActivas,
-          select: {
-            id: true,
-            nombre: true,
-            clave: true,
-            unidades: {
-              where: { status: EstadoUnidad.ACTIVA },
-              orderBy: { orden: 'asc' },
-              select: { id: true, nombre: true, orden: true },
-            },
-            horarios: {
-              where: { docenteId, activo: true },
-              select: { grupo: { select: { id: true, nombre: true } } },
-            },
+    const [
+      clases,
+      materias,
+      registros,
+      entregas,
+      inscritos,
+      solicitudes,
+      grupos,
+      clasesProgramadas,
+    ] = await Promise.all([
+      this.clases.obtenerPanelDocente(docenteId),
+      this.prisma.materia.findMany({
+        where: materiasActivas,
+        select: {
+          id: true,
+          nombre: true,
+          clave: true,
+          unidades: {
+            where: { status: EstadoUnidad.ACTIVA },
+            orderBy: { orden: 'asc' },
+            select: { id: true, nombre: true, orden: true },
           },
-          orderBy: { nombre: 'asc' },
-        }),
-        // El riesgo se aplica por clase (materia + grupo: el mismo alumno
-        // puede ir bien en una y mal en otra) y sólo con lo registrado en el
-        // periodo en curso.
-        this.prisma.asistencia.findMany({
-          where: {
-            claseSesion: {
-              docenteId,
-              fecha: { gte: getAcademicPeriodStart() },
-            },
+          horarios: {
+            where: { docenteId, activo: true },
+            select: { grupo: { select: { id: true, nombre: true } } },
           },
-          select: {
-            estado: true,
-            alumnoId: true,
-            claseSesion: { select: { materiaId: true, grupoId: true } },
+        },
+        orderBy: { nombre: 'asc' },
+      }),
+      // El riesgo se aplica por clase (materia + grupo: el mismo alumno
+      // puede ir bien en una y mal en otra) y sólo con lo registrado en el
+      // periodo en curso.
+      this.prisma.asistencia.findMany({
+        where: {
+          claseSesion: {
+            docenteId,
+            fecha: { gte: getAcademicPeriodStart() },
           },
-        }),
-        this.prisma.entregaTarea.findMany({
-          where: {
-            tarea: { docenteId },
-            estadoRevision: { in: REVISIONES_SIN_CALIFICAR },
-          },
-          select: {
-            alumnoId: true,
-            tarea: { select: { materiaId: true, grupoId: true } },
-          },
-        }),
-        this.prisma.inscripcion.findMany({
-          where: {
-            estado: 'ACEPTADA',
-            periodo,
-            materia: materiasActivas,
-          },
-          select: { materiaId: true, grupoId: true, alumnoId: true },
-        }),
-        // Sin filtro de periodo, igual que InscripcionesService.obtenerPendientes,
-        // para que el contador coincida con la lista de solicitudes.
-        this.prisma.inscripcion.count({
-          where: { estado: 'PENDIENTE', materia: materiasDelDocente },
-        }),
-      ]);
+        },
+        select: {
+          estado: true,
+          alumnoId: true,
+          claseSesion: { select: { materiaId: true, grupoId: true } },
+        },
+      }),
+      this.prisma.entregaTarea.findMany({
+        where: {
+          tarea: { docenteId },
+          estadoRevision: { in: REVISIONES_SIN_CALIFICAR },
+        },
+        select: {
+          alumnoId: true,
+          tarea: { select: { materiaId: true, grupoId: true } },
+        },
+      }),
+      this.prisma.inscripcion.findMany({
+        where: {
+          estado: 'ACEPTADA',
+          periodo,
+          materia: materiasActivas,
+        },
+        select: { materiaId: true, grupoId: true, alumnoId: true },
+      }),
+      // Sin filtro de periodo, igual que InscripcionesService.obtenerPendientes,
+      // para que el contador coincida con la lista de solicitudes.
+      this.prisma.inscripcion.count({
+        where: { estado: 'PENDIENTE', materia: materiasDelDocente },
+      }),
+      // Lo que la guía de primeros pasos necesita para saber qué falta.
+      this.prisma.grupo.findMany({
+        where: gruposDelDocenteWhere(docenteId),
+        select: {
+          id: true,
+          nombre: true,
+          _count: { select: { alumnos: true } },
+        },
+        orderBy: { nombre: 'asc' },
+      }),
+      this.prisma.horarioMateria.count({
+        where: { docenteId, activo: true },
+      }),
+    ]);
 
     // Una tarea sin grupo es para toda la materia: su entrega cuenta en el
     // grupo en el que está inscrito el alumno.
@@ -307,6 +329,13 @@ export class DashboardService {
         solicitudes,
       },
       materias: resumenMaterias,
+      configuracion: {
+        grupos: grupos.map(({ _count, ...grupo }) => ({
+          ...grupo,
+          alumnos: _count.alumnos,
+        })),
+        clasesProgramadas,
+      },
     };
   }
 

@@ -36,7 +36,9 @@ function crearEstadoInicial({ clase, preset, modo, docenteSeleccionado, grupoSel
   return {
     materiaId: '',
     docenteId: modo === 'docente' && docenteSeleccionado?.id ? String(docenteSeleccionado.id) : '',
-    grupoId: modo === 'grupo' && grupoSeleccionado?.id ? String(grupoSeleccionado.id) : '',
+    grupoId: preset?.grupoId
+      ? String(preset.grupoId)
+      : modo === 'grupo' && grupoSeleccionado?.id ? String(grupoSeleccionado.id) : '',
     aulaId: '',
     bloques: preset?.dia
       ? [{ dia: preset.dia, horaInicio: preset.horaInicio ?? '', horaFin: preset.horaFin ?? '' }]

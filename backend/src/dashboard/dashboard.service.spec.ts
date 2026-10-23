@@ -37,6 +37,8 @@ describe('DashboardService riesgo del docente', () => {
   const entregaFindMany = jest.fn();
   const inscripcionFindMany = jest.fn();
   const inscripcionCount = jest.fn();
+  const grupoFindMany = jest.fn();
+  const horarioCount = jest.fn();
   const obtenerReporteDocente = jest.fn();
   const prisma = {
     asistencia: { findMany: asistenciaFindMany },
@@ -44,6 +46,8 @@ describe('DashboardService riesgo del docente', () => {
     aviso: { findMany: avisoFindMany },
     entregaTarea: { findMany: entregaFindMany },
     inscripcion: { findMany: inscripcionFindMany, count: inscripcionCount },
+    grupo: { findMany: grupoFindMany },
+    horarioMateria: { count: horarioCount },
   } as unknown as PrismaService;
   const clases = {
     obtenerPanelDocente: jest.fn().mockResolvedValue({ clasesHoy: [] }),
@@ -63,6 +67,8 @@ describe('DashboardService riesgo del docente', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     materiaFindMany.mockResolvedValue([redes]);
+    grupoFindMany.mockResolvedValue([]);
+    horarioCount.mockResolvedValue(0);
     obtenerReporteDocente.mockResolvedValue({
       rows: [
         // Ana: solo debe tareas; con el criterio anterior no aparecía.
@@ -171,6 +177,22 @@ describe('DashboardService riesgo del docente', () => {
         reprobando: 1,
         motivos: { calificacion: 1, asistencia: 1, entregas: 1 },
       },
+    });
+  });
+
+  it('el panel dice qué le falta configurar al docente', async () => {
+    asistenciaFindMany.mockResolvedValue([]);
+    entregaFindMany.mockResolvedValue([]);
+    inscripcionFindMany.mockResolvedValue([]);
+    inscripcionCount.mockResolvedValue(0);
+    grupoFindMany.mockResolvedValue([
+      { id: 3, nombre: '8A', _count: { alumnos: 0 } },
+    ]);
+    horarioCount.mockResolvedValue(0);
+    const panel = await service.obtenerPanelDocente(31);
+    expect(panel.configuracion).toEqual({
+      grupos: [{ id: 3, nombre: '8A', alumnos: 0 }],
+      clasesProgramadas: 0,
     });
   });
 });

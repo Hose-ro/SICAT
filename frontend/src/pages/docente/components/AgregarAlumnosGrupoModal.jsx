@@ -35,11 +35,13 @@ function mensajeError(error, fallback) {
  * grupo; el alumno que viene de fuera (sin grupo o de otro) entra sólo a la
  * materia del docente, para que no aparezca en las clases de los demás.
  */
-export default function AgregarAlumnosGrupoModal({ grupo, onClose, onListo, admin = false }) {
+export default function AgregarAlumnosGrupoModal({ grupo, onClose, onListo, admin = false, pestanaInicial = 'existente' }) {
   // El admin sólo carga el padrón por lista; dar de alta uno a uno o buscar
   // existentes ya lo hace desde "Agregar alumnos" y Usuarios.
   const pestanas = admin ? PESTANAS.filter((opcion) => opcion.clave === 'importar') : PESTANAS
-  const [pestana, setPestana] = useState(admin ? 'importar' : 'existente')
+  const [pestana, setPestana] = useState(() =>
+    admin ? 'importar' : PESTANAS.some((opcion) => opcion.clave === pestanaInicial) ? pestanaInicial : 'existente',
+  )
   const [busqueda, setBusqueda] = useState('')
   const [disponibles, setDisponibles] = useState([])
   const [seleccion, setSeleccion] = useState([])

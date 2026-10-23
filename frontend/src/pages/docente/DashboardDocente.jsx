@@ -21,6 +21,9 @@ import PeriodoEscolarCard from '../../components/PeriodoEscolarCard'
 import DesempenoUnidad from './components/DesempenoUnidad'
 import MisClasesRiesgo from './components/MisClasesRiesgo'
 import ProximasReuniones from './components/ProximasReuniones'
+import BienvenidaDocente from './components/BienvenidaDocente'
+import PrimerosPasos from './components/PrimerosPasos'
+import { pasosDelDocente } from './primerosPasos'
 import { fechaDeClave } from '../../lib/periodo'
 import './dashboard-agenda.css'
 
@@ -77,6 +80,8 @@ export default function DashboardDocente() {
   const [iniciando, setIniciando] = useState(false)
   const [busqueda, setBusqueda] = useState('')
   const [claseRiesgo, setClaseRiesgo] = useState(null)
+  const [bienvenida, setBienvenida] = useState(false)
+  const claveBienvenida = `sicat.docente.bienvenida.${user?.id}`
   // El "faltan X min" del encabezado se queda viejo si nadie lo refresca.
   const [ahora, setAhora] = useState(() => new Date())
 
@@ -85,7 +90,16 @@ export default function DashboardDocente() {
     api
       .get('/dashboard/docente')
       .then((res) => {
-        if (active) setPanel(res.data)
+        if (!active) return
+        setPanel(res.data)
+        // La bienvenida sale una sola vez y sólo a quien aún no prepara su
+        // curso: el docente que ya trabaja en SICAT no la necesita.
+        // Sin `configuracion` (backend anterior) no se sabe qué falta.
+        const pendiente = Boolean(res.data.configuracion) && pasosDelDocente({ configuracion: res.data.configuracion, materias: res.data.materias ?? [], revisado: true })
+          .some((paso) => !paso.hecho)
+        let vista = false
+        try { vista = localStorage.getItem(claveBienvenida) === 'vista' } catch { /* sin almacenamiento */ }
+        if (pendiente && !vista) setBienvenida(true)
       })
       .catch((err) => {
         if (active) {
@@ -98,7 +112,7 @@ export default function DashboardDocente() {
     return () => {
       active = false
     }
-  }, [])
+  }, [claveBienvenida])
 
   useEffect(() => {
     const id = setInterval(() => setAhora(new Date()), 60_000)
@@ -167,11 +181,57 @@ export default function DashboardDocente() {
   }
 
   const pendientes = { ...panel?.pendientes, listasPendientes: panel?.resumen?.listasPendientes ?? 0 }
+  const configuracion = panel?.configuracion
+  // Sin grupos ni clases, todo lo demás de Inicio estaría vacío: sólo se
+  // muestra por dónde empezar.
+  const sinPreparar = Boolean(configuracion) && configuracion.grupos.length === 0 && configuracion.clasesProgramadas === 0
+
+  const cerrarBienvenida = () => {
+    setBienvenida(false)
+    try { localStorage.setItem(claveBienvenida, 'vista') } catch { /* sin almacenamiento */ }
+    // Al terminar la explicación, el siguiente paso es la guía.
+    requestAnimationFrame(() => document.getElementById('primeros-pasos')?.focus())
+  }
+
+  const guia = configuracion && (
+    <PrimerosPasos
+      configuracion={configuracion}
+      materias={panel?.materias ?? []}
+      userId={user?.id}
+      principal={sinPreparar}
+      onComoFunciona={() => setBienvenida(true)}
+    />
+  )
+
+  if (sinPreparar) {
+    return (
+      <div className="docente-agenda">
+        <header>
+          <h1 className="text-[1.75rem] font-semibold leading-tight tracking-[-0.02em] text-foreground">Hola, {user?.nombre?.split(' ')[0] ?? 'Docente'}</h1>
+          <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">
+            Antes de tu primera clase, prepara tu curso en cuatro pasos. Cuando termines, aquí verás tus clases del día, tus pendientes y a los alumnos que necesitan atención.
+          </p>
+        </header>
+        <div className="docente-agenda-grid">
+          <div className="min-w-0">{guia}</div>
+          <aside className="min-w-0 space-y-4" aria-label="Calendario escolar">
+            <section className="agenda-periodos rounded-[var(--radius-card)] border border-border bg-card p-5">
+              <h2 className="mb-5 text-base font-semibold">Calendario escolar</h2>
+              <PeriodoEscolarCard compacto />
+            </section>
+          </aside>
+        </div>
+        <BienvenidaDocente open={bienvenida} onClose={cerrarBienvenida} />
+      </div>
+    )
+  }
 
   return (
     <div className="docente-agenda">
       <Encabezado nombre={user?.nombre?.split(' ')[0] ?? 'Docente'} fecha={ahora} resumen={panel?.resumen} />
       {errorClase && <p role="alert" className="mb-4 rounded-xl bg-destructive/10 p-3 text-sm text-destructive-foreground">{errorClase}</p>}
+      {guia && <div className="mb-7">{guia}</div>}
+      <BienvenidaDocente open={bienvenida} onClose={cerrarBienvenida} />
       <div className="docente-agenda-grid">
         <div className="min-w-0 space-y-7">
           <AgendaHoy
