@@ -140,7 +140,7 @@ function filasReporte(materiaId, grupoId) {
       alumno, materia: oferta.materia, grupo: oferta.grupo, unidad: u,
       calificacionFinal: u.status === 'FINALIZADA' && materiaId === 414 && i === 0 ? null : nota,
       calificacionManual: u.status === 'FINALIZADA' ? nota : null, calificacionCalculada: nota,
-      motivos: riesgo && u.status === 'ACTIVA' ? (nota < 70 ? ['CALIFICACION_BAJA', 'ASISTENCIA'] : ['CALIFICACION_LIMITE', 'ASISTENCIA']) : debeTareas ? ['ENTREGAS'] : [],
+      motivos: riesgo && u.status === 'ACTIVA' ? (nota < 70 ? ['CALIFICACION_BAJA', 'ASISTENCIA'] : ['ASISTENCIA']) : debeTareas ? ['ENTREGAS'] : [],
       asistencia, tareas: { total: 4, entregadas: debeTareas ? 1 : 3, calificadas: 2, pendientesRevision: 1, sinEntregar: debeTareas ? 3 : 1, vencidas: u.status === 'PENDIENTE' ? 0 : 3, vencidasSinEntregar: debeTareas ? 2 : 0 },
       observacionManual: i === 1 && u.orden === 1 ? 'Entregó el proyecto fuera de tiempo; se acordó recuperación.' : null,
     }
@@ -150,7 +150,7 @@ function filasReporte(materiaId, grupoId) {
 export const riesgos = [0, 1].map((i) => ({
   id: 800 + i, nombre: nombres[i], numeroControl: `2280${i}`, sexo: i ? 'HOMBRE' : 'MUJER', email: null, telefono: null,
   causas: [
-    { materia: { id: 411, nombre: 'Cálculo diferencial', clave: 'ACF-0901' }, grupo: grupos[0], unidad: unidades(411)[1], motivos: i ? ['CALIFICACION_LIMITE', 'ASISTENCIA'] : ['CALIFICACION_BAJA', 'ASISTENCIA'], calificacion: 64 + i * 8, asistencia: { porcentaje: 60 } },
+    { materia: { id: 411, nombre: 'Cálculo diferencial', clave: 'ACF-0901' }, grupo: grupos[0], unidad: unidades(411)[1], motivos: i ? ['ASISTENCIA'] : ['CALIFICACION_BAJA', 'ASISTENCIA'], calificacion: 64 + i * 8, asistencia: { porcentaje: 60 } },
     ...(i ? [] : [{ materia: { id: 412, nombre: 'Fundamentos de programación', clave: 'SCD-1008' }, grupo: grupos[0], unidad: unidades(412)[1], motivos: ['ENTREGAS'], calificacion: 85, asistencia: { porcentaje: 90 } }]),
   ],
 }))

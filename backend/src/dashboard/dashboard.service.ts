@@ -12,7 +12,6 @@ import { ClasesService } from '../clases/clases.service';
 import { CalificacionesService } from '../calificaciones/calificaciones.service';
 import {
   CALIFICACION_APROBATORIA,
-  CALIFICACION_SIN_RIESGO,
   MIN_TAREAS_RIESGO,
   UMBRAL_ENTREGAS,
   resumirRiesgoFilas,
@@ -374,7 +373,6 @@ export class DashboardService {
       minRegistros: MIN_REGISTROS_RIESGO,
       porcentaje: Math.round(UMBRAL_RIESGO * 100),
       aprobatoria: CALIFICACION_APROBATORIA,
-      sinRiesgo: CALIFICACION_SIN_RIESGO,
       minTareas: MIN_TAREAS_RIESGO,
       porcentajeEntregas: Math.round(UMBRAL_ENTREGAS * 100),
     };

@@ -3,12 +3,11 @@ import { DESEMPENO, ORDEN_DESEMPENO } from '@/lib/desempeno'
 
 /**
  * Filtro por semáforo con su conteo. `resumen` trae { total, aprobados,
- * enRiesgo, reprobados, sinCalificar }; `value` es 'TODOS' o un estado.
+ * reprobados, sinCalificar }; `value` es 'TODOS' o un estado.
  */
 export default function FiltroDesempeno({ resumen, value, onChange, className }) {
   const cuentas = {
     REPROBADO: resumen?.reprobados ?? 0,
-    EN_RIESGO: resumen?.enRiesgo ?? 0,
     SIN_CALIFICAR: resumen?.sinCalificar ?? 0,
     APROBADO: resumen?.aprobados ?? 0,
   }

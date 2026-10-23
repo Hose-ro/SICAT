@@ -41,13 +41,13 @@ const datos = (extra = {}) => ({
     { clave: 'c3', id: 3, nombre: 'Asistencia', tipo: 'ASISTENCIA', peso: 40, meta: null },
   ],
   origenCriterios: 'GRUPO',
-  umbrales: { aprobatoria: 70, sinRiesgo: 80 },
-  resumen: { total: 3, aprobados: 1, enRiesgo: 1, reprobados: 1, sinCalificar: 0 },
+  umbrales: { aprobatoria: 70 },
+  resumen: { total: 3, aprobados: 2, reprobados: 1, sinCalificar: 0 },
   actividadesSinCriterio: 0,
   alumnos: [
     alumno(1, 'Ana', 92, 'APROBADO'),
     alumno(2, 'Beto', 58, 'REPROBADO', ['CALIFICACION_BAJA', 'ASISTENCIA'], { porcentaje: 60, registradas: 10, faltas: 3, retardos: 1 }),
-    alumno(3, 'Carla', 76, 'EN_RIESGO', ['CALIFICACION_LIMITE']),
+    alumno(3, 'Carla', 76, 'APROBADO'),
   ],
   ...extra,
 })
@@ -86,8 +86,8 @@ test('el filtro por estado deja sólo esa fila y la unidad se cambia con el sele
   await screen.findByRole('table')
   expect(pedidos()[0]).toEqual({ materiaId: 7, grupoId: 3 })
 
-  await user.click(screen.getByRole('radio', { name: /En riesgo/ }))
-  expect(within(screen.getByRole('table')).getAllByRole('rowheader').map((th) => th.textContent)).toEqual(['CarlaC3'])
+  await user.click(screen.getByRole('radio', { name: /Reprobados/ }))
+  expect(within(screen.getByRole('table')).getAllByRole('rowheader').map((th) => th.textContent)).toEqual(['BetoC2'])
 
   await user.click(screen.getByRole('radio', { name: /U1/ }))
   expect(pedidos().at(-1)).toEqual({ materiaId: 7, grupoId: 3, unidadId: 10 })

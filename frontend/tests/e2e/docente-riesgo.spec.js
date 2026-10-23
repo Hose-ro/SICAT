@@ -24,7 +24,7 @@ const unidades = [
 ]
 const desempeno = (unidad) => ({
   materia: { id: 2, nombre: 'Física' }, grupo: { id: 2, nombre: '102B' }, unidad, unidades,
-  criterios: [], origenCriterios: 'PREDETERMINADA', umbrales: { aprobatoria: 70, sinRiesgo: 80 },
+  criterios: [], origenCriterios: 'PREDETERMINADA', umbrales: { aprobatoria: 70 },
   resumen: { total: 0, aprobados: 0, enRiesgo: 0, reprobados: 0, sinCalificar: 0 }, actividadesSinCriterio: 0, alumnos: [],
 })
 const fila = (alumno, unidad, calificacionFinal, motivos = [], extra = {}) => ({
@@ -39,7 +39,7 @@ const reporte = {
   unidades,
   rows: [
     fila(ana, unidades[0], 62, ['CALIFICACION_BAJA']),
-    fila(ana, unidades[1], 74, ['CALIFICACION_LIMITE', 'ENTREGAS'], { tareas: { total: 3, entregadas: 1, vencidas: 3, vencidasSinEntregar: 2 } }),
+    fila(ana, unidades[1], 74, ['ENTREGAS'], { tareas: { total: 3, entregadas: 1, vencidas: 3, vencidasSinEntregar: 2 } }),
     fila(ana, unidades[2], null),
     fila(beto, unidades[0], 90),
     fila(beto, unidades[1], 88),
@@ -82,7 +82,7 @@ test('inicio: riesgo por clase abre la clase y el mapa muestra todas las unidade
   // La unidad por iniciar no aparece; Ana va primero y su unidad 2 explica las entregas.
   await expect(mapa.getByRole('columnheader')).toHaveCount(3)
   await expect(mapa.getByRole('rowheader').first()).toContainText('2 unidades con señales')
-  const celda = mapa.getByRole('button', { name: /^Ana Prueba, Unidad 2, en curso: en riesgo, promedio 74.*2 de 3 tareas vencidas sin entregar/ })
+  const celda = mapa.getByRole('button', { name: /^Ana Prueba, Unidad 2, en curso: faltas o entregas, promedio 74.*2 de 3 tareas vencidas sin entregar/ })
   await expect(celda).toBeVisible()
   await celda.hover()
   await expect(page.getByText('1 de 3 vencidas')).toBeVisible()
@@ -99,7 +99,7 @@ test('inicio: riesgo por clase abre la clase y el mapa muestra todas las unidade
 test('alumnos en riesgo: criterio completo, motivos por unidad y aviso de desempeño', async ({ page }) => {
   await mockApi(page, 'DOCENTE')
   await page.route('**/api/dashboard/docente/riesgo**', (route) => route.fulfill({ json: {
-    criterio: { minRegistros: 3, porcentaje: 30, aprobatoria: 70, sinRiesgo: 80, minTareas: 2, porcentajeEntregas: 30 },
+    criterio: { minRegistros: 3, porcentaje: 30, aprobatoria: 70, minTareas: 2, porcentajeEntregas: 30 },
     clasesSinDatos: [{ materia: { id: 9, nombre: 'Química' }, grupo: { id: 3, nombre: '103C' } }],
     alumnos: [{
       alumno: { id: 1, nombre: 'Ana Prueba López', numeroControl: '2201' },
@@ -117,7 +117,7 @@ test('alumnos en riesgo: criterio completo, motivos por unidad y aviso de desemp
   })
 
   await page.goto('/docente/riesgo')
-  await expect(page.getByText(/Con alguna unidad en riesgo: calificación menor a 80/)).toBeVisible()
+  await expect(page.getByText(/Con alguna unidad en riesgo: calificación reprobatoria \(menor a 70\)/)).toBeVisible()
   await expect(page.getByRole('alert').filter({ hasText: 'No se pudo calcular Química · 103C' })).toBeVisible()
   await expect(page.getByText('Promedio menor a 70 · 2 de 5 tareas vencidas sin entregar')).toBeVisible()
   await expect(page.getByText('Unidad 1: 62 · Unidad 2: 85')).toBeVisible()

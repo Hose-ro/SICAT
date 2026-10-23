@@ -213,7 +213,7 @@ describe('riesgoDeGrupo', () => {
           causa(1, ['ENTREGAS']),
         ],
       },
-      { id: 2, causas: [causa(1, ['CALIFICACION_LIMITE'])] },
+      { id: 2, causas: [causa(1, ['ENTREGAS'])] },
       // Solo tiene riesgo en otro grupo.
       { id: 9, causas: [causa(2, ['ASISTENCIA'])] },
     ];
@@ -222,9 +222,9 @@ describe('riesgoDeGrupo', () => {
       alumnosRiesgo: 2,
       riesgoPorMotivo: {
         reprobando: 1,
-        calificacion: 2,
+        calificacion: 1,
         asistencia: 1,
-        entregas: 1,
+        entregas: 2,
       },
     });
   });

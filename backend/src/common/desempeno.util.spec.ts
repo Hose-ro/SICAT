@@ -12,43 +12,34 @@ const cerrada = (calificacion: number | null, asistencia = sinFaltas) =>
   evaluarDesempeno({ calificacion, unidadFinalizada: true, asistencia });
 
 describe('evaluarDesempeno', () => {
-  it('en una unidad abierta: verde desde 80, amarillo de 70 a 79 y rojo debajo de 70', () => {
+  it('aprobado desde 70 y reprobado debajo, sin estado intermedio', () => {
     expect(abierta(92)).toEqual({ estado: 'APROBADO', motivos: [] });
-    expect(abierta(80)).toEqual({ estado: 'APROBADO', motivos: [] });
-    expect(abierta(79)).toEqual({
-      estado: 'EN_RIESGO',
-      motivos: ['CALIFICACION_LIMITE'],
-    });
-    expect(abierta(70).estado).toBe('EN_RIESGO');
+    expect(abierta(79)).toEqual({ estado: 'APROBADO', motivos: [] });
+    expect(abierta(70)).toEqual({ estado: 'APROBADO', motivos: [] });
     expect(abierta(69)).toEqual({
       estado: 'REPROBADO',
       motivos: ['CALIFICACION_BAJA'],
     });
   });
 
-  it('las faltas ponen en riesgo aunque la calificación sea buena o no la haya', () => {
+  it('las faltas son motivo de riesgo pero no cambian el estado', () => {
     // 3 de 10 entre faltas y retardos: 30 %.
     expect(abierta(95, conFaltas)).toEqual({
-      estado: 'EN_RIESGO',
+      estado: 'APROBADO',
       motivos: ['ASISTENCIA'],
     });
     expect(abierta(null, conFaltas)).toEqual({
-      estado: 'EN_RIESGO',
+      estado: 'SIN_CALIFICAR',
       motivos: ['ASISTENCIA'],
     });
-    expect(abierta(75, conFaltas).motivos).toEqual([
-      'CALIFICACION_LIMITE',
-      'ASISTENCIA',
-    ]);
-    // Reprobado sigue siendo rojo, con las faltas como motivo extra.
     expect(abierta(60, conFaltas)).toEqual({
       estado: 'REPROBADO',
       motivos: ['CALIFICACION_BAJA', 'ASISTENCIA'],
     });
     // Con menos de 3 registros todavía no hay riesgo por faltas.
-    expect(abierta(90, { registradas: 2, faltas: 2, retardos: 0 }).estado).toBe(
-      'APROBADO',
-    );
+    expect(
+      abierta(90, { registradas: 2, faltas: 2, retardos: 0 }).motivos,
+    ).toEqual([]);
   });
 
   it('sin calificación y sin faltas queda sin calificar', () => {
@@ -62,7 +53,7 @@ describe('evaluarDesempeno', () => {
     expect(cerrada(null).estado).toBe('SIN_CALIFICAR');
   });
 
-  it('las tareas vencidas sin entregar ponen en riesgo desde 30 % con al menos 2 vencidas', () => {
+  it('las tareas vencidas sin entregar son motivo de riesgo desde 30 % con al menos 2 vencidas', () => {
     const entregas = { vencidas: 5, sinEntregar: 2 };
     expect(
       evaluarDesempeno({
@@ -71,7 +62,7 @@ describe('evaluarDesempeno', () => {
         asistencia: sinFaltas,
         entregas,
       }),
-    ).toEqual({ estado: 'EN_RIESGO', motivos: ['ENTREGAS'] });
+    ).toEqual({ estado: 'APROBADO', motivos: ['ENTREGAS'] });
     expect(
       evaluarDesempeno({
         calificacion: 60,
@@ -112,7 +103,7 @@ describe('resumirRiesgoFilas', () => {
       resumirRiesgoFilas([
         fila(1, ['CALIFICACION_BAJA']),
         fila(1, ['ASISTENCIA', 'ENTREGAS']),
-        fila(2, ['CALIFICACION_LIMITE']),
+        fila(2, ['ENTREGAS']),
         fila(2, []),
         fila(3, []),
       ]),
@@ -120,7 +111,7 @@ describe('resumirRiesgoFilas', () => {
       evaluados: 3,
       enRiesgo: 2,
       reprobando: 1,
-      motivos: { calificacion: 2, asistencia: 1, entregas: 1 },
+      motivos: { calificacion: 1, asistencia: 1, entregas: 2 },
     });
   });
 });

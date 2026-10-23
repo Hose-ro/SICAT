@@ -72,7 +72,9 @@ test('calificaciones: puntos extra se suman sin tocar la calculada', async ({ pa
   const extra = page.getByLabel('Puntos extra de AGUILAR ZARATE ANA LAURA')
   await extra.fill('5')
   // 100 calculada + 5 se topa en 100; la calculada queda igual.
-  await expect(page.getByText('Final 100')).toBeVisible()
+  const fila = page.getByRole('row', { name: /AGUILAR ZARATE ANA LAURA/ })
+  await expect(fila.getByText('Se suma a la final')).toBeVisible()
+  await expect(fila).toContainText('100Aprobado')
   await expect(page.getByLabel('Calificación de AGUILAR ZARATE ANA LAURA')).toHaveValue('')
   await extra.fill('150')
   await expect(page.getByText('Debe estar entre 0 y 100')).toBeVisible()

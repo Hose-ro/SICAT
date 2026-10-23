@@ -435,8 +435,7 @@ describe('CalificacionesService: política docente–materia–grupo', () => {
       expect(vista.origenCriterios).toBe('PREDETERMINADA');
       expect(vista.resumen).toEqual({
         total: 3,
-        aprobados: 1,
-        enRiesgo: 1,
+        aprobados: 2,
         reprobados: 1,
         sinCalificar: 0,
       });
@@ -458,12 +457,12 @@ describe('CalificacionesService: política docente–materia–grupo', () => {
           motivos: ['CALIFICACION_BAJA', 'ASISTENCIA'],
         }),
       );
-      // Sin registros de asistencia sólo cuenta la tarea.
+      // Sin registros de asistencia sólo cuenta la tarea; 76 ya aprueba.
       expect(alumno('Carla')).toEqual(
         expect.objectContaining({
           calificacion: 76,
-          desempeno: 'EN_RIESGO',
-          motivos: ['CALIFICACION_LIMITE'],
+          desempeno: 'APROBADO',
+          motivos: [],
           asistencia: expect.objectContaining({ porcentaje: null }),
         }),
       );
@@ -533,7 +532,11 @@ describe('CalificacionesService: política docente–materia–grupo', () => {
       });
       expect(vista.unidad?.id).toBe(5);
       expect(vista.resumen).toEqual(
-        expect.objectContaining({ aprobados: 1, enRiesgo: 0, sinCalificar: 2 }),
+        expect.objectContaining({
+          aprobados: 1,
+          reprobados: 0,
+          sinCalificar: 2,
+        }),
       );
     });
 

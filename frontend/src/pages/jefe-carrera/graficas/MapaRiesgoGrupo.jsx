@@ -83,7 +83,7 @@ export default function MapaRiesgoGrupo({ j, grupo, ofertas, reportes, expedient
       )}
 
       <p className="mt-3 max-w-3xl text-xs text-muted-foreground">
-        Una materia queda en riesgo si alguna de sus unidades lo está: calificación menor a 80, faltas y retardos de 30 % o más, o 30 % o más de las tareas vencidas sin entregar. Las tareas que todavía no vencen no cuentan.
+        Una materia queda en riesgo si alguna de sus unidades lo está: calificación reprobatoria (menor a 70), faltas y retardos de 30 % o más, o 30 % o más de las tareas vencidas sin entregar. Las tareas que todavía no vencen no cuentan.
       </p>
     </section>
   )

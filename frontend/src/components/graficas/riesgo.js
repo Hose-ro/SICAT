@@ -3,12 +3,13 @@ import { resumenAlumno } from '@/lib/resumenFilas'
 
 /**
  * Estado de una celda alumno × materia. El semáforo lo calcula el servidor
- * por unidad; aquí se toma la peor unidad. «En riesgo» es lo mismo que
- * cuenta el resumen de la jefatura: alguna unidad con motivos.
+ * por unidad; aquí se toma la peor unidad. La calificación sólo aprueba o
+ * reprueba; la celda ámbar es una unidad aprobada o sin calificar con faltas
+ * o tareas vencidas sin entregar (lo que cuenta la jefatura como riesgo).
  */
 export const ESTADO_CELDA = {
   REPROBADO: { label: 'Reprobado', clase: 'viz-riesgo--reprobado' },
-  EN_RIESGO: { label: 'En riesgo', clase: 'viz-riesgo--alerta' },
+  EN_RIESGO: { label: 'Faltas o entregas', clase: 'viz-riesgo--alerta' },
   APROBADO: { label: 'Sin señales', clase: 'viz-riesgo--ok' },
   SIN_CALIFICAR: { label: 'Sin calificar', clase: 'viz-riesgo--sin' },
   NO_INSCRITO: { label: 'No inscrito', clase: 'viz-cell--vacia' },
@@ -130,7 +131,6 @@ export function textoMotivosGrupo(motivos) {
 /** Motivo en pocas palabras, para listas dentro del tooltip. */
 export const MOTIVO_CORTO = {
   CALIFICACION_BAJA: 'calificación reprobatoria',
-  CALIFICACION_LIMITE: 'calificación entre 70 y 79',
   ASISTENCIA: 'faltas y retardos',
   ENTREGAS: 'tareas sin entregar',
 }

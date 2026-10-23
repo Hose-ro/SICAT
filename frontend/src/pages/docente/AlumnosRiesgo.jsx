@@ -29,7 +29,7 @@ function fechaCorta(value) {
 
 // Un servidor anterior solo mandaba alumnos en riesgo por asistencia.
 const motivosDe = (fila) => fila.motivos ?? ['ASISTENCIA']
-const porCalificacion = (motivos) => motivos.includes('CALIFICACION_BAJA') || motivos.includes('CALIFICACION_LIMITE')
+const porCalificacion = (motivos) => motivos.includes('CALIFICACION_BAJA')
 
 /** La fila en la forma que entiende textoMotivos (la misma del semáforo). */
 const comoDesempeno = (fila) => ({
@@ -213,7 +213,7 @@ export default function AlumnosRiesgo() {
           <h1 className="text-[1.75rem] font-semibold leading-tight tracking-[-0.02em] text-foreground">Alumnos en riesgo</h1>
           <p className="mt-1.5 text-sm text-muted-foreground">
             {datos?.criterio?.porcentajeEntregas != null
-              ? `Con alguna unidad en riesgo: calificación menor a ${datos.criterio.sinRiesgo}, ${datos.criterio.porcentaje} % o más de faltas y retardos (desde ${datos.criterio.minRegistros} clases) o ${datos.criterio.porcentajeEntregas} % o más de tareas vencidas sin entregar (desde ${datos.criterio.minTareas}).`
+              ? `Con alguna unidad en riesgo: calificación reprobatoria (menor a ${datos.criterio.aprobatoria}), ${datos.criterio.porcentaje} % o más de faltas y retardos (desde ${datos.criterio.minRegistros} clases) o ${datos.criterio.porcentajeEntregas} % o más de tareas vencidas sin entregar (desde ${datos.criterio.minTareas}).`
               : datos?.criterio
                 ? `Con ${datos.criterio.porcentaje} % o más de faltas y retardos y al menos ${datos.criterio.minRegistros} clases registradas en el periodo.`
                 : 'Calificación, asistencia y entregas del periodo en curso.'}

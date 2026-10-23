@@ -83,7 +83,7 @@ describe('mapa alumno × unidad del docente', () => {
     unidades,
     rows: [
       fila(1, 1, { unidad: unidades[0], calificacionFinal: 90 }),
-      fila(1, 2, { unidad: unidades[1], calificacionFinal: 72, motivos: ['CALIFICACION_LIMITE'] }),
+      fila(1, 2, { unidad: unidades[1], calificacionFinal: 72, motivos: ['ENTREGAS'] }),
       fila(2, 1, { unidad: unidades[0], calificacionFinal: 60, motivos: ['CALIFICACION_BAJA'] }),
       fila(2, 2, { unidad: unidades[1], calificacionFinal: null, motivos: ['ASISTENCIA'] }),
     ],

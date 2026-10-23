@@ -10,7 +10,7 @@ import DesempenoChip from '@/components/calificaciones/DesempenoChip'
 import FiltroDesempeno from '@/components/calificaciones/FiltroDesempeno'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { resumenCriterios } from '@/lib/criterios'
-import { ordenarPorDesempeno, textoMotivos, valorCorto } from '@/lib/desempeno'
+import { normalizarDesempeno, ordenarPorDesempeno, textoMotivos, valorCorto } from '@/lib/desempeno'
 import { cn } from '@/lib/utils'
 import MapaUnidades from './MapaUnidades'
 import { Segmentado } from './tareas/Controles'
@@ -47,6 +47,18 @@ function mensajeError(error) {
  * criterio de evaluación y el semáforo. Abre en la clase que se está dando (o
  * la última que se eligió) y en la unidad en curso.
  */
+/** Con un servidor anterior, EN_RIESGO pasa a aprobado o sin calificar y el resumen se rehace. */
+function sinEstadoIntermedio(datos) {
+  if (!Array.isArray(datos?.alumnos) || !datos.alumnos.some((item) => item.desempeno === 'EN_RIESGO')) return datos
+  const alumnos = datos.alumnos.map((item) => ({ ...item, desempeno: normalizarDesempeno(item.desempeno, item.calificacion) }))
+  const cuenta = (estado) => alumnos.filter((item) => item.desempeno === estado).length
+  return {
+    ...datos,
+    alumnos,
+    resumen: { total: alumnos.length, aprobados: cuenta('APROBADO'), reprobados: cuenta('REPROBADO'), sinCalificar: cuenta('SIN_CALIFICAR') },
+  }
+}
+
 export default function DesempenoUnidad({ materias = [], claseActual, proximaClase, userId, seleccion }) {
   const isMobile = useIsMobile()
   const idTitulo = useId()
@@ -96,7 +108,7 @@ export default function DesempenoUnidad({ materias = [], claseActual, proximaCla
     if (!pedido) return undefined
     let vigente = true
     api.get('/calificaciones/desempeno', { params: { materiaId, grupoId, ...(unidadId ? { unidadId } : {}) } })
-      .then((res) => { if (vigente) setResultado({ pedido, clase: claseClave, datos: res.data, error: '' }) })
+      .then((res) => { if (vigente) setResultado({ pedido, clase: claseClave, datos: sinEstadoIntermedio(res.data), error: '' }) })
       .catch((error) => { if (vigente) setResultado({ pedido, clase: claseClave, datos: null, error: mensajeError(error) }) })
     return () => { vigente = false }
   }, [pedido, materiaId, grupoId, unidadId, claseClave])

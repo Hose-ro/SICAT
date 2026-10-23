@@ -393,7 +393,7 @@ test.describe('jefatura de carrera', () => {
     await expect(filas.first().getByRole('rowheader')).toContainText('Ana Prueba')
     await expect(filas.first().getByRole('rowheader')).toContainText('2 materias en riesgo')
     await expect(mapa.getByRole('button', { name: /^Ana Prueba, Cálculo diferencial: reprobado, promedio .*% de faltas y retardos/ })).toBeVisible()
-    const entregas = mapa.getByRole('button', { name: /^Ana Prueba, Fundamentos de programación: en riesgo.*2 de 6 tareas vencidas sin entregar/ })
+    const entregas = mapa.getByRole('button', { name: /^Ana Prueba, Fundamentos de programación: faltas o entregas.*2 de 6 tareas vencidas sin entregar/ })
     await entregas.hover()
     await expect(page.getByText('4 de 6 vencidas')).toBeVisible()
     await page.screenshot({ path: 'audit/jefatura-riesgo-mapa.png', fullPage: true })

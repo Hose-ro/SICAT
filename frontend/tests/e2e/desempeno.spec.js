@@ -31,11 +31,11 @@ const desempeno = {
     { clave: 'c3', id: 3, nombre: 'Participación', tipo: 'PARTICIPACION', peso: 10, meta: 5 },
     { clave: 'c4', id: 4, nombre: 'Asistencia', tipo: 'ASISTENCIA', peso: 20, meta: null },
   ],
-  origenCriterios: 'GRUPO', umbrales: { aprobatoria: 70, sinRiesgo: 80 },
-  resumen: { total: 3, aprobados: 1, enRiesgo: 1, reprobados: 1, sinCalificar: 0 }, actividadesSinCriterio: 0,
+  origenCriterios: 'GRUPO', umbrales: { aprobatoria: 70 },
+  resumen: { total: 3, aprobados: 2, reprobados: 1, sinCalificar: 0 }, actividadesSinCriterio: 0,
   alumnos: [
     alumno(1, 'Ana Prueba López', 92, 'APROBADO'),
-    alumno(2, 'Carlos Prueba Ruiz', 76, 'EN_RIESGO', ['CALIFICACION_LIMITE']),
+    alumno(2, 'Carlos Prueba Ruiz', 76, 'APROBADO'),
     alumno(3, 'Luis Prueba Pérez', 58, 'REPROBADO', ['CALIFICACION_BAJA']),
   ],
 }
@@ -69,9 +69,9 @@ for (const [theme, width] of [['light', 1280], ['dark', 390]]) {
       await expect(seccion.getByRole('columnheader', { name: /Examen/ })).toContainText('40 %')
       await expect(seccion.getByRole('rowheader').first()).toContainText('Luis Prueba Pérez')
     }
-    await seccion.getByRole('radio', { name: /En riesgo/ }).click()
-    await expect(seccion.getByText('Carlos Prueba Ruiz')).toBeVisible()
-    await expect(seccion.getByText('Ana Prueba López')).toHaveCount(0)
+    await seccion.getByRole('radio', { name: /Reprobados/ }).click()
+    await expect(seccion.getByText('Luis Prueba Pérez')).toBeVisible()
+    await expect(seccion.getByText('Carlos Prueba Ruiz')).toHaveCount(0)
 
     const axe = await new AxeBuilder({ page }).include('main').withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()
     expect(axe.violations.map((v) => ({ id: v.id, nodes: v.nodes.map((n) => n.html.slice(0, 120)) }))).toEqual([])

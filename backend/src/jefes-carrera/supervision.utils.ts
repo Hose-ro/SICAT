@@ -343,7 +343,7 @@ export function riesgoDeGrupo(
     alumnosRiesgo: motivosDe.length,
     riesgoPorMotivo: {
       reprobando: con('CALIFICACION_BAJA'),
-      calificacion: con('CALIFICACION_BAJA', 'CALIFICACION_LIMITE'),
+      calificacion: con('CALIFICACION_BAJA'),
       asistencia: con('ASISTENCIA'),
       entregas: con('ENTREGAS'),
     },

@@ -233,13 +233,13 @@ test('buscar, ordenar y filtrar por estado desde las tarjetas', async () => {
 test('el semáforo del servidor manda sobre el estado', async () => {
  const user=userEvent.setup()
  await abrirMateriaConAlumnos(user, [
-  { ...fila(1, 'Ana', { calculada: 76, estado: 'APROBADO' }), desempeno: 'EN_RIESGO', motivos: ['CALIFICACION_LIMITE'] },
+  { ...fila(1, 'Ana', { calculada: 65, estado: 'APROBADO' }), desempeno: 'REPROBADO', motivos: ['CALIFICACION_BAJA'] },
   { ...fila(2, 'Beto', { calculada: 90, estado: 'APROBADO' }), desempeno: 'APROBADO', motivos: [] },
  ])
- expect(screen.getByRole('radio', { name: /En riesgo/ }).textContent).toBe('1En riesgo')
- await user.click(screen.getByRole('radio', { name: /En riesgo/ }))
+ expect(screen.getByRole('radio', { name: /Reprobados/ }).textContent).toBe('1Reprobados')
+ await user.click(screen.getByRole('radio', { name: /Reprobados/ }))
  expect(screen.getAllByLabelText(/^Calificación de /).map((input) => input.getAttribute('aria-label').replace(/ en .*/, ''))).toEqual(['Calificación de Ana'])
- expect(screen.getAllByText('En riesgo').length).toBeGreaterThan(0)
+ expect(screen.getAllByText('Reprobado').length).toBeGreaterThan(0)
 })
 
 test('los filtros se leen de la URL y ocultan las columnas repetidas', async () => {
@@ -392,4 +392,20 @@ test('la unidad muestra sus criterios propios incluso sin alumnos en captura', a
  expect(await screen.findByText(/Cada participación registrada suma 10 puntos/)).toBeTruthy()
  expect(screen.getByText(/Porcentajes propios: Unidad 1/)).toBeTruthy()
  expect(screen.getByText('Sin calificaciones disponibles.')).toBeTruthy()
+})
+
+test('la calificación final y su estado van juntos entre Extra y Observación', async () => {
+ const user = userEvent.setup()
+ servir({ rows: [{ ...fila(1, 'Ana', { calculada: 65, estado: 'REQUIERE_ATENCION' }), desempeno: 'REPROBADO' }] })
+ renderPage('/calificaciones?materia=410&grupo=6&unidad=1')
+ await screen.findByLabelText(/^Calificación de Ana/)
+ const encabezados = within(screen.getByRole('table')).getAllByRole('columnheader').map((th) => th.textContent)
+ expect(encabezados.slice(encabezados.indexOf('Extra'), encabezados.indexOf('Extra') + 3)).toEqual(['Extra', 'Calificación final', 'Observación'])
+ expect(encabezados).not.toContain('Estado')
+ const filaAna = screen.getByRole('row', { name: /Ana/ })
+ expect(filaAna.textContent).toContain('65Reprobado')
+
+ // Con 10 puntos extra llega a 75 y aprueba: el color se recalcula antes de guardar.
+ await user.type(screen.getByLabelText(/^Puntos extra de Ana/), '10')
+ expect(filaAna.textContent).toContain('75Aprobado')
 })

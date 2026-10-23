@@ -23,7 +23,9 @@ import { desglosePorCategoria } from '../lib/calificaciones'
 import CriteriosGuiados from '@/components/calificaciones/CriteriosGuiados'
 import DesempenoChip from '@/components/calificaciones/DesempenoChip'
 import FiltroDesempeno from '@/components/calificaciones/FiltroDesempeno'
-import { DESEMPENO } from '@/lib/desempeno'
+import { DESEMPENO, infoDesempeno, normalizarDesempeno } from '@/lib/desempeno'
+import { Chip } from '@/components/Chip'
+import { cn } from '@/lib/utils'
 import { moverFoco } from '@/lib/capturaTeclado'
 import { Segmentado } from '@/pages/docente/components/tareas/Controles'
 
@@ -33,14 +35,14 @@ const CALIFICACION_APROBATORIA = 70
 // El semáforo lo calcula el servidor; un reporte sin `desempeno` (servidor
 // anterior) se traduce de `estado`.
 const DESEMPENO_DE_ESTADO = { APROBADO: 'APROBADO', REQUIERE_ATENCION: 'REPROBADO', PENDIENTE: 'SIN_CALIFICAR' }
-const desempenoDe = (row) => row?.desempeno ?? DESEMPENO_DE_ESTADO[row?.estado] ?? 'SIN_CALIFICAR'
+const desempenoDe = (row) =>
+  normalizarDesempeno(row?.desempeno, getCalificacionFinal(row ?? {})) ?? DESEMPENO_DE_ESTADO[row?.estado] ?? 'SIN_CALIFICAR'
 
 function resumenDesempeno(rows) {
   const cuenta = (estado) => rows.filter((row) => desempenoDe(row) === estado).length
   return {
     total: rows.length,
     aprobados: cuenta('APROBADO'),
-    enRiesgo: cuenta('EN_RIESGO'),
     reprobados: cuenta('REPROBADO'),
     sinCalificar: cuenta('SIN_CALIFICAR'),
   }
@@ -142,6 +144,30 @@ function nombreExportacion(reporte, materiaId) {
 
 function StatusBadge({ row }) {
   return <DesempenoChip estado={desempenoDe(row)} />
+}
+
+/**
+ * Semáforo con lo que hay en pantalla. Sin cambios es el del servidor; con un
+ * borrador se recalcula igual que en common/desempeno.util.ts.
+ */
+function desempenoConBorrador(row, final, dirty) {
+  if (!dirty) return desempenoDe(row)
+  if (final == null) return 'SIN_CALIFICAR'
+  return final >= CALIFICACION_APROBATORIA ? 'APROBADO' : 'REPROBADO'
+}
+
+/** Calificación final (con extra) en el color de su estado; el texto dice cuál. */
+function CalificacionFinal({ row, drafts }) {
+  const draft = drafts[getRowKey(row)] ?? getServerDraft(row)
+  const final = valorEfectivo(row, draft)
+  const info = infoDesempeno(desempenoConBorrador(row, final, Boolean(drafts[getRowKey(row)])))
+  return (
+    <Chip tone={info.tono} className="h-auto gap-1.5 py-1 pl-2.5 pr-3">
+      <span aria-hidden="true" className={cn('size-2 rounded-full', info.punto)} />
+      <span className="text-base font-semibold tabular-nums">{final ?? '–'}</span>
+      <span>{info.label}</span>
+    </Chip>
+  )
 }
 
 const ESTADO_UNIDAD = {
@@ -338,7 +364,6 @@ function PuntosExtraInput({ row, drafts, conUnidad, onDraftChange }) {
   const draft = drafts[rowKey] ?? getServerDraft(row)
   const invalid = validarPuntosExtra(draft.puntosExtra)
   const conPuntos = draft.puntosExtra.trim() !== '' && Number(draft.puntosExtra) > 0
-  const final = valorEfectivo(row, draft)
   const hintId = `extra-${rowKey}`
 
   return (
@@ -365,9 +390,7 @@ function PuntosExtraInput({ row, drafts, conUnidad, onDraftChange }) {
         {invalid ? (
           <span className="font-medium text-destructive-foreground">{invalid}</span>
         ) : conPuntos ? (
-          <span className="text-muted-foreground">
-            Final <span className="font-semibold text-foreground">{final ?? '-'}</span>
-          </span>
+          <span className="text-muted-foreground">Se suma a la final</span>
         ) : (
           <span className="text-muted-foreground">Sin extra</span>
         )}
@@ -422,8 +445,8 @@ function CapturaTable({ rows, drafts, showGrupo, showUnidad, onDraftChange }) {
               {showUnidad && <th className="px-4 py-3">Unidad</th>}
               <th className="px-4 py-3">Calificación</th>
               <th className="px-4 py-3" title="Se suman a la calificación sin cambiar los criterios">Extra</th>
+              <th className="px-4 py-3">Calificación final</th>
               <th className="px-4 py-3">Observación</th>
-              <th className="px-4 py-3">Estado</th>
               <th className="px-4 py-3">Tareas</th>
               <th className="px-4 py-3">Asistencia</th>
             </tr>
@@ -448,11 +471,11 @@ function CapturaTable({ rows, drafts, showGrupo, showUnidad, onDraftChange }) {
                   <td className="min-w-[7rem] px-4 py-3 align-top">
                     <PuntosExtraInput row={row} drafts={drafts} conUnidad={showUnidad} onDraftChange={onDraftChange} />
                   </td>
+                  <td className="whitespace-nowrap px-4 py-3 align-top">
+                    <CalificacionFinal row={row} drafts={drafts} />
+                  </td>
                   <td className="min-w-[12rem] px-4 py-3 align-top">
                     <ObservacionInput row={row} drafts={drafts} conUnidad={showUnidad} onDraftChange={onDraftChange} />
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 align-top">
-                    <StatusBadge row={row} />
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 align-top text-muted-foreground">
                     {row.tareas?.calificadas ?? 0}/{row.tareas?.total ?? 0} calificadas
@@ -491,12 +514,15 @@ function CapturaCards({ rows, drafts, showGrupo, showUnidad, onDraftChange }) {
                 </p>
                 {detalle && <p className="text-xs text-muted-foreground">{detalle}</p>}
               </div>
-              <StatusBadge row={row} />
             </div>
             <div className="mt-3 flex flex-col gap-3">
               <div className="flex flex-wrap items-start gap-4">
                 <CalificacionInput row={row} drafts={drafts} conUnidad={showUnidad} columna="lista" onDraftChange={onDraftChange} />
                 <PuntosExtraInput row={row} drafts={drafts} conUnidad={showUnidad} onDraftChange={onDraftChange} />
+                <div>
+                  <p className="mb-1 text-xs text-muted-foreground">Final</p>
+                  <CalificacionFinal row={row} drafts={drafts} />
+                </div>
               </div>
               <ObservacionInput row={row} drafts={drafts} conUnidad={showUnidad} onDraftChange={onDraftChange} />
             </div>
@@ -944,7 +970,7 @@ function DocenteCalificaciones() {
               <span className="text-lg font-semibold tabular-nums text-foreground">{formatGrade(metrics.promedioGeneral)}</span>
             </p>
             <p className="text-xs text-muted-foreground">
-              Verde: 80 o más · Amarillo: de 70 a 79, o con 30 % o más de faltas y retardos · Rojo: menos de {CALIFICACION_APROBATORIA}. Con la unidad cerrada, aprobado desde {CALIFICACION_APROBATORIA}.
+              Verde: aprobado, {CALIFICACION_APROBATORIA} o más · Rojo: reprobado, menos de {CALIFICACION_APROBATORIA}.
             </p>
           </div>
           <FiltroDesempeno className="mt-3" resumen={resumenDesempeno(vista === 'lista' ? rowsLista : rows)} value={estadoFiltro ?? 'TODOS'}
@@ -1126,7 +1152,7 @@ function AlumnoCalificaciones() {
           <h1 className="text-[1.75rem] font-semibold leading-tight tracking-[-0.02em] text-foreground">Mis calificaciones</h1>
           <p className="mt-1.5 text-sm text-muted-foreground">
             {rows.length
-              ? `${plural(rows.length, 'unidad', 'unidades')} · ${plural(resumen.aprobados, 'aprobada', 'aprobadas')} · ${plural(resumen.enRiesgo + resumen.reprobados, 'en riesgo o reprobada', 'en riesgo o reprobadas')}${metrics.promedioGeneral != null ? ` · promedio ${formatGrade(metrics.promedioGeneral)}` : ''}`
+              ? `${plural(rows.length, 'unidad', 'unidades')} · ${plural(resumen.aprobados, 'aprobada', 'aprobadas')} · ${plural(resumen.reprobados, 'reprobada', 'reprobadas')}${metrics.promedioGeneral != null ? ` · promedio ${formatGrade(metrics.promedioGeneral)}` : ''}`
               : 'Tu calificación de cada unidad, con tus tareas y tu asistencia.'}
           </p>
         </div>

@@ -18,7 +18,6 @@ import { getCurrentAcademicPeriod } from '../common/periodo.util';
 import { asegurarAccesoMateria } from '../common/materia-ownership';
 import {
   CALIFICACION_APROBATORIA,
-  CALIFICACION_SIN_RIESGO,
   evaluarDesempeno,
   type EstadoDesempeno,
   type MotivoDesempeno,
@@ -229,7 +228,6 @@ export class CalificacionesService {
         unidades[0]);
     const umbrales = {
       aprobatoria: CALIFICACION_APROBATORIA,
-      sinRiesgo: CALIFICACION_SIN_RIESGO,
       asistencia: {
         minRegistros: MIN_REGISTROS_RIESGO,
         porcentaje: Math.round(UMBRAL_RIESGO * 100),
@@ -259,7 +257,6 @@ export class CalificacionesService {
         resumen: {
           total: 0,
           aprobados: 0,
-          enRiesgo: 0,
           reprobados: 0,
           sinCalificar: 0,
         },
@@ -1378,7 +1375,6 @@ export class CalificacionesService {
       pendientes: rows.filter((row) => row.estado === 'PENDIENTE').length,
       desempeno: {
         aprobados: rows.filter((row) => row.desempeno === 'APROBADO').length,
-        enRiesgo: rows.filter((row) => row.desempeno === 'EN_RIESGO').length,
         reprobados: rows.filter((row) => row.desempeno === 'REPROBADO').length,
         sinCalificar: rows.filter((row) => row.desempeno === 'SIN_CALIFICAR')
           .length,
