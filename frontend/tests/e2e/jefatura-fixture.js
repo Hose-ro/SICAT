@@ -237,7 +237,7 @@ const informe = (q) => ({
   listasPendientes: [{ fecha: '2026-10-12', horaInicio: '07:00', horaFin: '09:00', materia: 'Cálculo diferencial', grupo: '1A', docente: 'Laura Méndez', estado: 'SIN_CAPTURA', registros: 0, alumnos: 32 }],
   avance: [{ materia: 'Cálculo vectorial', clave: 'ACF-0904', grupo: '3A', modalidad: 'ESCOLARIZADO', docentes: ['Laura Méndez'], unidades: [{ orden: 1, nombre: 'Unidad 1', status: 'FINALIZADA' }, { orden: 2, nombre: 'Unidad 2', status: 'ACTIVA' }], calificacionesPendientes: 0, entregasPendientes: 0 }],
   riesgos: [{ id: 800, nombre: 'Ana Prueba', numeroControl: '221100', sexo: 'MUJER', materias: ['Cálculo diferencial'], grupos: ['1A'], motivos: ['Calificación reprobatoria'] }],
-  seguimientos: [{ fecha: '2026-10-13T16:00:00.000Z', caso: 'Seguimiento con Laura Méndez', detalle: '', tipo: 'SEGUIMIENTO_DOCENTE', estado: 'EN_SEGUIMIENTO', autor: 'Persona de prueba', texto: 'Acordamos capturar las listas pendientes el viernes.' }],
+  seguimientos: [{ fecha: '2026-10-13T16:00:00.000Z', caso: 'Observación con Laura Méndez', detalle: '', tipo: 'SEGUIMIENTO_DOCENTE', estado: 'EN_SEGUIMIENTO', autor: 'Persona de prueba', texto: 'Acordamos capturar las listas pendientes el viernes.' }],
 })
 
 export async function mockJefatura(page, { seguimientos = [], ajustarResumen = (r) => r, ajustarReuniones = (r) => r, reportesFallan = false } = {}) {
@@ -308,7 +308,7 @@ export async function mockJefatura(page, { seguimientos = [], ajustarResumen = (
       const nota = { id: Date.now(), texto: b.texto, estado: b.estado, fechaRevision: b.fechaRevision ?? null, autor: 'Persona de prueba', creadoEn: new Date().toISOString() }
       data = previo
         ? { ...previo, estado: b.estado, abierto: b.estado !== 'CERRADA', fechaRevision: b.fechaRevision ?? null, notas: [...previo.notas, nota] }
-        : { id: guardados.length + 1, tipo: referencia.tipo, titulo: docente ? `Seguimiento con ${docente.nombre}` : 'Lista sin captura · Cálculo diferencial · 1A', mensaje: 'Acuerdos y revisiones con el docente', estado: b.estado, abierto: b.estado !== 'CERRADA', fechaRevision: b.fechaRevision ?? null, responsable: docente ? { id: docente.id, nombre: docente.nombre } : null, referencia, creadoEn: nota.creadoEn, actualizadoEn: nota.creadoEn, notas: [nota] }
+        : { id: guardados.length + 1, tipo: referencia.tipo, titulo: docente ? `Observación con ${docente.nombre}` : 'Lista sin captura · Cálculo diferencial · 1A', mensaje: 'Acuerdos y revisiones con el docente', estado: b.estado, abierto: b.estado !== 'CERRADA', fechaRevision: b.fechaRevision ?? null, responsable: docente ? { id: docente.id, nombre: docente.nombre } : null, referencia, creadoEn: nota.creadoEn, actualizadoEn: nota.creadoEn, notas: [nota] }
       const i = guardados.findIndex((x) => x.id === data.id)
       if (i >= 0) guardados[i] = data; else guardados.push(data)
     } else if (p === '/seguimientos') {

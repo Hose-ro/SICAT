@@ -19,7 +19,7 @@ export default function JefeGrupos() {
   const busqueda = params.get('q') ?? ''
 
   return (
-    <JefaturaPage titulo="Grupos" subtitulo="Todos los grupos activos de la carrera; el seguimiento académico corresponde al periodo seleccionado.">
+    <JefaturaPage titulo="Grupos" subtitulo="Todos los grupos activos de la carrera; la información académica corresponde al periodo seleccionado.">
       {({ j, resumen }) => {
         const pendientesPorGrupo = new Map()
         resumen.pendientes.forEach((c) => pendientesPorGrupo.set(c.grupo.id, (pendientesPorGrupo.get(c.grupo.id) ?? 0) + 1))
@@ -58,7 +58,7 @@ export default function JefeGrupos() {
             </div>
 
             <p className="mt-4 max-w-3xl text-xs text-muted-foreground">
-              <b className="font-medium text-foreground">Alumnos</b> son las personas cuyo grupo base es ese grupo. <b className="font-medium text-foreground">Inscripciones</b> son las materias aceptadas en el periodo: una persona tiene varias, por eso la cifra es mayor. <b className="font-medium text-foreground">Materias</b> incluye las asignadas a cada grupo activo. Inscripciones, riesgo y pendientes se calculan únicamente para {periodoTexto(j.periodo)}; cambia el periodo para consultar otro ciclo.
+              <b className="font-medium text-foreground">Alumnos</b> son las personas cuyo grupo base es ese grupo. <b className="font-medium text-foreground">Alumnos por materia</b> cuenta las materias aceptadas en el periodo: una persona tiene varias, por eso la cifra es mayor. <b className="font-medium text-foreground">Materias</b> incluye las asignadas a cada grupo activo. Alumnos por materia, riesgo y pendientes se calculan únicamente para {periodoTexto(j.periodo)}; cambia el periodo para consultar otro ciclo.
             </p>
 
             <ComparativoRiesgo
@@ -89,7 +89,7 @@ export default function JefeGrupos() {
                         <span className="shrink-0 text-xs text-muted-foreground">{modalidadTexto(g.modalidad)} · {periodoTexto(g.periodo)}</span>
                       </div>
                       <p className="mt-1 tabular-nums text-muted-foreground">
-                        {g.alumnosBase} alumnos · {g.inscripciones ?? '—'} inscripciones · <span className={g.alumnosRiesgo ? 'font-semibold text-warning-foreground' : undefined}>{g.alumnosRiesgo ?? '—'} en riesgo</span>
+                        {g.alumnosBase} alumnos · {g.inscripciones ?? '—'} alumnos por materia · <span className={g.alumnosRiesgo ? 'font-semibold text-warning-foreground' : undefined}>{g.alumnosRiesgo ?? '—'} en riesgo</span>
                       </p>
                       <p className="mt-0.5 text-xs text-muted-foreground">{textoPendientes(g)}</p>
                     </li>
@@ -104,7 +104,7 @@ export default function JefeGrupos() {
                         <th scope="col" className="px-4 py-2.5 font-medium">Modalidad</th>
                         <th scope="col" className="px-4 py-2.5 text-right font-medium" title="Personas con este grupo como grupo base">Alumnos</th>
                         <th scope="col" className="px-4 py-2.5 text-right font-medium">Materias</th>
-                        <th scope="col" className="px-4 py-2.5 text-right font-medium" title="Materias aceptadas en el periodo; una persona puede tener varias">Inscripciones en materias</th>
+                        <th scope="col" className="px-4 py-2.5 text-right font-medium" title="Materias aceptadas en el periodo; una persona puede tener varias">Alumnos por materia</th>
                         <th scope="col" className="px-4 py-2.5 text-right font-medium">En riesgo</th>
                         <th scope="col" className="px-4 py-2.5 font-medium">Pendientes de registro</th>
                       </tr>

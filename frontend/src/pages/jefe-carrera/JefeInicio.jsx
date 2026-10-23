@@ -163,7 +163,7 @@ function ResumenCards({ j, indicadores, listasVacio, unidadesPorRevisar, ofertaI
   const cards = [
     { titulo: 'Asistencia', icono: CalendarClock, value: indicadores.listasPendientes, label: indicadores.listasPendientes === 1 ? 'Lista por completar' : 'Listas por completar', vacio: listasVacio, href: '#pendientes-docentes', pie: 'Registro de listas en el periodo' },
     { titulo: 'Calificaciones', icono: BookOpen, value: indicadores.calificacionesPendientes, label: indicadores.calificacionesPendientes === 1 ? 'Calificación pendiente' : 'Calificaciones pendientes', vacio: 'Sin calificaciones pendientes', to: j.to('/jefe-carrera/materias', { vista: 'ofertas', pendientes: 1 }), pie: unidadesPorRevisar ? plural(unidadesPorRevisar, 'Unidad por revisar', 'Unidades por revisar') : 'Unidades al corriente', pieHref: '#pendientes-docentes' },
-    { titulo: 'Alumnos', icono: UsersRound, value: indicadores.alumnosRiesgo, label: indicadores.alumnosRiesgo === 1 ? 'Alumno en riesgo' : 'Alumnos en riesgo', vacio: 'Sin alumnos en riesgo', href: '#alumnos-riesgo', pie: 'Seguimiento académico' },
+    { titulo: 'Alumnos', icono: UsersRound, value: indicadores.alumnosRiesgo, label: indicadores.alumnosRiesgo === 1 ? 'Alumno en riesgo' : 'Alumnos en riesgo', vacio: 'Sin alumnos en riesgo', href: '#alumnos-riesgo', pie: 'Situación académica' },
     { titulo: 'Asignaciones', icono: BookOpen, value: ofertaIncompleta, label: ofertaIncompleta === 1 ? 'Materia sin docente u horario' : 'Materias sin docente u horario', vacio: 'Oferta completa', to: j.to('/jefe-carrera/materias', { vista: 'ofertas', revision: 'incompleta' }), pie: 'Asignación de docentes y horarios' },
   ]
   return (
@@ -206,9 +206,9 @@ function GuiaPrimerUso() {
         <Button variant="ghost" size="icon" aria-label="Ocultar la guía" onClick={ocultar}><X aria-hidden="true" /></Button>
       </div>
       <ol className="inicio-pasos">
-        <li><span className="inicio-paso-numero" aria-hidden="true">01</span><div><b className="block font-medium text-foreground">Revisa lo que requiere atención</b><span className="text-muted-foreground">Empieza por los casos de abajo: seguimientos para hoy, la lista más antigua sin captura y los alumnos en riesgo.</span></div></li>
+        <li><span className="inicio-paso-numero" aria-hidden="true">01</span><div><b className="block font-medium text-foreground">Revisa lo que requiere atención</b><span className="text-muted-foreground">Empieza por los casos de abajo: observaciones para hoy, la lista más antigua sin captura y los alumnos en riesgo.</span></div></li>
         <li><span className="inicio-paso-numero" aria-hidden="true">02</span><div><b className="block font-medium text-foreground">Consulta la evidencia</b><span className="text-muted-foreground">«Ver detalle» y «Ver clase» muestran lo registrado en SICAT. Sin captura no prueba que la clase no se impartiera.</span></div></li>
-        <li><span className="inicio-paso-numero" aria-hidden="true">03</span><div><b className="block font-medium text-foreground">Registra el acuerdo</b><span className="text-muted-foreground">«Registrar seguimiento» guarda una nota con tu nombre y fecha. No envía mensajes ni corrige listas; para contactar usa «Preparar correo».</span></div></li>
+        <li><span className="inicio-paso-numero" aria-hidden="true">03</span><div><b className="block font-medium text-foreground">Registra el acuerdo</b><span className="text-muted-foreground">«Registrar observación» guarda una nota con tu nombre y fecha. No envía mensajes ni corrige listas; para contactar usa «Preparar correo».</span></div></li>
       </ol>
     </section>
   )
@@ -224,13 +224,13 @@ function RequiereAtencion({ j, grupos, riesgos, seguimientos, ofertaIncompleta }
   const masAntigua = grupos.find((g) => g.desde)
   const items = []
   if (seguimientos.error) {
-    items.push({ key: 'seg-error', texto: 'No se pudieron consultar los seguimientos; las revisiones para hoy no se muestran.', tono: 'text-warning-foreground', accion: <Button variant="outline" size="sm" onClick={seguimientos.reintentar}>Reintentar</Button> })
+    items.push({ key: 'seg-error', texto: 'No se pudieron consultar las observaciones; las revisiones para hoy no se muestran.', tono: 'text-warning-foreground', accion: <Button variant="outline" size="sm" onClick={seguimientos.reintentar}>Reintentar</Button> })
   } else if (paraHoy.length) {
     const vencidos = paraHoy.filter((s) => s.fechaRevision < hoyClave()).length
     items.push({
       key: 'seguimientos',
-      texto: `${plural(paraHoy.length, 'seguimiento para revisar hoy', 'seguimientos para revisar hoy')}${vencidos ? `, ${vencidos} con fecha ya pasada` : ''}`,
-      accion: <Link className={cn(linkClass, 'inline-flex min-h-11 items-center md:min-h-0')} to={j.to('/jefe-carrera/seguimientos', { vista: 'hoy' })}>Abrir seguimientos</Link>,
+      texto: `${plural(paraHoy.length, 'observación para revisar hoy', 'observaciones para revisar hoy')}${vencidos ? `, ${vencidos} con fecha ya pasada` : ''}`,
+      accion: <Link className={cn(linkClass, 'inline-flex min-h-11 items-center md:min-h-0')} to={j.to('/jefe-carrera/seguimientos', { vista: 'hoy' })}>Abrir observaciones</Link>,
     })
   }
   if (masAntigua) {
@@ -434,7 +434,7 @@ function GrupoDocente({ g, j, seguimientos }) {
             <BotonSeguimiento
               j={j}
               caso={{ tipo: 'SEGUIMIENTO_DOCENTE', docenteId: g.docente.id }}
-              titulo={`Seguimiento con ${nombre}`}
+              titulo={`Observación con ${nombre}`}
               contexto={resumenGrupo(g).join(' · ')}
             />
           )}

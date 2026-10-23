@@ -20,7 +20,7 @@ function alertaGuardada(extra: Record<string, unknown> = {}) {
       docenteId: 41,
     }),
     tipo: 'SEGUIMIENTO_DOCENTE',
-    titulo: 'Seguimiento con Laura Méndez',
+    titulo: 'Observación con Laura Méndez',
     mensaje: 'Acuerdos y revisiones con el docente',
     estado: 'EN_SEGUIMIENTO',
     fechaSeguimiento: null,

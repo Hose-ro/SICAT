@@ -41,7 +41,7 @@ function Contenido({ j, resumen, docenteId }) {
           <BotonSeguimiento
             j={j}
             caso={{ tipo: 'SEGUIMIENTO_DOCENTE', docenteId: docente.id }}
-            titulo={`Seguimiento con ${docente.nombre}`}
+            titulo={`Observación con ${docente.nombre}`}
             contexto="Acuerdos y revisiones con el docente. Cada nota queda con tu nombre y la fecha."
             className="sm:justify-end"
           />
@@ -133,7 +133,7 @@ function Registro({ docente, clases, error, reintentar, intervalo, j }) {
           <p className="mt-3 text-xs text-muted-foreground">
             Cobertura = clases con lista completa ({completas}) ÷ clases elegibles ya concluidas ({elegibles.length}).
             {suspendidas > 0 && ` ${suspendidas} ${suspendidas === 1 ? 'clase suspendida no cuenta' : 'clases suspendidas no cuentan'}.`}
-            {' '}La falta de captura no prueba ausencia del docente; confírmala en el seguimiento.
+            {' '}La falta de captura no prueba ausencia del docente; confírmala en una observación.
           </p>
 
           <h3 className="mt-6 text-sm font-semibold text-foreground">Clases sin evidencia de registro</h3>

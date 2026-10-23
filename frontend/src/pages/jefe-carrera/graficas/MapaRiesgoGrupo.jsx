@@ -63,12 +63,12 @@ export default function MapaRiesgoGrupo({ j, grupo, ofertas, reportes, expedient
           onAlumno={(x) => abrirAlumno(x.alumno.id)}
           subtituloFila={(x) => (x.enRiesgo ? `${plural(x.enRiesgo, 'materia', 'materias')} en riesgo` : x.alumno.numeroControl ?? 'Sin señales')}
           activa={(x) => alumnoActivo === x.alumno.id}
-          encabezadoAccion="Seguimiento"
+          encabezadoAccion="Observación"
           accionFila={(x) => x.enRiesgo > 0 && (
             <BotonSeguimiento
               j={j}
               caso={{ tipo: 'ALUMNO_RIESGO', alumnoId: x.alumno.id }}
-              titulo={`Seguimiento de ${x.alumno.nombre}`}
+              titulo={`Observación de ${x.alumno.nombre}`}
               contexto={matriz.columnas.filter((_, k) => conRiesgo(x.celdas[k].estado)).map((col) => col.materia.nombre).join(', ')}
               className="whitespace-nowrap"
             />

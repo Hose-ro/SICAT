@@ -20,7 +20,7 @@ export function EstadoSeguimiento({ seguimiento, className }) {
   const vencida = seguimiento.fechaRevision && seguimiento.fechaRevision <= hoyClave()
   return (
     <span className={cn('text-xs', vencida ? 'text-warning-foreground' : 'text-muted-foreground', className)}>
-      Seguimiento abierto{seguimiento.fechaRevision ? ` · revisar ${seguimiento.fechaRevision === hoyClave() ? 'hoy' : fechaCorta(seguimiento.fechaRevision)}` : ''}
+      Observación abierta{seguimiento.fechaRevision ? ` · revisar ${seguimiento.fechaRevision === hoyClave() ? 'hoy' : fechaCorta(seguimiento.fechaRevision)}` : ''}
     </span>
   )
 }
@@ -98,7 +98,7 @@ export function FormSeguimiento({ j, caso, seguimientoId, onGuardado, onCancelar
     <div className="space-y-4">
       {seguimientos.error ? (
         <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-item)] border border-warning/35 bg-warning/10 px-3 py-2.5 text-[0.8125rem] text-foreground">
-          <span>No se pudo cargar el historial de seguimientos: puede haber notas anteriores que no se ven aquí.</span>
+          <span>No se pudo cargar el historial de observaciones: puede haber notas anteriores que no se ven aquí.</span>
           <Button type="button" variant="outline" size="sm" onClick={seguimientos.reintentar}><RefreshCw aria-hidden="true" /> Reintentar</Button>
         </div>
       ) : seguimientos.cargando ? (
@@ -111,7 +111,7 @@ export function FormSeguimiento({ j, caso, seguimientoId, onGuardado, onCancelar
         </section>
       )}
       {j.historico ? (
-        <p className="text-[0.8125rem] text-muted-foreground">Periodo anterior: el seguimiento es de solo consulta.</p>
+        <p className="text-[0.8125rem] text-muted-foreground">Periodo anterior: la observación es de solo consulta.</p>
       ) : (
         <form onSubmit={guardar} className="space-y-4" noValidate>
           <div>
@@ -160,13 +160,13 @@ export function FormSeguimiento({ j, caso, seguimientoId, onGuardado, onCancelar
   )
 }
 
-/** Botón «Registrar seguimiento» con su estado; abre el formulario en un diálogo. */
+/** Botón «Registrar observación» con su estado; abre el formulario en un diálogo. */
 export function BotonSeguimiento({ j, caso, titulo, contexto, size = 'sm', className }) {
   const [abierto, setAbierto] = useState(false)
   const seguimientos = useSeguimientos({ carreraId: j.carreraId, periodo: j.periodo })
   const seguimiento = seguimientos.buscar(caso)
   if (j.historico && !seguimiento) return null
-  const etiqueta = seguimiento ? (j.historico ? 'Ver seguimiento' : 'Agregar nota') : 'Registrar seguimiento'
+  const etiqueta = seguimiento ? (j.historico ? 'Ver observación' : 'Agregar nota') : 'Registrar observación'
   return (
     <span className={cn('inline-flex flex-wrap items-center gap-x-2 gap-y-1', className)}>
       <Button variant="outline" size={size} onClick={() => setAbierto(true)}>

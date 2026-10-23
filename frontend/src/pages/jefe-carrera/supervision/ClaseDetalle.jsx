@@ -85,7 +85,7 @@ export default function ClaseDetalle({ clase, clases = [], j, onClose }) {
 
                 {clase.elegible && ['SIN_CAPTURA', 'CAPTURA_PARCIAL'].includes(clase.estado) && (
                   <section className="mt-6 border-t border-border pt-5" aria-labelledby="seguimiento-clase">
-                    <h4 id="seguimiento-clase" className="mb-3 text-sm font-semibold text-foreground">Seguimiento</h4>
+                    <h4 id="seguimiento-clase" className="mb-3 text-sm font-semibold text-foreground">Observación</h4>
                     <FormSeguimiento j={j} caso={{ tipo: 'ASISTENCIA_SIN_CAPTURA', horarioId: clase.horarioId, fecha: clase.fecha }} />
                   </section>
                 )}

@@ -114,7 +114,7 @@ function ContextoBar({ j, resumen, alcance }) {
       </div>
       {j.historico && alcance !== 'global' && (
         <p className="mt-2 text-xs text-muted-foreground">
-          Consulta de un ciclo anterior con los grupos, asignaciones y unidades registrados hoy: si después cambió un horario o un docente, aquí se ve el cambio. Seguimientos e incorporaciones solo se registran en el periodo actual.
+          Consulta de un ciclo anterior con los grupos, asignaciones y unidades registrados hoy: si después cambió un horario o un docente, aquí se ve el cambio. Observaciones e incorporaciones solo se registran en el periodo actual.
         </p>
       )}
     </div>

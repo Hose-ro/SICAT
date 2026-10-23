@@ -40,7 +40,7 @@ export const useSeguimientosStore = create((set, get) => ({
       const { data } = await api.get('/jefe-carrera/seguimientos', { params: { carreraId, periodo } })
       actualizar({ data, error: '', cargando: false })
     } catch (error) {
-      actualizar({ error: mensajeError(error, 'No se pudieron cargar los seguimientos'), cargando: false })
+      actualizar({ error: mensajeError(error, 'No se pudieron cargar las observaciones'), cargando: false })
     }
   },
   guardar: (carreraId, periodo, seguimiento) => {

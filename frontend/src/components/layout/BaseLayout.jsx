@@ -137,7 +137,7 @@ export function BaseLayout({ children }) {
                   </NavLink>
 
                   {/* Antes sólo se llegaba desde Inicio, y sólo cuando había pendientes. */}
-                  <span className="nav__section">Seguimiento</span>
+                  <span className="nav__section">Atención</span>
                   <NavLink to="/docente/riesgo" className={navClass} data-tip="Alumnos en riesgo" hidden={!'Alumnos en riesgo'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
                     <AlertTriangle className="nav__icon" />
                     <span className="nav__label">Alumnos en riesgo</span>
@@ -181,9 +181,9 @@ export function BaseLayout({ children }) {
                 <span className="nav__label">Horarios</span>
               </NavLink>
               <span className="nav__section">Evidencia</span>
-              <NavLink to="/jefe-carrera/seguimientos" className={navClass} data-tip="Seguimientos" hidden={!'Seguimientos'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
+              <NavLink to="/jefe-carrera/seguimientos" className={navClass} data-tip="Observaciones" hidden={!'Observaciones'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
                 <NotebookPen className="nav__icon" />
-                <span className="nav__label">Seguimientos</span>
+                <span className="nav__label">Observaciones</span>
               </NavLink>
               <NavLink to="/jefe-carrera/reportes" className={navClass} data-tip="Informe del periodo" hidden={!'Informe del periodo'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
                 <BarChart3 className="nav__icon" />

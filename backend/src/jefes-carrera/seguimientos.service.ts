@@ -117,7 +117,7 @@ export class SeguimientosService {
         })
       : null;
     if (dto.alertaId && !existente)
-      throw new NotFoundException('Seguimiento fuera de tu carrera o periodo');
+      throw new NotFoundException('Observación fuera de tu carrera o periodo');
     const caso = existente
       ? null
       : await this.caso(consulta.carreraId, periodo, dto);
@@ -349,7 +349,7 @@ export class SeguimientosService {
         if (!docente) throw fuera();
         return {
           ref: { tipo: dto.tipo, docenteId: docente.id },
-          titulo: `Seguimiento con ${docente.nombre}`,
+          titulo: `Observación con ${docente.nombre}`,
           mensaje: 'Acuerdos y revisiones con el docente',
           referenciaTipo: 'Docente',
           referenciaId: docente.id,

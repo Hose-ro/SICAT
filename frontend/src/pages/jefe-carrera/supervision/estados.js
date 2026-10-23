@@ -23,7 +23,7 @@ export const ESTADOS_CLASE = {
   },
   SIN_CAPTURA: {
     label: 'Sin captura', grupo: 'missing', bloque: 'bg-[color-mix(in_oklab,var(--warning)_15%,var(--card))] border-warning/35', texto: 'text-warning-foreground',
-    explicacion: 'Sin evidencia de registro en SICAT. Esto no prueba que la clase no se impartiera; confírmalo en el seguimiento.',
+    explicacion: 'Sin evidencia de registro en SICAT. Esto no prueba que la clase no se impartiera; confírmalo en una observación.',
   },
   SUSPENDIDA: {
     label: 'Suspendida', grupo: 'planned', bloque: 'bg-background border-dashed border-border', texto: 'text-muted-foreground',

@@ -88,7 +88,7 @@ export default function AlumnoExpediente({ j, alumno, ofertas = [], enRiesgo = f
 
           {(enRiesgo || conSeguimiento) && (
             <section aria-labelledby="seguimiento-alumno" className="border-t border-border pt-4">
-              <h3 id="seguimiento-alumno" className="mb-3 text-sm font-semibold text-foreground">Seguimiento</h3>
+              <h3 id="seguimiento-alumno" className="mb-3 text-sm font-semibold text-foreground">Observación</h3>
               <FormSeguimiento j={j} caso={caso} />
             </section>
           )}

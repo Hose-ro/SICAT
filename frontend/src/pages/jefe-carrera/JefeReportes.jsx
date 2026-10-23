@@ -210,11 +210,11 @@ function Informe({ j, resumen }) {
               vacio="Sin alumnos en riesgo con el criterio vigente."
             />
           </Seccion>
-          <Seccion {...seccion('seguimientos')} conteo={data.seguimientos.length} titulo="Seguimientos registrados en el intervalo">
+          <Seccion {...seccion('seguimientos')} conteo={data.seguimientos.length} titulo="Observaciones registradas en el intervalo">
             <Tabla
               columnas={['Fecha', 'Caso', 'Nota', 'Estado', 'Registró']}
               filas={data.seguimientos.map((n) => [fechaHoraCorta(n.fecha), n.caso, n.texto, n.estado === 'CERRADA' ? 'Cerrado' : 'Abierto', n.autor])}
-              vacio="Sin notas de seguimiento en el intervalo."
+              vacio="Sin observaciones en el intervalo."
             />
           </Seccion>
           </div>
@@ -254,7 +254,7 @@ function Totales({ data }) {
         ['Listas completas', t.listasCompletas],
         ['Listas sin captura o parciales', t.listasPendientes],
         ['Cobertura de captura', porcentaje(t.cobertura)],
-        ['Notas de seguimiento', t.seguimientos],
+        ['Observaciones', t.seguimientos],
       ],
     },
     {

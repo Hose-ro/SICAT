@@ -294,7 +294,7 @@ export class InformeService {
         t.calificacionesPendientes,
       ],
       ['Alumnos en riesgo (al corte)', t.alumnosRiesgo],
-      ['Notas de seguimiento registradas', t.seguimientos],
+      ['Observaciones registradas', t.seguimientos],
     ];
   }
 
@@ -391,7 +391,7 @@ export class InformeService {
         vacio: 'Sin alumnos en riesgo con el criterio vigente.',
       },
       {
-        titulo: 'Seguimientos registrados en el intervalo',
+        titulo: 'Observaciones registradas en el intervalo',
         columnas: ['Fecha', 'Caso', 'Nota', 'Estado', 'Registró'],
         anchos: [16, 36, 48, 11, 22],
         filas: informe.seguimientos.map(
@@ -406,7 +406,7 @@ export class InformeService {
             n.autor,
           ],
         ),
-        vacio: 'Sin notas de seguimiento en el intervalo.',
+        vacio: 'Sin observaciones en el intervalo.',
       },
     ];
   }

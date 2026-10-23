@@ -60,7 +60,7 @@ const TONO_CAUSA = { pendiente: 'text-warning-foreground', resuelto: 'text-succe
 
 export default function JefeSeguimientos() {
   return (
-    <JefaturaPage titulo="Seguimientos" subtitulo="Acuerdos y revisiones del periodo. Cada nota queda con su autor y su fecha.">
+    <JefaturaPage titulo="Observaciones" subtitulo="Acuerdos y revisiones del periodo. Cada nota queda con su autor y su fecha.">
       {({ j, resumen }) => <Contenido j={j} resumen={resumen} />}
     </JefaturaPage>
   )
@@ -81,7 +81,7 @@ function Contenido({ j, resumen }) {
 
   if (seguimientos.cargando) return <Esqueleto compacto />
   if (seguimientos.error && !seguimientos.lista.length) {
-    return <Aviso tono="error" titulo="No se pudieron cargar los seguimientos" accion={<Button variant="outline" onClick={seguimientos.reintentar}>Reintentar</Button>}>{seguimientos.error}</Aviso>
+    return <Aviso tono="error" titulo="No se pudieron cargar las observaciones" accion={<Button variant="outline" onClick={seguimientos.reintentar}>Reintentar</Button>}>{seguimientos.error}</Aviso>
   }
 
   const responsables = [...new Map(seguimientos.lista.filter((s) => s.responsable).map((s) => [String(s.responsable.id), s.responsable.nombre])).entries()]
@@ -93,7 +93,7 @@ function Contenido({ j, resumen }) {
   return (
     <>
       <Pestanas
-        label="Vista de seguimientos"
+        label="Vista de observaciones"
         activa={vista.value}
         items={VISTAS.map((v) => {
           const query = new URLSearchParams(params)
@@ -150,10 +150,10 @@ function Contenido({ j, resumen }) {
           })}
         </ul>
       ) : (
-        <Vacio titulo={seguimientos.lista.length ? 'Nada en esta vista' : 'Todavía no hay seguimientos en el periodo'}>
+        <Vacio titulo={seguimientos.lista.length ? 'Nada en esta vista' : 'Todavía no hay observaciones en el periodo'}>
           {seguimientos.lista.length
-            ? (tipo || docente ? 'Ningún seguimiento coincide con los filtros.' : vista.value === 'hoy' ? 'Ningún caso abierto tiene revisión programada para hoy.' : 'No hay casos en esta vista.')
-            : 'Registra un seguimiento desde los pendientes de Inicio, el detalle de una clase o la ficha de un docente. Aquí quedará el historial.'}
+            ? (tipo || docente ? 'Ninguna observación coincide con los filtros.' : vista.value === 'hoy' ? 'Ningún caso abierto tiene revisión programada para hoy.' : 'No hay casos en esta vista.')
+            : 'Registra una observación desde los pendientes de Inicio, el detalle de una clase o la ficha de un docente. Aquí quedará el historial.'}
         </Vacio>
       )}
 
