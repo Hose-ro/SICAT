@@ -38,8 +38,8 @@
   --accent-foreground:      oklch(0.30 0.04 264);
 
   /* Status — attendance & task states */
-  --destructive:            oklch(0.58 0.20 27);
-  --destructive-foreground: oklch(0.43 0.16 27);
+  --destructive:            oklch(0.56 0.23 27);
+  --destructive-foreground: oklch(0.48 0.21 27);
   --destructive-on-fill:    oklch(0.99 0.005 27);
   --success:                oklch(0.50 0.12 150);
   --success-foreground:     oklch(0.38 0.10 150);
@@ -169,8 +169,8 @@
   --warning: oklch(0.78 0.14 75);
   --warning-foreground: oklch(0.92 0.05 75);
   --warning-on-fill: oklch(0.23 0.035 75);
-  --destructive: oklch(0.68 0.16 27);
-  --destructive-foreground: oklch(0.87 0.065 27);
+  --destructive: oklch(0.66 0.21 25);
+  --destructive-foreground: oklch(0.80 0.13 25);
   --destructive-on-fill: oklch(0.18 0.035 27);
 }
 

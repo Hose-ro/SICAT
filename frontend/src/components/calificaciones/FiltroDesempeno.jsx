@@ -19,6 +19,9 @@ export default function FiltroDesempeno({ resumen, value, onChange, className })
       label: DESEMPENO[estado].plural,
       count: cuentas[estado],
       tono: cuentas[estado] ? DESEMPENO[estado].cifra : undefined,
+      // Cada estado con color va siempre en su propio fondo, aun en cero.
+      fondo: DESEMPENO[estado].fondo,
+      punto: DESEMPENO[estado].punto,
     })),
   ]
   return <Segmentado apilado label="Filtrar por estado" value={value} onChange={onChange} options={options} className={className} />
