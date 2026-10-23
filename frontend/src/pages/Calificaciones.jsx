@@ -23,7 +23,6 @@ import { desglosePorCategoria } from '../lib/calificaciones'
 import CriteriosGuiados from '@/components/calificaciones/CriteriosGuiados'
 import DesempenoChip from '@/components/calificaciones/DesempenoChip'
 import FiltroDesempeno from '@/components/calificaciones/FiltroDesempeno'
-import { Chip } from '@/components/Chip'
 import { DESEMPENO } from '@/lib/desempeno'
 import { moverFoco } from '@/lib/capturaTeclado'
 import { Segmentado } from '@/pages/docente/components/tareas/Controles'
@@ -167,15 +166,17 @@ function ContextoCaptura({ materia, grupo, unidad }) {
         {materia.nombre}
         {materia.clave && <span className="font-normal text-muted-foreground max-md:hidden"> · {materia.clave}</span>}
       </h2>
-      <div className="flex shrink-0 items-center gap-1.5 md:gap-2">
-        <Chip tone="neutral" className="border border-border bg-card">
+      {/* Grupo y unidad en texto gris, un paso por debajo de la clave. */}
+      <p className="flex shrink-0 items-baseline gap-x-1.5 text-xs leading-snug text-muted-foreground md:gap-x-2.5 md:text-base">
+        <span className="font-medium">
           {grupo ? (
             <><span className="max-md:sr-only">Grupo </span>{grupo.nombre}</>
           ) : (
             <>Todos<span className="max-md:sr-only"> los grupos</span></>
           )}
-        </Chip>
-        <Chip tone={estado?.tone ?? 'neutral'} className={estado?.tone === 'success' ? undefined : 'border border-border bg-card'}>
+        </span>
+        <span aria-hidden="true">·</span>
+        <span className="font-medium">
           {unidad ? (
             unidad.orden ? (
               <><span aria-hidden="true" className="md:hidden">U{unidad.orden}</span><span className="max-md:sr-only">{unidad.nombre}</span></>
@@ -183,9 +184,13 @@ function ContextoCaptura({ materia, grupo, unidad }) {
           ) : (
             <>Todas<span className="max-md:sr-only"> las unidades</span></>
           )}
-          {estado && <><span aria-hidden="true">·</span>{estado.label}</>}
-        </Chip>
-      </div>
+        </span>
+        {estado && (
+          <span>
+            <span aria-hidden="true">· </span>{estado.label}
+          </span>
+        )}
+      </p>
     </section>
   )
 }
@@ -898,7 +903,6 @@ function DocenteCalificaciones() {
                 <option value="">Todos los grupos</option>
                 {(selectedMateria?.grupos ?? []).map((grupo) => <option key={grupo.id} value={grupo.id}>{grupo.nombre}</option>)}
               </SelectField>
-              <p className="mt-2 text-xs text-muted-foreground">Elige uno para consultar y editar su evaluación.</p>
             </div>
             <div>
               <SelectField label="Unidad" value={filters.unidadId} disabled={!selectedMateria}
@@ -906,7 +910,6 @@ function DocenteCalificaciones() {
                 <option value="">Todas las unidades</option>
                 {(selectedMateria?.unidades ?? []).map((unidad) => <option key={unidad.id} value={unidad.id}>{unidad.nombre}</option>)}
               </SelectField>
-              <p className="mt-2 text-xs text-muted-foreground">Acota la lista a una unidad o consulta el curso completo.</p>
             </div>
             <Button variant="ghost" type="button" disabled={!hayFiltrosSecundarios}
               onClick={() => changeFilters({ ...filters, grupoId: '', unidadId: '' })} className="self-start px-0">
