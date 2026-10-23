@@ -12,7 +12,17 @@ import { Aviso, Esqueleto, JefaturaPage, Segmento, Vacio } from './supervision/u
 import { mensajeError } from './supervision/useJefatura'
 
 export default function JefeReuniones() {
-  const [dialogo, setDialogo] = useState(null)
+  const [params, setParams] = useSearchParams()
+  // ?nueva=1 (desde los primeros pasos de Inicio) abre el formulario.
+  const [dialogo, setDialogo] = useState(() => (params.get('nueva') === '1' ? { tipo: 'form', reunion: null } : null))
+  useEffect(() => {
+    setParams((actual) => {
+      if (!actual.has('nueva')) return actual
+      const n = new URLSearchParams(actual)
+      n.delete('nueva')
+      return n
+    }, { replace: true })
+  }, [setParams])
   return (
     <JefaturaPage
       sinResumen

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Pencil, Plus, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -17,8 +17,17 @@ const conPendientes = (o) => o.resumen.calificacionesPendientes > 0
 
 export default function JefeMaterias() {
   const [params, setParams] = useSearchParams()
-  // null: cerrado; { materia: null } agrega; { materia } edita.
-  const [dialogo, setDialogo] = useState(null)
+  // null: cerrado; { materia: null } agrega; { materia } edita. Los primeros
+  // pasos de Inicio llegan con ?nueva=1 para abrir el alta directamente.
+  const [dialogo, setDialogo] = useState(() => (params.get('nueva') === '1' ? { materia: null } : null))
+  useEffect(() => {
+    setParams((actual) => {
+      if (!actual.has('nueva')) return actual
+      const n = new URLSearchParams(actual)
+      n.delete('nueva')
+      return n
+    }, { replace: true })
+  }, [setParams])
   const [aviso, setAviso] = useState('')
   const setVarios = (patch) => {
     const n = new URLSearchParams(params)

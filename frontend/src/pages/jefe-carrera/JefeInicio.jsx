@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { BookOpen, CalendarClock, ChevronDown, LoaderCircle, NotebookPen, UsersRound, X } from 'lucide-react'
+import { BookOpen, CalendarClock, ChevronDown, LoaderCircle, NotebookPen, UsersRound } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { buttonVariants } from '@/components/ui/buttonVariants'
 import SexoBadge from '@/components/SexoBadge'
 import { cn } from '@/lib/utils'
+import api from '@/api/axios'
+import { useAuthStore } from '@/store/authStore'
 import { CRITERIO_RIESGO, ESTADOS_PENDIENTES, MOTIVOS_RIESGO, esIncidencia, estadoClase, senalUnidad } from './supervision/estados'
 import { fechaCorta, haceTiempo, hoyClave, modalidadTexto, parseClave, plural } from './supervision/formato'
 import { useClases } from './supervision/useClasesSemana'
@@ -12,6 +14,8 @@ import { Aviso, JefaturaPage, SeccionTitulo, linkClass } from './supervision/ui'
 import { BotonSeguimiento, EstadoSeguimiento } from './supervision/Seguimiento'
 import { esParaHoy, useSeguimientos } from './supervision/useSeguimientos'
 import TendenciaCobertura from './graficas/TendenciaCobertura'
+import BienvenidaJefatura from './components/BienvenidaJefatura'
+import PrimerosPasosJefatura from './components/PrimerosPasosJefatura'
 import './inicio.css'
 
 const DOCENTES_VISIBLES = 8
@@ -90,7 +94,65 @@ function calendariosFaltantes(resumen) {
   return resumen.calendarios.filter((c) => !c.configurado && modalidades.has(c.modalidad))
 }
 
+/** Reuniones de la carrera, sólo para saber si ya hubo alguna (paso 4 de la guía). */
+function useReuniones(carreraId) {
+  const [estado, setEstado] = useState({ carreraId: null, lista: null })
+  useEffect(() => {
+    let vivo = true
+    api.get('/jefe-carrera/reuniones', { params: { carreraId } })
+      .then(({ data }) => { if (vivo) setEstado({ carreraId, lista: Array.isArray(data) ? data : [] }) })
+      .catch(() => { if (vivo) setEstado({ carreraId, lista: [] }) })
+    return () => { vivo = false }
+  }, [carreraId])
+  return estado.carreraId === carreraId ? estado.lista : null
+}
+
+const claveBienvenida = (userId) => `sicat.jefatura.bienvenida.${userId}`
+
 function Contenido({ j, resumen }) {
+  const userId = useAuthStore((state) => state.user?.id)
+  const reuniones = useReuniones(j.carreraId)
+  // La bienvenida sale una vez y sólo a quien todavía no tiene retícula u
+  // oferta en el periodo: al jefe con la carrera en marcha no le hace falta.
+  const [bienvenida, setBienvenida] = useState(() => {
+    let vista = false
+    try { vista = localStorage.getItem(claveBienvenida(userId)) === 'vista' } catch { /* sin almacenamiento */ }
+    return !vista && (resumen.reticula.length === 0 || resumen.ofertas.length === 0)
+  })
+  const cerrarBienvenida = () => {
+    setBienvenida(false)
+    try { localStorage.setItem(claveBienvenida(userId), 'vista') } catch { /* sin almacenamiento */ }
+    requestAnimationFrame(() => document.getElementById('primeros-pasos')?.focus())
+  }
+  // Sin grupos ni oferta todo lo demás de Inicio saldría en cero y parecería
+  // "al día": sólo se muestra por dónde empezar.
+  const vacia = resumen.ofertas.length === 0 && resumen.grupos.length === 0
+  const guia = reuniones && (
+    <PrimerosPasosJefatura
+      key={j.carreraId}
+      j={j}
+      resumen={resumen}
+      reuniones={reuniones}
+      userId={userId}
+      principal={vacia}
+      onComoFunciona={() => setBienvenida(true)}
+    />
+  )
+  const ventana = <BienvenidaJefatura open={bienvenida} onClose={cerrarBienvenida} />
+
+  if (vacia) {
+    return (
+      <>
+        <div className="mt-6 max-w-3xl">{guia}</div>
+        {ventana}
+      </>
+    )
+  }
+
+  return <ContenidoCarrera j={j} resumen={resumen} guia={guia} ventana={ventana} />
+}
+
+function ContenidoCarrera({ j, resumen, guia, ventana }) {
   const [todosDocentes, setTodosDocentes] = useState(false)
   const seguimientos = useSeguimientos({ carreraId: j.carreraId, periodo: j.periodo })
   const grupos = pendientesPorDocente(resumen)
@@ -107,6 +169,8 @@ function Contenido({ j, resumen }) {
 
   return (
     <>
+      {ventana}
+      {guia && <div className="mt-6">{guia}</div>}
       <ResumenCards j={j} indicadores={indicadores} listasVacio={listasVacio} unidadesPorRevisar={unidadesPorRevisar} ofertaIncompleta={ofertaIncompleta} />
       {intervalo && <p className="inicio-periodo">Listas revisadas del {fechaBreve(intervalo.desde)} al {fechaBreve(intervalo.hasta)}</p>}
 
@@ -120,7 +184,6 @@ function Contenido({ j, resumen }) {
 
       <div className="inicio-principal">
         <RequiereAtencion j={j} grupos={grupos} riesgos={riesgos} seguimientos={seguimientos} ofertaIncompleta={ofertaIncompleta} />
-        <GuiaPrimerUso />
       </div>
 
       <TendenciaCobertura j={j} resumen={resumen} />
@@ -183,34 +246,6 @@ function ResumenCards({ j, indicadores, listasVacio, unidadesPorRevisar, ofertaI
         )
       })}
     </div>
-  )
-}
-
-const GUIA_KEY = 'sicat.jefatura.guia'
-
-/** Ayuda opcional de primer uso: tres pasos, se oculta y se recuerda. */
-function GuiaPrimerUso() {
-  const [visible, setVisible] = useState(() => { try { return localStorage.getItem(GUIA_KEY) !== 'oculta' } catch { return true } })
-  if (!visible) {
-    return (
-      <p className="inicio-card inicio-guia-cerrada text-xs text-muted-foreground">
-        <button type="button" className={cn(linkClass, 'inline-flex min-h-11 items-center md:min-h-0')} onClick={() => { setVisible(true); try { localStorage.removeItem(GUIA_KEY) } catch { /* sin almacenamiento */ } }}>Cómo revisar tu carrera</button>
-      </p>
-    )
-  }
-  const ocultar = () => { setVisible(false); try { localStorage.setItem(GUIA_KEY, 'oculta') } catch { /* sin almacenamiento */ } }
-  return (
-    <section aria-labelledby="guia-jefatura" className="inicio-card inicio-guia">
-      <div className="flex items-start justify-between gap-3">
-        <h2 id="guia-jefatura" className="text-[1.1875rem] font-semibold tracking-[-0.015em] text-foreground">Cómo revisar tu carrera</h2>
-        <Button variant="ghost" size="icon" aria-label="Ocultar la guía" onClick={ocultar}><X aria-hidden="true" /></Button>
-      </div>
-      <ol className="inicio-pasos">
-        <li><span className="inicio-paso-numero" aria-hidden="true">01</span><div><b className="block font-medium text-foreground">Revisa lo que requiere atención</b><span className="text-muted-foreground">Empieza por los casos de abajo: observaciones para hoy, la lista más antigua sin captura y los alumnos en riesgo.</span></div></li>
-        <li><span className="inicio-paso-numero" aria-hidden="true">02</span><div><b className="block font-medium text-foreground">Consulta la evidencia</b><span className="text-muted-foreground">«Ver detalle» y «Ver clase» muestran lo registrado en SICAT. Sin captura no prueba que la clase no se impartiera.</span></div></li>
-        <li><span className="inicio-paso-numero" aria-hidden="true">03</span><div><b className="block font-medium text-foreground">Registra el acuerdo</b><span className="text-muted-foreground">«Registrar observación» guarda una nota con tu nombre y fecha. No envía mensajes ni corrige listas; para contactar usa «Preparar correo».</span></div></li>
-      </ol>
-    </section>
   )
 }
 
