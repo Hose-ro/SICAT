@@ -15,6 +15,8 @@ import {
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  NUMERO_CONTROL_MENSAJE,
+  NUMERO_CONTROL_PATRON,
   normalizeControlNumber,
   normalizeEmail,
   normalizeName,
@@ -37,9 +39,7 @@ export class PublicStudentRegisterDto {
     transformString(value as unknown, normalizeControlNumber),
   )
   @IsString()
-  @Matches(/^\d{3}[A-Za-z]\d{4}$/, {
-    message: 'El número de control debe tener el formato 225Q0103',
-  })
+  @Matches(NUMERO_CONTROL_PATRON, { message: NUMERO_CONTROL_MENSAJE })
   numeroControl: string;
 
   @ApiPropertyOptional()

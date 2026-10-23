@@ -100,9 +100,9 @@ test('un número de control mal escrito se señala sin llamar al servidor', asyn
   const user = await abrirDetalle([{ ...incompleto, numeroControl: null }])
 
   await user.click(screen.getByRole('button', { name: 'Editar lista' }))
-  await user.type(screen.getByLabelText(/No\. de control/), '12345{Enter}')
+  await user.type(screen.getByLabelText(/No\. de control/), '123-45{Enter}')
 
-  expect(await screen.findByText('Usa el formato 225Q0103')).toBeTruthy()
+  expect(await screen.findByText('Sólo letras y números, sin espacios')).toBeTruthy()
   expect(api.patch).not.toHaveBeenCalled()
 })
 
@@ -114,4 +114,27 @@ test('"Completar ahora" abre la edición sólo con los alumnos a los que les fal
   expect(screen.getByRole('group', { name: 'Sexo de Beto Cruz' })).toBeTruthy()
   expect(screen.queryByRole('group', { name: 'Sexo de Ana López' })).toBeNull()
   expect(screen.getByRole('button', { name: /Con datos faltantes/ }).getAttribute('aria-pressed')).toBe('true')
+})
+
+test('el número de control acepta cualquier largo mientras sea alfanumérico', async () => {
+  const { validarCampo } = await import('../src/lib/datosAlumno')
+  const { esNumeroControlValido } = await import('../src/lib/listaAlumnosArchivo')
+  for (const valor of ['225Q0103', 'C12', 'TECNM2024ISC000123', '20240567']) {
+    expect(validarCampo('numeroControl', valor)).toBe('')
+    expect(esNumeroControlValido(valor)).toBe(true)
+  }
+  for (const valor of ['225-Q0103', '225 Q0103', 'Ñ123']) {
+    expect(validarCampo('numeroControl', valor)).not.toBe('')
+    expect(esNumeroControlValido(valor)).toBe(false)
+  }
+})
+
+test('la lista sin encabezado reconoce números de control largos sin confundirlos con el teléfono', async () => {
+  const { filasDesdeHoja } = await import('../src/lib/listaAlumnosArchivo')
+  const filas = filasDesdeHoja([
+    ['Ana López Ruiz', 'TECNM2024ISC123', 'ana@correo.mx', '9611234567'],
+    ['Beto Cruz Soto', 'C45', 'beto@correo.mx', '9617654321'],
+  ])
+  expect(filas[0]).toEqual(expect.objectContaining({ nombre: 'Ana López Ruiz', numeroControl: 'TECNM2024ISC123', telefono: '9611234567' }))
+  expect(filas[1]).toEqual(expect.objectContaining({ nombre: 'Beto Cruz Soto', numeroControl: 'C45', telefono: '9617654321' }))
 })

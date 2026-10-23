@@ -55,8 +55,8 @@ export function normalizarCampo(campo, valor) {
 /** Mismas reglas que CompletarAlumnoGrupoDto, para avisar antes de ir al servidor. */
 export function validarCampo(campo, valor) {
   if (!valor) return 'No se puede dejar vacío'
-  if (campo === 'numeroControl' && !/^\d{3}[A-Z]\d{4}$/.test(valor)) {
-    return 'Usa el formato 225Q0103'
+  if (campo === 'numeroControl' && !/^[A-Za-z0-9]+$/.test(valor)) {
+    return 'Sólo letras y números, sin espacios'
   }
   if (campo === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(valor)) {
     return 'Correo no válido'

@@ -166,7 +166,8 @@ function UsuarioFormFields({ form, setForm, carreras, academias, mode }) {
         {form.rol === 'ALUMNO' ? (
           <input aria-label="225Q0103" required value={form.numeroControl} onChange={(e) => setForm({ ...form, numeroControl: e.target.value })}
             placeholder="225Q0103"
-            pattern="\d{3}[A-Za-z]\d{4}"
+            pattern="[A-Za-z0-9]+"
+            title="Sólo letras y números, sin espacios"
             className="w-full border border-border rounded-xl px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
         ) : (
           <input aria-label="prof.garcia" required value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })}

@@ -14,6 +14,10 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
+import {
+  NUMERO_CONTROL_MENSAJE,
+  NUMERO_CONTROL_PATRON,
+} from '../../common/identity-normalization';
 
 /**
  * Fila del archivo (Excel/CSV) que el docente sube con la lista del grupo.
@@ -35,9 +39,7 @@ export class AlumnoImportadoDto {
   @ApiPropertyOptional({ example: '225Q0103' })
   @V.ValidateIf((_object, value: unknown) => value !== undefined)
   @IsString()
-  @Matches(/^\d{3}[A-Za-z]\d{4}$/, {
-    message: 'El número de control debe tener el formato 225Q0103',
-  })
+  @Matches(NUMERO_CONTROL_PATRON, { message: NUMERO_CONTROL_MENSAJE })
   numeroControl?: string;
 
   @ApiPropertyOptional()

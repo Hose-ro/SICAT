@@ -259,8 +259,8 @@ export default function Registro() {
                         <input
                           id="numeroControl"
                           required
-                          maxLength={8}
-                          pattern="\d{3}[A-Za-z]\d{4}"
+                          pattern="[A-Za-z0-9]+"
+                          title="Sólo letras y números, sin espacios"
                           value={form.numeroControl}
                           onChange={updateField("numeroControl")}
                           placeholder="225Q0103"

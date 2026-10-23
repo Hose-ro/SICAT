@@ -205,7 +205,7 @@ export default function AlumnosMateriaCard({ materia, puedeEditar, onActualizado
     )
     if (conControlInvalido.length > 0) {
       setError(
-        `Revisa el número de control de ${conControlInvalido.length} alumno${conControlInvalido.length === 1 ? '' : 's'}: debe tener el formato 225Q0103 (8 caracteres). Puedes corregirlo o dejarlo en blanco.`,
+        `Revisa el número de control de ${conControlInvalido.length} alumno${conControlInvalido.length === 1 ? '' : 's'}: sólo puede tener letras y números, sin espacios. Puedes corregirlo o dejarlo en blanco.`,
       )
       return
     }
@@ -575,7 +575,7 @@ export default function AlumnosMateriaCard({ materia, puedeEditar, onActualizado
                                       <input aria-label={`${campo} del alumno ${indice + 1}`}
                                         value={fila[campo]}
                                         onChange={(event) => actualizarFilaImportar(indice, campo, event.target.value)}
-                                        title={invalido ? 'Debe tener el formato 225Q0103' : undefined}
+                                        title={invalido ? 'Sólo letras y números, sin espacios' : undefined}
                                         className={`w-full rounded-lg border px-2 py-1.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                                           invalido ? "border-destructive/30" : "border-border"
                                         }`}
