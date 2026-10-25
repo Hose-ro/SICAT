@@ -41,6 +41,7 @@ const MiHorarioAlumno = lazy(() => import("./pages/alumno/MiHorarioAlumno"));
 const PasarLista = lazy(() => import("./pages/docente/PasarLista"));
 const IrAPasarLista = lazy(() => import("./pages/docente/IrAPasarLista"));
 const MiPerfil = lazy(() => import("./pages/MiPerfil"));
+const ReporteParcialSemestre = lazy(() => import("./pages/ReporteParcialSemestre"));
 const CierreCurso = lazy(() => import("./pages/docente/CierreCurso"));
 const TareaForm = lazy(() => import("./pages/docente/TareaForm"));
 const TareaDetalle = lazy(() => import("./pages/docente/TareaDetalle"));
@@ -192,6 +193,9 @@ function App() {
               element={<NotificacionesHistorial />}
             />
             <Route path="/perfil" element={<MiPerfil />} />
+            <Route element={<RoleGate allowedRoles={["DOCENTE", "JEFE_CARRERA"]} />}>
+              <Route path="/reportes/parcial-semestre" element={<ReporteParcialSemestre />} />
+            </Route>
 
             <Route
               element={

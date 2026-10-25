@@ -38,6 +38,7 @@ function Contenido({ j, resumen, docenteId }) {
         </div>
         <div className="flex flex-col items-start gap-2 sm:items-end">
           <Contacto persona={docente} compacto />
+          <Link className={linkClass} to={`/reportes/parcial-semestre?carreraId=${j.carreraId}&docenteId=${docente.id}`}>Ver reporte parcial</Link>
           <BotonSeguimiento
             j={j}
             caso={{ tipo: 'SEGUIMIENTO_DOCENTE', docenteId: docente.id }}

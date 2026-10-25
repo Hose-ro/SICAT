@@ -158,6 +158,12 @@ export default function MiPerfil() {
               <Link to="/materias" className="text-primary-ink underline-offset-4 hover:underline">Mis materias</Link>
               <Link to="/docente/grupos" className="text-primary-ink underline-offset-4 hover:underline">Mis grupos</Link>
               <Link to="/docente/horario" className="text-primary-ink underline-offset-4 hover:underline">Mi horario</Link>
+              <Link to="/reportes/parcial-semestre" className="text-primary-ink underline-offset-4 hover:underline">Ver reporte parcial</Link>
+            </nav>
+          )}
+          {perfil.rol === 'JEFE_CARRERA' && (
+            <nav aria-label="Reportes de tu carrera" className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-sm font-medium">
+              <Link to="/reportes/parcial-semestre" className="text-primary-ink underline-offset-4 hover:underline">Consultar reportes parciales</Link>
             </nav>
           )}
         </section>
