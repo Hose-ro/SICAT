@@ -68,7 +68,7 @@ function muestra() {
 }
 
 describe('ReporteParcialService exportación', () => {
-  it('genera un Excel institucional con logotipos y los mismos totales de la vista', async () => {
+  it('genera el Excel con el formato institucional Reporte 1 del SGI', async () => {
     const service = crear();
     jest.spyOn(service, 'reporte').mockResolvedValue(muestra() as never);
 
@@ -83,11 +83,60 @@ describe('ReporteParcialService exportación', () => {
 
     expect(archivo.filename).toBe('reporte-parcial-laura-perez-2026-b.xlsx');
     expect(hoja.getImages()).toHaveLength(2);
-    expect(hoja.getCell('A18').value).toBe('Redes de computadoras');
-    expect(hoja.getCell('E18').value).toBe(15);
-    expect(hoja.getCell('G18').value).toBe(12);
-    expect(hoja.getCell('I18').value).toBe(1);
-    expect(hoja.getCell('M28').value).toBe('MARÍA HERNÁNDEZ');
+    expect(hoja.getCell('B3').value).toBe(
+      'Nombre del Formato: Reporte Parcial del Semestre del SGI del G3',
+    );
+    expect(hoja.getCell('B13').value).toBe('31 de agosto');
+    expect(hoja.getCell('L13').value).toBe('24 de octubre');
+    expect(hoja.getCell('C14').value).toBe('LAURA PÉREZ');
+    // Primera fila de la tabla en la 20, como la plantilla.
+    expect(hoja.getCell('A20').value).toBe('REDES DE COMPUTADORAS');
+    expect(hoja.getCell('C20').value).toBe('V');
+    expect(hoja.getCell('D20').value).toBe('503-A');
+    expect(hoja.getCell('F20').value).toBe(15);
+    expect(hoja.getCell('H20').value).toBe(12);
+    expect(hoja.getCell('J20').value).toBe(1);
+    expect(hoja.getCell('L20').value).toMatchObject({
+      formula: 'IF(F20=0,0,(H20+J20)/F20)',
+    });
+    // Ocho renglones mínimos: el total queda en la 28 y las firmas en la 42.
+    expect(hoja.getCell('A28').value).toBe('TOTAL');
+    expect(hoja.getCell('F28').value).toMatchObject({
+      formula: 'SUM(F20:F27)',
+      result: 15,
+    });
+    expect(hoja.getCell('A42').value).toBe('LAURA PÉREZ');
+    expect(hoja.getCell('I42').value).toBe('MARÍA HERNÁNDEZ');
+    expect(hoja.getCell('T46').value).toBe('Rev. 1');
+  });
+
+  it('agrega renglones cuando hay más de ocho asignaturas y recorre el pie', async () => {
+    const service = crear();
+    const base = muestra();
+    const filas = Array.from({ length: 10 }, (_, i) => ({
+      ...base.filas[0],
+      grupo: { id: i, nombre: `50${i}-A` },
+    }));
+    jest
+      .spyOn(service, 'reporte')
+      .mockResolvedValue({ ...base, filas } as never);
+
+    const archivo = await service.exportar(
+      { id: 8, nombre: 'Laura Pérez', rol: 'DOCENTE' },
+      { carreraId: 3 },
+      'excel',
+    );
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(archivo.buffer as never);
+    const hoja = workbook.getWorksheet('Reporte parcial') as ExcelJS.Worksheet;
+
+    expect(hoja.getCell('D29').value).toBe('509-A');
+    expect(hoja.getCell('A30').value).toBe('TOTAL');
+    expect(hoja.getCell('F30').value).toMatchObject({
+      formula: 'SUM(F20:F29)',
+    });
+    expect(hoja.getCell('I44').value).toBe('MARÍA HERNÁNDEZ');
+    expect(hoja.pageSetup.fitToPage).toBe(true);
   });
 
   it('genera un PDF válido con el mismo reporte', async () => {

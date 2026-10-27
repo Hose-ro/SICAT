@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { EstadoAsistencia, EstadoUnidad } from '@prisma/client';
 import * as ExcelJS from 'exceljs';
+import JSZip from 'jszip';
 import PDFDocument from 'pdfkit';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -108,9 +109,10 @@ function rutaActivo(nombre: string) {
 }
 
 const TECNM_SIMBOLO = rutaActivo('tecnm-simbolo.png');
+const TECNM = rutaActivo('tecnm.png');
 const ESCUDO = rutaActivo('escudo-cosamaloapan.png');
-const AZUL = '153A6B';
-const AZUL_CLARO = 'EAF0F7';
+// El escudo tal como viene incrustado en el formato del SGI.
+const ESCUDO_SGI = rutaActivo('escudo-sgi.png');
 
 const periodoTexto = (periodo: string) =>
   `${periodo.endsWith('A') ? 'ENERO - JUNIO' : 'AGOSTO - DICIEMBRE'} ${periodo.slice(0, 4)}`;
@@ -122,6 +124,29 @@ const fechaLarga = (fecha: Date | string) =>
     year: 'numeric',
     timeZone: 'UTC',
   });
+/** "31 de agosto", como en el formato del SGI. */
+const fechaDiaMes = (fecha: string) =>
+  new Date(fecha).toLocaleDateString('es-MX', {
+    day: 'numeric',
+    month: 'long',
+    timeZone: 'UTC',
+  });
+const ROMANOS = [
+  'I',
+  'II',
+  'III',
+  'IV',
+  'V',
+  'VI',
+  'VII',
+  'VIII',
+  'IX',
+  'X',
+  'XI',
+  'XII',
+];
+const romano = (semestre: number | null) =>
+  semestre ? (ROMANOS[semestre - 1] ?? String(semestre)) : '';
 
 function contar(personas: Array<{ sexo?: string | null }>): Conteo {
   const hombres = personas.filter((p) => p.sexo === 'HOMBRE').length;
@@ -677,263 +702,477 @@ export class ReporteParcialService {
     ];
   }
 
+  // Calca el formato institucional "Reporte 1.xlsx" (SGI G3, versión 2):
+  // mismas celdas, combinaciones, anchos, fuentes y fórmulas. Solo crecen las
+  // filas de asignaturas cuando hay más de las 8 que trae la plantilla.
   private async excel(reporte: Reporte) {
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'SICAT';
     workbook.subject = 'Reporte parcial del semestre';
     const hoja = workbook.addWorksheet('Reporte parcial', {
-      pageSetup: {
-        orientation: 'landscape',
-        fitToPage: true,
-        fitToWidth: 1,
-        fitToHeight: 1,
-        paperSize: 9,
-        margins: {
-          left: 0.25,
-          right: 0.25,
-          top: 0.4,
-          bottom: 0.4,
-          header: 0.1,
-          footer: 0.1,
-        },
-      },
-      views: [{ state: 'frozen', ySplit: 17 }],
+      properties: { defaultRowHeight: 15 },
     });
-    const tecnm = workbook.addImage({
-      filename: TECNM_SIMBOLO,
-      extension: 'png',
+    const negro = { argb: 'FF000000' };
+    const linea = { style: 'thin' as const, color: negro };
+    const fuente = (
+      size: number,
+      extra: Partial<ExcelJS.Font> = {},
+    ): Partial<ExcelJS.Font> => ({
+      name: 'Arial',
+      family: 2,
+      size,
+      color: negro,
+      ...extra,
     });
-    const escudo = workbook.addImage({ filename: ESCUDO, extension: 'png' });
-    hoja.addImage(tecnm, {
-      tl: { col: 0.15, row: 0.1 },
-      ext: { width: 78, height: 78 },
-    });
-    hoja.addImage(escudo, {
-      tl: { col: 18.15, row: 0.05 },
-      ext: { width: 88, height: 88 },
-    });
-    hoja.mergeCells('B1:C3');
-    hoja.getCell('B1').value = 'TECNOLÓGICO\nNACIONAL DE MÉXICO';
-    hoja.getCell('B1').font = { bold: true, color: { argb: AZUL }, size: 9 };
-    hoja.getCell('B1').alignment = {
-      horizontal: 'left',
+    const centro: Partial<ExcelJS.Alignment> = {
+      horizontal: 'center',
       vertical: 'middle',
       wrapText: true,
     };
-    hoja.mergeCells('D1:R1');
-    hoja.getCell('D1').value = reporte.institucion;
-    hoja.mergeCells('D2:R2');
-    hoja.getCell('D2').value =
-      'Nombre del formato: Reporte parcial del semestre del SGI del G3';
-    hoja.mergeCells('D3:J3');
-    hoja.getCell('D3').value = 'Página 1 de 1';
-    hoja.mergeCells('K3:R3');
-    hoja.getCell('K3').value = `Versión ${reporte.version}`;
-    ['D1', 'D2', 'D3', 'K3'].forEach((celda) => {
-      hoja.getCell(celda).alignment = {
+    const escribir = (
+      celda: string,
+      valor: ExcelJS.CellValue,
+      font: Partial<ExcelJS.Font>,
+      alignment: Partial<ExcelJS.Alignment> = {},
+    ) => {
+      const destino = hoja.getCell(celda);
+      destino.value = valor;
+      destino.font = font;
+      destino.alignment = alignment;
+      return destino;
+    };
+    // Recuadro exterior de un rango (combinado o no): cada celda lleva su lado.
+    const recuadro = (rango: string) => {
+      const [desde, hasta = desde] = rango.split(':');
+      const [inicio, fin] = [hoja.getCell(desde), hoja.getCell(hasta)];
+      const [c1, r1, c2, r2] = [
+        Number(inicio.col),
+        Number(inicio.row),
+        Number(fin.col),
+        Number(fin.row),
+      ];
+      for (let r = r1; r <= r2; r += 1) {
+        for (let c = c1; c <= c2; c += 1) {
+          const celda = hoja.getCell(r, c);
+          celda.border = {
+            ...celda.border,
+            ...(c === c1 ? { left: linea } : {}),
+            ...(c === c2 ? { right: linea } : {}),
+            ...(r === r1 ? { top: linea } : {}),
+            ...(r === r2 ? { bottom: linea } : {}),
+          };
+        }
+      }
+    };
+    const subrayar = (rango: string) => {
+      const [desde, hasta = desde] = rango.split(':');
+      const [inicio, fin] = [hoja.getCell(desde), hoja.getCell(hasta)];
+      for (let c = Number(inicio.col); c <= Number(fin.col); c += 1) {
+        const celda = hoja.getCell(Number(inicio.row), c);
+        celda.border = { ...celda.border, bottom: linea };
+      }
+    };
+    const combinar = (rango: string) => {
+      if (rango.includes(':')) hoja.mergeCells(rango);
+    };
+
+    hoja.columns = [
+      41.78, 8.78, 8.78, 5, 4.11, 5.11, 5.11, 4.66, 4.66, 4.66, 4.66, 6.66,
+      6.66, 5.66, 5.66, 6.33, 5.66, 5.78, 5.44, 6.78, 5.66,
+    ].map((width) => ({ width }));
+
+    // Encabezado del SGI: logotipos a los lados y tres renglones al centro.
+    hoja.getRow(2).height = 27.75;
+    hoja.getRow(3).height = 27;
+    hoja.getRow(4).height = 27;
+    const encabezado: Array<[string, string]> = [
+      ['B2:O2', reporte.institucion],
+      [
+        'B3:O3',
+        'Nombre del Formato: Reporte Parcial del Semestre del SGI del G3',
+      ],
+      ['B4:H4', 'Página 1 de 1'],
+      ['I4:O4', `Versión ${reporte.version}`],
+    ];
+    ['A2:A4', 'P2:U4'].forEach((rango) => {
+      combinar(rango);
+      recuadro(rango);
+    });
+    encabezado.forEach(([rango, texto]) => {
+      combinar(rango);
+      escribir(rango.split(':')[0], texto, fuente(10, { bold: true }), centro);
+      recuadro(rango);
+    });
+    // Mismas anclas (EMU) que las imágenes de la plantilla.
+    const ancla = ([col, colOff, row, rowOff]: number[]) => ({
+      nativeCol: col,
+      nativeColOff: colOff,
+      nativeRow: row,
+      nativeRowOff: rowOff,
+    });
+    const logos: Array<[string, number[], number[]]> = [
+      [TECNM, [0, 174625, 1, 127000], [0, 1452563, 3, 134937]],
+      [ESCUDO_SGI, [16, 323850, 1, 28575], [19, 91167, 3, 323850]],
+    ];
+    // Posición y tamaño (EMU) de cada logotipo en la plantilla, en orden.
+    const marcos = [
+      [174625, 317500, 1277938, 703262],
+      [7753350, 219075, 900792, 990600],
+    ];
+    logos.forEach(([archivo, desde, hasta]) => {
+      hoja.addImage(
+        workbook.addImage({ filename: archivo, extension: 'png' }),
+        {
+          tl: ancla(desde),
+          br: ancla(hasta),
+          editAs: 'oneCell',
+        } as unknown as ExcelJS.ImageRange,
+      );
+    });
+
+    for (let r = 6; r <= 16; r += 1) hoja.getRow(r).height = 14.4;
+    combinar('A7:U7');
+    escribir(
+      'A7',
+      reporte.institucion.toUpperCase(),
+      fuente(10, { bold: true }),
+      {
         horizontal: 'center',
-        vertical: 'middle',
-      };
-      hoja.getCell(celda).font = { bold: true, size: celda === 'D1' ? 13 : 10 };
-    });
-    for (let r = 1; r <= 3; r += 1) hoja.getRow(r).height = r === 1 ? 30 : 24;
-    hoja.mergeCells('A5:T5');
-    hoja.getCell('A5').value = reporte.institucion.toUpperCase();
-    hoja.mergeCells('A6:T6');
-    hoja.getCell('A6').value = reporte.area.toUpperCase();
-    hoja.mergeCells('A8:T8');
-    hoja.getCell('A8').value =
-      `DIVISIÓN DE: ${reporte.carrera.nombre.toUpperCase()}`;
-    hoja.mergeCells('B10:F10');
-    hoja.getCell('A10').value = 'REPORTE:';
-    hoja.getCell('B10').value = 'PARCIAL';
-    hoja.mergeCells('G10:J10');
-    hoja.mergeCells('K10:T10');
-    hoja.getCell('G10').value = 'SEMESTRE:';
-    hoja.getCell('K10').value = reporte.periodoTexto;
-    hoja.mergeCells('B11:F11');
-    hoja.getCell('A11').value = 'PERIODO:';
-    hoja.getCell('B11').value =
-      `${fechaLarga(reporte.intervalo.desde)} al ${fechaLarga(reporte.intervalo.hasta)}`;
-    hoja.mergeCells('B12:T12');
-    hoja.getCell('A12').value = 'PROFESOR(A):';
-    hoja.getCell('B12').value = reporte.docente.nombre.toUpperCase();
-    hoja.mergeCells('B13:F13');
-    hoja.getCell('A13').value = 'GRUPOS ATENDIDOS:';
-    hoja.getCell('B13').value = reporte.gruposAtendidos;
-    hoja.mergeCells('G13:J13');
-    hoja.mergeCells('K13:T13');
-    hoja.getCell('G13').value = 'ASIGNATURAS DIFERENTES:';
-    hoja.getCell('K13').value = reporte.asignaturasDiferentes;
-    ['A5', 'A6', 'A8'].forEach((celda) => {
-      hoja.getCell(celda).font = { bold: true, size: celda === 'A5' ? 12 : 10 };
-      hoja.getCell(celda).alignment = { horizontal: 'center' };
-    });
-
-    hoja.mergeCells('A15:A17');
-    hoja.mergeCells('B15:B17');
-    hoja.mergeCells('C15:C17');
-    hoja.mergeCells('D15:D17');
-    hoja.getCell('A15').value = 'Asignatura';
-    hoja.getCell('B15').value = 'Unidad';
-    hoja.getCell('C15').value = 'Semestre';
-    hoja.getCell('D15').value = 'Grupo';
-    const grupos = [
-      ['E15:F15', 'A', 'Alumnos'],
-      ['G15:J15', 'B', 'Acreditados'],
-      ['K15:L15', 'C', '% acreditados'],
-      ['M15:N15', 'D', 'No acreditados'],
-      ['O15:P15', 'E', '% no acreditados'],
-      ['Q15:R15', 'F', 'Desertores'],
-      ['S15:T15', 'G', '% desertores'],
-    ];
-    grupos.forEach(([rango, letra, titulo]) => {
-      hoja.mergeCells(rango);
-      const celda = hoja.getCell(rango.split(':')[0]);
-      celda.value = `${letra} · ${titulo}`;
-    });
-    hoja.mergeCells('G16:H16');
-    hoja.mergeCells('I16:J16');
-    hoja.getCell('G16').value = 'PO';
-    hoja.getCell('I16').value = 'SO';
-    hoja.mergeCells('E16:F16');
-    hoja.getCell('E16').value = 'Sexo';
-    [
-      ['E17', 'F17'],
-      ['G17', 'H17'],
-      ['I17', 'J17'],
-      ['K17', 'L17'],
-      ['M17', 'N17'],
-      ['O17', 'P17'],
-      ['Q17', 'R17'],
-      ['S17', 'T17'],
-    ].forEach(([hombres, mujeres]) => {
-      hoja.getCell(hombres).value = 'H';
-      hoja.getCell(mujeres).value = 'M';
-    });
-    const encabezado = hoja.getRows(15, 3)!;
-    encabezado.forEach((fila) => {
-      fila.height = 22;
-      fila.eachCell({ includeEmpty: true }, (celda) => {
-        celda.fill = {
-          type: 'pattern',
-          pattern: 'solid',
-          fgColor: { argb: AZUL },
-        };
-        celda.font = { color: { argb: 'FFFFFF' }, bold: true, size: 8 };
-        celda.alignment = {
-          horizontal: 'center',
-          vertical: 'middle',
-          wrapText: true,
-        };
-        celda.border = this.bordeExcel();
-      });
-    });
-    let filaNumero = 18;
-    reporte.filas.forEach((fila) => {
-      const row = hoja.getRow(filaNumero++);
-      row.values = this.valoresFila(fila);
-      row.height = 28;
-      row.eachCell({ includeEmpty: true }, (celda, col) => {
-        celda.alignment = {
-          vertical: 'middle',
-          horizontal: col === 1 ? 'left' : 'center',
-          wrapText: true,
-        };
-        celda.border = this.bordeExcel();
-        celda.font = { size: 8 };
-        if ([11, 12, 15, 16, 19, 20].includes(col)) celda.numFmt = '0%';
-      });
-    });
-    const totalRow = hoja.getRow(filaNumero++);
-    totalRow.values = [
-      'TOTAL',
-      '',
-      '',
-      '',
-      ...this.valoresFila({
-        ...reporte.totales,
-        materia: { nombre: '' },
-        unidad: null,
-        semestre: '',
-        grupo: { nombre: '' },
-      }).slice(4),
-    ];
-    totalRow.height = 24;
-    totalRow.eachCell({ includeEmpty: true }, (celda, col) => {
-      celda.font = {
-        bold: true,
-        size: 8,
-        color: { argb: col === 1 ? 'FFFFFF' : '000000' },
-      };
-      celda.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: col === 1 ? AZUL : AZUL_CLARO },
-      };
-      celda.alignment = {
-        horizontal: col === 1 ? 'left' : 'center',
-        vertical: 'middle',
-      };
-      celda.border = this.bordeExcel();
-      if ([11, 12, 15, 16, 19, 20].includes(col)) celda.numFmt = '0%';
-    });
-    hoja.mergeCells(filaNumero, 1, filaNumero, 20);
-    hoja.getCell(filaNumero, 1).value =
-      `Pendientes de calificación: ${reporte.totales.pendientes}. Alumnos sin sexo registrado: ${reporte.totales.total.sinDato}.`;
-    hoja.getCell(filaNumero, 1).font = { italic: true, size: 8 };
-    filaNumero += 2;
-    reporte.notas.forEach((nota, index) => {
-      hoja.mergeCells(filaNumero + index, 1, filaNumero + index, 20);
-      hoja.getCell(filaNumero + index, 1).value = `${index + 1}. ${nota}`;
-      hoja.getCell(filaNumero + index, 1).font = { size: 8 };
-      hoja.getCell(filaNumero + index, 1).alignment = { wrapText: true };
-      hoja.getRow(filaNumero + index).height = 24;
-    });
-    const filaFirma = filaNumero + reporte.notas.length + 3;
-    const firmas = [
-      {
-        rango: `B${filaFirma}:H${filaFirma}`,
-        nombre: reporte.docente.nombre,
-        cargo: 'DOCENTE',
-        columna: 2,
       },
-      {
-        rango: `M${filaFirma}:S${filaFirma}`,
-        nombre: reporte.jefeDivision?.nombre ?? 'SIN JEFE ASIGNADO',
-        cargo: 'JEFE(A) DE DIVISIÓN',
-        columna: 13,
-      },
-    ];
-    firmas.forEach(({ rango, nombre, cargo, columna }) => {
-      hoja.mergeCells(rango);
-      hoja.getCell(filaFirma, columna).border = {
-        bottom: { style: 'thin', color: { argb: '44556A' } },
-      };
-      hoja.mergeCells(filaFirma + 1, columna, filaFirma + 1, columna + 6);
-      hoja.getCell(filaFirma + 1, columna).value = nombre.toUpperCase();
-      hoja.mergeCells(filaFirma + 2, columna, filaFirma + 2, columna + 6);
-      hoja.getCell(filaFirma + 2, columna).value = cargo;
-      [filaFirma + 1, filaFirma + 2].forEach((fila) => {
-        hoja.getCell(fila, columna).alignment = { horizontal: 'center' };
-        hoja.getCell(fila, columna).font = {
-          bold: fila === filaFirma + 2,
-          size: 8,
-          color: { argb: fila === filaFirma + 2 ? AZUL : '000000' },
-        };
-      });
-    });
-    hoja.getRow(filaFirma).height = 30;
-    hoja.columns = [34, 9, 10, 12, ...Array.from({ length: 16 }, () => 7)].map(
-      (width) => ({ width }),
     );
-    hoja.pageSetup.printArea = `A1:T${filaFirma + 2}`;
-    return Buffer.from(await workbook.xlsx.writeBuffer());
-  }
+    combinar('A8:U8');
+    escribir('A8', reporte.area.toUpperCase(), fuente(10), {
+      horizontal: 'center',
+    });
+    combinar('A10:U10');
+    escribir(
+      'A10',
+      {
+        richText: [
+          { text: 'DIVISIÓN DE: ', font: fuente(10, { bold: true }) },
+          { text: reporte.carrera.nombre.toUpperCase(), font: fuente(10) },
+        ],
+      },
+      fuente(10, { bold: true }),
+      { horizontal: 'center', wrapText: true },
+    );
 
-  private bordeExcel(): Partial<ExcelJS.Borders> {
-    const borde = { style: 'thin' as const, color: { argb: '9AA5B1' } };
-    return { top: borde, left: borde, bottom: borde, right: borde };
+    const etiqueta = (celda: string, texto: string, horizontal?: 'center') =>
+      escribir(celda, texto, fuente(9), horizontal ? { horizontal } : {});
+    const dato = (
+      rango: string,
+      valor: ExcelJS.CellValue,
+      extra: Partial<ExcelJS.Font> = {},
+      size = 10,
+    ) => {
+      combinar(rango);
+      escribir(rango.split(':')[0], valor, fuente(size, extra), {
+        horizontal: 'center',
+      });
+      subrayar(rango);
+    };
+    etiqueta('A12', 'REPORTE:');
+    dato('B12:F12', 'PARCIAL');
+    etiqueta('J12', 'SEMESTRE:', 'center');
+    dato('L12:R12', reporte.periodoTexto);
+    etiqueta('A13', 'PERIODO: ');
+    dato('B13:F13', fechaDiaMes(reporte.intervalo.desde));
+    recuadro('B13:F13');
+    combinar('H13:J13');
+    etiqueta('H13', 'AL', 'center');
+    dato('L13:R13', fechaDiaMes(reporte.intervalo.hasta));
+    etiqueta('A14', 'PROFESOR (A): ');
+    dato('C14:R14', reporte.docente.nombre.toUpperCase(), { bold: true });
+    etiqueta('A15', 'NO. DE GRUPOS ATENDIDOS:');
+    dato('B15:F15', String(reporte.gruposAtendidos));
+    etiqueta('H15', 'NO. DE ASIGNATURAS DIFERENTES:');
+    dato('N15', String(reporte.asignaturasDiferentes), {}, 9);
+
+    // Encabezado de la tabla (filas 17 a 19).
+    hoja.getRow(17).height = 14.55;
+    hoja.getRow(18).height = 14.4;
+    hoja.getRow(19).height = 14.4;
+    const columnasTabla: Array<[string, string]> = [
+      ['A17:A19', 'Asignatura'],
+      ['B17:B19', 'Unidad'],
+      ['C17:C19', 'Semestre'],
+      ['D17:E19', 'Grupo'],
+      ['F17:G18', 'A'],
+      ['H17:K17', 'B'],
+      ['H18:I18', 'PO'],
+      ['J18:K18', 'SO'],
+      ['L17:M18', 'C'],
+      ['N17:O18', 'D'],
+      ['P17:Q18', 'E'],
+      ['R17:S18', 'F'],
+      ['T17:U18', 'G'],
+    ];
+    columnasTabla.forEach(([rango, texto]) => {
+      combinar(rango);
+      escribir(rango.split(':')[0], texto, fuente(9), centro);
+      recuadro(rango);
+    });
+    for (let c = 6; c <= 21; c += 1) {
+      const celda = hoja.getCell(19, c);
+      escribir(celda.address, c % 2 === 0 ? 'H' : 'M', fuente(9), centro);
+      recuadro(celda.address);
+    }
+
+    // Filas de asignaturas: al menos las 8 de la plantilla, en blanco si sobran.
+    const primera = 20;
+    const renglones = Math.max(8, reporte.filas.length);
+    const totalFila = primera + renglones;
+    const porcentajeF = '0%';
+    const contable = '_-* #,##0_-;-* #,##0_-;_-* "-"??_-;_-@_-';
+    const division = (
+      fila: number,
+      numerador: string,
+      denominador: string,
+      resultado: number | undefined,
+    ) =>
+      ({
+        formula: `IF(${denominador}${fila}=0,0,(${numerador})/${denominador}${fila})`,
+        result: resultado,
+      }) as ExcelJS.CellFormulaValue;
+    const formatoColumna = (c: number) =>
+      [12, 13, 16, 17, 20, 21].includes(c)
+        ? porcentajeF
+        : c === 14 || c === 15
+          ? contable
+          : c === 19
+            ? '0'
+            : undefined;
+    for (let i = 0; i < renglones; i += 1) {
+      const r = primera + i;
+      const fila = reporte.filas[i];
+      const nombre = fila?.materia.nombre.toUpperCase() ?? null;
+      // row.values recrea las celdas: primero valores, luego formato.
+      if (fila) {
+        const pct = (valor: number) => valor / 100;
+        hoja.getRow(r).values = [
+          nombre,
+          fila.unidad ? String(fila.unidad.orden) : '',
+          romano(fila.semestre),
+          fila.grupo.nombre,
+          undefined,
+          fila.total.hombres,
+          fila.total.mujeres,
+          fila.po.hombres,
+          fila.po.mujeres,
+          fila.so.hombres,
+          fila.so.mujeres,
+          division(
+            r,
+            `H${r}+J${r}`,
+            'F',
+            pct(fila.porcentajeAcreditados.hombres),
+          ),
+          division(
+            r,
+            `I${r}+K${r}`,
+            'G',
+            pct(fila.porcentajeAcreditados.mujeres),
+          ),
+          fila.noAcreditados.hombres,
+          fila.noAcreditados.mujeres,
+          division(r, `N${r}`, 'F', pct(fila.porcentajeNoAcreditados.hombres)),
+          division(r, `O${r}`, 'G', pct(fila.porcentajeNoAcreditados.mujeres)),
+          fila.desertores.hombres,
+          fila.desertores.mujeres,
+          division(r, `R${r}`, 'F', pct(fila.porcentajeDesertores.hombres)),
+          division(r, `S${r}`, 'G', pct(fila.porcentajeDesertores.mujeres)),
+        ];
+      }
+      hoja.getRow(r).height = nombre && nombre.length > 48 ? 24 : 14.4;
+      hoja.mergeCells(`D${r}:E${r}`);
+      for (let c = 1; c <= 21; c += 1) {
+        const celda = hoja.getCell(r, c);
+        celda.font = fuente(c === 1 && nombre && nombre.length > 34 ? 8 : 9);
+        celda.alignment =
+          c === 1
+            ? { horizontal: 'left', vertical: 'middle', wrapText: true }
+            : { horizontal: 'center', vertical: 'middle' };
+        const formato = formatoColumna(c);
+        if (formato) celda.numFmt = formato;
+        if (c <= 4) celda.numFmt = '@';
+      }
+      [1, 2, 3, ...Array.from({ length: 16 }, (_, k) => k + 6)].forEach((c) =>
+        recuadro(hoja.getCell(r, c).address),
+      );
+      recuadro(`D${r}:E${r}`);
+    }
+
+    // TOTAL: sumas y porcentajes con las fórmulas de la plantilla.
+    const t = totalFila;
+    const ultima = totalFila - 1;
+    const totales = reporte.totales;
+    const suma = (col: string, resultado: number) => ({
+      formula: `SUM(${col}${primera}:${col}${ultima})`,
+      result: resultado,
+    });
+    hoja.getRow(t).values = [
+      'TOTAL',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      suma('F', totales.total.hombres),
+      suma('G', totales.total.mujeres),
+      suma('H', totales.po.hombres),
+      suma('I', totales.po.mujeres),
+      suma('J', totales.so.hombres),
+      suma('K', totales.so.mujeres),
+      division(
+        t,
+        `H${t}+J${t}`,
+        'F',
+        totales.porcentajeAcreditados.hombres / 100,
+      ),
+      division(
+        t,
+        `I${t}+K${t}`,
+        'G',
+        totales.porcentajeAcreditados.mujeres / 100,
+      ),
+      { formula: `F${t}-(H${t}+J${t})`, result: totales.noAcreditados.hombres },
+      { formula: `G${t}-(I${t}+K${t})`, result: totales.noAcreditados.mujeres },
+      division(t, `N${t}`, 'F', totales.porcentajeNoAcreditados.hombres / 100),
+      division(t, `O${t}`, 'G', totales.porcentajeNoAcreditados.mujeres / 100),
+      suma('R', totales.desertores.hombres),
+      suma('S', totales.desertores.mujeres),
+      division(t, `R${t}`, 'F', totales.porcentajeDesertores.hombres / 100),
+      division(t, `S${t}`, 'G', totales.porcentajeDesertores.mujeres / 100),
+    ];
+    hoja.getRow(t).height = 15.75;
+    hoja.mergeCells(`A${t}:E${t}`);
+    for (let c = 1; c <= 21; c += 1) {
+      const celda = hoja.getCell(t, c);
+      celda.font = fuente(9, c <= 5 ? { bold: true } : {});
+      celda.alignment = { horizontal: 'center', vertical: 'middle' };
+      const formato = formatoColumna(c);
+      if (formato) celda.numFmt = formato;
+      if (c >= 6) recuadro(celda.address);
+    }
+    recuadro(`A${t}:E${t}`);
+
+    // Claves de las columnas, notas, firmas y pie, igual que la plantilla.
+    const claves = [
+      'A= TOTAL DE ALUMNOS POR MATERIA',
+      'B= No. DE ALUMNOS ACREDITADOS',
+      'C= % DE ALUMNOS ACREDITADOS',
+      'D= No. DE ALUMNOS NO ACREDITADOS',
+      'E= % DE ALUMNOS NO ACREDITADOS',
+      'F= No. DE ALUMNOS QUE DESERTARON DURANTE EL SEMESTRE EN LA MATERIA',
+      'G= % DE ALUMNOS QUE DESERTARON EN LA MATERIA',
+    ];
+    for (let r = t + 1; r <= t + 18; r += 1) hoja.getRow(r).height = 15.75;
+    claves.forEach((texto, i) => {
+      const r = t + 1 + i;
+      combinar(`A${r}:N${r}`);
+      escribir(`A${r}`, texto, fuente(9), { horizontal: 'left' });
+    });
+    for (let c = 1; c <= 14; c += 1) {
+      hoja.getCell(t + 1, c).border = { top: linea };
+    }
+
+    const filaNotas = t + 10;
+    const sinSexo = totales.total.sinDato;
+    const notas = [
+      '1. Se entregará un reporte por división',
+      '2. Se entenderá como alumno desertor el que no se presentó durante el periodo que se está reportando.',
+      ...(sinSexo
+        ? [
+            `3. ${sinSexo} alumno${sinSexo === 1 ? '' : 's'} sin sexo registrado no se cuenta${sinSexo === 1 ? '' : 'n'} en las columnas H y M.`,
+          ]
+        : []),
+    ];
+    hoja.getRow(filaNotas).height = sinSexo ? 58 : 45.75;
+    escribir(`A${filaNotas}`, 'NOTAS.', fuente(9, { bold: true }), {
+      horizontal: 'left',
+      vertical: 'middle',
+    });
+    combinar(`B${filaNotas}:U${filaNotas}`);
+    escribir(`B${filaNotas}`, notas.join('\n'), fuente(9), {
+      horizontal: 'left',
+      vertical: 'middle',
+      wrapText: true,
+    });
+
+    const filaCargo = t + 12;
+    const filaNombre = t + 14;
+    const firmas: Array<[string, string, string]> = [
+      ['A', 'E', 'Docente'],
+      ['I', 'Q', 'Jefe (a) de División'],
+    ];
+    const nombres = [
+      reporte.docente.nombre.toUpperCase(),
+      (reporte.jefeDivision?.nombre ?? '').toUpperCase(),
+    ];
+    firmas.forEach(([desde, hasta, cargo], i) => {
+      combinar(`${desde}${filaCargo}:${hasta}${filaCargo}`);
+      escribir(`${desde}${filaCargo}`, cargo, fuente(9, { bold: true }), {
+        horizontal: 'center',
+      });
+      combinar(`${desde}${filaNombre}:${hasta}${filaNombre}`);
+      const nombre = escribir(
+        `${desde}${filaNombre}`,
+        nombres[i],
+        fuente(9, { bold: true }),
+        { horizontal: 'center' },
+      );
+      nombre.numFmt = '@';
+      subrayar(`${desde}${filaNombre}:${hasta}${filaNombre}`);
+    });
+
+    const filaPie = t + 18;
+    combinar(`A${filaPie}:B${filaPie}`);
+    escribir(
+      `A${filaPie}`,
+      'REPORTE PARCIAL DEL SEMESTRE',
+      fuente(8, { bold: true }),
+      { horizontal: 'left' },
+    );
+    combinar(`T${filaPie}:U${filaPie}`);
+    escribir(`T${filaPie}`, 'Rev. 1', fuente(8, { bold: true }), {
+      horizontal: 'right',
+    });
+
+    // Impresión: carta horizontal, centrada, sin cuadrícula. Con más de 8
+    // asignaturas se ajusta a una hoja para conservar "Página 1 de 1".
+    hoja.pageSetup = {
+      orientation: 'landscape',
+      ...(reporte.filas.length > 8
+        ? { fitToPage: true, fitToWidth: 1, fitToHeight: 1 }
+        : { fitToPage: false, scale: 78 }),
+      horizontalCentered: true,
+      verticalCentered: true,
+      showGridLines: false,
+      margins: {
+        left: 0.7086614173228347,
+        right: 0,
+        top: 0,
+        bottom: 0.15748031496062992,
+        header: 0,
+        footer: 0,
+      },
+      printArea: `A1:U${filaPie}`,
+    };
+    // exceljs deja posición y tamaño de cada imagen en 0. Excel se guía por las
+    // anclas, pero Vista Rápida, Numbers y otros visores leen esos valores.
+    const zip = await JSZip.loadAsync(await workbook.xlsx.writeBuffer());
+    const dibujo = 'xl/drawings/drawing1.xml';
+    const xml = await zip.file(dibujo)?.async('string');
+    if (xml) {
+      let i = 0;
+      zip.file(
+        dibujo,
+        xml.replace(/<a:off x="0" y="0"\/><a:ext cx="0" cy="0"\/>/g, () => {
+          const [x, y, cx, cy] = marcos[i++] ?? [0, 0, 0, 0];
+          return `<a:off x="${x}" y="${y}"/><a:ext cx="${cx}" cy="${cy}"/>`;
+        }),
+      );
+    }
+    return zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
   }
 
   private pdf(reporte: Reporte): Promise<Buffer> {
