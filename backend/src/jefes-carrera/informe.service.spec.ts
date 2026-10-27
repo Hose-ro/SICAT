@@ -75,6 +75,9 @@ function crear() {
         .fn()
         .mockResolvedValue({ id: 3, nombre: 'Sistemas', codigo: 'ISC' }),
     },
+    usuario: {
+      findUnique: jest.fn().mockResolvedValue({ nombre: 'Jefa de carrera' }),
+    },
   };
   const seguimientos = { notasEnRango: jest.fn().mockResolvedValue([]) };
   const service = new InformeService(

@@ -75,7 +75,7 @@ export default function MiHorario() {
             onClick={() =>
               generarHorarioPdf({
                 nombreArchivo: `Horario - ${docente?.nombre ?? 'Docente'}`,
-                titulo: 'Mi horario',
+                titulo: 'Horario de clases',
                 subtitulo: `${docente?.nombre ?? ''} · ${horarios.length} clase${horarios.length !== 1 ? 's' : ''} · ${horasSemanales}h semanales`,
                 horarios,
               })

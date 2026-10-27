@@ -1,7 +1,17 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import * as ExcelJS from 'exceljs';
-import PDFDocument from 'pdfkit';
 import { PrismaService } from '../prisma.service';
+import {
+  bordesExcel,
+  cabeceraExcel,
+  crearPdfInstitucional,
+  encabezadoExcel,
+  firmas,
+  observaciones,
+  tabla,
+  tablaDatos,
+  tituloSeccion,
+} from '../reportes/formato-institucional';
 import { letraSexo } from '../common/sexo';
 import {
   formatearFechaClave,
@@ -249,18 +259,23 @@ export class InformeService {
     ]
       .join('_')
       .replace(/[^\w.-]+/g, '-');
-    return formato === 'pdf'
-      ? {
-          buffer: await this.pdf(informe),
-          contentType: 'application/pdf',
-          filename: `${base}.pdf`,
-        }
-      : {
-          buffer: await this.excel(informe),
-          contentType:
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-          filename: `${base}.xlsx`,
-        };
+    if (formato === 'pdf') {
+      const jefe = await this.prisma.usuario.findUnique({
+        where: { id: usuarioId },
+        select: { nombre: true },
+      });
+      return {
+        buffer: await this.pdf(informe, jefe?.nombre ?? null),
+        contentType: 'application/pdf',
+        filename: `${base}.pdf`,
+      };
+    }
+    return {
+      buffer: await this.excel(informe),
+      contentType:
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      filename: `${base}.xlsx`,
+    };
   }
 
   private encabezado(informe: Informe) {
@@ -312,36 +327,32 @@ export class InformeService {
           'Cobertura',
         ],
         anchos: [30, 12, 11, 11, 11, 12, 10, 12],
-        filas: informe.docentes.map(
-          (d): Fila => [
-            d.nombre,
-            d.horasSemanales,
-            d.esperadas,
-            d.completas,
-            d.parciales,
-            d.sinCaptura,
-            d.tardias,
-            porcentaje(d.cobertura),
-          ],
-        ),
+        filas: informe.docentes.map((d): Fila => [
+          d.nombre,
+          d.horasSemanales,
+          d.esperadas,
+          d.completas,
+          d.parciales,
+          d.sinCaptura,
+          d.tardias,
+          porcentaje(d.cobertura),
+        ]),
         vacio: 'Sin docentes con clases en la carrera.',
       },
       {
         titulo: 'Listas sin captura o parciales',
         columnas: ['Fecha', 'Horario', 'Materia', 'Grupo', 'Docente', 'Estado'],
         anchos: [16, 14, 32, 10, 28, 22],
-        filas: informe.listasPendientes.map(
-          (l): Fila => [
-            fechaCorta(l.fecha),
-            `${l.horaInicio}–${l.horaFin}`,
-            l.materia,
-            l.grupo,
-            l.docente,
-            l.estado === 'CAPTURA_PARCIAL'
-              ? `Captura parcial (${l.registros} de ${l.alumnos})`
-              : ESTADO_LISTA[l.estado],
-          ],
-        ),
+        filas: informe.listasPendientes.map((l): Fila => [
+          fechaCorta(l.fecha),
+          `${l.horaInicio}–${l.horaFin}`,
+          l.materia,
+          l.grupo,
+          l.docente,
+          l.estado === 'CAPTURA_PARCIAL'
+            ? `Captura parcial (${l.registros} de ${l.alumnos})`
+            : ESTADO_LISTA[l.estado],
+        ]),
         vacio: 'Todas las listas del intervalo están completas.',
       },
       {
@@ -356,55 +367,49 @@ export class InformeService {
           'Cierre',
         ],
         anchos: [28, 9, 24, 38, 12, 12, 24],
-        filas: informe.avance.map(
-          (o): Fila => [
-            o.materia,
-            o.grupo,
-            o.docentes.join(', ') || 'Sin docente asignado',
-            o.unidades
-              .map((u) => `U${u.orden} ${ESTADO_UNIDAD[u.status] ?? u.status}`)
-              .join(' · ') || 'Sin unidades',
-            o.calificacionesPendientes,
-            o.entregasPendientes,
-            o.cierre
-              ? `Cerrado el ${new Date(o.cierre.cerradoEn).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })} · ${o.cierre.acreditados} de ${o.cierre.total} acreditados`
-              : 'Sin cerrar',
-          ],
-        ),
+        filas: informe.avance.map((o): Fila => [
+          o.materia,
+          o.grupo,
+          o.docentes.join(', ') || 'Sin docente asignado',
+          o.unidades
+            .map((u) => `U${u.orden} ${ESTADO_UNIDAD[u.status] ?? u.status}`)
+            .join(' · ') || 'Sin unidades',
+          o.calificacionesPendientes,
+          o.entregasPendientes,
+          o.cierre
+            ? `Cerrado el ${new Date(o.cierre.cerradoEn).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })} · ${o.cierre.acreditados} de ${o.cierre.total} acreditados`
+            : 'Sin cerrar',
+        ]),
         vacio: 'Sin materias ofertadas en el periodo.',
       },
       {
         titulo: 'Alumnos en riesgo (al corte)',
         columnas: ['Alumno', 'Control', 'Sexo', 'Grupo', 'Materias', 'Motivos'],
         anchos: [28, 12, 7, 10, 34, 38],
-        filas: informe.riesgos.map(
-          (a): Fila => [
-            a.nombre,
-            a.numeroControl ?? '—',
-            letraSexo(a.sexo) || '—',
-            a.grupos.join(', '),
-            a.materias.join(', '),
-            a.motivos.join(' · '),
-          ],
-        ),
+        filas: informe.riesgos.map((a): Fila => [
+          a.nombre,
+          a.numeroControl ?? '—',
+          letraSexo(a.sexo) || '—',
+          a.grupos.join(', '),
+          a.materias.join(', '),
+          a.motivos.join(' · '),
+        ]),
         vacio: 'Sin alumnos en riesgo con el criterio vigente.',
       },
       {
         titulo: 'Observaciones registradas en el intervalo',
         columnas: ['Fecha', 'Caso', 'Nota', 'Estado', 'Registró'],
         anchos: [16, 36, 48, 11, 22],
-        filas: informe.seguimientos.map(
-          (n): Fila => [
-            new Date(n.fecha).toLocaleDateString('es-MX', {
-              day: 'numeric',
-              month: 'short',
-            }),
-            n.caso,
-            n.texto,
-            ESTADO_SEGUIMIENTO[n.estado] ?? n.estado,
-            n.autor,
-          ],
-        ),
+        filas: informe.seguimientos.map((n): Fila => [
+          new Date(n.fecha).toLocaleDateString('es-MX', {
+            day: 'numeric',
+            month: 'short',
+          }),
+          n.caso,
+          n.texto,
+          ESTADO_SEGUIMIENTO[n.estado] ?? n.estado,
+          n.autor,
+        ]),
         vacio: 'Sin observaciones en el intervalo.',
       },
     ];
@@ -414,18 +419,17 @@ export class InformeService {
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'SICAT';
     const resumen = workbook.addWorksheet('Resumen');
-    resumen.addRow(['Informe de jefatura de carrera']).font = {
-      bold: true,
-      size: 14,
-    };
-    this.encabezado(informe).forEach((fila) => resumen.addRow(fila));
-    resumen.addRow([]);
-    resumen.addRow(['Indicador', 'Valor']).font = { bold: true };
-    this.filasTotales(informe).forEach((fila) => resumen.addRow(fila));
-    resumen.addRow([]);
-    resumen.addRow([NOTA_EVIDENCIA]).font = { italic: true };
     resumen.getColumn(1).width = 46;
     resumen.getColumn(2).width = 48;
+    encabezadoExcel(workbook, resumen, this.formato(informe), 2);
+    this.encabezado(informe).forEach((fila) => resumen.addRow(fila));
+    resumen.addRow([]);
+    cabeceraExcel(resumen.addRow(['Indicador', 'Valor']));
+    this.filasTotales(informe).forEach((fila) =>
+      bordesExcel(resumen.addRow(fila), 2),
+    );
+    resumen.addRow([]);
+    resumen.addRow([NOTA_EVIDENCIA]).font = { italic: true };
 
     for (const seccion of this.secciones(informe)) {
       const hoja = workbook.addWorksheet(seccion.titulo.slice(0, 31));
@@ -443,109 +447,40 @@ export class InformeService {
     return Buffer.from(await workbook.xlsx.writeBuffer());
   }
 
-  private pdf(informe: Informe): Promise<Buffer> {
-    return new Promise((resolve, reject) => {
-      const doc = new PDFDocument({
-        margin: 40,
-        size: 'LETTER',
-        layout: 'landscape',
-        bufferPages: true,
-        info: {
-          Title: `Informe ${informe.carrera.codigo} ${informe.periodo}`,
-          Author: 'SICAT',
-        },
-      });
-      const chunks: Buffer[] = [];
-      doc.on('data', (chunk: Buffer) => chunks.push(chunk));
-      doc.on('end', () => resolve(Buffer.concat(chunks)));
-      doc.on('error', reject);
+  private formato(informe: Informe) {
+    return {
+      titulo: 'Informe de jefatura de carrera',
+      subtitulo: `${informe.carrera.nombre} · ${periodoTexto(informe.periodo)}`,
+    };
+  }
 
-      const tinta = '#222f49';
-      const tenue = '#6a7790';
-      const linea = '#dde2ee';
-      const izquierda = doc.page.margins.left;
-      const ancho = doc.page.width - izquierda - doc.page.margins.right;
-      const limite = () => doc.page.height - doc.page.margins.bottom;
-
-      doc.fillColor(tinta).font('Helvetica-Bold').fontSize(16);
-      doc.text('Informe de jefatura de carrera', izquierda);
-      doc.moveDown(0.4).font('Helvetica').fontSize(9).fillColor(tenue);
-      this.encabezado(informe).forEach(([clave, valor]) =>
-        doc.text(`${clave}: ${valor}`),
-      );
-
-      doc.moveDown(0.8).fillColor(tinta).font('Helvetica-Bold').fontSize(11);
-      doc.text('Resumen');
-      doc.moveDown(0.3).font('Helvetica').fontSize(9);
-      this.filasTotales(informe).forEach(([clave, valor]) =>
-        doc.text(`${clave}: ${valor}`),
-      );
-      doc.moveDown(0.3).fillColor(tenue).fontSize(8).text(NOTA_EVIDENCIA);
-
-      for (const seccion of this.secciones(informe)) {
-        if (doc.y > limite() - 60) doc.addPage();
-        doc.moveDown(1).fillColor(tinta).font('Helvetica-Bold').fontSize(11);
-        doc.text(seccion.titulo, izquierda);
-        doc.moveDown(0.3);
-        if (!seccion.filas.length) {
-          doc
-            .font('Helvetica')
-            .fontSize(9)
-            .fillColor(tenue)
-            .text(seccion.vacio);
-          continue;
-        }
-        const total = seccion.anchos.reduce((a, b) => a + b, 0);
-        const anchos = seccion.anchos.map((a) => (a / total) * ancho);
-        const fila = (celdas: Array<string | number>, negrita = false) => {
-          doc.font(negrita ? 'Helvetica-Bold' : 'Helvetica').fontSize(8);
-          const alto =
-            Math.max(
-              ...celdas.map((c, i) =>
-                doc.heightOfString(String(c), { width: anchos[i] - 6 }),
-              ),
-            ) + 6;
-          if (doc.y + alto > limite()) doc.addPage();
-          const y = doc.y;
-          let x = izquierda;
-          celdas.forEach((c, i) => {
-            doc
-              .fillColor(negrita ? tenue : tinta)
-              .text(String(c), x + 3, y + 3, { width: anchos[i] - 6 });
-            x += anchos[i];
-          });
-          doc
-            .moveTo(izquierda, y + alto)
-            .lineTo(izquierda + ancho, y + alto)
-            .strokeColor(linea)
-            .lineWidth(0.5)
-            .stroke();
-          doc.x = izquierda;
-          doc.y = y + alto;
-        };
-        fila(seccion.columnas, true);
-        seccion.filas.forEach((celdas) => fila(celdas));
-      }
-
-      const paginas = doc.bufferedPageRange();
-      for (let i = 0; i < paginas.count; i++) {
-        doc.switchToPage(paginas.start + i);
-        // Sin margen inferior, el pie no provoca una página nueva.
-        const margen = doc.page.margins.bottom;
-        doc.page.margins.bottom = 0;
-        doc
-          .font('Helvetica')
-          .fontSize(7)
-          .fillColor(tenue)
-          .text(
-            `SICAT · ${informe.carrera.codigo} · ${periodoTexto(informe.periodo)} · página ${i + 1} de ${paginas.count}`,
-            izquierda,
-            doc.page.height - doc.page.margins.bottom + 14,
-            { width: ancho, align: 'right', lineBreak: false },
-          );
-        doc.page.margins.bottom = margen;
-      }
-      doc.end();
+  private pdf(informe: Informe, jefe: string | null): Promise<Buffer> {
+    const { doc, terminar } = crearPdfInstitucional(this.formato(informe), {
+      layout: 'landscape',
     });
+    tablaDatos(doc, this.encabezado(informe) as Array<[string, string]>);
+
+    tituloSeccion(doc, 'Resumen');
+    tabla(doc, {
+      columnas: ['Indicador', 'Valor'],
+      anchos: [70, 30],
+      alinear: ['left', 'center'],
+      filas: this.filasTotales(informe),
+    });
+
+    for (const seccion of this.secciones(informe)) {
+      tituloSeccion(doc, seccion.titulo);
+      tabla(doc, {
+        columnas: seccion.columnas,
+        anchos: seccion.anchos,
+        filas: seccion.filas,
+        tamano: 8,
+        vacio: seccion.vacio,
+      });
+    }
+
+    firmas(doc, [{ cargo: 'Jefe(a) de carrera', nombre: jefe }]);
+    observaciones(doc, [NOTA_EVIDENCIA]);
+    return terminar();
   }
 }

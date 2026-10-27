@@ -23,11 +23,11 @@ describe('ReportesService días sin clases', () => {
     await workbook.xlsx.load(buffer as never);
     const sheet = workbook.getWorksheet('Asistencias') as ExcelJS.Worksheet;
 
-    expect(String(sheet.getCell('D3').value)).toContain('Sin clases');
-    expect(sheet.getCell('D4').value).toBe('SC');
-    expect(sheet.getCell('F4').value).toBe(0);
-    expect(sheet.getCell('B7').value).toBe('Motivo');
-    expect(sheet.getCell('B8').value).toBe('Día festivo');
+    expect(String(sheet.getCell('D8').value)).toContain('Sin clases');
+    expect(sheet.getCell('D9').value).toBe('SC');
+    expect(sheet.getCell('F9').value).toBe(0);
+    expect(sheet.getCell('B12').value).toBe('Motivo');
+    expect(sheet.getCell('B13').value).toBe('Día festivo');
   });
 
   it('genera un PDF válido con el día suspendido', async () => {
@@ -54,9 +54,9 @@ describe('ReportesService sexo del alumno', () => {
     await workbook.xlsx.load(buffer as never);
     const sheet = workbook.getWorksheet('Asistencias') as ExcelJS.Worksheet;
 
-    expect(sheet.getCell('C2').value).toBe('Sexo');
-    expect(sheet.getCell('C3').value).toBe('M');
-    expect(sheet.getCell('C4').value).toBe('');
+    expect(sheet.getCell('C7').value).toBe('Sexo');
+    expect(sheet.getCell('C8').value).toBe('M');
+    expect(sheet.getCell('C9').value).toBe('');
   });
 
   it('agrega la columna Sexo al CSV de calificaciones', async () => {

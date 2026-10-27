@@ -1,7 +1,17 @@
 import * as ExcelJS from 'exceljs';
-import PDFDocument from 'pdfkit';
 import { letraSexo } from '../common/sexo';
 import { zonaHoraria } from '../common/zona-horaria.util';
+import {
+  bordesExcel,
+  cabeceraExcel,
+  crearPdfInstitucional,
+  encabezadoExcel,
+  firmas,
+  observaciones,
+  tabla,
+  tablaDatos,
+  tituloSeccion,
+} from './formato-institucional';
 
 /*
  * Concentrado de calificaciones del cierre de curso. No reproduce ningún
@@ -93,6 +103,15 @@ export function indicesPorUnidad(datos: DatosConcentrado) {
   });
 }
 
+function formato(datos: DatosConcentrado) {
+  return {
+    titulo: 'Concentrado de calificaciones',
+    subtitulo: [datos.materia.nombre, datos.grupo?.nombre]
+      .filter(Boolean)
+      .join(' · '),
+  };
+}
+
 function encabezado(datos: DatosConcentrado) {
   return [
     [
@@ -116,10 +135,18 @@ export async function excelConcentrado(
 ): Promise<Buffer> {
   const libro = new ExcelJS.Workbook();
   const hoja = libro.addWorksheet('Concentrado');
-  hoja.addRow(['Concentrado de calificaciones']).font = {
-    bold: true,
-    size: 14,
-  };
+  const totalColumnas = 4 + datos.unidades.length + 3;
+  hoja.columns = [
+    { width: 6 },
+    { width: 14 },
+    { width: 34 },
+    { width: 6 },
+    ...datos.unidades.map(() => ({ width: 12 })),
+    { width: 8 },
+    { width: 18 },
+    { width: 16 },
+  ];
+  encabezadoExcel(libro, hoja, formato(datos), totalColumnas);
   for (const fila of encabezado(datos)) hoja.addRow([...fila]);
   hoja.addRow([
     '(2ª): calificación de segunda oportunidad. NA en una unidad: reprobada en segunda oportunidad; NA en la final: curso no acreditado.',
@@ -136,16 +163,11 @@ export async function excelConcentrado(
     'Nivel de desempeño',
     'Resultado',
   ]);
-  cabecera.font = { bold: true };
-  cabecera.fill = {
-    type: 'pattern',
-    pattern: 'solid',
-    fgColor: { argb: 'FFE7EEF8' },
-  };
+  cabeceraExcel(cabecera);
   hoja.views = [{ state: 'frozen', ySplit: cabecera.number, xSplit: 3 }];
 
   datos.alumnos.forEach((item, indice) => {
-    hoja.addRow([
+    const fila = hoja.addRow([
       indice + 1,
       item.alumno.numeroControl ?? '',
       item.alumno.nombre,
@@ -159,17 +181,8 @@ export async function excelConcentrado(
       item.nivel ? NIVEL[item.nivel] : '',
       RESULTADO[item.estado] ?? item.estado,
     ]);
+    bordesExcel(fila, totalColumnas);
   });
-  hoja.columns = [
-    { width: 6 },
-    { width: 14 },
-    { width: 34 },
-    { width: 6 },
-    ...datos.unidades.map(() => ({ width: 12 })),
-    { width: 8 },
-    { width: 18 },
-    { width: 16 },
-  ];
 
   const indices = libro.addWorksheet('Índices por unidad');
   const titulo = indices.addRow([
@@ -203,111 +216,87 @@ export async function excelConcentrado(
 }
 
 export function pdfConcentrado(datos: DatosConcentrado): Promise<Buffer> {
-  return new Promise((resolve) => {
-    const doc = new PDFDocument({
-      margin: 30,
-      size: 'A4',
-      layout: 'landscape',
-    });
-    const partes: Buffer[] = [];
-    doc.on('data', (parte: Buffer) => partes.push(parte));
-    doc.on('end', () => resolve(Buffer.concat(partes)));
-
-    doc
-      .font('Helvetica-Bold')
-      .fontSize(14)
-      .text('Concentrado de calificaciones');
-    doc.font('Helvetica').fontSize(9);
-    for (const [etiqueta, valor] of encabezado(datos))
-      doc.text(`${etiqueta}: ${valor}`);
-    doc.moveDown(0.6);
-
-    const ancho =
-      doc.page.width - doc.page.margins.left - doc.page.margins.right;
-    const fijas = [24, 64, 170, 26];
-    const colas = [36, 70, 70];
-    const porUnidad = Math.max(
-      34,
-      (ancho -
-        fijas.reduce((a, b) => a + b, 0) -
-        colas.reduce((a, b) => a + b, 0)) /
-        Math.max(datos.unidades.length, 1),
-    );
-    const columnas = [
-      ...fijas,
-      ...datos.unidades.map(() => porUnidad),
-      ...colas,
-    ];
-    const fila = (celdas: string[], negrita = false) => {
-      if (doc.y > doc.page.height - doc.page.margins.bottom - 18) doc.addPage();
-      const y = doc.y;
-      let x = doc.page.margins.left;
-      doc.font(negrita ? 'Helvetica-Bold' : 'Helvetica').fontSize(8);
-      celdas.forEach((texto, i) => {
-        doc.text(texto, x + 2, y, {
-          width: columnas[i] - 4,
-          lineBreak: false,
-          ellipsis: true,
-        });
-        x += columnas[i];
-      });
-      doc
-        .moveTo(doc.page.margins.left, y + 12)
-        .lineTo(doc.page.margins.left + ancho, y + 12)
-        .strokeColor('#dde2ee')
-        .lineWidth(0.5)
-        .stroke();
-      doc.y = y + 15;
-    };
-
-    fila(
-      [
-        'No.',
-        'Control',
-        'Alumno',
-        'Sexo',
-        ...datos.unidades.map((unidad) => `U${unidad.orden}`),
-        'Final',
-        'Nivel',
-        'Resultado',
-      ],
-      true,
-    );
-    datos.alumnos.forEach((item, indice) =>
-      fila([
-        String(indice + 1),
-        item.alumno.numeroControl ?? '',
-        item.alumno.nombre,
-        letraSexo(item.alumno.sexo),
-        ...datos.unidades.map((unidad) =>
-          textoUnidad(
-            item.unidades.find((celda) => celda.unidadId === unidad.id),
-          ),
-        ),
-        textoFinal(item),
-        item.nivel ? NIVEL[item.nivel] : '',
-        RESULTADO[item.estado] ?? item.estado,
-      ]),
-    );
-
-    doc.moveDown(0.8);
-    doc
-      .font('Helvetica-Bold')
-      .fontSize(10)
-      .text('Índices por unidad', doc.page.margins.left);
-    doc.font('Helvetica').fontSize(9);
-    for (const indice of indicesPorUnidad(datos)) {
-      doc.text(
-        `${indice.unidad.nombre}: ${indice.primera} en 1ª, ${indice.segunda} en 2ª, ${indice.noAlcanzada} no alcanzaron — aprobación ${indice.aprobacion} %, reprobación ${indice.reprobacion} %`,
-      );
-    }
-    doc.moveDown(0.4);
-    doc
-      .fontSize(8)
-      .fillColor('#6a7790')
-      .text(
-        '(2ª) segunda oportunidad · NA reprobada o no acreditado. Generado por SICAT; no sustituye el acta oficial.',
-      );
-    doc.end();
+  const { doc, terminar } = crearPdfInstitucional(formato(datos), {
+    layout: 'landscape',
   });
+  tablaDatos(doc, encabezado(datos));
+
+  tituloSeccion(doc, 'Calificaciones');
+  tabla(doc, {
+    columnas: [
+      'No.',
+      'Control',
+      'Alumno',
+      'Sexo',
+      ...datos.unidades.map((unidad) => `U${unidad.orden}`),
+      'Final',
+      'Nivel',
+      'Resultado',
+    ],
+    anchos: [24, 64, 170, 30, ...datos.unidades.map(() => 38), 38, 70, 74],
+    alinear: [
+      'center',
+      'left',
+      'left',
+      'center',
+      ...datos.unidades.map(() => 'center' as const),
+      'center',
+      'left',
+      'left',
+    ],
+    tamano: 8,
+    vacio: 'Sin alumnos en el padrón.',
+    filas: datos.alumnos.map((item, indice) => [
+      indice + 1,
+      item.alumno.numeroControl ?? '',
+      item.alumno.nombre,
+      letraSexo(item.alumno.sexo),
+      ...datos.unidades.map((unidad) =>
+        textoUnidad(
+          item.unidades.find((celda) => celda.unidadId === unidad.id),
+        ),
+      ),
+      { texto: textoFinal(item), negrita: true },
+      item.nivel ? NIVEL[item.nivel] : '',
+      RESULTADO[item.estado] ?? item.estado,
+    ]),
+  });
+
+  tituloSeccion(doc, 'Índices por unidad');
+  tabla(doc, {
+    columnas: [
+      'Unidad',
+      'Alumnos',
+      'Alcanzaron en 1ª',
+      'Alcanzaron en 2ª',
+      'No alcanzaron',
+      '% aprobación',
+      '% reprobación',
+    ],
+    anchos: [30, 10, 12, 12, 12, 12, 12],
+    alinear: [
+      'left',
+      'center',
+      'center',
+      'center',
+      'center',
+      'center',
+      'center',
+    ],
+    filas: indicesPorUnidad(datos).map((indice) => [
+      indice.unidad.nombre,
+      indice.total,
+      indice.primera,
+      indice.segunda,
+      indice.noAlcanzada,
+      `${indice.aprobacion} %`,
+      `${indice.reprobacion} %`,
+    ]),
+  });
+
+  firmas(doc, [{ cargo: 'Docente', nombre: datos.docente }]);
+  observaciones(doc, [
+    '(2ª) segunda oportunidad · NA reprobada o no acreditado. Generado por SICAT; no sustituye el acta oficial.',
+  ]);
+  return terminar();
 }

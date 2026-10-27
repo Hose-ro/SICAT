@@ -1,6 +1,16 @@
 import * as ExcelJS from 'exceljs';
-import PDFDocument from 'pdfkit';
 import { zonaHoraria } from '../common/zona-horaria.util';
+import {
+  bordesExcel,
+  cabeceraExcel,
+  crearPdfInstitucional,
+  encabezadoExcel,
+  firmas,
+  observaciones,
+  tabla,
+  tablaDatos,
+  tituloSeccion,
+} from './formato-institucional';
 import type { TemarioService } from '../temario/temario.service';
 
 /*
@@ -57,7 +67,15 @@ function resumen(datos: Avance) {
 export async function excelAvance(datos: Avance): Promise<Buffer> {
   const libro = new ExcelJS.Workbook();
   const hoja = libro.addWorksheet('Avance programático');
-  hoja.addRow(['Avance programático']).font = { bold: true, size: 14 };
+  hoja.columns = [
+    { width: 16 },
+    { width: 6 },
+    { width: 60 },
+    { width: 16 },
+    { width: 12 },
+    { width: 12 },
+  ];
+  encabezadoExcel(libro, hoja, formato(datos), 6);
   for (const fila of resumen(datos)) hoja.addRow([...fila]);
   hoja.addRow([]);
   const cabecera = hoja.addRow([
@@ -68,19 +86,14 @@ export async function excelAvance(datos: Avance): Promise<Buffer> {
     'Visto el',
     'Estado',
   ]);
-  cabecera.font = { bold: true };
-  cabecera.fill = {
-    type: 'pattern',
-    pattern: 'solid',
-    fgColor: { argb: 'FFE7EEF8' },
-  };
+  cabeceraExcel(cabecera);
   for (const unidad of datos.unidades) {
     if (!unidad.temas.length) {
-      hoja.addRow([unidad.nombre, '', 'Sin temario cargado']);
+      bordesExcel(hoja.addRow([unidad.nombre, '', 'Sin temario cargado']), 6);
       continue;
     }
     for (const tema of unidad.temas) {
-      hoja.addRow([
+      const fila = hoja.addRow([
         unidad.nombre,
         tema.orden,
         tema.nombre,
@@ -88,73 +101,52 @@ export async function excelAvance(datos: Avance): Promise<Buffer> {
         fecha(tema.vistoEn),
         ESTADO[tema.estado],
       ]);
+      bordesExcel(fila, 6);
     }
   }
-  hoja.columns = [
-    { width: 16 },
-    { width: 6 },
-    { width: 60 },
-    { width: 16 },
-    { width: 12 },
-    { width: 12 },
-  ];
   return Buffer.from((await libro.xlsx.writeBuffer()) as ArrayBuffer);
 }
 
+function formato(datos: Avance) {
+  return {
+    titulo: 'Avance programático',
+    subtitulo: [datos.materia.nombre, datos.grupo?.nombre]
+      .filter(Boolean)
+      .join(' · '),
+  };
+}
+
 export function pdfAvance(datos: Avance): Promise<Buffer> {
-  return new Promise((resolve) => {
-    const doc = new PDFDocument({ margin: 36, size: 'A4' });
-    const partes: Buffer[] = [];
-    doc.on('data', (parte: Buffer) => partes.push(parte));
-    doc.on('end', () => resolve(Buffer.concat(partes)));
+  const { doc, terminar } = crearPdfInstitucional(formato(datos));
+  tablaDatos(doc, resumen(datos));
 
-    doc.font('Helvetica-Bold').fontSize(14).text('Avance programático');
-    doc.font('Helvetica').fontSize(9);
-    for (const [etiqueta, valor] of resumen(datos)) {
-      doc.text(`${etiqueta}: ${valor}`);
-    }
+  for (const unidad of datos.unidades) {
+    const avance = unidad.avance;
+    tituloSeccion(
+      doc,
+      `${unidad.nombre}${avance ? ` · ${avance.vistos} de ${avance.total} temas` : ''}`,
+    );
+    tabla(doc, {
+      columnas: ['No.', 'Tema', 'Semana planeada', 'Visto el', 'Estado'],
+      anchos: [7, 53, 14, 13, 13],
+      alinear: ['center', 'left', 'center', 'center', 'center'],
+      vacio: 'Sin temario cargado.',
+      filas: unidad.temas.map((tema) => {
+        const color = tema.estado === 'ATRASADO' ? '#b42318' : undefined;
+        return [
+          tema.orden,
+          tema.nombre,
+          tema.semana ?? '',
+          fecha(tema.vistoEn),
+          { texto: ESTADO[tema.estado], color },
+        ];
+      }),
+    });
+  }
 
-    for (const unidad of datos.unidades) {
-      doc.moveDown(0.8);
-      const avance = unidad.avance;
-      doc
-        .font('Helvetica-Bold')
-        .fontSize(11)
-        .text(
-          `${unidad.nombre}${avance ? ` · ${avance.vistos} de ${avance.total} temas` : ''}`,
-        );
-      doc.font('Helvetica').fontSize(9);
-      if (!unidad.temas.length) {
-        doc
-          .fillColor('#6a7790')
-          .text('Sin temario cargado.')
-          .fillColor('black');
-        continue;
-      }
-      for (const tema of unidad.temas) {
-        if (doc.y > doc.page.height - doc.page.margins.bottom - 20)
-          doc.addPage();
-        const detalle = [
-          tema.semana ? `semana ${tema.semana}` : null,
-          tema.vistoEn
-            ? `visto el ${fecha(tema.vistoEn)}`
-            : ESTADO[tema.estado],
-        ]
-          .filter(Boolean)
-          .join(' · ');
-        doc
-          .fillColor(tema.estado === 'ATRASADO' ? '#b42318' : 'black')
-          .text(`${tema.orden}. ${tema.nombre} — ${detalle}`)
-          .fillColor('black');
-      }
-    }
-    doc.moveDown(1);
-    doc
-      .fontSize(8)
-      .fillColor('#6a7790')
-      .text(
-        'Generado por SICAT a partir de la bitácora de clase; no sustituye el formato oficial.',
-      );
-    doc.end();
-  });
+  firmas(doc, [{ cargo: 'Docente', nombre: datos.materia.docente }]);
+  observaciones(doc, [
+    'Generado por SICAT a partir de la bitácora de clase; no sustituye el formato oficial.',
+  ]);
+  return terminar();
 }
