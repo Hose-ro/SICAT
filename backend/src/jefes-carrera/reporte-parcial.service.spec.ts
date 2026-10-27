@@ -45,6 +45,7 @@ function muestra() {
       codigo: 'ISC',
     },
     docente: { id: 8, nombre: 'Laura Pérez' },
+    jefeDivision: { id: 2, nombre: 'María Hernández' },
     periodo: '2026-B',
     periodoTexto: 'AGOSTO - DICIEMBRE 2026',
     intervalo: { desde: '2026-08-31', hasta: '2026-10-24' },
@@ -52,8 +53,17 @@ function muestra() {
     gruposAtendidos: 1,
     asignaturasDiferentes: 1,
     filas: [fila],
-    totales: { ...fila, materia: undefined, unidad: undefined, semestre: undefined, grupo: undefined },
-    notas: ['A = alumnos inscritos.', 'Una lista sin captura no clasifica deserción.'],
+    totales: {
+      ...fila,
+      materia: undefined,
+      unidad: undefined,
+      semestre: undefined,
+      grupo: undefined,
+    },
+    notas: [
+      'A = alumnos inscritos.',
+      'Una lista sin captura no clasifica deserción.',
+    ],
   };
 }
 
@@ -77,6 +87,7 @@ describe('ReporteParcialService exportación', () => {
     expect(hoja.getCell('E18').value).toBe(15);
     expect(hoja.getCell('G18').value).toBe(12);
     expect(hoja.getCell('I18').value).toBe(1);
+    expect(hoja.getCell('M28').value).toBe('MARÍA HERNÁNDEZ');
   });
 
   it('genera un PDF válido con el mismo reporte', async () => {

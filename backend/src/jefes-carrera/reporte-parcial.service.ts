@@ -107,7 +107,7 @@ function rutaActivo(nombre: string) {
   return candidatos.find((ruta) => existsSync(ruta)) ?? candidatos[0];
 }
 
-const TECNM = rutaActivo('tecnm.png');
+const TECNM_SIMBOLO = rutaActivo('tecnm-simbolo.png');
 const ESCUDO = rutaActivo('escudo-cosamaloapan.png');
 const AZUL = '153A6B';
 const AZUL_CLARO = 'EAF0F7';
@@ -224,10 +224,21 @@ export class ReporteParcialService {
     ) {
       throw new ForbiddenException('Docente fuera de tu carrera');
     }
-    const docente = await this.prisma.usuario.findFirst({
-      where: { id: docenteId, rol: 'DOCENTE', activo: true },
-      select: { id: true, nombre: true },
-    });
+    const [docente, jefatura] = await Promise.all([
+      this.prisma.usuario.findFirst({
+        where: { id: docenteId, rol: 'DOCENTE', activo: true },
+        select: { id: true, nombre: true },
+      }),
+      this.prisma.jefeCarreraAsignacion.findFirst({
+        where: {
+          carreraId,
+          activa: true,
+          usuario: { activo: true, rol: 'JEFE_CARRERA' },
+        },
+        orderBy: { updatedAt: 'desc' },
+        select: { usuario: { select: { id: true, nombre: true } } },
+      }),
+    ]);
     if (!docente) throw new NotFoundException('No se encontró al docente');
 
     const grupos = (
@@ -315,6 +326,7 @@ export class ReporteParcialService {
       version: 2,
       carrera,
       docente,
+      jefeDivision: jefatura?.usuario ?? null,
       periodo,
       periodoTexto: periodoTexto(periodo),
       intervalo: { desde: fechaClave(inicio), hasta: fechaClave(corte) },
@@ -687,16 +699,27 @@ export class ReporteParcialService {
       },
       views: [{ state: 'frozen', ySplit: 17 }],
     });
-    const tecnm = workbook.addImage({ filename: TECNM, extension: 'png' });
+    const tecnm = workbook.addImage({
+      filename: TECNM_SIMBOLO,
+      extension: 'png',
+    });
     const escudo = workbook.addImage({ filename: ESCUDO, extension: 'png' });
     hoja.addImage(tecnm, {
-      tl: { col: 0.15, row: 0.2 },
-      ext: { width: 170, height: 80 },
+      tl: { col: 0.15, row: 0.1 },
+      ext: { width: 78, height: 78 },
     });
     hoja.addImage(escudo, {
-      tl: { col: 18.5, row: 0.1 },
-      ext: { width: 70, height: 82 },
+      tl: { col: 18.15, row: 0.05 },
+      ext: { width: 88, height: 88 },
     });
+    hoja.mergeCells('B1:C3');
+    hoja.getCell('B1').value = 'TECNOLÓGICO\nNACIONAL DE MÉXICO';
+    hoja.getCell('B1').font = { bold: true, color: { argb: AZUL }, size: 9 };
+    hoja.getCell('B1').alignment = {
+      horizontal: 'left',
+      vertical: 'middle',
+      wrapText: true,
+    };
     hoja.mergeCells('D1:R1');
     hoja.getCell('D1').value = reporte.institucion;
     hoja.mergeCells('D2:R2');
@@ -867,10 +890,44 @@ export class ReporteParcialService {
       hoja.getCell(filaNumero + index, 1).alignment = { wrapText: true };
       hoja.getRow(filaNumero + index).height = 24;
     });
+    const filaFirma = filaNumero + reporte.notas.length + 3;
+    const firmas = [
+      {
+        rango: `B${filaFirma}:H${filaFirma}`,
+        nombre: reporte.docente.nombre,
+        cargo: 'DOCENTE',
+        columna: 2,
+      },
+      {
+        rango: `M${filaFirma}:S${filaFirma}`,
+        nombre: reporte.jefeDivision?.nombre ?? 'SIN JEFE ASIGNADO',
+        cargo: 'JEFE(A) DE DIVISIÓN',
+        columna: 13,
+      },
+    ];
+    firmas.forEach(({ rango, nombre, cargo, columna }) => {
+      hoja.mergeCells(rango);
+      hoja.getCell(filaFirma, columna).border = {
+        bottom: { style: 'thin', color: { argb: '44556A' } },
+      };
+      hoja.mergeCells(filaFirma + 1, columna, filaFirma + 1, columna + 6);
+      hoja.getCell(filaFirma + 1, columna).value = nombre.toUpperCase();
+      hoja.mergeCells(filaFirma + 2, columna, filaFirma + 2, columna + 6);
+      hoja.getCell(filaFirma + 2, columna).value = cargo;
+      [filaFirma + 1, filaFirma + 2].forEach((fila) => {
+        hoja.getCell(fila, columna).alignment = { horizontal: 'center' };
+        hoja.getCell(fila, columna).font = {
+          bold: fila === filaFirma + 2,
+          size: 8,
+          color: { argb: fila === filaFirma + 2 ? AZUL : '000000' },
+        };
+      });
+    });
+    hoja.getRow(filaFirma).height = 30;
     hoja.columns = [34, 9, 10, 12, ...Array.from({ length: 16 }, () => 7)].map(
       (width) => ({ width }),
     );
-    hoja.pageSetup.printArea = `A1:T${filaNumero + reporte.notas.length}`;
+    hoja.pageSetup.printArea = `A1:T${filaFirma + 2}`;
     return Buffer.from(await workbook.xlsx.writeBuffer());
   }
 
@@ -895,32 +952,40 @@ export class ReporteParcialService {
       const ancho = doc.page.width - izquierda - doc.page.margins.right;
       const tinta = '#18324d';
       const tenue = '#617083';
-      doc.image(TECNM, izquierda, 24, { fit: [120, 55] });
-      doc.image(ESCUDO, doc.page.width - doc.page.margins.right - 48, 20, {
-        fit: [44, 54],
+      doc.image(TECNM_SIMBOLO, izquierda, 17, { fit: [62, 62] });
+      doc
+        .font('Helvetica-Bold')
+        .fontSize(7.2)
+        .fillColor('#153a6b')
+        .text('TECNOLÓGICO\nNACIONAL DE MÉXICO', izquierda + 58, 32, {
+          width: 82,
+          lineGap: 0.5,
+        });
+      doc.image(ESCUDO, doc.page.width - doc.page.margins.right - 68, 12, {
+        fit: [68, 68],
       });
       doc
         .font('Helvetica-Bold')
         .fontSize(11)
         .fillColor(tinta)
-        .text(reporte.institucion, izquierda + 125, 27, {
-          width: ancho - 180,
+        .text(reporte.institucion, izquierda + 145, 25, {
+          width: ancho - 220,
           align: 'center',
         });
       doc
         .fontSize(8)
         .text(
           'Nombre del formato: Reporte parcial del semestre del SGI del G3',
-          izquierda + 125,
+          izquierda + 145,
           44,
-          { width: ancho - 180, align: 'center' },
+          { width: ancho - 220, align: 'center' },
         );
       doc
         .font('Helvetica')
         .fontSize(7)
         .fillColor(tenue)
-        .text(`Página 1 · Versión ${reporte.version}`, izquierda + 125, 59, {
-          width: ancho - 180,
+        .text(`Página 1 · Versión ${reporte.version}`, izquierda + 145, 59, {
+          width: ancho - 220,
           align: 'center',
         });
       doc
@@ -1071,6 +1136,49 @@ export class ReporteParcialService {
           width: ancho,
         }),
       );
+      if (doc.y + 72 > doc.page.height - 28) {
+        doc.addPage();
+        doc.y = 42;
+      }
+      const firmaY = doc.y + 38;
+      const anchoFirma = 245;
+      const izquierdaFirma = izquierda + 58;
+      const derechaFirma = izquierda + ancho - anchoFirma - 58;
+      [
+        {
+          x: izquierdaFirma,
+          nombre: reporte.docente.nombre,
+          cargo: 'DOCENTE',
+        },
+        {
+          x: derechaFirma,
+          nombre: reporte.jefeDivision?.nombre ?? 'SIN JEFE ASIGNADO',
+          cargo: 'JEFE(A) DE DIVISIÓN',
+        },
+      ].forEach(({ x, nombre, cargo }) => {
+        doc
+          .moveTo(x, firmaY)
+          .lineTo(x + anchoFirma, firmaY)
+          .strokeColor('#44556a')
+          .lineWidth(0.55)
+          .stroke();
+        doc
+          .font('Helvetica')
+          .fontSize(7.5)
+          .fillColor(tinta)
+          .text(nombre.toUpperCase(), x, firmaY + 5, {
+            width: anchoFirma,
+            align: 'center',
+          });
+        doc
+          .font('Helvetica-Bold')
+          .fontSize(7)
+          .fillColor('#153a6b')
+          .text(cargo, x, firmaY + 17, {
+            width: anchoFirma,
+            align: 'center',
+          });
+      });
       const paginas = doc.bufferedPageRange();
       for (let i = 0; i < paginas.count; i += 1) {
         doc.switchToPage(paginas.start + i);
@@ -1081,7 +1189,7 @@ export class ReporteParcialService {
           .text(
             `SICAT · ${reporte.carrera.codigo} · ${reporte.periodo} · página ${i + 1} de ${paginas.count}`,
             izquierda,
-            doc.page.height - 18,
+            doc.page.height - doc.page.margins.bottom - 7,
             { width: ancho, align: 'right', lineBreak: false },
           );
       }
