@@ -50,3 +50,30 @@ test('el docente justifica la clase que choca con la reunión de academia', asyn
   await page.getByRole('button', { name: 'Quitar la justificación de Programación Móvil · 806A' }).click()
   await expect(page.getByText('Sin justificar')).toBeVisible()
 })
+
+test('el Inicio del docente muestra las reuniones de academia bajo las clases de hoy', async ({ page }) => {
+  await mockApi(page, 'DOCENTE')
+  await page.route('**/api/reuniones/mias', (route) => route.fulfill({ json: [
+    reunion([choque(36, 'Programación Móvil', '12:00', '13:00')]),
+    { ...reunion([]), id: 6, titulo: 'Revisión de instrumentación', fecha: enDias(13), horaInicio: '10:00', horaFin: '11:00', modalidad: 'VIRTUAL', lugar: null },
+  ] }))
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.goto('/dashboard')
+
+  const panel = page.locator('article', { has: page.getByRole('heading', { name: 'Reuniones de academia' }) })
+  await expect(panel.getByRole('heading', { name: 'Reunión ordinaria de academia' })).toBeVisible()
+  await expect(panel.getByText('Próxima reunión')).toBeVisible()
+  await expect(panel.getByText('Se cruza con tu clase · justifícala')).toBeVisible()
+  await expect(panel.getByText('Revisión de instrumentación')).toBeVisible()
+  await expect(panel.getByRole('link', { name: 'Ver reunión' })).toHaveAttribute('href', '/docente/reuniones?reunion=5')
+  const clases = await page.getByRole('heading', { name: 'Clases de hoy' }).boundingBox()
+  const reuniones = await panel.boundingBox()
+  expect(reuniones.y).toBeGreaterThan(clases.y)
+  await page.screenshot({ path: 'audit/docente/inicio-reuniones-1280-light.png', fullPage: true })
+
+  await page.emulateMedia({ colorScheme: 'dark' })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.reload()
+  await expect(panel.getByRole('heading', { name: 'Reunión ordinaria de academia' })).toBeVisible()
+  await page.screenshot({ path: 'audit/docente/inicio-reuniones-390-dark.png', fullPage: true })
+})

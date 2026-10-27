@@ -244,11 +244,11 @@ export default function DashboardDocente() {
             suspension={panel?.suspensionHoy}
             ahora={ahora}
           />
+          <ProximasReuniones />
         </div>
         <aside className="min-w-0 space-y-4" aria-label="Acciones del docente">
           <AccesosRapidos claseActual={panel?.claseActual} onPasarLista={pasarLista} iniciando={iniciando} />
           <Pendientes pendientes={pendientes} />
-          <ProximasReuniones />
         </aside>
       </div>
       {/* A todo lo ancho: la tabla lleva una columna por criterio. */}
