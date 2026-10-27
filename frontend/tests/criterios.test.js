@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import {
   criteriosDeActividad,
+  avanceUnidades,
   listaEfectiva,
   resumenCriterios,
   validarCriterios,
@@ -42,5 +43,15 @@ describe('criterios de evaluación', () => {
 
   test('resume la lista en una línea', () => {
     expect(resumenCriterios(datos.base.criterios)).toBe('Examen 60 % · Asistencia 40 %')
+  })
+
+  test('calcula el avance con todas las unidades, no sólo la abierta', () => {
+    expect(avanceUnidades([
+      { id: 1, status: 'FINALIZADA' },
+      { id: 2, status: 'ACTIVA' },
+      { id: 3, status: 'PENDIENTE' },
+      { id: 4, status: 'FINALIZADA' },
+    ])).toEqual({ total: 4, cerradas: 2, porcentaje: 50 })
+    expect(avanceUnidades()).toEqual({ total: 0, cerradas: 0, porcentaje: 0 })
   })
 })

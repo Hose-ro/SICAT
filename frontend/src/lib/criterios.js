@@ -26,6 +26,22 @@ export const TIPOS_CRITERIO = {
 
 export const TIPOS_PLANTILLA = ['EXAMEN', 'PRACTICAS', 'TAREAS', 'PROYECTO', 'EXPOSICION', 'PARTICIPACION', 'ASISTENCIA', 'OTRO']
 
+// El color acompaña al nombre, icono y porcentaje de un criterio en la
+// captura. Así el docente puede reconocerlo rápidamente sin que el color sea
+// la única señal de lectura.
+const COLOR_CRITERIO = {
+  EXAMEN: 'examen',
+  PRACTICAS: 'practicas',
+  TAREAS: 'tareas',
+  PROYECTO: 'proyecto',
+  EXPOSICION: 'exposicion',
+  PARTICIPACION: 'participacion',
+  ASISTENCIA: 'asistencia',
+  OTRO: 'otro',
+}
+
+export const colorCriterio = (tipo) => `criterio-${COLOR_CRITERIO[tipo] ?? COLOR_CRITERIO.OTRO}`
+
 export const MAX_CRITERIOS = 12
 export const META_POR_DEFECTO = 5
 export const META_MAXIMA = 100
@@ -78,4 +94,15 @@ export function validarCriterios(criterios) {
 /** "Examen 40 % · Prácticas 30 % · Asistencia 10 %" */
 export function resumenCriterios(criterios = []) {
   return criterios.map((item) => `${item.nombre} ${item.peso} %`).join(' · ')
+}
+
+/** Avance global de la materia: unidades cerradas sobre todas las unidades. */
+export function avanceUnidades(unidades = []) {
+  const total = unidades.length
+  const cerradas = unidades.filter((unidad) => unidad?.status === 'FINALIZADA').length
+  return {
+    total,
+    cerradas,
+    porcentaje: total ? Math.round((cerradas / total) * 100) : 0,
+  }
 }

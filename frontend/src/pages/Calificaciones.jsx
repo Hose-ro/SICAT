@@ -945,6 +945,7 @@ function DocenteCalificaciones() {
         </section>
         <CriteriosGuiados key={`${filters.materiaId}:${filters.grupoId}`} materiaId={filters.materiaId}
           materiaNombre={selectedMateria?.nombre} grupo={selectedGrupo} unidadId={filters.unidadId}
+          unidades={selectedMateria?.unidades ?? []}
           onGuardado={() => obtenerDocente(reportQuery, { silent: true }).catch(() => {})} />
       </div>
 
