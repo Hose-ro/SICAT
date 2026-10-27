@@ -9,6 +9,7 @@ import {
   Check,
   ChevronRight,
   ClipboardCheck,
+  FileChartColumn,
   FilePlus2,
   FileText,
   GraduationCap,
@@ -439,6 +440,12 @@ function AccesosRapidos({ claseActual, onPasarLista, iniciando }) {
       titulo: 'Programar clase',
       detalle: 'Horario y aula',
       onClick: () => navigate('/docente/horario/editar'),
+    },
+    {
+      icono: FileChartColumn,
+      titulo: 'Reporte parcial',
+      detalle: 'Del semestre, en PDF o Excel',
+      onClick: () => navigate('/reportes/parcial-semestre'),
     },
   ]
 
