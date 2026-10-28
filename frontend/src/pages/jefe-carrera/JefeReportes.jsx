@@ -171,7 +171,7 @@ function Informe({ j, resumen }) {
       ) : data && (
         <div aria-busy={estado.cargando || undefined} className={cn(anterior && 'opacity-60 print:hidden')}>
           {anterior && (
-            <p role={estado.error ? 'alert' : 'status'} className="mt-4 rounded-[var(--radius-item)] border border-warning/35 bg-warning/10 px-4 py-3 text-[0.8125rem] text-foreground">
+            <p role={estado.error ? 'alert' : 'status'} className="mt-4 rounded-[var(--radius-item)] border border-warning/35 bg-warning/18 px-4 py-3 text-[0.8125rem] text-foreground">
               <b className="font-medium">Informe anterior: {fechaSinDia(data.intervalo.desde)} al {fechaSinDia(data.intervalo.hasta)}.</b>{' '}
               {estado.error ? `${estado.error}. No corresponde al intervalo elegido.` : estado.cargando ? 'Generando el informe del intervalo elegido…' : 'No corresponde al intervalo elegido.'}
             </p>

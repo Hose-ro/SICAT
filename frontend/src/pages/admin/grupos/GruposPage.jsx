@@ -72,14 +72,14 @@ export default function GruposPage() {
 
       {/* Error */}
       {error && (
-        <div className="bg-destructive/10 border border-destructive/30 rounded-lg px-4 py-3 text-sm text-destructive-foreground flex items-center justify-between">
+        <div className="bg-destructive/18 border border-destructive/45 rounded-lg px-4 py-3 text-sm text-destructive-foreground flex items-center justify-between">
           <span>{error}</span>
           <Button variant="destructive" onClick={clearError} className="ml-4">✕</Button>
         </div>
       )}
 
       {avisoLote && (
-        <div role="status" className="flex items-start justify-between gap-3 rounded-lg border border-success/30 bg-success/10 px-4 py-3 text-sm text-success-foreground">
+        <div role="status" className="flex items-start justify-between gap-3 rounded-lg border border-success/45 bg-success/18 px-4 py-3 text-sm text-success-foreground">
           <span>{avisoLote}</span>
           <Button variant="ghost" size="icon-sm" onClick={() => setAvisoLote('')} aria-label="Cerrar aviso">
             ✕

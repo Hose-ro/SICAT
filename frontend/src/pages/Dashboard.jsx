@@ -80,7 +80,7 @@ export default function Dashboard() {
 
   if (error) {
     return (
-      <div className="rounded-2xl border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground">
+      <div className="rounded-2xl border border-destructive/40 bg-destructive/18 px-4 py-3 text-sm text-destructive-foreground">
         {error}
       </div>
     )
@@ -156,7 +156,7 @@ function Encabezado({ nombre, periodo, totalPendiente }) {
       </div>
       <div className="flex flex-wrap gap-2">
         {totalPendiente > 0 && (
-          <span className="rounded-full bg-destructive/10 px-3 py-1 text-xs font-medium text-destructive-foreground">
+          <span className="rounded-full bg-destructive/18 px-3 py-1 text-xs font-medium text-destructive-foreground">
             {totalPendiente} pendiente{totalPendiente === 1 ? '' : 's'}
           </span>
         )}
@@ -387,7 +387,7 @@ function MateriasPorConfigurar({ materias, total }) {
 
 function Falta({ children }) {
   return (
-    <span className="rounded-full bg-warning/15 px-2.5 py-1 text-xs font-medium text-warning-foreground ">
+    <span className="rounded-full bg-warning/22 px-2.5 py-1 text-xs font-medium text-warning-foreground ">
       {children}
     </span>
   )

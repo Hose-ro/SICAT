@@ -318,7 +318,7 @@ export default function AlumnosMateriaCard({ materia, puedeEditar, onActualizado
       </div>
 
       {aviso && (
-        <p className="mt-3 rounded-xl border border-success/30 bg-success/10 px-3 py-2 text-sm text-success-foreground">
+        <p className="mt-3 rounded-xl border border-success/45 bg-success/18 px-3 py-2 text-sm text-success-foreground">
           {aviso}
         </p>
       )}
@@ -340,7 +340,7 @@ export default function AlumnosMateriaCard({ materia, puedeEditar, onActualizado
                     <SexoBadge sexo={alumno.sexo} />
                     <span className="min-w-0 break-words">{alumno.nombre}</span>
                     {datosIncompletos && (
-                      <span className="rounded-full bg-warning/10 px-2 py-0.5 text-[11px] font-medium text-warning-foreground">
+                      <span className="rounded-full bg-warning/18 px-2 py-0.5 text-[11px] font-medium text-warning-foreground">
                         Datos incompletos
                       </span>
                     )}
@@ -489,7 +489,7 @@ export default function AlumnosMateriaCard({ materia, puedeEditar, onActualizado
           {pestana === 'importar' && (
             <div className="space-y-3">
               {resumenImportacion ? (
-                <div className="space-y-3 rounded-xl border border-success/30 bg-success/10 p-4 text-sm text-success-foreground">
+                <div className="space-y-3 rounded-xl border border-success/45 bg-success/18 p-4 text-sm text-success-foreground">
                   <p className="font-medium">Importación terminada</p>
                   <ul className="list-inside list-disc space-y-1">
                     <li>Alumnos nuevos dados de alta: {resumenImportacion.creados}</li>
@@ -577,7 +577,7 @@ export default function AlumnosMateriaCard({ materia, puedeEditar, onActualizado
                                         onChange={(event) => actualizarFilaImportar(indice, campo, event.target.value)}
                                         title={invalido ? 'Sólo letras y números, sin espacios' : undefined}
                                         className={`w-full rounded-lg border px-2 py-1.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                                          invalido ? "border-destructive/30" : "border-border"
+                                          invalido ? "border-destructive/45" : "border-border"
                                         }`}
                                       />
                                     </td>
@@ -662,7 +662,7 @@ export default function AlumnosMateriaCard({ materia, puedeEditar, onActualizado
             </select>
           </div>
           {!formCompletar.numeroControl && (
-            <p className="rounded-lg bg-warning/10 px-3 py-2 text-xs text-warning-foreground">
+            <p className="rounded-lg bg-warning/18 px-3 py-2 text-xs text-warning-foreground">
               Sin número de control, correo o contraseña real el alumno no podrá iniciar sesión todavía.
             </p>
           )}

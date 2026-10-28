@@ -132,13 +132,13 @@ export default function MisGrupos() {
       </div>
 
       {error && (
-        <div className="rounded-2xl border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground">
+        <div className="rounded-2xl border border-destructive/40 bg-destructive/18 px-4 py-3 text-sm text-destructive-foreground">
           {error}
         </div>
       )}
 
       {aviso && (
-        <div className="rounded-2xl border border-success/30 bg-success/10 px-4 py-3 text-sm text-foreground">
+        <div className="rounded-2xl border border-success/45 bg-success/18 px-4 py-3 text-sm text-foreground">
           {aviso}
         </div>
       )}
@@ -255,7 +255,7 @@ function TarjetaGrupo({
           className={`rounded-full px-2.5 py-1 ${
             grupo.agregado
               ? 'bg-muted text-muted-foreground'
-              : "bg-success/15 text-success-foreground"
+              : "bg-success/22 text-success-foreground"
           }`}
         >
           {grupo.agregado ? 'Agregado por ti' : 'De tu horario'}
@@ -318,7 +318,7 @@ function TarjetaGrupo({
           <Button variant="ghost"
             type="button"
             onClick={onQuitar}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/10 hover:text-destructive-foreground"
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/18 hover:text-destructive-foreground"
           >
             <Trash2 className="h-4 w-4" />
             Quitar
@@ -391,7 +391,7 @@ function ModalMateriasGrupo({ grupo, onClose }) {
                   <span
                     className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${
                       materia.unidadActiva
-                        ? "bg-success/15 text-success-foreground"
+                        ? "bg-success/22 text-success-foreground"
                         : 'bg-muted text-muted-foreground'
                     }`}
                   >
@@ -511,7 +511,7 @@ function ModalAgregarGrupo({ open, misGrupos, onClose, onAgregado }) {
         </div>
 
         {error && (
-          <p className="rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground">
+          <p className="rounded-xl bg-destructive/18 px-3 py-2 text-sm text-destructive-foreground">
             {error}
           </p>
         )}
@@ -699,7 +699,7 @@ function ModalDetalleGrupo({ grupo, onClose }) {
           Cargando alumnos...
         </p>
       ) : error && !detalle ? (
-        <p className="rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground">
+        <p className="rounded-xl bg-destructive/18 px-3 py-2 text-sm text-destructive-foreground">
           {error}
         </p>
       ) : (
@@ -723,12 +723,12 @@ function ModalDetalleGrupo({ grupo, onClose }) {
           )}
 
           {aviso && (
-            <p className="rounded-xl border border-success/30 bg-success/10 px-3 py-2 text-sm text-foreground">
+            <p className="rounded-xl border border-success/45 bg-success/18 px-3 py-2 text-sm text-foreground">
               {aviso}
             </p>
           )}
           {error && (
-            <p className="rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground">
+            <p className="rounded-xl bg-destructive/18 px-3 py-2 text-sm text-destructive-foreground">
               {error}
             </p>
           )}
@@ -800,7 +800,7 @@ function ModalDetalleGrupo({ grupo, onClose }) {
               </div>
 
               {!modoSeleccion && !editandoLista && resumen.incompletos > 0 && (
-                <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning-foreground">
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-warning/45 bg-warning/18 px-3 py-2 text-xs text-warning-foreground">
                   <span>
                     {resumen.incompletos === 1
                       ? '1 alumno tiene datos faltantes.'
@@ -860,7 +860,7 @@ function ModalDetalleGrupo({ grupo, onClose }) {
                               </span>
                             )}
                             {datosIncompletos && (
-                              <span className="inline-flex shrink-0 items-center rounded-full bg-warning/15 px-2 py-0.5 text-[11px] font-medium text-warning-foreground">
+                              <span className="inline-flex shrink-0 items-center rounded-full bg-warning/22 px-2 py-0.5 text-[11px] font-medium text-warning-foreground">
                                 Datos incompletos
                               </span>
                             )}
@@ -1019,7 +1019,7 @@ function ModalEditarAlumnoGrupo({ grupo, alumno, onClose, onGuardado }) {
           </div>
         ))}
         {!form.numeroControl && (
-          <p className="rounded-lg bg-warning/10 px-3 py-2 text-xs text-warning-foreground">
+          <p className="rounded-lg bg-warning/18 px-3 py-2 text-xs text-warning-foreground">
             Sin número de control, correo o contraseña real el alumno no podrá iniciar sesión todavía.
           </p>
         )}

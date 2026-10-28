@@ -97,7 +97,7 @@ export function FormSeguimiento({ j, caso, seguimientoId, onGuardado, onCancelar
   return (
     <div className="space-y-4">
       {seguimientos.error ? (
-        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-item)] border border-warning/35 bg-warning/10 px-3 py-2.5 text-[0.8125rem] text-foreground">
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-item)] border border-warning/35 bg-warning/18 px-3 py-2.5 text-[0.8125rem] text-foreground">
           <span>No se pudo cargar el historial de observaciones: puede haber notas anteriores que no se ven aquí.</span>
           <Button type="button" variant="outline" size="sm" onClick={seguimientos.reintentar}><RefreshCw aria-hidden="true" /> Reintentar</Button>
         </div>
@@ -145,7 +145,7 @@ export function FormSeguimiento({ j, caso, seguimientoId, onGuardado, onCancelar
               </label>
             )}
           </div>
-          {error && <p role="alert" className="rounded-[var(--radius-item)] border border-destructive/25 bg-destructive/5 p-3 text-[0.8125rem] text-destructive-foreground">{error}</p>}
+          {error && <p role="alert" className="rounded-[var(--radius-item)] border border-destructive/40 bg-destructive/5 p-3 text-[0.8125rem] text-destructive-foreground">{error}</p>}
           <p role="status" className="text-[0.8125rem] text-success-foreground empty:hidden">{aviso}</p>
           <div className="flex flex-wrap justify-end gap-2">
             {onCancelar && <Button type="button" variant="outline" onClick={onCancelar} disabled={enviando}>Cancelar</Button>}

@@ -74,7 +74,7 @@ export default function TabAlumnos({ grupo, onAgregarClick, onImportarClick, onC
                     {a.activadoAt ? (
                       <span className="text-xs text-muted-foreground">Activa</span>
                     ) : (
-                      <span className="rounded-full bg-warning/15 px-2 py-0.5 text-xs font-medium text-warning-foreground">Sin activar</span>
+                      <span className="rounded-full bg-warning/22 px-2 py-0.5 text-xs font-medium text-warning-foreground">Sin activar</span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-right">

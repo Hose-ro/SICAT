@@ -71,7 +71,7 @@ export default function ProximasReuniones() {
                     <span className="block truncate text-xs text-muted-foreground">{horarioReunion(r)} · {lugarReunion(r)}</span>
                   </span>
                   {cruzaConClase(r) && (
-                    <span className="shrink-0 rounded-full bg-warning/15 px-2.5 py-1 text-xs font-medium text-warning-foreground">Se cruza con tu clase</span>
+                    <span className="shrink-0 rounded-full bg-warning/22 px-2.5 py-1 text-xs font-medium text-warning-foreground">Se cruza con tu clase</span>
                   )}
                 </Link>
               </li>
@@ -90,7 +90,7 @@ function ReunionDestacada({ reunion }) {
   return (
     <section className="agenda-clase rounded-xl bg-muted p-5">
       <div className="flex flex-wrap items-center gap-2">
-        <span className={`rounded-full px-3 py-1 text-xs font-medium ${esHoy ? 'bg-success/15 text-success-foreground' : 'bg-card text-muted-foreground'}`}>
+        <span className={`rounded-full px-3 py-1 text-xs font-medium ${esHoy ? 'bg-success/22 text-success-foreground' : 'bg-card text-muted-foreground'}`}>
           {esHoy ? 'Hoy' : 'Próxima reunión'}
         </span>
         <span className="text-xs text-muted-foreground">{fechaReunion(reunion.fecha)} · {horarioReunion(reunion)}</span>

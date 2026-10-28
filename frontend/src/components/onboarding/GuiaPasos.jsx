@@ -79,7 +79,7 @@ export default function GuiaPasos({ pasos, claveGuia, textos, atajos = [], onCom
                   aria-hidden="true"
                   className={cn(
                     'grid size-8 shrink-0 place-items-center rounded-full text-sm font-semibold tabular-nums',
-                    paso.hecho ? 'bg-success/15 text-success-foreground' : esActual ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground',
+                    paso.hecho ? 'bg-success/22 text-success-foreground' : esActual ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground',
                   )}
                 >
                   {paso.hecho ? <Check className="size-4" /> : i + 1}

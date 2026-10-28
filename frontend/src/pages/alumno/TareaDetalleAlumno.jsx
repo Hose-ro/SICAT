@@ -13,9 +13,9 @@ const STATE_CLASS = {
   PENDIENTE: 'bg-muted text-foreground',
   ENTREGADA: "bg-primary/10 text-primary-ink",
   REVISADA: "bg-primary/10 text-primary-ink",
-  INCORRECTA: "bg-destructive/10 text-destructive-foreground",
-  CALIFICADA: 'bg-success/10 text-foreground',
-  NO_ENTREGADA: 'bg-warning/10 text-foreground',
+  INCORRECTA: "bg-destructive/18 text-destructive-foreground",
+  CALIFICADA: 'bg-success/18 text-foreground',
+  NO_ENTREGADA: 'bg-warning/18 text-foreground',
 }
 
 function formatDateTime(date) {
@@ -102,7 +102,7 @@ export default function TareaDetalleAlumno() {
           </dl>
 
           {miEntrega?.observacion && (
-            <div className="mt-5 rounded-[var(--radius-item)] bg-success/10 px-4 py-3 text-sm text-foreground">
+            <div className="mt-5 rounded-[var(--radius-item)] bg-success/18 px-4 py-3 text-sm text-foreground">
               <p className="font-medium">Observación de tu docente</p>
               <p className="mt-1">{miEntrega.observacion}</p>
             </div>

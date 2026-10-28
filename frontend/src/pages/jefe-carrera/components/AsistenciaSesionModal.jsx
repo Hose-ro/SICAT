@@ -43,7 +43,7 @@ export default function AsistenciaSesionModal({ sesionId, carreraId, periodo, on
   return (
     <Modal open onClose={onClose} title={sesion ? `Lista capturada · ${sesion.materia.nombre}` : 'Lista capturada'} description={descripcion} wide>
       {loading && <p role="status" className="py-10 text-center text-sm text-muted-foreground">Cargando la lista…</p>}
-      {error && <p role="alert" className="rounded-[var(--radius-item)] border border-destructive/25 bg-destructive/5 px-4 py-3 text-sm text-destructive-foreground">{error}</p>}
+      {error && <p role="alert" className="rounded-[var(--radius-item)] border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm text-destructive-foreground">{error}</p>}
 
       {!loading && !error && data && (
         <>

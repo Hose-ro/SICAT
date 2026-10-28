@@ -50,7 +50,7 @@ export default function MisReuniones() {
     <div className="mx-auto max-w-4xl">
       <PageHeader title="Reuniones de academia" subtitle="Juntas a las que te convocó la jefatura de carrera, con su orden del día y los acuerdos. Si una se cruza con tu clase, justifícala aquí." />
       {estado.error ? (
-        <div role="alert" className="rounded-[var(--radius-item)] border border-destructive/25 bg-destructive/5 p-5 text-sm">
+        <div role="alert" className="rounded-[var(--radius-item)] border border-destructive/40 bg-destructive/5 p-5 text-sm">
           <p className="font-semibold text-destructive-foreground">{estado.error}</p>
           <Button variant="outline" className="mt-3" onClick={() => { setEstado({ lista: null, error: '' }); setIntento((n) => n + 1) }}>Reintentar</Button>
         </div>

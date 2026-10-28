@@ -58,7 +58,7 @@ export default function FormEditarGrupo({ open, onClose, grupo }) {
           disabled={guardando}
         />
         {cambios.modalidad === 'MIXTO' && (
-          <p className="rounded-xl border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-foreground">
+          <p className="rounded-xl border border-warning/40 bg-warning/18 px-3 py-2 text-xs text-foreground">
             Al pasar a mixto, sus clases y asistencias atrasadas se regirán por el calendario mixto (sábados).
           </p>
         )}

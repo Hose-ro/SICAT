@@ -2,9 +2,9 @@
 // reprobado debajo, sin estado intermedio. Lo calcula el servidor
 // (common/desempeno.util.ts); aquí sólo se nombra y se ordena.
 export const DESEMPENO = {
-  REPROBADO: { label: 'Reprobado', plural: 'Reprobados', tono: 'destructive', punto: 'bg-destructive', cifra: 'text-destructive-foreground', fondo: 'bg-destructive/12' },
+  REPROBADO: { label: 'Reprobado', plural: 'Reprobados', tono: 'destructive', punto: 'bg-destructive', cifra: 'text-destructive-foreground', fondo: 'bg-destructive/20' },
   SIN_CALIFICAR: { label: 'Sin calificar', plural: 'Sin calificar', tono: 'muted', punto: 'bg-muted-foreground', cifra: 'text-muted-foreground' },
-  APROBADO: { label: 'Aprobado', plural: 'Aprobados', tono: 'success', punto: 'bg-success', cifra: 'text-success-foreground', fondo: 'bg-success/12' },
+  APROBADO: { label: 'Aprobado', plural: 'Aprobados', tono: 'success', punto: 'bg-success', cifra: 'text-success-foreground', fondo: 'bg-success/20' },
 }
 
 // Lo que pide atención primero.

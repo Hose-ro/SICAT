@@ -17,8 +17,8 @@ export const lugarReunion = (r) => (r.modalidad === 'VIRTUAL' ? 'En línea' : r.
 
 export const ESTADO_REUNION = {
   PROGRAMADA: { label: 'Programada', clase: 'bg-muted text-foreground' },
-  FINALIZADA: { label: 'Finalizada', clase: 'bg-success/10 text-success-foreground' },
-  CANCELADA: { label: 'Cancelada', clase: 'bg-destructive/10 text-destructive-foreground' },
+  FINALIZADA: { label: 'Finalizada', clase: 'bg-success/18 text-success-foreground' },
+  CANCELADA: { label: 'Cancelada', clase: 'bg-destructive/18 text-destructive-foreground' },
 }
 export const TIPO_REUNION = { ORDINARIA: 'Ordinaria', EXTRAORDINARIA: 'Extraordinaria' }
 

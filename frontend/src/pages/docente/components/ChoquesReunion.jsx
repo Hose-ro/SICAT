@@ -68,7 +68,7 @@ export default function ChoquesReunion({ reunion, onCambio }) {
               </span>
               {c.justificacion ? (
                 <span className="flex shrink-0 items-center gap-2">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success-foreground"><Check className="size-3" aria-hidden="true" /> Justificada</span>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-success/18 px-2 py-0.5 text-xs font-medium text-success-foreground"><Check className="size-3" aria-hidden="true" /> Justificada</span>
                   {c.justificacion.reunionId === reunion.id && (
                     <Button type="button" variant="ghost" size="sm" disabled={guardando} onClick={() => quitar(c)} aria-label={`Quitar la justificación de ${clase(c)}`}>Quitar</Button>
                   )}
@@ -78,7 +78,7 @@ export default function ChoquesReunion({ reunion, onCambio }) {
               ) : c.listaCapturada ? (
                 <span className="shrink-0 text-xs text-muted-foreground">Ya pasaste lista</span>
               ) : (
-                <span className="shrink-0 rounded-full bg-warning/15 px-2 py-0.5 text-xs font-medium text-warning-foreground">Sin justificar</span>
+                <span className="shrink-0 rounded-full bg-warning/22 px-2 py-0.5 text-xs font-medium text-warning-foreground">Sin justificar</span>
               )}
             </>
           )

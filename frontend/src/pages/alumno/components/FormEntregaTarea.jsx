@@ -135,7 +135,7 @@ export default function FormEntregaTarea({ tarea, miEntrega, puedeEditar, onSucc
             <div key={`${file.name}-${file.size}`} className="flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-item)] border border-border px-4 py-2 text-sm text-muted-foreground">
               <span className="min-w-0 break-words"><span className="text-foreground">{file.name}</span> · {(file.size / 1024 / 1024).toFixed(2)} MB</span>
               <Button variant="ghost" type="button" disabled={saving} onClick={() => setArchivos((files) => files.filter((_, i) => i !== index))}
-                className="h-8 px-2 text-destructive-foreground hover:bg-destructive/10 hover:text-destructive-foreground" aria-label={`Quitar ${file.name}`}>Quitar</Button>
+                className="h-8 px-2 text-destructive-foreground hover:bg-destructive/18 hover:text-destructive-foreground" aria-label={`Quitar ${file.name}`}>Quitar</Button>
             </div>
           ))}
         </div>

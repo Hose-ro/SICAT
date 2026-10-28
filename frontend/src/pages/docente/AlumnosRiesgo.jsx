@@ -13,8 +13,8 @@ import { cn } from '@/lib/utils'
 import api from '@/api/axios'
 
 const ESTADO = {
-  ASISTENCIA: { letra: 'A', label: 'Asistió', className: 'bg-success/15 text-success-foreground' },
-  FALTA: { letra: 'F', label: 'Falta', className: 'bg-destructive/15 text-destructive-foreground' },
+  ASISTENCIA: { letra: 'A', label: 'Asistió', className: 'bg-success/22 text-success-foreground' },
+  FALTA: { letra: 'F', label: 'Falta', className: 'bg-destructive/22 text-destructive-foreground' },
   RETARDO: { letra: 'R', label: 'Retardo', className: 'bg-warning/20 text-warning-foreground' },
   JUSTIFICADA: { letra: 'J', label: 'Justificada', className: 'bg-muted text-muted-foreground' },
 }
@@ -230,7 +230,7 @@ export default function AlumnosRiesgo() {
         )}
       </header>
       {datos?.clasesSinDatos?.length > 0 && (
-        <p role="alert" className="rounded-[var(--radius-card)] border border-warning/35 bg-warning/10 px-4 py-3 text-sm text-foreground">
+        <p role="alert" className="rounded-[var(--radius-card)] border border-warning/35 bg-warning/18 px-4 py-3 text-sm text-foreground">
           No se pudo calcular {datos.clasesSinDatos.map((c) => `${c.materia.nombre} · ${c.grupo.nombre}`).join(', ')}; la lista puede estar incompleta.
         </p>
       )}

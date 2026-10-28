@@ -93,7 +93,7 @@ export default function HorariosPage({ soloPropias = false }) {
       </div>
 
       {error && (
-        <div className="flex items-center justify-between rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground">
+        <div className="flex items-center justify-between rounded-lg border border-destructive/45 bg-destructive/18 px-4 py-3 text-sm text-destructive-foreground">
           <span>{error}</span>
           <Button variant="destructive" onClick={clearError} className="ml-4">
             ✕

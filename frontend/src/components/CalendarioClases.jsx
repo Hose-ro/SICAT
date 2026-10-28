@@ -214,7 +214,7 @@ export default function CalendarioClases({ horarios = [], modo = 'docente' }) {
                       onClick={() => elegir(celda.clave)}
                       aria-pressed={seleccion.includes(celda.clave)}
                       aria-label={`${fechaLocal(celda.clave).toLocaleDateString('es-MX', { dateStyle: 'full' })}: ${porFecha.has(celda.clave) ? `sin clases${porFecha.get(celda.clave).institucional ? ' (institucional)' : ''}, ${porFecha.get(celda.clave).motivo}` : institucional ? (celda.enPeriodo ? 'día del periodo' : 'fuera del periodo') : `${celda.clases.length} ${celda.clases.length === 1 ? 'clase' : 'clases'}`}`}
-                      className={`min-h-16 rounded-xl border p-1.5 text-left transition-colors sm:min-h-20 sm:p-2 ${seleccion.includes(celda.clave) ? 'ring-2 ring-primary' : ''} ${porFecha.has(celda.clave) ? 'border-destructive/40 bg-destructive/10 text-destructive-foreground hover:bg-destructive/15' : (institucional ? celda.enPeriodo : celda.clases.length) ? 'border-primary/25 bg-primary/10 text-foreground hover:bg-primary/15' : 'border-transparent text-muted-foreground/50'} disabled:cursor-default`}
+                      className={`min-h-16 rounded-xl border p-1.5 text-left transition-colors sm:min-h-20 sm:p-2 ${seleccion.includes(celda.clave) ? 'ring-2 ring-primary' : ''} ${porFecha.has(celda.clave) ? 'border-destructive/40 bg-destructive/18 text-destructive-foreground hover:bg-destructive/22' : (institucional ? celda.enPeriodo : celda.clases.length) ? 'border-primary/25 bg-primary/10 text-foreground hover:bg-primary/15' : 'border-transparent text-muted-foreground/50'} disabled:cursor-default`}
                     >
                       <span className="block text-sm font-semibold">{celda.dia}</span>
                       {porFecha.has(celda.clave)
@@ -243,7 +243,7 @@ export default function CalendarioClases({ horarios = [], modo = 'docente' }) {
                     ))}
                   </ul>
                 )}
-                {seleccion.length === 1 && porFecha.has(seleccion[0]) && <p className="mt-3 rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive-foreground">Motivo actual: {porFecha.get(seleccion[0]).motivo}</p>}
+                {seleccion.length === 1 && porFecha.has(seleccion[0]) && <p className="mt-3 rounded-lg bg-destructive/18 px-3 py-2 text-xs text-destructive-foreground">Motivo actual: {porFecha.get(seleccion[0]).motivo}</p>}
                 {!institucional && celdas.some((celda) => celda && bloqueada(celda.clave)) && (
                   <ul className="mt-3 space-y-1 text-xs text-muted-foreground">
                     {celdas.filter((celda) => celda && bloqueada(celda.clave)).map((celda) => (

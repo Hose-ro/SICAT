@@ -950,7 +950,7 @@ function DocenteCalificaciones() {
       </div>
 
       {filters.materiaId && reporteDocente?.tareasSinCategoria > 0 && (
-        <div role="status" className="rounded-2xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning-foreground">
+        <div role="status" className="rounded-2xl border border-warning/45 bg-warning/18 px-4 py-3 text-sm text-warning-foreground">
           {plural(reporteDocente.tareasSinCategoria, 'actividad no tiene', 'actividades no tienen')} un criterio de este grupo y no
           {reporteDocente.tareasSinCategoria === 1 ? ' cuenta' : ' cuentan'} en la calificación.{' '}
           <Link to={`/tareas?materia=${filters.materiaId}${filters.grupoId ? `&grupo=${filters.grupoId}` : ''}`} className="font-semibold underline underline-offset-2">Asignarles criterio en Tareas</Link>
@@ -958,7 +958,7 @@ function DocenteCalificaciones() {
       )}
 
       {error && (
-        <div role="alert" className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground">
+        <div role="alert" className="rounded-2xl border border-destructive/45 bg-destructive/18 px-4 py-3 text-sm text-destructive-foreground">
           {Array.isArray(error) ? error.join(', ') : error}
         </div>
       )}
@@ -1166,7 +1166,7 @@ function AlumnoCalificaciones() {
       </header>
 
       {error && (
-        <div role="alert" className="rounded-[var(--radius-item)] border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground">
+        <div role="alert" className="rounded-[var(--radius-item)] border border-destructive/45 bg-destructive/18 px-4 py-3 text-sm text-destructive-foreground">
           {Array.isArray(error) ? error.join(', ') : error}
         </div>
       )}

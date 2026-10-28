@@ -44,9 +44,9 @@ export const NOTIFICATION_META = {
 
 export const NOTIFICATION_TONE_CLASS = {
   neutral: 'bg-muted text-muted-foreground',
-  success: 'bg-success/10 text-success-foreground',
-  warning: 'bg-warning/15 text-warning-foreground',
-  destructive: 'bg-destructive/10 text-destructive-foreground',
+  success: 'bg-success/18 text-success-foreground',
+  warning: 'bg-warning/22 text-warning-foreground',
+  destructive: 'bg-destructive/18 text-destructive-foreground',
 }
 
 export function getNotificationMeta(tipo) {

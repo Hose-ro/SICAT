@@ -13,10 +13,10 @@ const ESTADO_TAREA = {
   null:         { label: 'Pendiente',    bg: "bg-background",   text: "text-muted-foreground",  ring: "ring-ring"  },
   PENDIENTE:    { label: 'Pendiente',    bg: "bg-background",   text: "text-muted-foreground",  ring: "ring-ring"  },
   ENTREGADA:    { label: 'Entregada',    bg: "bg-accent",    text: "text-primary-ink",   ring: "ring-ring"   },
-  REVISADA:     { label: 'Revisada',     bg: "bg-warning/10",   text: "text-warning-foreground",  ring: "ring-ring"  },
-  CALIFICADA:   { label: 'Calificada',   bg: "bg-success/10", text: "text-success-foreground",ring: "ring-ring"},
-  INCORRECTA:   { label: 'Incorrecta',   bg: "bg-destructive/10",    text: "text-destructive-foreground",   ring: "ring-ring"   },
-  NO_ENTREGADA: { label: 'No entregada', bg: "bg-warning/10",   text: "text-warning-foreground",  ring: "ring-ring"  },
+  REVISADA:     { label: 'Revisada',     bg: "bg-warning/18",   text: "text-warning-foreground",  ring: "ring-ring"  },
+  CALIFICADA:   { label: 'Calificada',   bg: "bg-success/18", text: "text-success-foreground",ring: "ring-ring"},
+  INCORRECTA:   { label: 'Incorrecta',   bg: "bg-destructive/18",    text: "text-destructive-foreground",   ring: "ring-ring"   },
+  NO_ENTREGADA: { label: 'No entregada', bg: "bg-warning/18",   text: "text-warning-foreground",  ring: "ring-ring"  },
 }
 
 function EstadoTareaBadge({ estado, tarea, registrada }) {
@@ -70,7 +70,7 @@ export default function MateriaDetalleAlumno() {
     <div className="space-y-5 px-4 py-5 sm:px-6">
       <h1 className="text-xl font-bold text-foreground">Asistencias y tareas de la materia</h1>
       {claseActiva && (
-        <div className="flex flex-col gap-3 rounded-2xl border border-success/30 bg-success/10 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 rounded-2xl border border-success/45 bg-success/18 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2.5">
             <span className="h-2 w-2 rounded-full bg-success" />
             <div>
@@ -145,7 +145,7 @@ export default function MateriaDetalleAlumno() {
                         </div>
                         <div className="flex shrink-0 items-center gap-2">
                           {miEntrega?.fueTardia && (
-                            <span className="rounded-full bg-warning/10 px-2 py-0.5 text-[11px] font-medium text-warning-foreground ring-1 ring-ring">
+                            <span className="rounded-full bg-warning/18 px-2 py-0.5 text-[11px] font-medium text-warning-foreground ring-1 ring-ring">
                               Tardía
                             </span>
                           )}

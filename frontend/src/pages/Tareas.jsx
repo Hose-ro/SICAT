@@ -14,9 +14,9 @@ const DELIVERY_STATE_CLASS = {
   PENDIENTE: 'bg-muted text-foreground',
   ENTREGADA: "bg-primary/10 text-primary-ink",
   REVISADA: "bg-primary/10 text-primary-ink",
-  INCORRECTA: "bg-destructive/10 text-destructive-foreground",
-  CALIFICADA: 'bg-success/10 text-foreground',
-  NO_ENTREGADA: 'bg-warning/10 text-foreground',
+  INCORRECTA: "bg-destructive/18 text-destructive-foreground",
+  CALIFICADA: 'bg-success/18 text-foreground',
+  NO_ENTREGADA: 'bg-warning/18 text-foreground',
 }
 
 function formatDateTime(date) {

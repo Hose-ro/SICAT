@@ -191,7 +191,7 @@ export default function JefeMaterias() {
               </p>
             )}
             {vista === 'ofertas' && revision && asignacionesVisibles > 0 && (
-              <p className="mt-2 rounded-[var(--radius-item)] border border-warning/35 bg-warning/10 px-4 py-3 text-xs text-foreground">
+              <p className="mt-2 rounded-[var(--radius-item)] border border-warning/35 bg-warning/18 px-4 py-3 text-xs text-foreground">
                 <b className="font-medium">Quién lo corrige:</b> el docente al capturar su horario en SICAT, o coordinación desde Horarios. La jefatura lo consulta aquí; registra el acuerdo como observación con el docente.
               </p>
             )}

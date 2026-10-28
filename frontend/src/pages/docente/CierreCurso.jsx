@@ -14,8 +14,8 @@ import { Segmentado } from './components/tareas/Controles'
 
 const NIVEL = { EXCELENTE: 'Excelente', NOTABLE: 'Notable', BUENO: 'Bueno', SUFICIENTE: 'Suficiente', INSUFICIENTE: 'Insuficiente' }
 const RESULTADO = {
-  ACREDITADO: { etiqueta: 'Acreditado', tono: 'bg-success/15 text-success-foreground' },
-  NO_ACREDITADO: { etiqueta: 'No acreditado', tono: 'bg-destructive/10 text-destructive-foreground' },
+  ACREDITADO: { etiqueta: 'Acreditado', tono: 'bg-success/22 text-success-foreground' },
+  NO_ACREDITADO: { etiqueta: 'No acreditado', tono: 'bg-destructive/18 text-destructive-foreground' },
   PENDIENTE: { etiqueta: 'Pendiente', tono: 'bg-warning/20 text-warning-foreground' },
 }
 const CAMPO = 'h-9 w-full rounded-[10px] border border-input bg-background px-3 text-base text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40 disabled:opacity-50 aria-invalid:border-destructive sm:text-sm'
@@ -455,7 +455,7 @@ function Estado({ datos, accion, bloqueoCierre, onCerrar, onReabrir, onDescargar
             <p className="text-sm text-success-foreground">Todo está calificado: ya puedes cerrar el curso.</p>
           )}
           {cierre?.cambios?.length > 0 && (
-            <p role="status" className="rounded-[var(--radius-item)] border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning-foreground">
+            <p role="status" className="rounded-[var(--radius-item)] border border-warning/45 bg-warning/18 px-3 py-2 text-sm text-warning-foreground">
               Después del cierre cambió la calificación de {cierre.cambios.map((item) => `${item.alumno.nombre} (${item.antes ?? 'NA'} → ${item.ahora ?? 'NA'})`).join(', ')}.
               Reabre el curso si el concentrado debe actualizarse.
             </p>
@@ -529,7 +529,7 @@ function SegundaOportunidad({ datos, borradores, servidor, cerrado, capturaManua
                   {unidad.nombre} <span className="font-normal text-muted-foreground">· {plural(filas.length, 'alumno', 'alumnos')}</span>
                 </h3>
                 {!bloqueado && faltan.length > 0 && (
-                  <Button variant="ghost" type="button" className="h-8 px-2 text-sm text-destructive-foreground hover:bg-destructive/10 hover:text-destructive-foreground"
+                  <Button variant="ghost" type="button" className="h-8 px-2 text-sm text-destructive-foreground hover:bg-destructive/18 hover:text-destructive-foreground"
                     onClick={() => faltan.forEach(({ item }) => onCambiar(clave(item.alumno.id, unidad.id), { noPresento: true, calificacion: '' }))}>
                     {faltan.length === filas.length ? 'Reprobar a todos' : faltan.length === 1 ? 'Reprobar al que falta' : `Reprobar a los ${faltan.length} que faltan`}
                   </Button>
@@ -575,7 +575,7 @@ function FilaSegunda({ item, celda, unidad, cerrado, aprobatoria, borrador = { c
 
       <div className="flex items-center gap-2">
         {borrador.noPresento ? (
-          <p className="flex h-9 w-[10.5rem] items-center rounded-[10px] bg-destructive/10 px-3 text-sm font-medium text-destructive-foreground">Reprobado</p>
+          <p className="flex h-9 w-[10.5rem] items-center rounded-[10px] bg-destructive/18 px-3 text-sm font-medium text-destructive-foreground">Reprobado</p>
         ) : (
           <div className="flex w-[10.5rem] items-center justify-between gap-2">
             <label htmlFor={id} className="text-sm text-muted-foreground">Calificación</label>
@@ -592,7 +592,7 @@ function FilaSegunda({ item, celda, unidad, cerrado, aprobatoria, borrador = { c
             Deshacer
           </Button>
         ) : (
-          <Button variant="outline" type="button" className="h-9 text-destructive-foreground hover:bg-destructive/10 hover:text-destructive-foreground"
+          <Button variant="outline" type="button" className="h-9 text-destructive-foreground hover:bg-destructive/18 hover:text-destructive-foreground"
             onClick={() => onCambiar({ noPresento: true, calificacion: '' })}
             aria-label={`Reprobar a ${item.alumno.nombre} en ${unidad.nombre}`}>
             Reprobar

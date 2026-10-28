@@ -82,7 +82,7 @@ export default function IncorporarAlumno({ j, oferta, onClose }) {
       </dl>
 
       {resultado ? (
-        <div role="status" className="rounded-[var(--radius-item)] border border-success/25 bg-success/10 p-4 text-sm">
+        <div role="status" className="rounded-[var(--radius-item)] border border-success/40 bg-success/18 p-4 text-sm">
           <p className="font-semibold text-success-foreground">{resultado.alumno.nombre} quedó inscrito en {oferta.materia.nombre}, grupo {oferta.grupo.nombre}.</p>
           <p className="mt-1 text-foreground">{resultado.mensaje ?? 'Su grupo base se conserva.'} La incorporación quedó registrada con tu nombre, la fecha y el motivo.</p>
           <div className="mt-4 flex flex-wrap gap-2">
@@ -145,7 +145,7 @@ export default function IncorporarAlumno({ j, oferta, onClose }) {
                 <Dato label="Grupo base" value="Se conserva" />
               </dl>
               {requiereResolver && (
-                <label className="flex items-start gap-2.5 rounded-[var(--radius-item)] border border-warning/35 bg-warning/10 p-3 text-[0.8125rem] text-foreground">
+                <label className="flex items-start gap-2.5 rounded-[var(--radius-item)] border border-warning/35 bg-warning/18 p-3 text-[0.8125rem] text-foreground">
                   <input type="checkbox" checked={resolver} onChange={(e) => setResolver(e.target.checked)} className="mt-0.5 size-[17px] shrink-0 accent-primary" />
                   <span>El alumno tiene una {existente === 'PENDIENTE' ? 'solicitud pendiente' : 'solicitud rechazada'} para esta materia. Al confirmar, esa misma inscripción pasa a aceptada en este grupo; no se crea otra.</span>
                 </label>
@@ -160,7 +160,7 @@ export default function IncorporarAlumno({ j, oferta, onClose }) {
                 />
                 <p id={`${ids}-motivo-ayuda`} className="mt-1 text-xs text-muted-foreground">Queda en el historial junto con tu nombre y la fecha. Mínimo 5 caracteres.</p>
               </div>
-              {error && <p role="alert" className="rounded-[var(--radius-item)] border border-destructive/25 bg-destructive/5 p-3 text-[0.8125rem] text-destructive-foreground">{error}</p>}
+              {error && <p role="alert" className="rounded-[var(--radius-item)] border border-destructive/40 bg-destructive/5 p-3 text-[0.8125rem] text-destructive-foreground">{error}</p>}
               <div className="flex flex-wrap justify-end gap-2">
                 <Button variant="outline" onClick={onClose} disabled={enviando}>Cancelar</Button>
                 <Button onClick={confirmar} disabled={!listo || enviando}>

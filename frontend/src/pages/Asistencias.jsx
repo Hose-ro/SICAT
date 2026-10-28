@@ -54,17 +54,17 @@ function estadoClaseLabel(estado) {
 function estadoClaseStyle(estado) {
   switch (estado) {
     case 'EN_CURSO':
-      return "bg-success/10 text-success-foreground"
+      return "bg-success/18 text-success-foreground"
     case 'FUERA_DE_HORARIO':
-      return "bg-warning/10 text-warning-foreground"
+      return "bg-warning/18 text-warning-foreground"
     case 'FINALIZADA':
       return "bg-muted text-foreground"
     case 'SUSPENDIDA':
-      return "bg-destructive/10 text-destructive-foreground"
+      return "bg-destructive/18 text-destructive-foreground"
     case 'PROGRAMADA_AHORA':
       return "bg-accent text-primary-ink"
     case 'PASADA':
-      return "bg-destructive/10 text-destructive-foreground"
+      return "bg-destructive/18 text-destructive-foreground"
     case 'PROXIMA':
     default:
       return "bg-accent text-primary-ink"
@@ -84,9 +84,9 @@ function getApiErrorMessage(error, fallback) {
 function StatPill({ label, value, tone = 'slate' }) {
   const tones = {
     slate: "bg-muted text-foreground",
-    emerald: "bg-success/10 text-success-foreground",
-    rose: "bg-destructive/10 text-destructive-foreground",
-    amber: "bg-warning/10 text-warning-foreground",
+    emerald: "bg-success/18 text-success-foreground",
+    rose: "bg-destructive/18 text-destructive-foreground",
+    amber: "bg-warning/18 text-warning-foreground",
     sky: "bg-accent text-primary-ink",
   }
 
@@ -418,13 +418,13 @@ function RankingFaltas({ items }) {
   const resumen = `${items.length} ${items.length === 1 ? 'alumno' : 'alumnos'} · hasta ${maximo} ${maximo === 1 ? 'falta' : 'faltas'}`
 
   return (
-    <div className="overflow-hidden rounded-[var(--radius-card)] border border-destructive/30 bg-destructive/10">
+    <div className="overflow-hidden rounded-[var(--radius-card)] border border-destructive/45 bg-destructive/18">
       <button
         type="button"
         onClick={() => setAbierto((prev) => !prev)}
         aria-expanded={abierto}
         aria-controls={panelId}
-        className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left transition-colors hover:bg-destructive/15"
+        className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left transition-colors hover:bg-destructive/22"
       >
         <div className="min-w-0">
           <h3 className="text-sm font-semibold text-destructive-foreground">Ranking de alumnos con más faltas</h3>
@@ -437,7 +437,7 @@ function RankingFaltas({ items }) {
       </button>
 
       {abierto && (
-        <ol id={panelId} className="divide-y divide-destructive/20 border-t border-destructive/30">
+        <ol id={panelId} className="divide-y divide-destructive/20 border-t border-destructive/45">
           {items.map((item, indice) => (
             <li key={item.alumnoId} className="flex items-center gap-3 bg-card/60 px-5 py-2.5 text-sm">
               <span className="w-6 shrink-0 text-xs font-semibold tabular-nums text-muted-foreground">{indice + 1}.</span>
@@ -450,7 +450,7 @@ function RankingFaltas({ items }) {
                   <span className="block text-xs text-muted-foreground">{item.numeroControl}</span>
                 )}
               </span>
-              <span className="shrink-0 rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-semibold tabular-nums text-destructive-foreground">
+              <span className="shrink-0 rounded-full bg-destructive/18 px-2.5 py-1 text-xs font-semibold tabular-nums text-destructive-foreground">
                 {item.faltas} {item.faltas === 1 ? 'falta' : 'faltas'}
               </span>
             </li>
@@ -526,7 +526,7 @@ function HistorialTable({ items, onEditar, onVer, onExportarPdf, onExportarExcel
                   {item.suspendida ? 'No aplica' : item.unidad?.nombre ?? 'Sin unidad'}
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {item.suspendida ? <span className="rounded-full bg-destructive/10 px-3 py-1 text-xs font-semibold text-destructive-foreground">No requiere lista</span> : <>
+                  {item.suspendida ? <span className="rounded-full bg-destructive/18 px-3 py-1 text-xs font-semibold text-destructive-foreground">No requiere lista</span> : <>
                   <StatPill label="A" value={item.resumen?.asistencias ?? 0} tone="emerald" />
                   <StatPill label="F" value={item.resumen?.faltas ?? 0} tone="rose" />
                   <StatPill label="R" value={item.resumen?.retardos ?? 0} tone="amber" />
@@ -1105,7 +1105,7 @@ function AlumnoAsistenciasView() {
       </header>
 
       {error && (
-        <div role="alert" className="flex items-start gap-2 rounded-[var(--radius-item)] border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground">
+        <div role="alert" className="flex items-start gap-2 rounded-[var(--radius-item)] border border-destructive/45 bg-destructive/18 px-4 py-3 text-sm text-destructive-foreground">
           <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
           {error}
         </div>
@@ -1232,7 +1232,7 @@ function ClasesAtrasadasSection({
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-semibold text-foreground">Asistencias atrasadas</h2>
             {items.length > 0 && (
-              <span className="rounded-full bg-warning/10 px-3 py-1 text-xs font-semibold text-warning-foreground">
+              <span className="rounded-full bg-warning/18 px-3 py-1 text-xs font-semibold text-warning-foreground">
                 {items.length} pendiente{items.length === 1 ? '' : 's'}
               </span>
             )}
@@ -1254,7 +1254,7 @@ function ClasesAtrasadasSection({
       </div>
 
       {error && (
-        <p role="alert" className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground">
+        <p role="alert" className="rounded-2xl border border-destructive/45 bg-destructive/18 px-4 py-3 text-sm text-destructive-foreground">
           {error}
         </p>
       )}
@@ -1299,7 +1299,7 @@ function ClasesAtrasadasSection({
                 </div>
 
                 {confirmando && (
-                  <div className="mt-3 flex flex-col gap-3 rounded-2xl border border-warning/30 bg-warning/10 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="mt-3 flex flex-col gap-3 rounded-2xl border border-warning/45 bg-warning/18 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                     <p className="text-sm text-warning-foreground">
                       Se marcará <strong>asistencia</strong> a todos los alumnos en {seleccion.length}{' '}
                       clase{seleccion.length === 1 ? '' : 's'}. Después puedes abrir cualquiera y ajustar casos sueltos.
@@ -1746,13 +1746,13 @@ function DocenteAsistenciasView() {
       </header>
 
       {mensaje && (
-        <p role="alert" className="rounded-[var(--radius-item)] border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground">
+        <p role="alert" className="rounded-[var(--radius-item)] border border-destructive/45 bg-destructive/18 px-4 py-3 text-sm text-destructive-foreground">
           {mensaje}
         </p>
       )}
 
       {exportSuggestion && (
-        <div role="status" className="flex flex-col gap-3 rounded-[var(--radius-item)] border border-success/30 bg-success/10 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
+        <div role="status" className="flex flex-col gap-3 rounded-[var(--radius-item)] border border-success/45 bg-success/18 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
           <p className="text-sm text-foreground">{exportSuggestion.label}</p>
           <ExportActions
             label={exportSuggestion.type === 'unidad' ? 'Reporte de unidad' : 'Reporte de clase'}
@@ -1863,7 +1863,7 @@ function DocenteAsistenciasView() {
         </div>
 
         {opcionesError && (
-          <p role="alert" className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground">
+          <p role="alert" className="rounded-2xl border border-destructive/45 bg-destructive/18 px-4 py-3 text-sm text-destructive-foreground">
             {opcionesError}
           </p>
         )}

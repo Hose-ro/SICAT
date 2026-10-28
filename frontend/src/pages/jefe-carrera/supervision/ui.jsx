@@ -181,7 +181,7 @@ export function Esqueleto({ compacto = false }) {
 
 export function Aviso({ tono = 'neutral', titulo, children, accion }) {
   return (
-    <div role={tono === 'error' ? 'alert' : undefined} className={cn('mt-6 rounded-[var(--radius-item)] border px-5 py-5 text-sm', tono === 'error' ? 'border-destructive/25 bg-destructive/5' : 'border-border bg-card')}>
+    <div role={tono === 'error' ? 'alert' : undefined} className={cn('mt-6 rounded-[var(--radius-item)] border px-5 py-5 text-sm', tono === 'error' ? 'border-destructive/40 bg-destructive/5' : 'border-border bg-card')}>
       <p className={cn('font-semibold', tono === 'error' ? 'text-destructive-foreground' : 'text-foreground')}>{titulo}</p>
       {children && <div className="mt-1 text-muted-foreground">{children}</div>}
       {accion && <div className="mt-4">{accion}</div>}
@@ -197,7 +197,7 @@ export function AvisoParcial({ conjunto, total, onReintentar }) {
   if (!conjunto.fallidos) return null
   const todas = conjunto.fallidos === total
   return (
-    <div role="alert" className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-item)] border border-warning/35 bg-warning/10 px-4 py-3 text-[0.8125rem]">
+    <div role="alert" className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-item)] border border-warning/35 bg-warning/18 px-4 py-3 text-[0.8125rem]">
       <p className="min-w-0 text-foreground">
         <b className="font-medium">{todas ? 'Datos no disponibles.' : 'Datos parciales.'}</b>{' '}
         {todas ? 'No se pudo consultar ninguna materia' : `No se pudo consultar ${conjunto.fallidos} de ${total} materias`}; promedio, asistencia y señales de riesgo pueden estar incompletos.

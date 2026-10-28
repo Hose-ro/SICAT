@@ -399,7 +399,7 @@ export default function Materias() {
       />
 
       {aviso && (
-        <div role="status" className="mb-4 flex items-start justify-between gap-3 rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm text-success-foreground">
+        <div role="status" className="mb-4 flex items-start justify-between gap-3 rounded-xl border border-success/45 bg-success/18 px-4 py-3 text-sm text-success-foreground">
           <span>{aviso}</span>
           <Button variant="ghost" onClick={() => setAviso('')} className="text-success-foreground hover:text-success-foreground" aria-label="Cerrar aviso">✕</Button>
         </div>

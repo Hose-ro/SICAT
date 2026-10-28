@@ -386,7 +386,7 @@ export default function AgregarAlumnosGrupoModal({ grupo, onClose, onListo, admi
         {pestana === 'importar' && (
           <div className="space-y-3">
             {resumenImportacion ? (
-              <div className="space-y-3 rounded-xl border border-success/30 bg-success/10 p-4 text-sm text-foreground">
+              <div className="space-y-3 rounded-xl border border-success/45 bg-success/18 p-4 text-sm text-foreground">
                 <p className="font-medium">Importación terminada</p>
                 <ul className="list-inside list-disc space-y-1">
                   <li>Alumnos nuevos dados de alta: {resumenImportacion.creados}</li>

@@ -175,7 +175,7 @@ export default function DashboardDocente() {
 
   if (error) {
     return (
-      <div className="rounded-2xl border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground">
+      <div className="rounded-2xl border border-destructive/40 bg-destructive/18 px-4 py-3 text-sm text-destructive-foreground">
         {error}
       </div>
     )
@@ -230,7 +230,7 @@ export default function DashboardDocente() {
   return (
     <div className="docente-agenda">
       <Encabezado nombre={user?.nombre?.split(' ')[0] ?? 'Docente'} fecha={ahora} resumen={panel?.resumen} />
-      {errorClase && <p role="alert" className="mb-4 rounded-xl bg-destructive/10 p-3 text-sm text-destructive-foreground">{errorClase}</p>}
+      {errorClase && <p role="alert" className="mb-4 rounded-xl bg-destructive/18 p-3 text-sm text-destructive-foreground">{errorClase}</p>}
       {guia && <div className="mb-7">{guia}</div>}
       <BienvenidaDocente open={bienvenida} onClose={cerrarBienvenida} />
       <div className="docente-agenda-grid">
@@ -299,9 +299,9 @@ function DiaSinClases({ suspension }) {
   return (
     <section
       role="status"
-      className="flex items-start gap-4 rounded-2xl border-2 border-destructive/30 bg-destructive/10 p-5"
+      className="flex items-start gap-4 rounded-2xl border-2 border-destructive/45 bg-destructive/18 p-5"
     >
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-destructive/15 text-destructive-foreground">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-destructive/22 text-destructive-foreground">
         <CalendarOff className="h-5 w-5" />
       </span>
       <div className="min-w-0">
@@ -348,10 +348,10 @@ function ClaseDestacada({
   let tonoEtiqueta = 'bg-muted text-muted-foreground'
   if (iniciada) {
     etiqueta = 'Clase iniciada'
-    tonoEtiqueta = "bg-success/15 text-success-foreground "
+    tonoEtiqueta = "bg-success/22 text-success-foreground "
   } else if (clase.dentroDeHorario) {
     etiqueta = 'En curso'
-    tonoEtiqueta = "bg-success/15 text-success-foreground "
+    tonoEtiqueta = "bg-success/22 text-success-foreground "
   }
 
   let detalleTiempo = `${clase.horaInicio} – ${clase.horaFin}`
@@ -560,7 +560,7 @@ function EstadoClase({ clase, iniciando, onPasarLista }) {
   if (clase.estado === 'SUSPENDIDA') {
     return (
       <span
-        className="shrink-0 rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive-foreground"
+        className="shrink-0 rounded-full bg-destructive/18 px-2.5 py-1 text-xs font-medium text-destructive-foreground"
         title={clase.suspensionMotivo ?? undefined}
       >
         {clase.reunionId ? 'Reunión de academia' : 'Sin clases'}
@@ -586,7 +586,7 @@ function EstadoClase({ clase, iniciando, onPasarLista }) {
         disabled={iniciando}
         className={`shrink-0 rounded-lg px-2.5 py-1 text-xs font-medium transition disabled:opacity-60 ${
           atrasada
-            ? "bg-destructive/10 text-destructive-foreground hover:bg-destructive/20"
+            ? "bg-destructive/18 text-destructive-foreground hover:bg-destructive/20"
             : "bg-primary/10 text-primary-ink hover:bg-primary/20"
         }`}
       >
@@ -636,7 +636,7 @@ function Pendientes({ pendientes }) {
   ].filter((fila) => fila.n > 0)
 
   if (!filas.length) return (
-    <article className="flex items-center gap-3 rounded-[var(--radius-card)] border border-border bg-success/10 p-5">
+    <article className="flex items-center gap-3 rounded-[var(--radius-card)] border border-border bg-success/18 p-5">
       <Check className="h-5 w-5 shrink-0 text-success-foreground" aria-hidden="true" />
       <div><h2 className="text-sm font-semibold">Estás al día</h2><p className="mt-1 text-xs text-muted-foreground">No hay pendientes por revisar.</p></div>
     </article>
@@ -725,7 +725,7 @@ function Materias({ materias, total, busqueda, onBuscar }) {
 function EstadoMateria({ materia }) {
   if (materia.alumnosEnRiesgo > 0) {
     return (
-      <span className="shrink-0 rounded-full bg-destructive/10 px-2.5 py-0.5 text-xs font-medium text-destructive-foreground">
+      <span className="shrink-0 rounded-full bg-destructive/18 px-2.5 py-0.5 text-xs font-medium text-destructive-foreground">
         {materia.alumnosEnRiesgo} en riesgo
       </span>
     )
@@ -733,14 +733,14 @@ function EstadoMateria({ materia }) {
 
   if (materia.entregasSinCalificar > 0) {
     return (
-      <span className="shrink-0 rounded-full bg-warning/15 px-2.5 py-0.5 text-xs font-medium text-warning-foreground ">
+      <span className="shrink-0 rounded-full bg-warning/22 px-2.5 py-0.5 text-xs font-medium text-warning-foreground ">
         {materia.entregasSinCalificar} por calificar
       </span>
     )
   }
 
   return (
-    <span className="shrink-0 rounded-full bg-success/15 px-2.5 py-0.5 text-xs font-medium text-success-foreground ">
+    <span className="shrink-0 rounded-full bg-success/22 px-2.5 py-0.5 text-xs font-medium text-success-foreground ">
       Al día
     </span>
   )

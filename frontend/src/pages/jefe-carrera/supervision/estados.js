@@ -10,11 +10,11 @@ export const ESTADOS_CLASE = {
     explicacion: 'El docente tiene una sesión abierta en SICAT. Es evidencia de registro, no de presencia física.',
   },
   LISTA_COMPLETA: {
-    label: 'Lista completa', grupo: 'complete', bloque: 'bg-[color-mix(in_oklab,var(--success)_10%,var(--card))] border-success/25', texto: 'text-success-foreground',
+    label: 'Lista completa', grupo: 'complete', bloque: 'bg-[color-mix(in_oklab,var(--success)_10%,var(--card))] border-success/40', texto: 'text-success-foreground',
     explicacion: 'Todos los alumnos inscritos en la fecha de la clase tienen asistencia capturada.',
   },
   REGISTRO_TARDIO: {
-    label: 'Registro tardío', grupo: 'complete', bloque: 'bg-[color-mix(in_oklab,var(--success)_10%,var(--card))] border-success/25', texto: 'text-warning-foreground',
+    label: 'Registro tardío', grupo: 'complete', bloque: 'bg-[color-mix(in_oklab,var(--success)_10%,var(--card))] border-success/40', texto: 'text-warning-foreground',
     explicacion: 'La lista está completa, pero se capturó después del horario de la clase.',
   },
   CAPTURA_PARCIAL: {

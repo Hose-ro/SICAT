@@ -96,7 +96,7 @@ export default function MiHorario() {
       {!loading && !error && <CalendarioClases horarios={horarios} />}
 
       {error && (
-        <div className="rounded-2xl border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground">
+        <div className="rounded-2xl border border-destructive/40 bg-destructive/18 px-4 py-3 text-sm text-destructive-foreground">
           {error}
         </div>
       )}

@@ -65,7 +65,7 @@ export default function ListaRevision({
           {r.tardias > 0 && (
             <button type="button" aria-pressed={soloTardias} onClick={() => onSoloTardias(!soloTardias)}
               className={cn('h-9 shrink-0 rounded-[10px] border px-2.5 text-xs font-medium transition-colors duration-150',
-                soloTardias ? 'border-warning/40 bg-warning/15 text-warning-foreground' : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground')}>
+                soloTardias ? 'border-warning/40 bg-warning/22 text-warning-foreground' : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground')}>
               Tardías <span className="tabular-nums">{r.tardias}</span>
             </button>
           )}

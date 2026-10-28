@@ -115,7 +115,7 @@ export default function MateriaDialog({ j, materia, semestre, onClose, onGuardad
 
         {estado.error && <p role="alert" className="text-[0.8125rem] text-destructive-foreground">{estado.error}</p>}
         {estado.reducir && (
-          <div role="alert" className="rounded-[var(--radius-item)] border border-warning/35 bg-warning/10 p-3 text-[0.8125rem]">
+          <div role="alert" className="rounded-[var(--radius-item)] border border-warning/35 bg-warning/18 p-3 text-[0.8125rem]">
             <p className="text-foreground">{estado.reducir}</p>
             <p className="mt-1 text-xs text-muted-foreground">Todavía no se ha guardado ningún cambio. Cancelar deja la materia como estaba.</p>
             <Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => guardar(null, { forzar: true })}>Guardar y reducir de todos modos</Button>

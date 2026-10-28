@@ -7,9 +7,9 @@ import { useAsistenciaStore } from '@/store/asistenciaStore'
 const ESTADO_LETRA = { ASISTENCIA: 'A', FALTA: 'F', RETARDO: 'R', JUSTIFICADA: 'J' }
 const ESTADO_LABEL = { ASISTENCIA: 'Asistencia', FALTA: 'Falta', RETARDO: 'Retardo', JUSTIFICADA: 'Justificada' }
 const ESTADO_STYLE = {
-  ASISTENCIA: 'bg-success/15 text-success-foreground',
-  FALTA: 'bg-destructive/15 text-destructive-foreground',
-  RETARDO: 'bg-warning/15 text-warning-foreground',
+  ASISTENCIA: 'bg-success/22 text-success-foreground',
+  FALTA: 'bg-destructive/22 text-destructive-foreground',
+  RETARDO: 'bg-warning/22 text-warning-foreground',
   JUSTIFICADA: 'bg-accent text-primary-ink',
 }
 
@@ -105,7 +105,7 @@ export default function VistaPreviaReporteModal({ materiaId, opciones = {}, desc
       )}
 
       {error && (
-        <p role="alert" className="rounded-xl border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground">
+        <p role="alert" className="rounded-xl border border-destructive/40 bg-destructive/18 px-4 py-3 text-sm text-destructive-foreground">
           {error}
         </p>
       )}
@@ -127,7 +127,7 @@ export default function VistaPreviaReporteModal({ materiaId, opciones = {}, desc
           </div>
 
           {sesiones.filter((sesion) => sesion.suspensionMotivo).map((sesion) => (
-            <p key={sesion.id} className="rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive-foreground">
+            <p key={sesion.id} className="rounded-lg bg-destructive/18 px-3 py-2 text-xs text-destructive-foreground">
               Sin clases el {formatFechaLarga(sesion.fecha)}: {sesion.suspensionMotivo}
             </p>
           ))}
@@ -151,7 +151,7 @@ export default function VistaPreviaReporteModal({ materiaId, opciones = {}, desc
                     <th scope="col" className="px-3 py-2 text-left">Núm. control</th>
                     <th scope="col" className="px-2 py-2 text-center">Sexo</th>
                     {sesiones.map((sesion) => (
-                      <th key={sesion.id} scope="col" className={`px-2 py-2 text-center whitespace-nowrap ${sesion.suspensionMotivo ? 'bg-destructive/10 text-destructive-foreground' : ''}`}>
+                      <th key={sesion.id} scope="col" className={`px-2 py-2 text-center whitespace-nowrap ${sesion.suspensionMotivo ? 'bg-destructive/18 text-destructive-foreground' : ''}`}>
                         <span title={sesion.suspensionMotivo ? `Sin clases: ${sesion.suspensionMotivo}` : formatFechaLarga(sesion.fecha)}>{formatFechaCorta(sesion.fecha)}{sesion.suspensionMotivo ? ' · SC' : ''}</span>
                       </th>
                     ))}
@@ -205,7 +205,7 @@ export default function VistaPreviaReporteModal({ materiaId, opciones = {}, desc
           </p>
 
           {sesiones.length > SESIONES_EN_PDF && (
-            <p className="rounded-xl border border-warning/30 bg-warning/10 px-4 py-2 text-xs text-warning-foreground">
+            <p className="rounded-xl border border-warning/45 bg-warning/18 px-4 py-2 text-xs text-warning-foreground">
               El PDF sólo incluye las primeras {SESIONES_EN_PDF} sesiones; el Excel incluye todas.
             </p>
           )}

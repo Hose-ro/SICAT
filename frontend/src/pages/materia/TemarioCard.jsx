@@ -28,7 +28,7 @@ function EstadoTema({ tema, conGrupo }) {
     return tema.semana ? <span className="text-xs text-muted-foreground">Semana {tema.semana}</span> : null
   }
   if (tema.estado === 'VISTO') {
-    return <span className="rounded-full bg-success/15 px-2 py-0.5 text-xs font-medium text-success-foreground">Visto el {fechaCorta(tema.vistoEn)}</span>
+    return <span className="rounded-full bg-success/22 px-2 py-0.5 text-xs font-medium text-success-foreground">Visto el {fechaCorta(tema.vistoEn)}</span>
   }
   if (tema.estado === 'ATRASADO') {
     return <span className="rounded-full bg-warning/20 px-2 py-0.5 text-xs font-medium text-warning-foreground">Atrasado · semana {tema.semana}</span>

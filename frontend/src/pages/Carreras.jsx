@@ -115,7 +115,7 @@ export default function Carreras() {
       />
 
       {pageError && (
-        <div role="alert" className="rounded-xl border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground">
+        <div role="alert" className="rounded-xl border border-destructive/40 bg-destructive/18 px-4 py-3 text-sm text-destructive-foreground">
           {pageError}
         </div>
       )}
@@ -238,7 +238,7 @@ export default function Carreras() {
           </div>
 
           {error && (
-            <div role="alert" className="rounded-xl border border-destructive/25 bg-destructive/10 px-3 py-2.5 text-sm text-destructive-foreground">
+            <div role="alert" className="rounded-xl border border-destructive/40 bg-destructive/18 px-3 py-2.5 text-sm text-destructive-foreground">
               {error}
             </div>
           )}

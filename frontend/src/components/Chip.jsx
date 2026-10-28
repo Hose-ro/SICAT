@@ -1,9 +1,9 @@
 import { cn } from '@/lib/utils'
 
 const TONO = {
-  warning: 'bg-warning/15 text-warning-foreground',
-  success: 'bg-success/10 text-success-foreground',
-  destructive: 'bg-destructive/10 text-destructive-foreground',
+  warning: 'bg-warning/22 text-warning-foreground',
+  success: 'bg-success/18 text-success-foreground',
+  destructive: 'bg-destructive/18 text-destructive-foreground',
   neutral: 'bg-muted text-foreground',
   muted: 'bg-muted text-muted-foreground',
   accent: 'bg-accent text-primary-ink',

@@ -11,9 +11,9 @@ colors:
   muted: "#eef1f7"
   muted-foreground: "#6a7790"
   accent: "#e4ebfb"
-  destructive: "#d6503e"
-  success: "#27a567"
-  warning: "#e0a23a"
+  destructive: "#db0003"
+  success: "#00822b"
+  warning: "#f19700"
   border: "#dde2ee"
   ring: "#4f7cff"
 typography:
@@ -110,9 +110,9 @@ A blue-tinted neutral system. Canonical values are OKLCH (hue 264 for neutrals a
 - **Hairline** (`oklch(0.90 0.008 264)`, ~`#dde2ee`): Borders and dividers. Always a full border, never a one-sided colored stripe.
 
 ### Status
-- **Present / Success** (`oklch(0.62 0.14 150)`): Attendance present, task graded/approved.
-- **Late / Warning** (`oklch(0.76 0.14 75)`): Attendance late or justified, pending review.
-- **Absent / Destructive** (`oklch(0.58 0.20 27)`): Attendance absent, destructive actions (delete user, delete session).
+- **Present / Success** (`oklch(0.52 0.17 150)`): Attendance present, task graded/approved.
+- **Late / Warning** (`oklch(0.75 0.17 70)`): Attendance late or justified, pending review.
+- **Absent / Destructive** (`oklch(0.55 0.24 27)`): Attendance absent, destructive actions (delete user, delete session).
 
 ### Named Rules
 **The One Signal Rule.** Registrar Blue appears on at most 10% of any screen. Its rarity is what makes it read as "the action." If two blue buttons compete on one screen, one of them is wrong.

@@ -54,7 +54,7 @@ export default function RecuperarPassword() {
         {error && (
           <div
             role="alert"
-            className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive-foreground"
+            className="rounded-lg bg-destructive/18 p-3 text-sm text-destructive-foreground"
           >
             {error}
           </div>
@@ -62,7 +62,7 @@ export default function RecuperarPassword() {
         {result && (
           <div
             aria-live="polite"
-            className="rounded-lg bg-success/10 p-3 text-sm text-success-foreground"
+            className="rounded-lg bg-success/18 p-3 text-sm text-success-foreground"
           >
             <p>{result.message}</p>
           </div>

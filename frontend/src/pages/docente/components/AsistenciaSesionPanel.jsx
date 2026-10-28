@@ -27,9 +27,9 @@ function leerAtajos() {
 }
 
 const ESTADOS = [
-  { valor: 'ASISTENCIA', etiqueta: 'Asistencia', letra: 'A', plural: ['asistencia', 'asistencias'], activo: 'bg-success/15 text-success-foreground ring-success/40' },
+  { valor: 'ASISTENCIA', etiqueta: 'Asistencia', letra: 'A', plural: ['asistencia', 'asistencias'], activo: 'bg-success/22 text-success-foreground ring-success/40' },
   { valor: 'RETARDO', etiqueta: 'Retardo', letra: 'R', plural: ['retardo', 'retardos'], activo: 'bg-warning/20 text-warning-foreground ring-warning/50' },
-  { valor: 'FALTA', etiqueta: 'Falta', letra: 'F', plural: ['falta', 'faltas'], activo: 'bg-destructive/10 text-destructive-foreground ring-destructive/40' },
+  { valor: 'FALTA', etiqueta: 'Falta', letra: 'F', plural: ['falta', 'faltas'], activo: 'bg-destructive/18 text-destructive-foreground ring-destructive/40' },
   { valor: 'JUSTIFICADA', etiqueta: 'Justificado', letra: 'J', plural: ['justificado', 'justificados'], activo: 'bg-accent text-primary-ink ring-primary/30' },
 ]
 
@@ -458,7 +458,7 @@ export default function AsistenciaSesionPanel({
       </header>
 
       {(sesion.fueFueraDeHorario || sesion.registroAtrasado) && (
-        <div className="mt-4 space-y-1 rounded-[var(--radius-item)] border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning-foreground">
+        <div className="mt-4 space-y-1 rounded-[var(--radius-item)] border border-warning/45 bg-warning/18 px-4 py-3 text-sm text-warning-foreground">
           {sesion.fueFueraDeHorario && <p>Se inició fuera de su horario: la lista cuenta, pero el alumno no la ve como clase en línea.</p>}
           {sesion.registroAtrasado && <p>Se captura después de la clase: queda con su fecha y horario reales.</p>}
         </div>

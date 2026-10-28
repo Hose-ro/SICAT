@@ -53,7 +53,7 @@ export default function AcademiasPage() {
       />
 
       {error && (
-        <div className="bg-destructive/10 border border-destructive/30 rounded-lg px-4 py-3 text-sm text-destructive-foreground flex items-center justify-between mb-4">
+        <div className="bg-destructive/18 border border-destructive/45 rounded-lg px-4 py-3 text-sm text-destructive-foreground flex items-center justify-between mb-4">
           <span>{error}</span>
           <Button variant="destructive" onClick={clearError} className="ml-4" type="button" aria-label="Cerrar error">
             <CiCircleRemove className="h-5 w-5" />

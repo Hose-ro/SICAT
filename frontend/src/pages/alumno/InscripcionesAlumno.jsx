@@ -6,9 +6,9 @@ import api from '../../api/axios'
 import { getCurrentAcademicPeriod } from '../../lib/periodo'
 
 const ESTADO_STYLE = {
-  PENDIENTE: "bg-warning/10 text-warning-foreground",
-  ACEPTADA: "bg-success/10 text-success-foreground",
-  RECHAZADA: "bg-destructive/10 text-destructive-foreground",
+  PENDIENTE: "bg-warning/18 text-warning-foreground",
+  ACEPTADA: "bg-success/18 text-success-foreground",
+  RECHAZADA: "bg-destructive/18 text-destructive-foreground",
 }
 
 export default function InscripcionesAlumno() {

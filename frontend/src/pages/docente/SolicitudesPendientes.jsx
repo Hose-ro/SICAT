@@ -103,7 +103,7 @@ export default function SolicitudesPendientes() {
                 <Button variant="ghost"
                   onClick={() => handleRechazar(s)}
                   disabled={procesando === s.id || aceptandoTodas}
-                  className="px-4 text-destructive-foreground hover:bg-destructive/10 hover:text-destructive-foreground"
+                  className="px-4 text-destructive-foreground hover:bg-destructive/18 hover:text-destructive-foreground"
                 >
                   Rechazar
                 </Button>
