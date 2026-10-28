@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import {
   Download,
@@ -15,6 +15,7 @@ import {
 import api from '../api/axios'
 import SexoBadge from '../components/SexoBadge'
 import useUnsavedChangesGuard from '@/hooks/useUnsavedChangesGuard'
+import useAnimarCambio from '@/hooks/useAnimarCambio'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { confirmAction, notify } from '@/lib/feedback'
 import { useAuthStore } from '../store/authStore'
@@ -180,8 +181,11 @@ const textoUnidad = (unidad) => unidad?.nombre ?? 'Todas las unidades'
 
 // Qué se está capturando, siempre a la vista: los selectores quedan arriba y
 // la tabla es larga. En el teléfono cabe en una línea con etiquetas cortas.
-function ContextoCaptura({ materia, grupo, unidad }) {
+function ContextoCaptura({ materia, grupo, unidad, listo }) {
   const estado = ESTADO_UNIDAD[unidad?.status]
+  // La barra queda fija arriba mientras la tabla cambia: aquí se nota la unidad nueva.
+  const unidadRef = useRef(null)
+  useAnimarCambio(unidadRef, unidad ? unidadKey(unidad) : 'todas', { listo })
   return (
     <section
       aria-label="Contexto de captura"
@@ -202,7 +206,7 @@ function ContextoCaptura({ materia, grupo, unidad }) {
           )}
         </span>
         <span aria-hidden="true">·</span>
-        <span className="font-medium">
+        <span ref={unidadRef} className="font-medium">
           {unidad ? (
             unidad.orden ? (
               <><span aria-hidden="true" className="md:hidden">U{unidad.orden}</span><span className="max-md:sr-only">{unidad.nombre}</span></>
@@ -731,6 +735,15 @@ function DocenteCalificaciones() {
   const unidadContexto = filters.unidadId
     ? [...unidadesReporte, ...(selectedMateria?.unidades ?? [])].find((unidad) => String(unidad.id) === filters.unidadId) ?? null
     : unidadLista
+  const datosListos = !loading && rows.length > 0
+  // Al cambiar de unidad, grupo o vista las filas se reemplazan en el mismo
+  // lugar; sin esta señal el cambio pasa desapercibido.
+  const listaRef = useRef(null)
+  useAnimarCambio(
+    listaRef,
+    `${vista}:${filters.grupoId}:${unidadContexto ? unidadKey(unidadContexto) : 'todas'}`,
+    { selector: '[data-captura-grupo] > *', listo: datosListos },
+  )
   const rowsLista = useMemo(
     () => (unidadLista ? rows.filter((row) => unidadKey(row.unidad) === unidadKey(unidadLista)) : rows),
     [rows, unidadLista],
@@ -910,7 +923,7 @@ function DocenteCalificaciones() {
         )}
       </section>
 
-      {selectedMateria && <ContextoCaptura materia={selectedMateria} grupo={selectedGrupo} unidad={unidadContexto} />}
+      {selectedMateria && <ContextoCaptura materia={selectedMateria} grupo={selectedGrupo} unidad={unidadContexto} listo={datosListos} />}
 
       <div className="grid items-start gap-5 xl:grid-cols-[18rem_minmax(0,1fr)]">
         <section aria-labelledby="contexto-calificaciones" className="min-w-0 rounded-[var(--radius-card)] border border-border bg-card p-5 sm:p-6">
@@ -1074,6 +1087,7 @@ function DocenteCalificaciones() {
           </div>
         )}
 
+        <div ref={listaRef}>
         {loading ? (
           <EmptyState>Cargando calificaciones...</EmptyState>
         ) : !filters.materiaId ? (
@@ -1094,6 +1108,7 @@ function DocenteCalificaciones() {
         ) : (
           <CapturaTable {...listaProps} />
         )}
+        </div>
 
         {dirtyCount > 0 && (
           <div className="sticky bottom-[calc(var(--barra-inferior,0px)+env(safe-area-inset-bottom,0px)+1rem)] z-10 mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-3">
