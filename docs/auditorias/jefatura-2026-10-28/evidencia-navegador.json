@@ -1,0 +1,12 @@
+{
+  "fecha": "2026-10-28",
+  "entorno": "Vite local con fixtures de jefatura; no producción",
+  "tema": "oscuro",
+  "viewports": [{"width":1440,"height":1000},{"width":390,"height":844}],
+  "rutas_inspeccionadas": ["/dashboard","/jefe-carrera/materias?vista=ofertas&pendientes=1","/jefe-carrera/materias/414","/jefe-carrera/horarios","/jefe-carrera/docentes","/jefe-carrera/docentes?vista=semanas","/jefe-carrera/reportes","/jefe-carrera/reuniones","/jefe-carrera/seguimientos"],
+  "horario_movil": {"viewport_width":390,"document_scroll_width":390,"primera_clase_y":1072.5,"primera_clase_height":88.5,"pendientes_programar_abierto":true},
+  "mapa_docentes_movil": {"clientWidth":358,"scrollWidth":834,"computed_touch_action":"pan-y","gesto_tactil_real_verificado":false},
+  "observaciones": {"abiertos":0,"contexto":"El fixture presenta pendientes académicos sin observaciones registradas. Son conjuntos distintos, no un fallo de conteo."},
+  "detector": {"scope":"frontend/src/pages/jefe-carrera","findings":0},
+  "limitaciones": ["Sin suite E2E nueva", "Sin axe/Lighthouse nuevos", "Sin medición exhaustiva de contraste", "Sin dispositivo táctil real", "Sin prueba de usuario real", "Capturas existentes revisadas como evidencia histórica"]
+}

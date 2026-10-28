@@ -37,19 +37,21 @@ export default function JefeMaterias() {
   const set = (k, v) => setVarios({ [k]: v })
   const revision = REVISIONES[params.get('revision')] ? params.get('revision') : ''
   const soloPendientes = params.get('pendientes') === '1'
-  // Un enlace con filtros de oferta abre la vista de ofertas aunque no la nombre.
-  const vista = params.get('vista') === 'ofertas' || (!params.get('vista') && (revision || soloPendientes)) ? 'ofertas' : 'reticula'
   const soloSinGrupo = params.get('sinGrupo') === '1'
+  // Oferta del periodo es la vista de trabajo; la retícula (catálogo) se abre al pedirla o con sus filtros.
+  const vistaPedida = params.get('vista') === 'reticula' || params.get('vista') === 'ofertas' ? params.get('vista')
+    : soloSinGrupo || params.has('paridad') ? 'reticula' : null
   const todas = params.get('paridad') !== 'ciclo' && !soloSinGrupo
   const busqueda = params.get('q') ?? ''
 
   return (
     <JefaturaPage
       titulo="Materias"
-      subtitulo="La retícula de la carrera y lo que se imparte en el periodo."
-      accion={<Button onClick={() => { setAviso(''); setDialogo({ materia: null }) }}><Plus aria-hidden="true" /> Agregar a la retícula</Button>}
+      subtitulo="Lo que se imparte en el periodo y el catálogo de la carrera."
     >
       {({ j, resumen, estado }) => {
+        // Sin oferta todavía, lo útil es el catálogo.
+        const vista = vistaPedida ?? (resumen.ofertas.length ? 'ofertas' : 'reticula')
         const ofertasPorMateria = new Map()
         resumen.ofertas.forEach((o) => ofertasPorMateria.set(o.materia.id, [...(ofertasPorMateria.get(o.materia.id) ?? []), o]))
         const sinOferta = resumen.reticula.filter((m) => esDeLaParidad(m.semestre, j.periodo) && !m.ofertas.length)
@@ -112,7 +114,7 @@ export default function JefeMaterias() {
             </ul>
 
             <div className="mt-5 flex flex-wrap items-center gap-3">
-              <Segmento label="Vista" value={vista} onChange={(v) => set('vista', v)} options={[{ value: 'reticula', label: 'Retícula completa' }, { value: 'ofertas', label: 'Con grupo este periodo' }]} />
+              <Segmento label="Vista" value={vista} onChange={(v) => set('vista', v)} options={[{ value: 'ofertas', label: 'Oferta del periodo' }, { value: 'reticula', label: 'Retícula' }]} />
               <label className="relative min-w-[200px] flex-1 sm:max-w-xs">
                 <span className="sr-only">Buscar materia</span>
                 <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
@@ -148,12 +150,14 @@ export default function JefeMaterias() {
 
             {vista === 'reticula' ? (
               <>
-                <p className="mt-4 rounded-[var(--radius-item)] border border-border bg-card px-4 py-3 text-xs text-muted-foreground">
-                  <b className="font-medium text-foreground">La retícula es un catálogo de la carrera, común a todos los periodos.</b>{' '}
-                  Agregar o editar una materia la cambia también al consultar {j.historico ? 'este y los demás ciclos' : 'ciclos anteriores'}.
-                  {' '}{soloSinGrupo ? `Materias de semestres ${paridad} sin grupo en ${periodoTexto(j.periodo)}.` : todas ? 'Toda la retícula de la carrera.' : `Semestres ${paridad}, los que corresponden a ${periodoTexto(j.periodo)}.`}
-                  {' '}La oferta real manda: una materia de otro semestre puede impartirse como recursamiento.
-                </p>
+                <div className="mt-4 flex flex-col gap-3 rounded-[var(--radius-item)] border border-border bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-xs text-muted-foreground">
+                    <b className="font-medium text-foreground">Catálogo compartido entre periodos.</b>{' '}
+                    Agregar o editar una materia la cambia también en {j.historico ? 'este y los demás ciclos' : 'los ciclos anteriores'}.
+                    {' '}{soloSinGrupo ? `Materias de semestres ${paridad} sin grupo en ${periodoTexto(j.periodo)}.` : todas ? 'Toda la retícula de la carrera.' : `Semestres ${paridad}, los que corresponden a ${periodoTexto(j.periodo)}.`}
+                  </p>
+                  <Button className="shrink-0" onClick={() => { setAviso(''); setDialogo({ materia: null }) }}><Plus aria-hidden="true" /> Agregar a la retícula</Button>
+                </div>
                 {semestres.length ? semestres.map((s) => (
                   <section key={s} className="mt-6" aria-labelledby={`ret-${s}`}>
                     <div className="mb-2 flex items-center justify-between gap-3">
@@ -186,7 +190,7 @@ export default function JefeMaterias() {
               </>
             ) : (
               <p className="mt-4 text-xs text-muted-foreground">
-                Materias asignadas a un grupo activo en {periodoTexto(j.periodo)}: quién las imparte, cuántos alumnos tienen y si les falta horario o calificaciones.
+                Materias impartidas en grupos activos de {periodoTexto(j.periodo)}: quién las imparte, cuántos alumnos tienen y si les falta horario o calificaciones. Una materia puede darse en varios grupos; abre cada grupo para ver sus unidades. La oferta real manda: una materia de otro semestre puede impartirse como recursamiento.
                 {filtrando && ` Se muestran ${plural(asignacionesVisibles, 'asignación (materia en un grupo) que cumple', 'asignaciones (materia en un grupo) que cumplen')} el filtro.`}
               </p>
             )}

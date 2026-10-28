@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useLocation, useSearchParams } from 'react-router-dom'
 import { create } from 'zustand'
 import api from '@/api/axios'
+import { origenActual } from './origen'
 
 const CARRERA_RECORDADA = 'sicat.jefatura.carrera'
 const PERIODO_RECORDADO = 'sicat.jefatura.periodo'
@@ -68,6 +69,7 @@ export const useJefaturaStore = create((set, get) => ({
 /** Carrera y periodo de la jefatura, siempre explícitos y reflejados en la URL. */
 export function useJefatura() {
   const [params, setParams] = useSearchParams()
+  const location = useLocation()
   const contexto = useJefaturaStore((s) => s.contexto)
   const contextoError = useJefaturaStore((s) => s.contextoError)
   const cargarContexto = useJefaturaStore((s) => s.cargarContexto)
@@ -118,6 +120,9 @@ export function useJefatura() {
     return `${path}?${query}`
   }, [carreraId, periodo])
 
+  /** Enlace transversal: el destino ofrece «Volver» a esta vista con sus filtros. */
+  const toDesde = useCallback((path, extra = {}) => to(path, { ...extra, desde: origenActual(location.pathname, location.search) }), [to, location.pathname, location.search])
+
   return {
     cargando: !contexto && !contextoError,
     error: contextoError,
@@ -132,6 +137,7 @@ export function useJefatura() {
     setCarrera,
     setPeriodo,
     to,
+    toDesde,
   }
 }
 

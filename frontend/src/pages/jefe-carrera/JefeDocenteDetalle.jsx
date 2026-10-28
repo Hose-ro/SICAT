@@ -84,10 +84,10 @@ function Carga({ ofertas, docente, j }) {
                 return (
                   <tr key={o.id} className="border-b border-border align-top last:border-b-0">
                     <th scope="row" className="px-4 py-3 text-left font-medium">
-                      <Link className={cn(linkClass, 'text-foreground')} to={j.to(`/jefe-carrera/materias/${o.materia.id}`, { oferta: o.grupo.id })}>{o.materia.nombre}</Link>
+                      <Link className={cn(linkClass, 'text-foreground')} to={j.toDesde(`/jefe-carrera/materias/${o.materia.id}`, { oferta: o.grupo.id })}>{o.materia.nombre}</Link>
                       {o.docentes.length > 1 && <span className="block text-xs font-normal text-muted-foreground">Compartida con {o.docentes.filter((d) => d.id !== docente.id).map((d) => d.nombre).join(', ')}</span>}
                     </th>
-                    <td className="px-4 py-3"><Link className={linkClass} to={j.to(`/jefe-carrera/grupos/${o.grupo.id}`)}>{o.grupo.nombre}</Link><span className="block text-xs text-muted-foreground">{modalidadTexto(o.grupo.modalidad)}</span></td>
+                    <td className="px-4 py-3"><Link className={linkClass} to={j.toDesde(`/jefe-carrera/grupos/${o.grupo.id}`)}>{o.grupo.nombre}</Link><span className="block text-xs text-muted-foreground">{modalidadTexto(o.grupo.modalidad)}</span></td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {bloques.length ? bloques.map((h) => <span key={h.id} className="block tabular-nums">{diasTexto(h.dias)} · {h.horaInicio}–{h.horaFin}{h.aula ? ` · ${h.aula.nombre}` : ''}</span>) : 'Docente principal sin bloque de horario'}
                     </td>
@@ -124,7 +124,7 @@ function Registro({ docente, clases, error, reintentar, intervalo, j }) {
       ) : (
         <>
           <dl className="grid grid-cols-2 gap-x-8 gap-y-4 sm:grid-cols-3 lg:grid-cols-6">
-            <Cifra label="Cobertura" value={elegibles.length ? `${Math.round((completas / elegibles.length) * 100)} %` : 'No aplica'} />
+            <Cifra label="Registro de listas" value={elegibles.length ? `${Math.round((completas / elegibles.length) * 100)} %` : 'No aplica'} />
             <Cifra label="Clases elegibles" value={elegibles.length} />
             <Cifra label="Lista completa" value={completas} tono="text-success-foreground" />
             <Cifra label="Captura parcial" value={cuenta('CAPTURA_PARCIAL')} tono={cuenta('CAPTURA_PARCIAL') ? 'text-warning-foreground' : undefined} />
@@ -132,7 +132,7 @@ function Registro({ docente, clases, error, reintentar, intervalo, j }) {
             <Cifra label="Registro tardío" value={cuenta('REGISTRO_TARDIO')} />
           </dl>
           <p className="mt-3 text-xs text-muted-foreground">
-            Cobertura = clases con lista completa ({completas}) ÷ clases elegibles ya concluidas ({elegibles.length}).
+            Registro de listas = clases con lista completa ({completas}) ÷ clases elegibles ya concluidas ({elegibles.length}).
             {suspendidas > 0 && ` ${suspendidas} ${suspendidas === 1 ? 'clase suspendida no cuenta' : 'clases suspendidas no cuentan'}.`}
             {' '}La falta de captura no prueba ausencia del docente; confírmala en una observación.
           </p>
@@ -170,7 +170,7 @@ function Avance({ ofertas, j }) {
           {ofertas.map((o) => (
             <li key={o.id} className="py-4">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <Link className={cn(linkClass, 'text-sm text-foreground')} to={j.to(`/jefe-carrera/materias/${o.materia.id}`, { oferta: o.grupo.id })}>{o.materia.nombre} · {o.grupo.nombre}</Link>
+                <Link className={cn(linkClass, 'text-sm text-foreground')} to={j.toDesde(`/jefe-carrera/materias/${o.materia.id}`, { oferta: o.grupo.id, tab: 'unidades' })}>{o.materia.nombre} · {o.grupo.nombre}</Link>
                 {o.docentes.length > 1 && <span className="text-xs text-muted-foreground">Avance compartido por {o.docentes.length} docentes</span>}
               </div>
               {o.cierre && <p className="mt-1 text-xs font-medium text-foreground">{textoCierre(o.cierre)}</p>}

@@ -13,13 +13,14 @@ import { useClases } from './supervision/useClasesSemana'
 import { Aviso, JefaturaPage, SeccionTitulo, linkClass } from './supervision/ui'
 import { BotonSeguimiento, EstadoSeguimiento } from './supervision/Seguimiento'
 import { esParaHoy, useSeguimientos } from './supervision/useSeguimientos'
+import { calendariosFaltantes } from './supervision/pendientes'
 import TendenciaCobertura from './graficas/TendenciaCobertura'
 import BienvenidaJefatura from './components/BienvenidaJefatura'
 import PrimerosPasosJefatura from './components/PrimerosPasosJefatura'
 import './inicio.css'
 
-const DOCENTES_VISIBLES = 8
-const ALUMNOS_VISIBLES = 8
+const DOCENTES_VISIBLES = 4
+const ALUMNOS_VISIBLES = 4
 const PROXIMAS_VISIBLES = 3
 
 function fechaBreve(clave) {
@@ -82,16 +83,10 @@ function resumenGrupo(g) {
 
 export default function JefeInicio() {
   return (
-    <JefaturaPage titulo="Inicio" subtitulo="Resumen de tu carrera: lo que pasa hoy y lo que requiere atención.">
+    <JefaturaPage titulo="Inicio" subtitulo="Clases de hoy, alumnos en riesgo y pendientes de tus docentes.">
       {({ j, resumen }) => <Contenido j={j} resumen={resumen} />}
     </JefaturaPage>
   )
-}
-
-/** Modalidades con grupos en el periodo cuyo calendario escolar no está configurado. */
-function calendariosFaltantes(resumen) {
-  const modalidades = new Set(resumen.grupos.map((g) => g.modalidad ?? 'ESCOLARIZADO'))
-  return resumen.calendarios.filter((c) => !c.configurado && modalidades.has(c.modalidad))
 }
 
 /** Reuniones de la carrera, sólo para saber si ya hubo alguna (paso 4 de la guía). */
@@ -170,10 +165,6 @@ function ContenidoCarrera({ j, resumen, guia, ventana }) {
   return (
     <>
       {ventana}
-      {guia && <div className="mt-6">{guia}</div>}
-      <ResumenCards j={j} indicadores={indicadores} listasVacio={listasVacio} unidadesPorRevisar={unidadesPorRevisar} ofertaIncompleta={ofertaIncompleta} />
-      {intervalo && <p className="inicio-periodo">Listas revisadas del {fechaBreve(intervalo.desde)} al {fechaBreve(intervalo.hasta)}</p>}
-
       {sinCalendario.length > 0 && (
         <Aviso
           titulo={`Pendientes de lista no evaluables en ${sinCalendario.map((c) => modalidadTexto(c.modalidad)).join(' y ')}`}
@@ -182,17 +173,15 @@ function ContenidoCarrera({ j, resumen, guia, ventana }) {
         </Aviso>
       )}
 
-      <div className="inicio-principal">
-        <RequiereAtencion j={j} grupos={grupos} riesgos={riesgos} seguimientos={seguimientos} ofertaIncompleta={ofertaIncompleta} />
-      </div>
-
-      <TendenciaCobertura j={j} resumen={resumen} />
+      <HoyEnLaCarrera j={j} />
+      <AlumnosRiesgo j={j} riesgos={riesgos} seguimientos={seguimientos} />
 
       <section aria-labelledby="pendientes-docentes" className="mt-10 scroll-mt-6">
         <SeccionTitulo
           id="pendientes-docentes"
           titulo="Pendientes por docente"
           descripcion="Primero quien tiene la lista pendiente más antigua. Registra aquí lo que acuerdes con cada docente."
+          accion={grupos.length > 0 && <Link className={cn(linkClass, 'inline-flex min-h-11 items-center text-[0.8125rem]')} to={j.toDesde('/jefe-carrera/seguimientos', { seccion: 'pendientes' })}>Abrir todos en Pendientes y seguimiento</Link>}
         />
         {grupos.length ? (
           <>
@@ -214,34 +203,45 @@ function ContenidoCarrera({ j, resumen, guia, ventana }) {
         )}
       </section>
 
-      <AlumnosRiesgo j={j} riesgos={riesgos} seguimientos={seguimientos} />
+      <TendenciaCobertura key={`${j.carreraId}:${j.periodo}`} j={j} resumen={resumen} />
 
-      <HoyEnLaCarrera j={j} />
+      <details className="inicio-secundario mt-10">
+        <summary className="inicio-desplegable">Resumen del periodo y otras revisiones</summary>
+        <ResumenCards j={j} indicadores={indicadores} listasVacio={listasVacio} unidadesPorRevisar={unidadesPorRevisar} ofertaIncompleta={ofertaIncompleta} />
+        {intervalo && <p className="inicio-periodo">Listas revisadas del {fechaBreve(intervalo.desde)} al {fechaBreve(intervalo.hasta)}</p>}
+        <div className="inicio-principal">
+          <RequiereAtencion j={j} grupos={grupos} riesgos={riesgos} seguimientos={seguimientos} ofertaIncompleta={ofertaIncompleta} />
+        </div>
+      </details>
+      {guia && <div className="mt-8">{guia}</div>}
     </>
   )
 }
 
-/** Cuatro áreas del resumen; cada enlace conserva su conjunto de pendientes. */
+/**
+ * Cuatro áreas del resumen. Todas se comportan igual: abren su conjunto en
+ * Pendientes y seguimiento, con el filtro visible y «Volver a Inicio».
+ */
 function ResumenCards({ j, indicadores, listasVacio, unidadesPorRevisar, ofertaIncompleta }) {
+  const conjunto = (tipo) => j.toDesde('/jefe-carrera/seguimientos', { seccion: 'pendientes', tipo })
   const cards = [
-    { titulo: 'Asistencia', icono: CalendarClock, value: indicadores.listasPendientes, label: indicadores.listasPendientes === 1 ? 'Lista por completar' : 'Listas por completar', vacio: listasVacio, href: '#pendientes-docentes', pie: 'Registro de listas en el periodo' },
-    { titulo: 'Calificaciones', icono: BookOpen, value: indicadores.calificacionesPendientes, label: indicadores.calificacionesPendientes === 1 ? 'Calificación pendiente' : 'Calificaciones pendientes', vacio: 'Sin calificaciones pendientes', to: j.to('/jefe-carrera/materias', { vista: 'ofertas', pendientes: 1 }), pie: unidadesPorRevisar ? plural(unidadesPorRevisar, 'Unidad por revisar', 'Unidades por revisar') : 'Unidades al corriente', pieHref: '#pendientes-docentes' },
-    { titulo: 'Alumnos', icono: UsersRound, value: indicadores.alumnosRiesgo, label: indicadores.alumnosRiesgo === 1 ? 'Alumno en riesgo' : 'Alumnos en riesgo', vacio: 'Sin alumnos en riesgo', href: '#alumnos-riesgo', pie: 'Situación académica' },
-    { titulo: 'Asignaciones', icono: BookOpen, value: ofertaIncompleta, label: ofertaIncompleta === 1 ? 'Materia sin docente u horario' : 'Materias sin docente u horario', vacio: 'Oferta completa', to: j.to('/jefe-carrera/materias', { vista: 'ofertas', revision: 'incompleta' }), pie: 'Asignación de docentes y horarios' },
+    { titulo: 'Asistencia', icono: CalendarClock, value: indicadores.listasPendientes, label: indicadores.listasPendientes === 1 ? 'Lista por completar' : 'Listas por completar', vacio: listasVacio, to: conjunto('ASISTENCIA_SIN_CAPTURA'), pie: 'Registro de listas en el periodo' },
+    { titulo: 'Calificaciones', icono: BookOpen, value: indicadores.calificacionesPendientes, label: indicadores.calificacionesPendientes === 1 ? 'Calificación pendiente' : 'Calificaciones pendientes', vacio: 'Sin calificaciones pendientes', to: conjunto('CALIFICACIONES_PENDIENTES'), pie: unidadesPorRevisar ? plural(unidadesPorRevisar, 'Unidad por revisar', 'Unidades por revisar') : 'Unidades al corriente', pieTo: unidadesPorRevisar ? conjunto('UNIDAD') : null },
+    { titulo: 'Alumnos', icono: UsersRound, value: indicadores.alumnosRiesgo, label: indicadores.alumnosRiesgo === 1 ? 'Alumno en riesgo' : 'Alumnos en riesgo', vacio: 'Sin alumnos en riesgo', to: conjunto('ALUMNO_RIESGO'), pie: 'Situación académica' },
+    { titulo: 'Asignaciones', icono: BookOpen, value: ofertaIncompleta, label: ofertaIncompleta === 1 ? 'Materia sin docente u horario' : 'Materias sin docente u horario', vacio: 'Oferta completa', to: conjunto('ASIGNACION'), pie: 'Asignación de docentes y horarios' },
   ]
   return (
     <div className="inicio-resumen" aria-label="Resumen de la carrera">
       {cards.map((card) => {
-        const { titulo, icono: Icono, value, label, vacio, to, href, pie, pieHref } = card
-        const Destino = href ? 'a' : Link
+        const { titulo, icono: Icono, value, label, vacio, to, pie, pieTo } = card
         return (
           <div key={titulo} className="inicio-card inicio-indicador">
             <p className="inicio-etiqueta">{titulo}</p>
-            <Destino {...(href ? { href } : { to })} className="inicio-estado">
+            <Link to={to} className="inicio-estado">
               <Icono aria-hidden="true" className="inicio-icono" />
               <span>{value > 0 ? <><b className="font-semibold tabular-nums">{value}</b> {label}</> : vacio}</span>
-            </Destino>
-            <div className="inicio-pie">{pieHref ? <a href={pieHref} className={linkClass}>{pie}</a> : pie}</div>
+            </Link>
+            <div className="inicio-pie">{pieTo ? <Link to={pieTo} className={linkClass}>{pie}</Link> : pie}</div>
           </div>
         )
       })}
@@ -265,7 +265,7 @@ function RequiereAtencion({ j, grupos, riesgos, seguimientos, ofertaIncompleta }
     items.push({
       key: 'seguimientos',
       texto: `${plural(paraHoy.length, 'observación para revisar hoy', 'observaciones para revisar hoy')}${vencidos ? `, ${vencidos} con fecha ya pasada` : ''}`,
-      accion: <Link className={cn(linkClass, 'inline-flex min-h-11 items-center md:min-h-0')} to={j.to('/jefe-carrera/seguimientos', { vista: 'hoy' })}>Abrir observaciones</Link>,
+      accion: <Link className={cn(linkClass, 'inline-flex min-h-11 items-center md:min-h-0')} to={j.toDesde('/jefe-carrera/seguimientos', { seccion: 'observaciones', vista: 'hoy' })}>Abrir observaciones</Link>,
     })
   }
   if (masAntigua) {
@@ -273,14 +273,14 @@ function RequiereAtencion({ j, grupos, riesgos, seguimientos, ofertaIncompleta }
     items.push({
       key: 'lista',
       texto: `Lista más antigua sin captura completa: ${c.materia.nombre}, ${c.grupo.nombre}, ${fechaCorta(c.fecha)} (${haceTiempo(c.fecha).toLowerCase()}) · ${masAntigua.docente?.nombre ?? 'sin docente asignado'}`,
-      accion: <Link className={cn(linkClass, 'inline-flex min-h-11 items-center md:min-h-0')} to={j.to('/jefe-carrera/horarios', { fecha: c.fecha, clase: c.id, modalidad: c.grupo.modalidad === 'MIXTO' ? 'MIXTO' : undefined })}>Ver la evidencia</Link>,
+      accion: <Link className={cn(linkClass, 'inline-flex min-h-11 items-center md:min-h-0')} to={j.toDesde('/jefe-carrera/horarios', { fecha: c.fecha, clase: c.id, modalidad: c.grupo.modalidad === 'MIXTO' ? 'MIXTO' : undefined })}>Ver la evidencia</Link>,
     })
   }
   if (riesgos.length) {
     items.push({
       key: 'riesgo',
       texto: `${plural(riesgos.length, 'alumno cumple', 'alumnos cumplen')} el criterio de riesgo`,
-      accion: <a className={cn(linkClass, 'inline-flex min-h-11 items-center md:min-h-0')} href="#alumnos-riesgo">Revisar alumnos en riesgo</a>,
+      accion: <Link className={cn(linkClass, 'inline-flex min-h-11 items-center md:min-h-0')} to={j.toDesde('/jefe-carrera/seguimientos', { seccion: 'pendientes', tipo: 'ALUMNO_RIESGO' })}>Revisar alumnos en riesgo</Link>,
     })
   }
 
@@ -294,7 +294,7 @@ function RequiereAtencion({ j, grupos, riesgos, seguimientos, ofertaIncompleta }
             <p className="font-semibold text-foreground"><span className="inicio-cifra">{ofertaIncompleta}</span> {ofertaIncompleta === 1 ? 'Materia sin docente u horario' : 'Materias sin docente u horario'}</p>
             <p className="mt-1 text-[0.8125rem] text-muted-foreground">No cuentan con docente asignado o tienen horario sin registrar en el periodo actual.</p>
           </div>
-          <Link className={cn(buttonVariants(), 'min-h-11 whitespace-normal')} to={j.to('/jefe-carrera/materias', { vista: 'ofertas', revision: 'incompleta' })}>Revisar materias</Link>
+          <Link className={cn(buttonVariants(), 'min-h-11 whitespace-normal')} to={j.toDesde('/jefe-carrera/seguimientos', { seccion: 'pendientes', tipo: 'ASIGNACION' })}>Revisar asignaciones</Link>
         </div>
       )}
       {items.length ? (
@@ -331,13 +331,13 @@ function HoyEnLaCarrera({ j }) {
   const incidencias = activas.filter(esIncidencia).length
   const suspendidas = delDia.length - activas.length
   const proximas = activas
-    .filter((c) => c.estado === 'PROGRAMADA')
-    .sort((a, b) => a.horaInicio.localeCompare(b.horaInicio))
+    .filter((c) => c.estado === 'PROGRAMADA' || c.estado === 'REGISTRO_EN_CURSO')
+    .sort((a, b) => Number(b.estado === 'REGISTRO_EN_CURSO') - Number(a.estado === 'REGISTRO_EN_CURSO') || a.horaInicio.localeCompare(b.horaInicio))
     .slice(0, PROXIMAS_VISIBLES)
 
   return (
-    <section aria-labelledby="hoy-carrera" className="mt-10">
-      <SeccionTitulo id="hoy-carrera" titulo="Hoy en la carrera" descripcion="Clases de hoy y su registro. Para comparar grupos o ver otro día, abre el horario." accion={verHorario} />
+    <section aria-labelledby="hoy-carrera" className="inicio-hoy mt-6">
+      <SeccionTitulo id="hoy-carrera" titulo="Clases de hoy" descripcion={fechaCorta(hoy)} accion={verHorario} />
       {error ? (
         <p role="alert" className="flex flex-wrap items-center gap-3 border-y border-border py-4 text-[0.8125rem] text-warning-foreground">
           {error}
@@ -366,14 +366,15 @@ function HoyEnLaCarrera({ j }) {
             {suspendidas > 0 && <p className="col-span-full text-xs text-muted-foreground">{plural(suspendidas, 'clase suspendida', 'clases suspendidas')} hoy.</p>}
           </dl>
           <div className="min-w-0">
-            <h3 className="text-xs font-medium text-muted-foreground">Siguen hoy</h3>
+            <h3 className="text-xs font-medium text-muted-foreground">En curso y próximas</h3>
             {proximas.length ? (
               <ul className="mt-1.5 divide-y divide-border text-[0.8125rem]">
                 {proximas.map((c) => (
                   <li key={c.id} className="flex items-baseline gap-3 py-2">
                     <span className="w-24 shrink-0 tabular-nums text-muted-foreground">{c.horaInicio}–{c.horaFin}</span>
-                    <Link className={cn(linkClass, 'min-w-0 truncate text-foreground')} to={j.to('/jefe-carrera/horarios', { fecha: hoy, clase: c.id, modalidad: c.grupo.modalidad === 'MIXTO' ? 'MIXTO' : undefined })}>
+                    <Link className={cn(linkClass, 'min-w-0 truncate text-foreground')} to={j.toDesde('/jefe-carrera/horarios', { fecha: hoy, clase: c.id, modalidad: c.grupo.modalidad === 'MIXTO' ? 'MIXTO' : undefined })}>
                       {c.materia.nombre}
+                      {c.estado === 'REGISTRO_EN_CURSO' && <span className="ml-2 text-xs text-primary-ink">Registro en curso</span>}
                     </Link>
                     <span className="ml-auto shrink-0 text-xs text-muted-foreground">{c.grupo.nombre}</span>
                   </li>
@@ -389,9 +390,9 @@ function HoyEnLaCarrera({ j }) {
   )
 }
 
-/** Cerrada por defecto: se abre con el botón o al llegar desde la señal de Inicio. */
+/** Los primeros casos quedan visibles; la lista completa se consulta por grupo. */
 function AlumnosRiesgo({ j, riesgos, seguimientos }) {
-  const [abierto, setAbierto] = useState(() => window.location.hash === '#alumnos-riesgo')
+  const [abierto, setAbierto] = useState(true)
   useEffect(() => {
     const abrirSiToca = () => { if (window.location.hash === '#alumnos-riesgo') setAbierto(true) }
     window.addEventListener('hashchange', abrirSiToca)
@@ -403,19 +404,23 @@ function AlumnosRiesgo({ j, riesgos, seguimientos }) {
       <SeccionTitulo
         id="alumnos-riesgo"
         titulo="Alumnos en riesgo"
-        descripcion={CRITERIO_RIESGO}
+        descripcion={riesgos.length ? `${plural(riesgos.length, 'alumno requiere', 'alumnos requieren')} revisión en el periodo.` : 'Situación académica de los alumnos en el periodo.'}
         accion={riesgos.length > 0 && (
           <Button variant="outline" aria-expanded={abierto} aria-controls="lista-riesgo" onClick={() => setAbierto((v) => !v)}>
-            {abierto ? 'Ocultar lista' : `Ver ${plural(riesgos.length, 'alumno', 'alumnos')}`}
+            {abierto ? 'Ocultar alumnos' : `Ver ${plural(riesgos.length, 'alumno', 'alumnos')}`}
             <ChevronDown aria-hidden="true" className={cn('transition-transform duration-150 ease-out', abierto && 'rotate-180')} />
           </Button>
         )}
       />
+      <details className="mb-4 text-xs text-muted-foreground">
+        <summary className="inline-flex min-h-11 cursor-pointer items-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">¿Cómo se identifica el riesgo?</summary>
+        <p className="max-w-3xl pb-3 leading-relaxed">{CRITERIO_RIESGO}</p>
+      </details>
       {!riesgos.length ? (
         <p className="border-y border-border py-6 text-sm text-muted-foreground">Ningún alumno cumple el criterio de riesgo en el periodo.</p>
       ) : !abierto ? (
         <p className="border-y border-border py-4 text-[0.8125rem] text-muted-foreground">
-          {plural(riesgos.length, 'alumno cumple', 'alumnos cumplen')} el criterio de riesgo. La lista está oculta para que Inicio quede como resumen.
+          {plural(riesgos.length, 'alumno cumple', 'alumnos cumplen')} el criterio de riesgo. Abre la lista para revisar sus casos.
         </p>
       ) : (
         <div id="lista-riesgo">
@@ -429,7 +434,7 @@ function AlumnosRiesgo({ j, riesgos, seguimientos }) {
                   <div className="flex min-w-0 gap-2.5">
                     <span className="inline-flex w-5 shrink-0 pt-px"><SexoBadge sexo={alumno.sexo} /></span>
                     <div className="min-w-0">
-                      <Link className={cn(linkClass, 'text-foreground')} to={j.to(`/jefe-carrera/grupos/${causa.grupo.id}`, { tab: 'alumnos', alumno: alumno.id })}>{alumno.nombre}</Link>
+                      <Link className={cn(linkClass, 'text-foreground')} to={j.toDesde(`/jefe-carrera/grupos/${causa.grupo.id}`, { tab: 'alumnos', alumno: alumno.id })}>{alumno.nombre}</Link>
                       <span className="ml-2 text-xs text-muted-foreground">Grupo {causa.grupo.nombre}</span>
                       <p className="mt-0.5 text-xs text-muted-foreground">{materias.join(', ')} · {motivos.join(' · ')}</p>
                     </div>
@@ -440,7 +445,7 @@ function AlumnosRiesgo({ j, riesgos, seguimientos }) {
             })}
           </ul>
           {riesgos.length > ALUMNOS_VISIBLES && (
-            <Link className={`${linkClass} mt-2 inline-flex min-h-11 items-center text-[0.8125rem]`} to={j.to('/jefe-carrera/grupos', { riesgo: 1 })}>Ver los {riesgos.length} por grupo</Link>
+            <Link className={`${linkClass} mt-2 inline-flex min-h-11 items-center text-[0.8125rem]`} to={j.toDesde('/jefe-carrera/seguimientos', { seccion: 'pendientes', tipo: 'ALUMNO_RIESGO' })}>Ver los {riesgos.length} alumnos en riesgo</Link>
           )}
         </div>
       )}
@@ -457,7 +462,7 @@ function GrupoDocente({ g, j, seguimientos }) {
       <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_9rem_auto] md:items-start md:gap-6">
         <div className="min-w-0">
           {g.docente
-            ? <Link className={cn(linkClass, 'text-[0.9375rem] text-foreground')} to={j.to(`/jefe-carrera/docentes/${g.docente.id}`)}>{nombre}</Link>
+            ? <Link className={cn(linkClass, 'text-[0.9375rem] text-foreground')} to={j.toDesde(`/jefe-carrera/docentes/${g.docente.id}`)}>{nombre}</Link>
             : <span className="text-[0.9375rem] font-medium text-warning-foreground">{nombre}</span>}
           <p className="mt-0.5 text-[0.8125rem] text-foreground">{resumenGrupo(g).join(' · ')}</p>
         </div>
@@ -487,7 +492,7 @@ function GrupoDocente({ g, j, seguimientos }) {
               texto={`${fechaCorta(c.fecha)}, ${c.horaInicio} · ${c.materia.nombre} · ${c.grupo.nombre}`}
               estado={<span className={estadoClase(c.estado).texto}>{c.estado === 'CAPTURA_PARCIAL' ? `Captura parcial (${c.registros} de ${c.alumnos})` : 'Sin captura'}</span>}
               seguimiento={seguimientos.buscar({ tipo: 'ASISTENCIA_SIN_CAPTURA', horarioId: c.horarioId, fecha: c.fecha })}
-              enlace={{ label: 'Ver clase', to: j.to('/jefe-carrera/horarios', { fecha: c.fecha, clase: c.id, modalidad: c.grupo.modalidad === 'MIXTO' ? 'MIXTO' : undefined }) }}
+              enlace={{ label: 'Ver clase', to: j.toDesde('/jefe-carrera/horarios', { fecha: c.fecha, clase: c.id, modalidad: c.grupo.modalidad === 'MIXTO' ? 'MIXTO' : undefined }) }}
             />
           ))}
           {g.calificaciones.map((o) => (
@@ -496,7 +501,7 @@ function GrupoDocente({ g, j, seguimientos }) {
               texto={`${o.materia.nombre} · ${o.grupo.nombre}`}
               estado={plural(o.resumen.calificacionesPendientes, 'calificación de unidad cerrada sin capturar', 'calificaciones de unidades cerradas sin capturar')}
               seguimiento={seguimientos.buscar({ tipo: 'CALIFICACIONES_PENDIENTES', materiaId: o.materia.id, grupoId: o.grupo.id })}
-              enlace={{ label: 'Ver materia en el grupo', to: j.to(`/jefe-carrera/materias/${o.materia.id}`, { oferta: o.grupo.id }) }}
+              enlace={{ label: 'Ver unidades', to: j.toDesde(`/jefe-carrera/materias/${o.materia.id}`, { oferta: o.grupo.id, tab: 'unidades' }) }}
             />
           ))}
           {g.entregas.map((o) => (
@@ -504,7 +509,7 @@ function GrupoDocente({ g, j, seguimientos }) {
               key={`e-${o.id}`}
               texto={`${o.materia.nombre} · ${o.grupo.nombre}`}
               estado={plural(o.resumen.entregasPendientes, 'entrega recibida sin revisar', 'entregas recibidas sin revisar')}
-              enlace={{ label: 'Ver materia en el grupo', to: j.to(`/jefe-carrera/materias/${o.materia.id}`, { oferta: o.grupo.id }) }}
+              enlace={{ label: 'Ver materia en el grupo', to: j.toDesde(`/jefe-carrera/materias/${o.materia.id}`, { oferta: o.grupo.id }) }}
             />
           ))}
           {g.unidades.map(({ unidad, materia, senal }) => (
@@ -512,7 +517,7 @@ function GrupoDocente({ g, j, seguimientos }) {
               key={`u-${unidad.id}`}
               texto={`${unidad.nombre} · ${materia.nombre}`}
               estado={<span className="text-warning-foreground">{senal}</span>}
-              enlace={{ label: 'Ver materia', to: j.to(`/jefe-carrera/materias/${materia.id}`) }}
+              enlace={{ label: 'Ver unidades', to: j.toDesde(`/jefe-carrera/materias/${materia.id}`, { tab: 'unidades' }) }}
             />
           ))}
         </ul>

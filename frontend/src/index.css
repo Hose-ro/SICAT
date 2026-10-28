@@ -93,6 +93,31 @@
   /* Alto de .mobile-topbar, que es sticky: lo que también se pega arriba va debajo. */
   --alto-topbar:            0px;
 
+  /* Visualización de datos (gráficas de jefatura). Escalas de datos, no
+     decoración: divergente alrededor de la meta y riesgo académico, donde
+     solo lo que necesita atención lleva color. */
+  --viz-surface:            var(--card);
+  --viz-grid:               oklch(0.934 0.006 264);
+  --viz-axis:               oklch(0.847 0.011 264);
+  --viz-ink:                var(--foreground);
+  --viz-ink-2:              var(--muted-foreground);
+  --viz-serie:              oklch(0.561 0.190 264);
+  --viz-serie-wash:         oklch(0.561 0.190 264 / 0.08);
+  --viz-apagado:            oklch(0.835 0.017 264);
+  --viz-apagado-activo:     oklch(0.675 0.027 264);
+  --viz-meta:               var(--foreground);
+  --viz-rojo-lejos:         oklch(0.550 0.170 25);
+  --viz-rojo-cerca:         oklch(0.740 0.110 26);
+  --viz-neutro:             oklch(0.921 0.006 264);
+  --viz-azul-cerca:         oklch(0.740 0.101 264);
+  --viz-azul-lejos:         oklch(0.561 0.190 264);
+  --viz-riesgo-reprobado:   oklch(0.550 0.170 25);
+  --viz-riesgo-reprobado-tinta: oklch(0.985 0.004 264);
+  --viz-riesgo-alerta:      oklch(0.776 0.141 77);
+  --viz-riesgo-alerta-tinta: var(--foreground);
+  --viz-riesgo-ok:          oklch(0.942 0.006 264);
+  --viz-riesgo-ok-tinta:    var(--muted-foreground);
+
 
 }
 
@@ -198,6 +223,21 @@
   --criterio-participacion: oklch(0.84 0.11 75);
   --criterio-asistencia: oklch(0.78 0.09 150);
   --criterio-otro: oklch(0.78 0.07 280);
+  --viz-grid: oklch(0.284 0.014 264);
+  --viz-axis: oklch(0.371 0.015 264);
+  --viz-serie: oklch(0.639 0.160 264);
+  --viz-serie-wash: oklch(0.639 0.160 264 / 0.12);
+  --viz-apagado: oklch(0.367 0.017 264);
+  --viz-apagado-activo: oklch(0.554 0.027 264);
+  --viz-rojo-lejos: oklch(0.640 0.150 25);
+  --viz-rojo-cerca: oklch(0.445 0.120 25);
+  --viz-neutro: oklch(0.301 0.008 264);
+  --viz-azul-cerca: oklch(0.420 0.109 264);
+  --viz-azul-lejos: oklch(0.639 0.160 264);
+  --viz-riesgo-reprobado: oklch(0.522 0.157 26);
+  --viz-riesgo-alerta: oklch(0.671 0.124 77);
+  --viz-riesgo-alerta-tinta: oklch(0.209 0.009 264);
+  --viz-riesgo-ok: oklch(0.284 0.014 264);
 }
 
 /* Element defaults live in the base layer so Tailwind utilities (which sit
@@ -354,6 +394,16 @@
   .layout-main, .layout-main.collapsed { margin-left: 0; }
   body { background: var(--card); }
 }
+/* Movimiento reducido: nada se desplaza, gira ni escala, y las animaciones
+   terminan al instante. Los cambios de color, opacidad y sombra que ya tenían
+   transición la conservan con su duración: así selección, foco y estados se
+   siguen percibiendo sin movimiento. Los componentes con movimiento propio
+   declaran su alternativa (graficas.css, sheets, motion-reduce:*). */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-property: color, background-color, border-color, outline-color, text-decoration-color, fill, stroke, opacity, box-shadow !important;
+    scroll-behavior: auto !important;
+  }
 }

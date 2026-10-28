@@ -54,7 +54,7 @@ test('carrera a medias: la guía señala la oferta y abre el formulario de reuni
   await expect(guia).toContainText('1 de 4 pasos listos')
   await expect(guia.locator('[aria-current="step"]')).toContainText('sin docente o sin horario')
   // El resto de Inicio sigue ahí.
-  await expect(page.getByRole('heading', { name: 'Hoy en la carrera' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Clases de hoy' })).toBeVisible()
 
   await guia.getByRole('link', { name: 'Programar reunión' }).click()
   await expect(page).toHaveURL(/\/jefe-carrera\/reuniones/)
@@ -67,7 +67,7 @@ test('carrera en marcha: sin bienvenida ni guía', async ({ page }) => {
   await mockJefatura(page)
   await page.goto('/dashboard')
 
-  await expect(page.getByRole('heading', { name: 'Hoy en la carrera' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Clases de hoy' })).toBeVisible()
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await expect(page.locator('#primeros-pasos')).toHaveCount(0)
   await expect(page.getByText('Tu carrera está lista')).toHaveCount(0)

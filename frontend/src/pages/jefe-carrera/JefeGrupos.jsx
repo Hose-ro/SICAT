@@ -2,6 +2,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import ComparativoRiesgo from './graficas/ComparativoRiesgo'
+import BuscarAlumno from './supervision/BuscarAlumno'
 import { modalidadTexto, periodoTexto, semestreTexto } from './supervision/formato'
 import { JefaturaPage, Segmento, Vacio, linkClass } from './supervision/ui'
 
@@ -19,7 +20,7 @@ export default function JefeGrupos() {
   const busqueda = params.get('q') ?? ''
 
   return (
-    <JefaturaPage titulo="Grupos" subtitulo="Todos los grupos activos de la carrera; la información académica corresponde al periodo seleccionado.">
+    <JefaturaPage titulo="Grupos y alumnos" subtitulo="Busca a un alumno o abre un grupo para ver su alumnado y el expediente de cada persona.">
       {({ j, resumen }) => {
         const pendientesPorGrupo = new Map()
         resumen.pendientes.forEach((c) => pendientesPorGrupo.set(c.grupo.id, (pendientesPorGrupo.get(c.grupo.id) ?? 0) + 1))
@@ -41,10 +42,20 @@ export default function JefeGrupos() {
         const q = busqueda.trim().toLocaleLowerCase()
         const visibles = filas.filter((g) => (!modalidad || g.modalidad === modalidad) && (!soloRiesgo || g.alumnosRiesgo > 0) && (!q || g.nombre.toLocaleLowerCase().includes(q)))
         const semestres = [...new Set(visibles.map((g) => g.semestre))].sort((a, b) => a - b)
+        const filtrando = Boolean(modalidad || soloRiesgo || q)
+        const restablecer = () => {
+          const n = new URLSearchParams(params)
+          ;['modalidad', 'riesgo', 'q'].forEach((k) => n.delete(k))
+          setParams(n, { replace: true })
+        }
+        const alumnosTo = (g) => j.to(`/jefe-carrera/grupos/${g.id}`, { periodo: g.periodoConsulta, tab: 'alumnos' })
 
         return (
           <>
-            <div className="mt-6 flex flex-wrap items-center gap-3">
+            <BuscarAlumno j={j} resumen={resumen} />
+
+            <h2 className="mt-9 text-sm font-semibold text-foreground">Grupos activos</h2>
+            <div className="mt-2 flex flex-wrap items-center gap-3">
               <Segmento label="Modalidad" value={modalidad} onChange={(v) => set('modalidad', v)} options={[{ value: '', label: 'Todas' }, { value: 'ESCOLARIZADO', label: 'Escolarizado' }, { value: 'MIXTO', label: 'Mixto' }]} />
               <label className="relative min-w-[200px] flex-1 sm:max-w-xs">
                 <span className="sr-only">Buscar grupo</span>
@@ -55,10 +66,16 @@ export default function JefeGrupos() {
                 <input type="checkbox" checked={soloRiesgo} onChange={(e) => set('riesgo', e.target.checked ? '1' : '')} className="size-[17px] accent-primary" />
                 Con alumnos en riesgo
               </label>
+              {filtrando && <Button variant="ghost" className="min-h-11" onClick={restablecer}>Quitar filtros</Button>}
             </div>
+            {filtrando && (
+              <p role="status" className="mt-2 text-xs text-muted-foreground">
+                Mostrando {visibles.length} de {filas.length} grupos · {[modalidad && modalidadTexto(modalidad), soloRiesgo && 'con alumnos en riesgo', q && `nombre con «${busqueda.trim()}»`].filter(Boolean).join(' · ')}
+              </p>
+            )}
 
             <p className="mt-4 max-w-3xl text-xs text-muted-foreground">
-              <b className="font-medium text-foreground">Alumnos</b> son las personas cuyo grupo base es ese grupo. <b className="font-medium text-foreground">Alumnos por materia</b> cuenta las materias aceptadas en el periodo: una persona tiene varias, por eso la cifra es mayor. <b className="font-medium text-foreground">Materias</b> incluye las asignadas a cada grupo activo. Alumnos por materia, riesgo y pendientes se calculan únicamente para {periodoTexto(j.periodo)}; cambia el periodo para consultar otro ciclo.
+              <b className="font-medium text-foreground">Alumnos del grupo</b>: personas con ese grupo base. <b className="font-medium text-foreground">Inscripciones a materias</b>: materias aceptadas en {periodoTexto(j.periodo)}; cada persona tiene varias, por eso la cifra es mayor. Inscripciones, riesgo y pendientes son del periodo seleccionado.
             </p>
 
             <ComparativoRiesgo
@@ -72,7 +89,7 @@ export default function JefeGrupos() {
             {!gruposActivos.length ? (
               <Vacio titulo="Sin grupos activos">La carrera no tiene grupos marcados como activos.</Vacio>
             ) : !visibles.length ? (
-              <Vacio titulo="Ningún grupo coincide" accion={<Button variant="outline" onClick={() => setParams(new URLSearchParams({ carrera: j.carreraId, periodo: j.periodo }), { replace: true })}>Restablecer filtros</Button>}>
+              <Vacio titulo="Ningún grupo coincide" accion={<Button variant="outline" onClick={restablecer}>Quitar filtros</Button>}>
                 {soloRiesgo ? 'Ningún grupo tiene alumnos con señales de riesgo.' : 'Prueba con otra modalidad o búsqueda.'}
               </Vacio>
             ) : semestres.map((semestre) => (
@@ -89,9 +106,10 @@ export default function JefeGrupos() {
                         <span className="shrink-0 text-xs text-muted-foreground">{modalidadTexto(g.modalidad)} · {periodoTexto(g.periodo)}</span>
                       </div>
                       <p className="mt-1 tabular-nums text-muted-foreground">
-                        {g.alumnosBase} alumnos · {g.inscripciones ?? '—'} alumnos por materia · <span className={g.alumnosRiesgo ? 'font-semibold text-warning-foreground' : undefined}>{g.alumnosRiesgo ?? '—'} en riesgo</span>
+                        {g.alumnosBase} alumnos del grupo · {g.inscripciones ?? '—'} inscripciones a materias · <span className={g.alumnosRiesgo ? 'font-semibold text-warning-foreground' : undefined}>{g.alumnosRiesgo ?? '—'} en riesgo</span>
                       </p>
                       <p className="mt-0.5 text-xs text-muted-foreground">{textoPendientes(g)}</p>
+                      {g.periodoDisponible && <Link to={alumnosTo(g)} className={`${linkClass} text-xs`}>Ver alumnos y expedientes</Link>}
                     </li>
                   ))}
                 </ul>
@@ -102,11 +120,12 @@ export default function JefeGrupos() {
                         <th scope="col" className="px-4 py-2.5 font-medium">Grupo</th>
                         <th scope="col" className="px-4 py-2.5 font-medium">Periodo</th>
                         <th scope="col" className="px-4 py-2.5 font-medium">Modalidad</th>
-                        <th scope="col" className="px-4 py-2.5 text-right font-medium" title="Personas con este grupo como grupo base">Alumnos</th>
+                        <th scope="col" className="px-4 py-2.5 text-right font-medium">Alumnos del grupo</th>
                         <th scope="col" className="px-4 py-2.5 text-right font-medium">Materias</th>
-                        <th scope="col" className="px-4 py-2.5 text-right font-medium" title="Materias aceptadas en el periodo; una persona puede tener varias">Alumnos por materia</th>
+                        <th scope="col" className="px-4 py-2.5 text-right font-medium">Inscripciones a materias</th>
                         <th scope="col" className="px-4 py-2.5 text-right font-medium">En riesgo</th>
                         <th scope="col" className="px-4 py-2.5 font-medium">Pendientes de registro</th>
+                        <th scope="col" className="px-4 py-2.5 font-medium"><span className="sr-only">Alumnado</span></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -124,6 +143,7 @@ export default function JefeGrupos() {
                           <td className="px-4 py-3 text-right tabular-nums">{g.inscripciones ?? '—'}</td>
                           <td className={`px-4 py-3 text-right tabular-nums ${g.alumnosRiesgo ? 'font-semibold text-warning-foreground' : 'text-muted-foreground'}`}>{g.alumnosRiesgo ?? '—'}</td>
                           <td className="px-4 py-3 text-muted-foreground">{textoPendientes(g)}</td>
+                          <td className="px-4 py-3 text-right">{g.periodoDisponible && <Link to={alumnosTo(g)} className={`${linkClass} whitespace-nowrap text-xs`} aria-label={`Ver alumnos del grupo ${g.nombre}`}>Ver alumnos</Link>}</td>
                         </tr>
                       ))}
                     </tbody>

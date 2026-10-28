@@ -1,6 +1,6 @@
 import { useMemo, useState, useSyncExternalStore } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, LoaderCircle } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, LoaderCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import ClaseDetalle from './ClaseDetalle'
@@ -17,6 +17,57 @@ const GRUPOS_POR_PAGINA = 10
 const movilQuery = '(max-width: 767px)'
 const suscribir = (cb) => { const m = window.matchMedia(movilQuery); m.addEventListener('change', cb); return () => m.removeEventListener('change', cb) }
 const useMovil = () => useSyncExternalStore(suscribir, () => window.matchMedia(movilQuery).matches, () => false)
+
+const PENDIENTES_KEY = 'sicat:horario-pendientes-abierto'
+
+// Cerrado por defecto: el contador basta para saber que existen; se abre al pedirlo.
+function leerAbierto() {
+  try { return localStorage.getItem(PENDIENTES_KEY) === '1' } catch { return false }
+}
+
+/** Asignaciones sin días/horas; se puede contraer y recuerda la preferencia. */
+function PendientesHorario({ items, headingId }) {
+  const [abierto, setAbierto] = useState(leerAbierto)
+  const panelId = `${headingId}-lista`
+  const alternar = () => {
+    const nuevo = !abierto
+    setAbierto(nuevo)
+    try { localStorage.setItem(PENDIENTES_KEY, nuevo ? '1' : '0') } catch { /* sin almacenamiento */ }
+  }
+
+  return (
+    <section aria-labelledby={headingId} className="mb-4 rounded-[var(--radius-item)] border border-warning-foreground/25 bg-warning/35">
+      <h3 id={headingId} className="text-sm font-semibold text-foreground">
+        <button
+          type="button"
+          onClick={alternar}
+          aria-expanded={abierto}
+          aria-controls={panelId}
+          className="flex min-h-11 w-full items-center justify-between gap-3 rounded-[var(--radius-item)] px-4 py-3 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
+          <span>
+            Pendientes de programar
+            <span className="ml-2 rounded-full bg-card px-2 py-0.5 text-xs font-medium tabular-nums text-muted-foreground">{items.length}</span>
+          </span>
+          <ChevronDown aria-hidden="true" className={cn('size-4 shrink-0 text-muted-foreground transition-transform duration-200 motion-reduce:transition-none', abierto && 'rotate-180')} />
+        </button>
+      </h3>
+      <div id={panelId} hidden={!abierto} className="px-4 pb-3.5">
+        <p className="text-xs text-foreground">
+          Estas asignaciones pertenecen al periodo, pero todavía no tienen días y horas; por eso no pueden colocarse en la cuadrícula.
+        </p>
+        <ul className="mt-3 grid gap-2 text-xs sm:grid-cols-2 xl:grid-cols-3">
+          {items.map((item) => (
+            <li key={item.id} className="rounded-lg border border-border/80 bg-card px-3 py-2.5">
+              <strong className="block font-medium text-foreground">{item.materia.nombre}</strong>
+              <span className="mt-0.5 block text-muted-foreground">{item.grupo.nombre} · {item.docente?.nombre ?? 'Sin docente asignado'}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  )
+}
 
 const pad = (n) => String(n).padStart(2, '0')
 
@@ -147,7 +198,7 @@ export default function HorarioCarrera({ j, resumen, fijo = {}, titulo = 'Horari
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 id={headingId} className="text-[1.1875rem] font-semibold tracking-[-0.015em] text-foreground">{titulo}</h2>
-          {descripcion && <p className="mt-1 text-xs text-muted-foreground">{descripcion}</p>}
+          {descripcion && <p className="mt-1 text-xs text-muted-foreground max-md:hidden">{descripcion}</p>}
         </div>
         {/* En Mixto el día y la semana son el mismo sábado: el selector no aporta nada. */}
         {v.modalidad !== 'MIXTO' && (
@@ -155,49 +206,9 @@ export default function HorarioCarrera({ j, resumen, fijo = {}, titulo = 'Horari
         )}
       </div>
 
-      <div className="mb-4 grid grid-cols-2 gap-3 lg:flex lg:flex-wrap">
-        {!fijo.grupoId && (
-          <Filtro label="Modalidad" value={v.modalidad} onChange={(value) => v.set({ modalidad: value === 'ESCOLARIZADO' ? null : value, semestre: null, grupo: null, fecha: null, clase: null })}>
-            <option value="ESCOLARIZADO">Escolarizado</option>
-            <option value="MIXTO">Mixto (sábado)</option>
-          </Filtro>
-        )}
-        {!fijo.grupoId && (
-          <Filtro label="Semestre" value={v.semestre} onChange={(value) => v.set({ semestre: value, grupo: null })}>
-            <option value="">Todos los semestres</option>
-            {semestres.map((s) => <option key={s} value={s}>{semestreTexto(s)}</option>)}
-          </Filtro>
-        )}
-        {!fijo.grupoId && (
-          <Filtro label="Grupo" value={v.grupo} onChange={(value) => v.set({ grupo: value })}>
-            <option value="">Todos los grupos</option>
-            {gruposOpciones.map((g) => <option key={g.id} value={g.id}>{g.nombre}</option>)}
-          </Filtro>
-        )}
-        {!fijo.docenteId && (
-          <Filtro label="Docente" value={v.docente} onChange={(value) => v.set({ docente: value })}>
-            <option value="">Todos los docentes</option>
-            {resumen.docentes.map((d) => <option key={d.id} value={d.id}>{d.nombre}</option>)}
-          </Filtro>
-        )}
-      </div>
+      <FiltrosHorario v={v} fijo={fijo} movil={movil} semestres={semestres} gruposOpciones={gruposOpciones} gruposModalidad={gruposModalidad} docentes={resumen.docentes} />
 
-      {pendientesHorario.length > 0 && (
-        <section aria-labelledby={`${headingId}-sin-horario`} className="mb-4 rounded-[var(--radius-item)] border border-warning-foreground/25 bg-warning/35 px-4 py-3.5">
-          <h3 id={`${headingId}-sin-horario`} className="text-sm font-semibold text-foreground">Pendientes de programar</h3>
-          <p className="mt-1 text-xs text-foreground">
-            Estas asignaciones pertenecen al periodo, pero todavía no tienen días y horas; por eso no pueden colocarse en la cuadrícula.
-          </p>
-          <ul className="mt-3 grid gap-2 text-xs sm:grid-cols-2 xl:grid-cols-3">
-            {pendientesHorario.map((item) => (
-              <li key={item.id} className="rounded-lg border border-border/80 bg-card px-3 py-2.5">
-                <strong className="block font-medium text-foreground">{item.materia.nombre}</strong>
-                <span className="mt-0.5 block text-muted-foreground">{item.grupo.nombre} · {item.docente?.nombre ?? 'Sin docente asignado'}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      {!movil && pendientesHorario.length > 0 && <PendientesHorario items={pendientesHorario} headingId={`${headingId}-sin-horario`} />}
 
       <div className="overflow-hidden rounded-[var(--radius-card)] border border-border bg-card max-md:rounded-2xl">
         <div className="flex flex-wrap items-center justify-between gap-2.5 border-b border-border px-3 py-3 sm:px-[18px] sm:py-[15px]">
@@ -270,9 +281,71 @@ export default function HorarioCarrera({ j, resumen, fijo = {}, titulo = 'Horari
           {plural(delPeriodo.length, 'clase', 'clases')} · {plural(filas.length, 'grupo', 'grupos')} · {modalidadTexto(v.modalidad)}
         </p>
       )}
+      {movil && pendientesHorario.length > 0 && <div className="mt-4"><PendientesHorario items={pendientesHorario} headingId={`${headingId}-sin-horario`} /></div>}
 
       <ClaseDetalle clase={claseAbierta} clases={clases ?? []} j={j} onClose={() => v.set({ clase: null })} />
     </section>
+  )
+}
+
+/** Modalidad siempre visible; en el teléfono el resto se pliega con un resumen de lo aplicado. */
+function FiltrosHorario({ v, fijo, movil, semestres, gruposOpciones, gruposModalidad, docentes }) {
+  const modalidadFiltro = !fijo.grupoId && (
+    <Filtro label="Modalidad" value={v.modalidad} onChange={(value) => v.set({ modalidad: value === 'ESCOLARIZADO' ? null : value, semestre: null, grupo: null, fecha: null, clase: null })}>
+      <option value="ESCOLARIZADO">Escolarizado</option>
+      <option value="MIXTO">Mixto (sábado)</option>
+    </Filtro>
+  )
+  const secundarios = (
+    <>
+      {!fijo.grupoId && (
+        <Filtro label="Semestre" value={v.semestre} onChange={(value) => v.set({ semestre: value, grupo: null })}>
+          <option value="">Todos los semestres</option>
+          {semestres.map((s) => <option key={s} value={s}>{semestreTexto(s)}</option>)}
+        </Filtro>
+      )}
+      {!fijo.grupoId && (
+        <Filtro label="Grupo" value={v.grupo} onChange={(value) => v.set({ grupo: value })}>
+          <option value="">Todos los grupos</option>
+          {gruposOpciones.map((g) => <option key={g.id} value={g.id}>{g.nombre}</option>)}
+        </Filtro>
+      )}
+      {!fijo.docenteId && (
+        <Filtro label="Docente" value={v.docente} onChange={(value) => v.set({ docente: value })}>
+          <option value="">Todos los docentes</option>
+          {docentes.map((d) => <option key={d.id} value={d.id}>{d.nombre}</option>)}
+        </Filtro>
+      )}
+    </>
+  )
+  if (!movil) return <div className="mb-4 grid grid-cols-2 gap-3 lg:flex lg:flex-wrap">{modalidadFiltro}{secundarios}</div>
+  // En el teléfono la fecha y la agenda van primero: la modalidad (que define el
+  // calendario) queda a la vista y el resto se pliega con un resumen de lo aplicado.
+  const aplicados = [
+    !fijo.grupoId && v.semestre && semestreTexto(Number(v.semestre)),
+    !fijo.grupoId && v.grupo && `Grupo ${gruposModalidad.find((g) => String(g.id) === v.grupo)?.nombre ?? v.grupo}`,
+    !fijo.docenteId && v.docente && (docentes.find((d) => String(d.id) === v.docente)?.nombre ?? 'Docente'),
+  ].filter(Boolean)
+  const haySecundarios = !fijo.grupoId || !fijo.docenteId
+  return (
+    <div className="mb-4 space-y-2">
+      {modalidadFiltro}
+      {haySecundarios && (
+        <details className="group rounded-[var(--radius-item)] border border-border bg-card">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3.5 text-[0.8125rem] text-foreground focus-visible:rounded-[var(--radius-item)] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40">
+            <span className="min-w-0">
+              <span className="font-medium">Filtros</span>
+              {aplicados.length > 0
+                ? <span className="ml-2 rounded-full bg-accent px-2 py-0.5 text-xs font-medium tabular-nums">{aplicados.length}</span>
+                : <span className="ml-2 text-xs text-muted-foreground">Todos los grupos y docentes</span>}
+              {aplicados.length > 0 && <span className="block truncate text-xs text-muted-foreground">{aplicados.join(' · ')}</span>}
+            </span>
+            <ChevronDown aria-hidden="true" className="size-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180 motion-reduce:transition-none" />
+          </summary>
+          <div className="grid gap-3 border-t border-border px-3.5 pb-3.5 pt-3">{secundarios}</div>
+        </details>
+      )}
+    </div>
   )
 }
 

@@ -38,7 +38,7 @@ export default function MapaDocentes({ j, resumen, docentes }) {
   return (
     <div className="viz mt-6">
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
-        <span className="text-foreground">Cobertura de la semana</span>
+        <span className="text-foreground">Registro de listas por semana</span>
         <span className="flex flex-wrap gap-x-3 gap-y-1">
           {CLASES.map((c) => <span key={c.texto} className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-[3px]" style={{ background: c.color }} />{c.texto}</span>)}
           <span className="inline-flex items-center gap-1.5"><span className="viz-cell--vacia size-2.5 rounded-[3px] border border-border" />Sin clases con lista esperada</span>
@@ -95,7 +95,7 @@ function Mapa({ j, filas, semanas }) {
     <div ref={marco} className="relative mt-4">
     <div ref={contenedor} className="viz-plot overflow-x-auto pb-1" onPointerLeave={() => setActiva(null)} onScroll={() => setActiva(null)}>
       <table className="viz-heat text-[0.8125rem]">
-        <caption className="sr-only">Cobertura de captura por docente y semana. Usa las flechas para recorrer las celdas; cada celda abre el horario de esa semana.</caption>
+        <caption className="sr-only">Registro de listas por docente y semana. Usa las flechas para recorrer las celdas; cada celda abre el horario de esa semana.</caption>
         <thead>
           <tr className="text-xs text-muted-foreground">
             <th scope="col" className="sticky left-0 z-[1] bg-background pb-2 pr-4 text-left font-medium">Docente</th>

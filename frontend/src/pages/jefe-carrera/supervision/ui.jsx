@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import { AlertCircle, ArrowLeft, Check, Copy, LoaderCircle, Mail, Phone, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { buttonVariants } from '@/components/ui/buttonVariants'
@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { horaCorta, periodoTexto } from './formato'
 import { actualizarJefatura, useActualizarAlVolver } from './actualizar'
 import { useJefatura, useResumen } from './useJefatura'
+import { leerOrigen } from './origen'
 
 export const selectClass = 'h-11 w-full rounded-[0.7rem] border border-border bg-card pl-3 pr-8 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40'
 export const campoClass = 'w-full rounded-[0.7rem] border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40'
@@ -33,7 +34,10 @@ function destinoVolver(j, path) {
 export function JefaturaPage({ titulo, subtitulo, accion, volver, children, sinResumen = false, alcance = 'periodo' }) {
   const j = useJefatura()
   const location = useLocation()
-  useEffect(() => { if (!volver) recordarListado(location.pathname, location.search) }, [volver, location.pathname, location.search])
+  const [params] = useSearchParams()
+  // Un recorrido transversal (desde Pendientes, un docente…) vuelve a su origen; sin él, al listado.
+  const origen = j.carreraId ? leerOrigen(params.get('desde'), j) : null
+  useEffect(() => { if (!volver && !origen) recordarListado(location.pathname, location.search) }, [volver, origen, location.pathname, location.search])
   const resumen = useResumen(sinResumen ? {} : { carreraId: j.carreraId, periodo: j.periodo })
   useActualizarAlVolver(sinResumen ? null : j.carreraId, j.periodo)
 
@@ -51,12 +55,20 @@ export function JefaturaPage({ titulo, subtitulo, accion, volver, children, sinR
   return (
     <div className="jefatura">
       <ContextoBar j={j} resumen={sinResumen ? null : resumen} alcance={alcance} />
-      {volver && (
-        <Link to={destinoVolver(j, volver.to)} className={cn(linkClass, 'mt-4 inline-flex min-h-11 items-center gap-1 text-sm')}>
-          <ArrowLeft className="size-4" aria-hidden="true" /> {volver.label}
-        </Link>
+      {(origen || volver) && (
+        <nav aria-label="Regresar" className="mt-4 flex flex-wrap items-center gap-x-3 text-sm">
+          <Link to={origen ? origen.to : destinoVolver(j, volver.to)} className={cn(linkClass, 'inline-flex min-h-11 items-center gap-1')}>
+            <ArrowLeft className="size-4" aria-hidden="true" /> {origen ? origen.label : volver.label}
+          </Link>
+          {/* La ubicación del expediente sigue a la mano aunque se llegue desde otra vista. */}
+          {origen && volver && (
+            <span className="text-xs text-muted-foreground">
+              En <Link to={destinoVolver(j, volver.to)} className={cn(linkClass, 'inline-flex min-h-11 items-center md:min-h-0')}>{volver.label}</Link>
+            </span>
+          )}
+        </nav>
       )}
-      <div className={cn('flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between', volver ? 'pt-1' : 'pt-7')}>
+      <div className={cn('flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between', origen || volver ? 'pt-1' : 'pt-7')}>
         <div className="min-w-0">
           {encabezado}
           {sub && <p className="mt-1.5 text-sm text-muted-foreground">{sub}</p>}
@@ -310,23 +322,40 @@ export function SeccionTitulo({ titulo, descripcion, accion, id }) {
 /** Acciones de contacto: preparan el mensaje o la llamada; la persona decide enviarlo. */
 export function Contacto({ persona, compacto = false }) {
   const [copiado, setCopiado] = useState(false)
+  // Si el navegador no deja copiar, el texto queda seleccionable para copiarlo a mano.
+  const [manual, setManual] = useState(false)
   const timer = useRef(null)
+  const manualRef = useRef(null)
   useEffect(() => () => clearTimeout(timer.current), [])
+  useEffect(() => { if (manual) manualRef.current?.select() }, [manual])
   const { email, telefono } = persona ?? {}
   if (!email && !telefono) return <span className="text-xs text-muted-foreground">Sin contacto registrado</span>
 
+  const texto = [persona.nombre, email, telefono].filter(Boolean).join(' · ')
   const copiar = async () => {
-    const texto = [persona.nombre, email, telefono].filter(Boolean).join(' · ')
+    setCopiado(false)
     try {
+      if (!navigator.clipboard?.writeText) throw new Error('Sin portapapeles')
       await navigator.clipboard.writeText(texto)
+      setManual(false)
       setCopiado(true)
       clearTimeout(timer.current)
       timer.current = setTimeout(() => setCopiado(false), 2000)
-    } catch { /* el navegador no permitió copiar */ }
+    } catch {
+      setManual(true)
+    }
   }
   const size = compacto ? 'sm' : 'default'
   return (
     <div className="flex flex-wrap items-center gap-1.5">
+      {manual && (
+        <div role="alert" className="order-last w-full text-xs text-warning-foreground">
+          <label className="block">
+            El navegador no permitió copiar. Selecciona el contacto y cópialo:
+            <input ref={manualRef} readOnly value={texto} onFocus={(e) => e.target.select()} className={cn(campoClass, 'mt-1.5 h-11 text-[0.8125rem] md:h-9')} />
+          </label>
+        </div>
+      )}
       {email && (
         <a href={`mailto:${email}`} className={buttonVariants({ variant: 'outline', size })}>
           <Mail aria-hidden="true" /> Preparar correo
