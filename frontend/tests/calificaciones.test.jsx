@@ -3,7 +3,7 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 
-vi.mock('../src/api/axios', () => ({ default: { get: vi.fn(), patch: vi.fn() } }))
+vi.mock('../src/api/axios', () => ({ default: { get: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn() } }))
 import api from '../src/api/axios'
 import Calificaciones from '../src/pages/Calificaciones'
 import FeedbackDialogs from '../src/components/FeedbackDialogs'
@@ -13,7 +13,15 @@ import { useFeedbackStore } from '../src/lib/feedback'
 
 const materia = { id: 410, nombre: 'Programación Lógica', grupos: [{ id: 6, nombre: '8A' }], unidades: [{ id: 1, nombre: 'Unidad 1' }] }
 const otraMateria = { id: 411, nombre: 'Redes', grupos: [], unidades: [] }
-const reporte = (tareas, asistencia, rows = [], metrics = {}, extra = {}) => ({ rows, metrics, ponderacion: { tareas, asistencia, categorias: [], origen: 'MATERIA', ...extra.ponderacion }, tareasSinCategoria: extra.tareasSinCategoria ?? 0 })
+const virtual = (clave, nombre, tipo, peso) => ({ clave, id: null, nombre, tipo, peso, meta: null, virtual: true })
+const predeterminada = (tareas, asistencia) => ({ origen: 'PREDETERMINADA', legado: 'MATERIA', criterios: [virtual('tareas', 'Tareas', 'TAREAS', tareas), virtual('asistencia', 'Asistencia', 'ASISTENCIA', asistencia)] })
+const reporte = (tareas, asistencia, rows = [], metrics = {}, extra = {}) => ({ rows, metrics, ponderacion: { tareas, asistencia, categorias: [], origen: 'MATERIA' }, criterios: extra.criterios ?? predeterminada(tareas, asistencia), tareasSinCategoria: extra.tareasSinCategoria ?? 0 })
+const vistaCriterios = (base = predeterminada(80, 20)) => ({
+ materiaId: 410, grupoId: 6,
+ base: { origen: base.origen === 'GRUPO' ? 'GRUPO' : 'PREDETERMINADA', criterios: base.criterios },
+ unidades: [{ unidad: { id: 1, nombre: 'Unidad 1', orden: 1, status: 'ACTIVA' }, personalizada: false, criterios: null }],
+ catalogo: [], gruposDelDocente: [],
+})
 const fila = (id, nombre, { manual = null, calculada = null, estado = 'PENDIENTE', unidad = 1 } = {}) => ({
  alumno: { id, nombre, numeroControl: `C${id}` }, materia: { id: 410, nombre: materia.nombre }, grupo: { id: 6, nombre: '8A' },
  unidad: { id: unidad, nombre: `Unidad ${unidad}`, orden: unidad }, calificacionManual: manual, calificacionCalculada: calculada,
@@ -24,10 +32,11 @@ const renderPage = (url = '/calificaciones') =>
  render(<MemoryRouter initialEntries={[url]}><Calificaciones /><FeedbackDialogs /></MemoryRouter>)
 const docenteParams = () => api.get.mock.calls.filter(([url]) => url === '/calificaciones/docente').map(([, config]) => config.params)
 
-function servir({ materias = [materia, otraMateria], rows = [], metrics = {}, pesos = [80, 20], extra = {} } = {}) {
+function servir({ materias = [materia, otraMateria], rows = [], metrics = {}, pesos = [80, 20], extra = {}, criterios = vistaCriterios() } = {}) {
  api.get.mockImplementation((url) => {
   if (url === '/materias/mis-materias') return Promise.resolve({ data: materias })
   if (url === '/calificaciones/docente') return Promise.resolve({ data: reporte(...pesos, rows, metrics, extra) })
+  if (url === '/calificaciones/criterios') return Promise.resolve({ data: criterios })
   return Promise.reject(new Error(`unexpected ${url}`))
  })
 }
@@ -50,69 +59,73 @@ beforeEach(() => {
  servir()
 })
 
-async function abrirPonderacion(user) {
- await user.selectOptions(await screen.findByLabelText('Materia'), '410')
- await user.click(await screen.findByText('Ponderación'))
- await waitFor(()=>expect(screen.getByLabelText('Tareas %').value).toBe('80'))
+async function abrirCriterios(user, url = '/calificaciones?materia=410&grupo=6') {
+ renderPage(url)
+ await user.click(await screen.findByRole('button', { name: 'Editar criterios' }))
+ await screen.findByLabelText('Porcentaje de Tareas')
 }
 
-test('la ponderación viene del servidor, se completa a 100 y se guarda por materia', async () => {
- const user=userEvent.setup()
- renderPage()
- expect(screen.queryByText('Ponderación')).toBeNull()
- await abrirPonderacion(user)
- expect(screen.getByLabelText('Asistencia %').value).toBe('20')
+test('sin grupo elegido, los criterios piden elegir uno', async () => {
+ renderPage('/calificaciones?materia=410')
+ expect(await screen.findByText(/Cada grupo tiene sus criterios. Elige un grupo/)).toBeTruthy()
+ expect(screen.queryByRole('button', { name: 'Editar criterios' })).toBeNull()
  expect(docenteParams()[0]).toEqual({ materiaId: '410' })
-
- const guardar=screen.getByRole('button',{name:'Guardar ponderación'})
- expect(guardar.disabled).toBe(true)
- await user.clear(screen.getByLabelText('Tareas %')); await user.type(screen.getByLabelText('Tareas %'), '70')
- expect(screen.getByLabelText('Asistencia %').value).toBe('30')
- expect(guardar.disabled).toBe(false)
-
- api.patch.mockResolvedValueOnce({ data: { tareas: 70, asistencia: 30 } })
- servir({ pesos: [70, 30] })
- await user.click(guardar)
- expect(api.patch).toHaveBeenCalledWith('/calificaciones/ponderacion', { materiaId: 410, pesoTareas: 70, pesoAsistencia: 30 })
- expect((await screen.findByText(/Ponderación de la materia guardada/))).toBeTruthy()
- await waitFor(()=>expect(guardar.disabled).toBe(true))
 })
 
-test('con un grupo elegido se ponderan las tareas por categoría y se guardan para ese grupo', async () => {
+test('con un grupo se editan sus criterios y todos suman 100', async () => {
  const user=userEvent.setup()
  servir({ extra: { tareasSinCategoria: 2 } })
  renderPage('/calificaciones?materia=410&grupo=6')
- await user.click(await screen.findByText('Ponderación'))
- expect(screen.getByText(/8A usa la ponderación de la materia/)).toBeTruthy()
- expect(screen.getByText(/2 tareas no tienen categoría/)).toBeTruthy()
+ expect(await screen.findByText(/Predeterminada: Tareas 80 % · Asistencia 20 %/)).toBeTruthy()
+ expect(screen.getByText(/2 actividades no tienen un criterio de este grupo/)).toBeTruthy()
 
- await user.click(screen.getByRole('button', { name: 'Agregar categoría' }))
- await user.type(screen.getByLabelText('Nombre de la categoría 1'), 'Examen')
- expect(screen.getByLabelText('Peso de Examen en %').value).toBe('100')
- await user.clear(screen.getByLabelText('Peso de Examen en %')); await user.type(screen.getByLabelText('Peso de Examen en %'), '60')
- const guardar=screen.getByRole('button',{name:'Guardar ponderación'})
- expect(screen.getByRole('alert').textContent).toMatch(/deben sumar 100 % \(ahora suman 60 %\)/)
+ await user.click(screen.getByRole('button', { name: 'Editar criterios' }))
+ const tareas = await screen.findByLabelText('Porcentaje de Tareas')
+ expect(api.get).toHaveBeenCalledWith('/calificaciones/criterios', { params: { materiaId: '410', grupoId: 6 } })
+ expect(screen.getByText(/8A usa la ponderación predeterminada/)).toBeTruthy()
+ const guardar = screen.getByRole('button', { name: 'Guardar criterios' })
  expect(guardar.disabled).toBe(true)
 
- await user.click(screen.getByRole('button', { name: 'Agregar categoría' }))
- expect(screen.getByLabelText('Peso de la categoría 2 en %').value).toBe('40')
- await user.type(screen.getByLabelText('Nombre de la categoría 2'), 'Prácticas')
- api.patch.mockResolvedValueOnce({ data: {} })
+ await user.clear(tareas); await user.type(tareas, '50')
+ expect(screen.getByText('Suma 70 % · faltan 30 %')).toBeTruthy()
+ expect(screen.getByText('Los criterios deben sumar 100 % (ahora suman 70 %).')).toBeTruthy()
+ expect(guardar.disabled).toBe(true)
+
+ await user.click(screen.getByRole('button', { name: 'Agregar criterio' }))
+ await user.click(await screen.findByRole('menuitem', { name: 'Examen' }))
+ const examen = screen.getByLabelText('Porcentaje de Examen')
+ expect(examen.value).toBe('30')
+ expect(screen.getByText('Suma 100 %')).toBeTruthy()
+
+ const guardado = vistaCriterios({ origen: 'GRUPO', criterios: [
+  { clave: 'c1', id: 1, nombre: 'Tareas', tipo: 'TAREAS', peso: 50, meta: null },
+  { clave: 'c3', id: 3, nombre: 'Examen', tipo: 'EXAMEN', peso: 30, meta: null },
+  { clave: 'c2', id: 2, nombre: 'Asistencia', tipo: 'ASISTENCIA', peso: 20, meta: null },
+ ] })
+ api.put.mockResolvedValueOnce({ data: { ...guardado, reasignadas: 2 } })
  await user.click(guardar)
- expect(api.patch).toHaveBeenCalledWith('/calificaciones/ponderacion', {
-  materiaId: 410, grupoId: 6, pesoTareas: 80, pesoAsistencia: 20,
-  categorias: [{ nombre: 'Examen', peso: 60 }, { nombre: 'Prácticas', peso: 40 }],
+ expect(api.put).toHaveBeenCalledWith('/calificaciones/criterios', {
+  materiaId: 410, grupoId: 6,
+  criterios: [
+   { nombre: 'Tareas', tipo: 'TAREAS', peso: 50 },
+   { nombre: 'Asistencia', tipo: 'ASISTENCIA', peso: 20 },
+   { nombre: 'Examen', tipo: 'EXAMEN', peso: 30 },
+  ],
  })
- expect((await screen.findByText(/Ponderación de 8A guardada/))).toBeTruthy()
+ expect(await screen.findByText(/Criterios de 8A guardados. 2 tareas sin criterio quedaron en «Tareas»./)).toBeTruthy()
+ // El reporte se vuelve a pedir para recalcular.
+ await waitFor(() => expect(docenteParams().length).toBeGreaterThan(1))
 })
 
-test('si el servidor rechaza la ponderación se muestra el motivo', async () => {
+test('si el servidor rechaza los criterios se muestra el motivo', async () => {
  const user=userEvent.setup()
- renderPage()
- await abrirPonderacion(user)
- await user.clear(screen.getByLabelText('Tareas %')); await user.type(screen.getByLabelText('Tareas %'), '60')
- api.patch.mockImplementationOnce(() => Promise.reject({ response: { status: 403, data: { message: 'No impartes esta materia' } } }))
- await user.click(screen.getByRole('button',{name:'Guardar ponderación'}))
+ await abrirCriterios(user)
+ const tareas = screen.getByLabelText('Porcentaje de Tareas')
+ const asistencia = screen.getByLabelText('Porcentaje de Asistencia')
+ await user.clear(tareas); await user.type(tareas, '60')
+ await user.clear(asistencia); await user.type(asistencia, '40')
+ api.put.mockImplementationOnce(() => Promise.reject({ response: { status: 403, data: { message: 'No impartes esta materia' } } }))
+ await user.click(screen.getByRole('button', { name: 'Guardar criterios' }))
  expect((await screen.findByText('No impartes esta materia'))).toBeTruthy()
 })
 
@@ -206,12 +219,27 @@ test('buscar, ordenar y filtrar por estado desde las tarjetas', async () => {
  expect(nombres()).toEqual(['Álvaro'])
  await user.clear(screen.getByLabelText('Buscar alumno'))
 
- const tarjeta = screen.getByRole('button', { name: /Requieren atención/ })
- await user.click(tarjeta)
- expect(tarjeta.getAttribute('aria-pressed')).toBe('true')
+ // Un reporte sin semáforo (servidor anterior) se traduce del estado.
+ const reprobados = screen.getByRole('radio', { name: /Reprobados/ })
+ expect(reprobados.textContent).toBe('1Reprobados')
+ await user.click(reprobados)
+ expect(reprobados.getAttribute('aria-checked')).toBe('true')
  expect(nombres()).toEqual(['Beto'])
- await user.click(screen.getByRole('button', { name: /Mostrando: Requieren atención/ }))
+ await user.click(screen.getByRole('button', { name: /Mostrando: Reprobados/ }))
  expect(nombres()).toHaveLength(3)
+ expect(screen.getByRole('radio', { name: /Todos/ }).getAttribute('aria-checked')).toBe('true')
+})
+
+test('el semáforo del servidor manda sobre el estado', async () => {
+ const user=userEvent.setup()
+ await abrirMateriaConAlumnos(user, [
+  { ...fila(1, 'Ana', { calculada: 65, estado: 'APROBADO' }), desempeno: 'REPROBADO', motivos: ['CALIFICACION_BAJA'] },
+  { ...fila(2, 'Beto', { calculada: 90, estado: 'APROBADO' }), desempeno: 'APROBADO', motivos: [] },
+ ])
+ expect(screen.getByRole('radio', { name: /Reprobados/ }).textContent).toBe('1Reprobados')
+ await user.click(screen.getByRole('radio', { name: /Reprobados/ }))
+ expect(screen.getAllByLabelText(/^Calificación de /).map((input) => input.getAttribute('aria-label').replace(/ en .*/, ''))).toEqual(['Calificación de Ana'])
+ expect(screen.getAllByText('Reprobado').length).toBeGreaterThan(0)
 })
 
 test('los filtros se leen de la URL y ocultan las columnas repetidas', async () => {
@@ -271,7 +299,7 @@ test('la vista por alumno muestra una fila por alumno, una columna por unidad y 
  const user=userEvent.setup()
  servir({ rows: dosUnidades() })
  renderPage('/calificaciones?materia=410')
- await screen.findByLabelText('Calificación de Ana en Unidad 1')
+ await screen.findByLabelText('Calificación de Ana')
  await user.click(within(screen.getByRole('group', { name: 'Vista' })).getByRole('button', { name: 'Por alumno' }))
 
  const matriz = screen.getByRole('table')
@@ -290,6 +318,30 @@ test('la vista por alumno muestra una fila por alumno, una columna por unidad y 
  expect(api.patch.mock.calls[0][1].calificaciones).toEqual([{ alumnoId: 1, unidadId: 2, calificacionManual: 100, observacion: '' }])
 })
 
+test('la lista arranca en la unidad abierta y muestra las demás sin recargar ni perder lo capturado', async () => {
+ const user=userEvent.setup()
+ const status = (row) => ({ ...row, unidad: { ...row.unidad, status: row.unidad.orden === 2 ? 'ACTIVA' : 'FINALIZADA' } })
+ servir({ rows: dosUnidades().map(status) })
+ renderPage('/calificaciones?materia=410')
+ expect(await screen.findByText(/Se muestra la unidad abierta \(Unidad 2\)/)).toBeTruthy()
+ const filtro = screen.getByRole('radiogroup', { name: 'Mostrar unidad' })
+ expect(within(filtro).getByRole('radio', { name: 'Unidad 2' }).getAttribute('aria-checked')).toBe('true')
+ expect(screen.getByLabelText('Calificación de Ana').placeholder).toBe('60')
+ expect(screen.getByLabelText('Calificación de Beto')).toBeTruthy()
+ await user.type(screen.getByLabelText('Calificación de Ana'), '95')
+ const llamadas = api.get.mock.calls.length
+
+ await user.click(within(filtro).getByRole('radio', { name: 'Todas' }))
+ expect(screen.getByLabelText('Calificación de Ana en Unidad 1').placeholder).toBe('80')
+ expect(screen.getByLabelText('Calificación de Ana en Unidad 2').value).toBe('95')
+ expect(screen.queryByText(/Se muestra la unidad abierta/)).toBeNull()
+ expect(api.get.mock.calls.length).toBe(llamadas)
+
+ await user.click(within(filtro).getByRole('radio', { name: 'Unidad 1' }))
+ expect(screen.getByLabelText('Calificación de Ana').placeholder).toBe('80')
+ expect(screen.getAllByText(/1 cambio sin guardar/).length).toBeGreaterThan(0)
+})
+
 test('en teléfono cada alumno es una tarjeta en lugar de una fila de tabla', async () => {
  window.innerWidth = 400
  servir({ rows: [fila(1, 'Ana', { calculada: 82, estado: 'APROBADO' })] })
@@ -299,4 +351,61 @@ test('en teléfono cada alumno es una tarjeta en lugar de una fila de tabla', as
  expect(within(tarjetas).getByText('Ana')).toBeTruthy()
  expect(within(tarjetas).getByLabelText('Calificación de Ana').placeholder).toBe('82')
  expect(within(tarjetas).getByText('Tareas 0/0 · Asistencia 0%')).toBeTruthy()
+})
+
+
+test('la participación se agrega y guarda con su meta y aporte acumulado', async () => {
+ const user = userEvent.setup()
+ await abrirCriterios(user)
+ const tareas = screen.getByLabelText('Porcentaje de Tareas')
+ await user.clear(tareas); await user.type(tareas, '60')
+ await user.click(screen.getByRole('button', { name: 'Agregar criterio' }))
+ await user.click(await screen.findByRole('menuitem', { name: 'Participación' }))
+ expect(screen.getByLabelText('Porcentaje de Participación').value).toBe('20')
+ expect(screen.getByLabelText('Participaciones que valen 100 en la unidad (Participación)').value).toBe('5')
+ expect(screen.getByText(/Cada participación suma 4 puntos al aporte/)).toBeTruthy()
+ const guardado = vistaCriterios({ origen: 'GRUPO', criterios: [
+  { id: 1, nombre: 'Tareas', tipo: 'TAREAS', peso: 60, meta: null },
+  { id: 2, nombre: 'Asistencia', tipo: 'ASISTENCIA', peso: 20, meta: null },
+  { id: 3, nombre: 'Participación', tipo: 'PARTICIPACION', peso: 20, meta: 5 },
+ ] })
+ api.put.mockResolvedValueOnce({ data: guardado })
+ await user.click(screen.getByRole('button', { name: 'Guardar criterios' }))
+ await waitFor(() => expect(api.put).toHaveBeenCalledWith('/calificaciones/criterios', {
+  materiaId: 410, grupoId: 6, criterios: [
+   { nombre: 'Tareas', tipo: 'TAREAS', peso: 60 },
+   { nombre: 'Asistencia', tipo: 'ASISTENCIA', peso: 20 },
+   { nombre: 'Participación', tipo: 'PARTICIPACION', peso: 20, meta: 5 },
+  ],
+ }))
+ expect(await screen.findByText(/Cada participación registrada suma 4 puntos/)).toBeTruthy()
+})
+
+test('la unidad muestra sus criterios propios incluso sin alumnos en captura', async () => {
+ const criterios = vistaCriterios()
+ criterios.unidades[0] = {
+  ...criterios.unidades[0], personalizada: true,
+  criterios: [{ id: 3, nombre: 'Participación', tipo: 'PARTICIPACION', peso: 100, meta: 10 }],
+ }
+ servir({ criterios })
+ renderPage('/calificaciones?materia=410&grupo=6&unidad=1')
+ expect(await screen.findByText(/Cada participación registrada suma 10 puntos/)).toBeTruthy()
+ expect(screen.getByText(/Porcentajes propios: Unidad 1/)).toBeTruthy()
+ expect(screen.getByText('Sin calificaciones disponibles.')).toBeTruthy()
+})
+
+test('la calificación final y su estado van juntos entre Extra y Observación', async () => {
+ const user = userEvent.setup()
+ servir({ rows: [{ ...fila(1, 'Ana', { calculada: 65, estado: 'REQUIERE_ATENCION' }), desempeno: 'REPROBADO' }] })
+ renderPage('/calificaciones?materia=410&grupo=6&unidad=1')
+ await screen.findByLabelText(/^Calificación de Ana/)
+ const encabezados = within(screen.getByRole('table')).getAllByRole('columnheader').map((th) => th.textContent)
+ expect(encabezados.slice(encabezados.indexOf('Extra'), encabezados.indexOf('Extra') + 3)).toEqual(['Extra', 'Calificación final', 'Observación'])
+ expect(encabezados).not.toContain('Estado')
+ const filaAna = screen.getByRole('row', { name: /Ana/ })
+ expect(filaAna.textContent).toContain('65Reprobado')
+
+ // Con 10 puntos extra llega a 75 y aprueba: el color se recalcula antes de guardar.
+ await user.type(screen.getByLabelText(/^Puntos extra de Ana/), '10')
+ expect(filaAna.textContent).toContain('75Aprobado')
 })

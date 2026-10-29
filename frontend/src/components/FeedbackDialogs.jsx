@@ -45,7 +45,7 @@ export default function FeedbackDialogs() {
           <Button variant="destructive" onClick={() => resolveConfirmation(true)}>{confirmation?.confirmLabel}</Button>
         </div>
       </Modal>
-      <div className="pointer-events-none fixed bottom-4 right-4 z-[400] flex max-h-[50dvh] w-[min(28rem,calc(100%-2rem))] flex-col gap-2 overflow-y-auto">
+      <div className="pointer-events-none fixed bottom-[calc(var(--barra-inferior,0px)+1rem)] right-4 z-[400] flex max-h-[50dvh] w-[min(28rem,calc(100%-2rem))] flex-col gap-2 overflow-y-auto">
         {notices.map((notice) => <Notice key={notice.id} notice={notice} />)}
       </div>
     </>

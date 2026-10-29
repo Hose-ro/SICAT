@@ -1,15 +1,38 @@
 import {
   BadRequestException,
+  ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { EstadoAsistencia, EstadoRevision, EstadoTarea } from '@prisma/client';
+import {
+  EstadoAsistencia,
+  EstadoRevision,
+  EstadoTarea,
+  TipoEntrega,
+  EstadoUnidad,
+  TipoCriterio,
+} from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { getCurrentAcademicPeriod } from '../common/periodo.util';
 import { asegurarAccesoMateria } from '../common/materia-ownership';
+import {
+  CALIFICACION_APROBATORIA,
+  evaluarDesempeno,
+  type EstadoDesempeno,
+  type MotivoDesempeno,
+} from '../common/desempeno.util';
+import { MIN_REGISTROS_RIESGO, UMBRAL_RIESGO } from '../common/riesgo.util';
 import { GuardarCalificacionManualDto } from './dto/guardar-calificacion-manual.dto';
 import { GuardarCalificacionesLoteDto } from './dto/guardar-calificaciones-lote.dto';
 import { GuardarPonderacionDto } from './dto/guardar-ponderacion.dto';
+import {
+  calcularUnidad,
+  cargarCriterios,
+  esCriterioDeActividad,
+  type Criterio,
+  type ListaCriterios,
+} from './criterios';
 
 type Actor = {
   id: number;
@@ -23,15 +46,71 @@ type CalificacionesFiltros = {
   docenteId?: number;
 };
 
-type CategoriaPonderada = { id: number; nombre: string; peso: number };
+type CriterioColumna = Pick<
+  Criterio,
+  'clave' | 'id' | 'nombre' | 'tipo' | 'peso' | 'meta'
+>;
 
-type PonderacionCalificacion = {
-  tareas: number;
-  asistencia: number;
-  /** Vacío: las tareas se promedian por igual, como antes de las categorías. */
-  categorias: CategoriaPonderada[];
-  origen: 'GRUPO' | 'MATERIA';
+/** Un alumno en el semáforo de la unidad (inicio del docente). */
+type DesempenoAlumno = {
+  alumno: {
+    id: number;
+    nombre: string;
+    numeroControl: string | null;
+    sexo: string | null;
+  };
+  calificacion: number | null;
+  calculada: number | null;
+  fuente: string;
+  asistencia: {
+    porcentaje: number | null;
+    registradas: number;
+    faltas: number;
+    retardos: number;
+  };
+  participacion: number;
+  criterios: Array<{
+    clave: string;
+    valor: number | null;
+    calificadas: number;
+    total: number;
+    puntos?: number;
+  }>;
+  /** Tareas ya vencidas de la unidad y cuántas faltan por entregar. */
+  entregas: { vencidas: number; sinEntregar: number };
+  desempeno: EstadoDesempeno;
+  motivos: MotivoDesempeno[];
 };
+
+/**
+ * Forma anterior de la ponderación (tareas / asistencia + categorías de
+ * tareas). Se sigue mandando para las pantallas que aún no conocen los
+ * criterios; los pesos de las categorías ya son parte de la unidad.
+ */
+function ponderacionLegada(lista: ListaCriterios) {
+  const actividades = lista.criterios.filter((criterio) =>
+    esCriterioDeActividad(criterio.tipo),
+  );
+  return {
+    tareas: actividades.reduce((suma, criterio) => suma + criterio.peso, 0),
+    asistencia:
+      lista.criterios.find(
+        (criterio) => criterio.tipo === TipoCriterio.ASISTENCIA,
+      )?.peso ?? 0,
+    categorias:
+      lista.origen === 'PREDETERMINADA'
+        ? []
+        : actividades.map(({ id, nombre, peso }) => ({
+            id: id as number,
+            nombre,
+            peso,
+          })),
+    origen:
+      lista.origen === 'PREDETERMINADA'
+        ? (lista.legado ?? 'MATERIA')
+        : ('GRUPO' as const),
+  };
+}
 
 const ESTADOS_CON_ENTREGA = new Set<EstadoRevision>([
   EstadoRevision.PENDIENTE,
@@ -68,6 +147,182 @@ export class CalificacionesService {
         validarDocente: true,
       },
     );
+  }
+
+  /** Consulta de jefatura: comparte el cálculo del docente sin conceder escritura. */
+  async obtenerReporteJefatura(
+    usuarioId: number,
+    carreraId: number,
+    periodo: string,
+    materiaId: number,
+    grupoId: number,
+    rango: { inicio: Date; fin: Date },
+    periodosGrupo: string[] = [periodo],
+  ) {
+    const asignacion = await this.prisma.jefeCarreraAsignacion.findFirst({
+      where: { usuarioId, carreraId, activa: true },
+      select: { id: true },
+    });
+    if (!asignacion)
+      throw new ForbiddenException('Carrera fuera de tu alcance');
+    const oferta = await this.prisma.materia.findFirst({
+      where: {
+        id: materiaId,
+        carreraId,
+        grupos: {
+          some: {
+            id: grupoId,
+            carreraId,
+            periodo: { in: periodosGrupo },
+            // Un ciclo anterior también incluye grupos dados de baja después.
+            ...(periodo === getCurrentAcademicPeriod() ? { activo: true } : {}),
+          },
+        },
+      },
+      select: { id: true },
+    });
+    if (!oferta)
+      throw new NotFoundException(
+        'Oferta fuera de la carrera o periodo seleccionado',
+      );
+    return this.construirReporte(
+      { materiaId, grupoId },
+      {
+        validarDocente: false,
+        periodo,
+        rango,
+        carreraId,
+      },
+    );
+  }
+
+  /**
+   * Cómo va cada alumno de una clase en una unidad, para el inicio del
+   * docente. Sin unidad elegida se usa la que está en curso; si no hay, la
+   * última cerrada; si tampoco, la primera.
+   */
+  async obtenerDesempeno(
+    actor: Actor,
+    filtros: { materiaId: number; grupoId: number; unidadId?: number },
+  ) {
+    const materia = await this.obtenerMateria({
+      materiaId: filtros.materiaId,
+      unidadId: filtros.unidadId,
+    });
+    const unidades = materia.unidades.map(
+      ({ id, nombre, orden, status, fechaInicio, fechaFin }) => ({
+        id,
+        nombre,
+        orden,
+        status,
+        fechaInicio,
+        fechaFin,
+      }),
+    );
+    const unidad = filtros.unidadId
+      ? unidades.find((item) => item.id === filtros.unidadId)
+      : (unidades.find((item) => item.status === EstadoUnidad.ACTIVA) ??
+        [...unidades]
+          .reverse()
+          .find((item) => item.status === EstadoUnidad.FINALIZADA) ??
+        unidades[0]);
+    const umbrales = {
+      aprobatoria: CALIFICACION_APROBATORIA,
+      asistencia: {
+        minRegistros: MIN_REGISTROS_RIESGO,
+        porcentaje: Math.round(UMBRAL_RIESGO * 100),
+      },
+    };
+
+    if (!unidad) {
+      await asegurarAccesoMateria(
+        this.prisma,
+        actor,
+        filtros.materiaId,
+        filtros.grupoId,
+      );
+      return {
+        materia: {
+          id: materia.id,
+          nombre: materia.nombre,
+          clave: materia.clave,
+        },
+        grupo:
+          materia.grupos.find((item) => item.id === filtros.grupoId) ?? null,
+        unidad: null,
+        unidades,
+        criterios: [] as CriterioColumna[],
+        origenCriterios: null,
+        umbrales,
+        resumen: {
+          total: 0,
+          aprobados: 0,
+          reprobados: 0,
+          sinCalificar: 0,
+        },
+        actividadesSinCriterio: 0,
+        alumnos: [] as DesempenoAlumno[],
+      };
+    }
+
+    const reporte = await this.construirReporte(
+      { ...filtros, unidadId: unidad.id },
+      { actor, validarDocente: true, materia },
+    );
+    const lista = reporte.criteriosUnidad ?? reporte.criterios;
+    const conteo = reporte.metrics.desempeno;
+    return {
+      materia: reporte.materia,
+      grupo: reporte.grupoSeleccionado,
+      unidad,
+      unidades,
+      criterios: lista.criterios.map(
+        ({ clave, id, nombre, tipo, peso, meta }): CriterioColumna => ({
+          clave,
+          id,
+          nombre,
+          tipo,
+          peso,
+          meta,
+        }),
+      ),
+      origenCriterios: lista.origen,
+      umbrales,
+      resumen: { total: reporte.rows.length, ...conteo },
+      actividadesSinCriterio: reporte.tareasSinCategoria,
+      alumnos: reporte.rows.map(
+        (row): DesempenoAlumno => ({
+          alumno: row.alumno,
+          calificacion: row.calificacionFinal,
+          calculada: row.calificacionCalculada,
+          fuente: row.fuenteCalificacion,
+          asistencia: {
+            porcentaje: row.asistencia.registradas
+              ? row.asistencia.porcentaje
+              : null,
+            registradas: row.asistencia.registradas,
+            faltas: row.asistencia.faltas,
+            retardos: row.asistencia.retardos,
+          },
+          participacion: row.participacion,
+          criterios: row.criterios.map(
+            ({ clave, valor, calificadas, total, puntos }) => ({
+              clave,
+              valor,
+              calificadas,
+              total,
+              ...(puntos !== undefined ? { puntos } : {}),
+            }),
+          ),
+          entregas: {
+            vencidas: row.tareas.vencidas,
+            sinEntregar: row.tareas.vencidasSinEntregar,
+          },
+          desempeno: row.desempeno,
+          motivos: row.motivos,
+        }),
+      ),
+    };
   }
 
   async obtenerReporteAlumno(
@@ -117,32 +372,15 @@ export class CalificacionesService {
   }
 
   /**
-   * La ponderación se guarda en el servidor para que el reporte del docente,
-   * la exportación y la vista del alumno calculen la misma nota. Sin grupo es
-   * la de la materia; con grupo, la propia de ese grupo (la misma materia puede
-   * darla otro docente en otro grupo), con sus categorías.
+   * Ponderación predeterminada tareas / asistencia, la de los grupos que aún no
+   * tienen criterios. Sin grupo es la de la materia; con grupo, la propia del
+   * grupo. Los criterios (examen, prácticas, participación…) se guardan con
+   * `CriteriosService`; una pantalla vieja que mande categorías recibe 409.
    */
   async guardarPonderacion(actor: Actor, dto: GuardarPonderacionDto) {
     if (dto.pesoTareas + dto.pesoAsistencia !== 100) {
       throw new BadRequestException(
         'La ponderación de tareas y asistencia debe sumar 100',
-      );
-    }
-    const categorias = dto.categorias?.map((item) => ({
-      ...item,
-      nombre: item.nombre.trim(),
-    }));
-    if (categorias?.length && !dto.grupoId) {
-      throw new BadRequestException(
-        'Elige un grupo para ponderar las tareas por categoría',
-      );
-    }
-    if (
-      categorias?.length &&
-      categorias.reduce((suma, item) => suma + item.peso, 0) !== 100
-    ) {
-      throw new BadRequestException(
-        'Los pesos de las categorías deben sumar 100',
       );
     }
     await asegurarAccesoMateria(this.prisma, actor, dto.materiaId, dto.grupoId);
@@ -168,88 +406,37 @@ export class CalificacionesService {
         'El grupo no esta vinculado a la materia seleccionada',
       );
     }
-
-    await this.prisma.$transaction(async (tx) => {
-      await tx.ponderacionGrupo.upsert({
-        where: { materiaId_grupoId: { materiaId: dto.materiaId, grupoId } },
-        create: {
-          materiaId: dto.materiaId,
-          grupoId,
-          pesoTareas: dto.pesoTareas,
-          pesoAsistencia: dto.pesoAsistencia,
-        },
-        update: {
-          pesoTareas: dto.pesoTareas,
-          pesoAsistencia: dto.pesoAsistencia,
-        },
-      });
-      if (!categorias) return;
-
-      const catalogo = await tx.categoriaEvaluacion.findMany({
-        where: { materiaId: dto.materiaId },
-        select: { id: true, nombre: true },
-      });
-      const porNombre = new Map(
-        catalogo.map((item) => [item.nombre.toLowerCase(), item]),
+    const conCriterios = await this.prisma.categoriaPesoGrupo.count({
+      where: { grupoId, categoria: { materiaId: dto.materiaId } },
+    });
+    if (dto.categorias?.length || conCriterios) {
+      throw new ConflictException(
+        'La ponderación ahora se arma con criterios de evaluación. Recarga la página para editarlos.',
       );
-      const pesos: { categoriaId: number; peso: number }[] = [];
-      for (const [orden, item] of categorias.entries()) {
-        const mismoNombre = porNombre.get(item.nombre.toLowerCase());
-        let categoriaId: number;
-        if (item.id) {
-          const actual = catalogo.find((categoria) => categoria.id === item.id);
-          if (!actual) {
-            throw new BadRequestException(
-              'La categoría no pertenece a la materia seleccionada',
-            );
-          }
-          if (mismoNombre && mismoNombre.id !== item.id) {
-            throw new BadRequestException(
-              `Ya existe la categoría "${item.nombre}" en esta materia`,
-            );
-          }
-          if (actual.nombre !== item.nombre) {
-            await tx.categoriaEvaluacion.update({
-              where: { id: item.id },
-              data: { nombre: item.nombre },
-            });
-          }
-          categoriaId = item.id;
-        } else if (mismoNombre) {
-          categoriaId = mismoNombre.id;
-        } else {
-          categoriaId = (
-            await tx.categoriaEvaluacion.create({
-              data: { materiaId: dto.materiaId, nombre: item.nombre, orden },
-              select: { id: true },
-            })
-          ).id;
-        }
-        pesos.push({ categoriaId, peso: item.peso });
-      }
+    }
 
-      await tx.categoriaPesoGrupo.deleteMany({
-        where: { grupoId, categoria: { materiaId: dto.materiaId } },
-      });
-      if (pesos.length) {
-        await tx.categoriaPesoGrupo.createMany({
-          data: pesos.map((item) => ({ ...item, grupoId })),
-        });
-      }
-      // Lo que ya no pesa en ningún grupo ni clasifica ninguna tarea sobra.
-      await tx.categoriaEvaluacion.deleteMany({
-        where: {
-          materiaId: dto.materiaId,
-          pesos: { none: {} },
-          tareas: { none: {} },
-        },
-      });
+    await this.prisma.ponderacionGrupo.upsert({
+      where: { materiaId_grupoId: { materiaId: dto.materiaId, grupoId } },
+      create: {
+        materiaId: dto.materiaId,
+        grupoId,
+        pesoTareas: dto.pesoTareas,
+        pesoAsistencia: dto.pesoAsistencia,
+      },
+      update: {
+        pesoTareas: dto.pesoTareas,
+        pesoAsistencia: dto.pesoAsistencia,
+      },
     });
 
     return this.obtenerPonderacion(actor, dto.materiaId, grupoId);
   }
 
-  /** Ponderación vigente y catálogo de categorías, p. ej. para el formulario de tareas. */
+  /**
+   * Ponderación en la forma anterior, para pantallas que aún no conocen los
+   * criterios (p. ej. un formulario de tareas abierto antes de actualizar).
+   * El catálogo sólo trae criterios de actividad.
+   */
   async obtenerPonderacion(actor: Actor, materiaId: number, grupoId?: number) {
     await asegurarAccesoMateria(this.prisma, actor, materiaId, grupoId);
     const materia = await this.prisma.materia.findUnique({
@@ -257,8 +444,13 @@ export class CalificacionesService {
       select: { id: true, pesoTareas: true, pesoAsistencia: true },
     });
     if (!materia) throw new NotFoundException('Materia no encontrada');
-    const { resolver, catalogo } = await this.cargarPonderaciones(materia);
-    return { ...resolver(grupoId), catalogo };
+    const { resolver, catalogo } = await cargarCriterios(this.prisma, materia);
+    return {
+      ...ponderacionLegada(resolver(grupoId)),
+      catalogo: catalogo
+        .filter((item) => esCriterioDeActividad(item.tipo))
+        .map(({ id, nombre }) => ({ id, nombre })),
+    };
   }
 
   guardarManual(
@@ -276,6 +468,7 @@ export class CalificacionesService {
             alumnoId: dto.alumnoId,
             unidadId: dto.unidadId,
             calificacionManual: dto.calificacionManual,
+            puntosExtra: dto.puntosExtra,
             observacion: dto.observacion,
           },
         ],
@@ -335,16 +528,55 @@ export class CalificacionesService {
           'La calificacion debe estar entre 1 y 100',
         );
       }
+      // `undefined` deja los puntos guardados; `null` o 0 los quita.
+      const puntosExtra =
+        item.puntosExtra === undefined
+          ? undefined
+          : item.puntosExtra == null || Number(item.puntosExtra) === 0
+            ? null
+            : Number(item.puntosExtra);
+      if (
+        puntosExtra != null &&
+        (!Number.isFinite(puntosExtra) || puntosExtra < 0 || puntosExtra > 100)
+      ) {
+        throw new BadRequestException(
+          'Los puntos extra deben estar entre 0 y 100',
+        );
+      }
       return {
         alumnoId: item.alumnoId,
         unidadId: item.unidadId,
         grupoId: dto.grupoId ?? alumno.grupoId ?? null,
         calificacionManual,
+        puntosExtra,
         observacion: item.observacion?.trim() || null,
       };
     });
 
     const periodo = getCurrentAcademicPeriod();
+    // Un curso cerrado ya se entregó: sus calificaciones no cambian sin reabrirlo.
+    const grupoIds = [
+      ...new Set(
+        capturas
+          .map((captura) => captura.grupoId)
+          .filter((id): id is number => id != null),
+      ),
+    ];
+    const cerrado = grupoIds.length
+      ? await this.prisma.cierreCurso.findFirst({
+          where: {
+            materiaId: dto.materiaId,
+            grupoId: { in: grupoIds },
+            periodo,
+          },
+          select: { grupo: { select: { nombre: true } } },
+        })
+      : null;
+    if (cerrado) {
+      throw new ConflictException(
+        `El curso de ${cerrado.grupo.nombre} está cerrado. Reábrelo en "Cierre de curso" para cambiar calificaciones.`,
+      );
+    }
     await this.prisma.$transaction(
       capturas.map(({ alumnoId, unidadId, ...datos }) =>
         this.prisma.calificacionUnidad.upsert({
@@ -393,9 +625,14 @@ export class CalificacionesService {
       actor?: Actor;
       alumnoId?: number;
       validarDocente: boolean;
+      periodo?: string;
+      carreraId?: number;
+      rango?: { inicio: Date; fin: Date };
+      /** La materia ya cargada, para no pedirla dos veces. */
+      materia?: Awaited<ReturnType<CalificacionesService['obtenerMateria']>>;
     },
   ) {
-    const materia = await this.obtenerMateria(filtros);
+    const materia = options.materia ?? (await this.obtenerMateria(filtros));
     if (options.validarDocente) {
       await asegurarAccesoMateria(
         this.prisma,
@@ -404,9 +641,11 @@ export class CalificacionesService {
         filtros.grupoId,
       );
     }
-    const { resolver: resolverPonderacion, catalogo } =
-      await this.cargarPonderaciones(materia);
-    const ponderacion = resolverPonderacion(filtros.grupoId);
+    const { resolver: resolverCriterios, catalogo } = await cargarCriterios(
+      this.prisma,
+      materia,
+    );
+    const criteriosBase = resolverCriterios(filtros.grupoId);
 
     const unidades = this.obtenerUnidadesReporte(materia, filtros.unidadId);
     const grupoSeleccionado = filtros.grupoId
@@ -422,18 +661,40 @@ export class CalificacionesService {
       filtros.materiaId,
       filtros.grupoId,
       options.alumnoId,
+      options.periodo,
+      options.carreraId,
     );
     const alumnoIds = alumnos.map((alumno) => alumno.id);
     const unidadIds = unidades
       .map((unidad) => unidad.id)
       .filter((id): id is number => typeof id === 'number');
-    const periodo = getCurrentAcademicPeriod();
+    const periodo = options.periodo ?? getCurrentAcademicPeriod();
 
     const [tareas, sesiones, calificacionesGuardadas] = await Promise.all([
       this.prisma.tarea.findMany({
         where: {
           materiaId: filtros.materiaId,
           estado: { in: ESTADOS_VISIBLES_TAREA },
+          ...(options.rango
+            ? {
+                activa: true,
+                OR: [
+                  {
+                    fechaPublicacion: {
+                      gte: options.rango.inicio,
+                      lte: options.rango.fin,
+                    },
+                  },
+                  {
+                    fechaPublicacion: null,
+                    createdAt: {
+                      gte: options.rango.inicio,
+                      lte: options.rango.fin,
+                    },
+                  },
+                ],
+              }
+            : {}),
           ...(filtros.grupoId ? { grupoId: filtros.grupoId } : {}),
           ...(filtros.unidadId
             ? {
@@ -467,6 +728,9 @@ export class CalificacionesService {
       this.prisma.claseSesion.findMany({
         where: {
           materiaId: filtros.materiaId,
+          ...(options.rango
+            ? { fecha: { gte: options.rango.inicio, lte: options.rango.fin } }
+            : {}),
           ...(filtros.grupoId ? { grupoId: filtros.grupoId } : {}),
           ...(filtros.unidadId
             ? {
@@ -499,6 +763,7 @@ export class CalificacionesService {
               alumnoId: true,
               unidadId: true,
               calificacionManual: true,
+              puntosExtra: true,
               observacion: true,
             },
           })
@@ -515,30 +780,24 @@ export class CalificacionesService {
       ),
     );
 
-    // Participación: informativa, se muestra junto a la nota pero no la mueve.
-    const participaciones = sesiones.length
-      ? await this.prisma.participacion.findMany({
-          where: {
-            claseSesionId: { in: sesiones.map((sesion) => sesion.id) },
-            ...(alumnoIds.length ? { alumnoId: { in: alumnoIds } } : {}),
-          },
-          select: { alumnoId: true, claseSesionId: true, puntos: true },
-        })
-      : [];
-
-    const asistencias = sesiones.length
-      ? await this.prisma.asistencia.findMany({
-          where: {
-            claseSesionId: { in: sesiones.map((sesion) => sesion.id) },
-            ...(alumnoIds.length ? { alumnoId: { in: alumnoIds } } : {}),
-          },
-          select: {
-            alumnoId: true,
-            claseSesionId: true,
-            estado: true,
-          },
-        })
-      : [];
+    // Participación: cuenta sólo si el grupo la tiene como criterio; si no,
+    // se muestra junto a la nota pero no la mueve.
+    const filtroSesiones = {
+      claseSesionId: { in: sesiones.map((sesion) => sesion.id) },
+      ...(alumnoIds.length ? { alumnoId: { in: alumnoIds } } : {}),
+    };
+    const [participaciones, asistencias] = sesiones.length
+      ? await Promise.all([
+          this.prisma.participacion.findMany({
+            where: filtroSesiones,
+            select: { alumnoId: true, claseSesionId: true, puntos: true },
+          }),
+          this.prisma.asistencia.findMany({
+            where: filtroSesiones,
+            select: { alumnoId: true, claseSesionId: true, estado: true },
+          }),
+        ])
+      : [[], []];
 
     const asistenciasPorSesionAlumno = new Map(
       asistencias.map((asistencia) => [
@@ -582,15 +841,12 @@ export class CalificacionesService {
           }))
           .filter((item) => item.tarea);
 
-        const ponderacionAlumno = resolverPonderacion(
+        // Los criterios se resuelven por unidad: una unidad puede tener sus
+        // propios porcentajes.
+        const listaAlumno = resolverCriterios(
           filtros.grupoId ?? alumno.grupoId,
+          unidad.id,
         );
-        const {
-          promedio: promedioTareas,
-          porCategoria: promedioPorCategoria,
-          sinCategoria,
-        } = this.promediarTareas(entregasAlumno, ponderacionAlumno.categorias);
-        sinCategoria.forEach((id) => tareasSinCategoria.add(id));
         const asistencia = this.resumirAsistenciaAlumno(
           alumno.id,
           sesionesAlumno,
@@ -605,11 +861,34 @@ export class CalificacionesService {
               idsSesionesAlumno.has(item.claseSesionId),
           )
           .reduce((suma, item) => suma + item.puntos, 0);
-        const calificacionCalculada = this.calcularCalificacionCalculada(
-          promedioTareas,
+        const calculo = calcularUnidad(listaAlumno, {
+          actividades: entregasAlumno.map(({ tarea, entrega }) => ({
+            tareaId: tarea.id,
+            categoriaId: tarea.categoriaId,
+            calificacion: entrega?.calificacion,
+          })),
           asistencia,
-          ponderacionAlumno,
-        );
+          participacion: {
+            puntos: participacion,
+            sesiones: sesionesAlumno.length,
+          },
+        });
+        calculo.sinCriterio.forEach((id) => tareasSinCategoria.add(id));
+        const { calificacionCalculada, promedioTareas } = calculo;
+        // Forma anterior del desglose: sólo los criterios de actividad.
+        const promedioPorCategoria =
+          listaAlumno.origen === 'PREDETERMINADA'
+            ? []
+            : calculo.criterios
+                .filter((criterio) => esCriterioDeActividad(criterio.tipo))
+                .map((criterio) => ({
+                  categoriaId: criterio.id,
+                  nombre: criterio.nombre,
+                  peso: criterio.peso,
+                  promedio: criterio.valor,
+                  calificadas: criterio.calificadas,
+                  total: criterio.total,
+                }));
         const calificacionGuardada =
           unidad.id == null
             ? null
@@ -618,7 +897,30 @@ export class CalificacionesService {
           typeof calificacionGuardada?.calificacionManual === 'number'
             ? calificacionGuardada.calificacionManual
             : null;
-        const calificacionFinal = calificacionManual ?? calificacionCalculada;
+        const puntosExtra =
+          typeof calificacionGuardada?.puntosExtra === 'number' &&
+          calificacionGuardada.puntosExtra > 0
+            ? calificacionGuardada.puntosExtra
+            : null;
+        // Los puntos extra se suman al final, fuera de los criterios: la
+        // calculada y la manual no cambian. Sin base no hay a qué sumarlos.
+        const calificacionBase = calificacionManual ?? calificacionCalculada;
+        const calificacionFinal =
+          calificacionBase == null || puntosExtra == null
+            ? calificacionBase
+            : Math.min(
+                100,
+                Math.round((calificacionBase + puntosExtra) * 10) / 10,
+              );
+        const desempeno = evaluarDesempeno({
+          calificacion: calificacionFinal,
+          unidadFinalizada: unidad.status === EstadoUnidad.FINALIZADA,
+          asistencia,
+          entregas: {
+            vencidas: tareasResumen.vencidas,
+            sinEntregar: tareasResumen.vencidasSinEntregar,
+          },
+        });
         const observacionManual =
           calificacionGuardada?.observacion?.trim() || null;
         const observacionesEntregas = entregasAlumno
@@ -635,6 +937,14 @@ export class CalificacionesService {
             id: alumno.id,
             nombre: alumno.nombre,
             numeroControl: alumno.numeroControl,
+            sexo: alumno.sexo ?? null,
+            ...(options.periodo
+              ? {
+                  email: alumno.email,
+                  telefono: alumno.telefono,
+                  semestre: alumno.semestre,
+                }
+              : {}),
           },
           materia: {
             id: materia.id,
@@ -647,6 +957,8 @@ export class CalificacionesService {
           calificacionFinal,
           calificacionManual,
           calificacionCalculada,
+          calificacionBase,
+          puntosExtra,
           fuenteCalificacion:
             calificacionManual != null
               ? 'MANUAL'
@@ -655,7 +967,35 @@ export class CalificacionesService {
                 : 'PENDIENTE',
           promedioTareas,
           promedioPorCategoria,
+          criterios: calculo.criterios.map(
+            ({
+              clave,
+              id,
+              nombre,
+              tipo,
+              peso,
+              meta,
+              valor,
+              calificadas,
+              total,
+              puntos,
+            }) => ({
+              clave,
+              id,
+              nombre,
+              tipo,
+              peso,
+              meta,
+              valor,
+              calificadas,
+              total,
+              ...(puntos !== undefined ? { puntos } : {}),
+            }),
+          ),
+          origenCriterios: listaAlumno.origen,
           estado: this.obtenerEstadoCalificacion(calificacionFinal),
+          desempeno: desempeno.estado,
+          motivos: desempeno.motivos,
           tareas: tareasResumen,
           asistencia,
           participacion,
@@ -686,8 +1026,14 @@ export class CalificacionesService {
           a.alumno.nombre.localeCompare(b.alumno.nombre, 'es'),
       ),
       filters: filtros,
-      ponderacion,
-      categorias: catalogo,
+      ponderacion: ponderacionLegada(criteriosBase),
+      criterios: criteriosBase,
+      // Con una sola unidad, la lista que rige en ella (puede ser la suya).
+      criteriosUnidad:
+        filtros.unidadId && unidades[0]?.id != null
+          ? resolverCriterios(filtros.grupoId, unidades[0].id)
+          : null,
+      categorias: catalogo.filter((item) => esCriterioDeActividad(item.tipo)),
       tareasSinCategoria: tareasSinCategoria.size,
       metrics: this.calcularMetricas(rows, unidades.length),
     };
@@ -728,7 +1074,23 @@ export class CalificacionesService {
     return materia;
   }
 
-  private obtenerUnidadesReporte(materia: any, unidadId?: number) {
+  private obtenerUnidadesReporte(
+    materia: {
+      numUnidades: number;
+      unidades: Array<{
+        id: number;
+        nombre: string;
+        orden: number;
+        status: EstadoUnidad;
+      }>;
+    },
+    unidadId?: number,
+  ): Array<{
+    id: number | null;
+    nombre: string;
+    orden: number;
+    status: EstadoUnidad | null;
+  }> {
     const unidades = unidadId
       ? materia.unidades.filter((unidad) => unidad.id === unidadId)
       : materia.unidades;
@@ -754,6 +1116,8 @@ export class CalificacionesService {
     materiaId: number,
     grupoId?: number,
     alumnoId?: number,
+    periodoSeleccionado?: string,
+    carreraId?: number,
   ) {
     if (alumnoId) {
       const alumno = await this.prisma.usuario.findUnique({
@@ -764,21 +1128,31 @@ export class CalificacionesService {
           numeroControl: true,
           sexo: true,
           grupoId: true,
+          email: true,
+          telefono: true,
+          semestre: true,
         },
       });
       return alumno ? [alumno] : [];
     }
 
-    const periodo = getCurrentAcademicPeriod();
+    const periodo = periodoSeleccionado ?? getCurrentAcademicPeriod();
     const baseWhere = {
       materiaId,
       estado: 'ACEPTADA' as const,
       alumno: {
         rol: 'ALUMNO' as const,
         activo: true,
+        ...(carreraId ? { carreraId } : {}),
       },
       // Del grupo, o inscritos por el docente en la clase de ese grupo.
-      ...(grupoId ? { OR: [{ alumno: { grupoId } }, { grupoId }] } : {}),
+      ...(grupoId
+        ? {
+            OR: periodoSeleccionado
+              ? [{ grupoId }, { grupoId: null, alumno: { grupoId } }]
+              : [{ alumno: { grupoId } }, { grupoId }],
+          }
+        : {}),
     };
 
     let inscripciones = await this.prisma.inscripcion.findMany({
@@ -791,13 +1165,16 @@ export class CalificacionesService {
             numeroControl: true,
             sexo: true,
             grupoId: true,
+            email: true,
+            telefono: true,
+            semestre: true,
           },
         },
       },
       orderBy: { alumno: { nombre: 'asc' } },
     });
 
-    if (!inscripciones.length) {
+    if (!inscripciones.length && !periodoSeleccionado) {
       inscripciones = await this.prisma.inscripcion.findMany({
         where: baseWhere,
         select: {
@@ -808,6 +1185,9 @@ export class CalificacionesService {
               numeroControl: true,
               sexo: true,
               grupoId: true,
+              email: true,
+              telefono: true,
+              semestre: true,
             },
           },
         },
@@ -902,12 +1282,33 @@ export class CalificacionesService {
         ESTADOS_PENDIENTES_REVISION.has(item.entrega.estadoRevision),
     ).length;
 
+    // Solo una tarea vencida puede contar en contra: la que aún está abierta
+    // todavía se puede entregar.
+    const ahora = Date.now();
+    // En clase no hay entrega que esperar: una actividad presencial que el
+    // docente aún no captura no cuenta, y solo «no presentó» cuenta en contra.
+    const vencidas = items.filter(
+      (item) =>
+        (item.tarea.tipoEntrega !== TipoEntrega.PRESENCIAL || item.entrega) &&
+        (item.tarea.estado === EstadoTarea.VENCIDA ||
+          item.tarea.estado === EstadoTarea.CERRADA ||
+          (item.tarea.tieneFechaLimite &&
+            item.tarea.fechaLimite &&
+            new Date(item.tarea.fechaLimite).getTime() < ahora)),
+    );
+    const vencidasSinEntregar = vencidas.filter(
+      (item) =>
+        !item.entrega || !ESTADOS_CON_ENTREGA.has(item.entrega.estadoRevision),
+    ).length;
+
     return {
       total: items.length,
       entregadas,
       calificadas,
       pendientesRevision,
       sinEntregar: Math.max(items.length - entregadas, 0),
+      vencidas: vencidas.length,
+      vencidasSinEntregar,
     };
   }
 
@@ -953,153 +1354,6 @@ export class CalificacionesService {
     return resumen;
   }
 
-  /**
-   * Devuelve un resolvedor por grupo: el grupo usa su propia ponderación y
-   * sus pesos por categoría si los tiene y, si no, la de la materia.
-   */
-  private async cargarPonderaciones(materia: {
-    id: number;
-    pesoTareas: number;
-    pesoAsistencia: number;
-  }) {
-    const [porGrupo, categorias] = await Promise.all([
-      this.prisma.ponderacionGrupo.findMany({
-        where: { materiaId: materia.id },
-      }),
-      this.prisma.categoriaEvaluacion.findMany({
-        where: { materiaId: materia.id },
-        include: { pesos: { select: { grupoId: true, peso: true } } },
-        orderBy: [{ orden: 'asc' }, { id: 'asc' }],
-      }),
-    ]);
-
-    const resolver = (grupoId?: number | null): PonderacionCalificacion => {
-      const propia = grupoId
-        ? porGrupo.find((item) => item.grupoId === grupoId)
-        : undefined;
-      const categoriasGrupo = grupoId
-        ? categorias.flatMap((categoria) => {
-            const peso = categoria.pesos.find(
-              (item) => item.grupoId === grupoId,
-            );
-            return peso
-              ? [
-                  {
-                    id: categoria.id,
-                    nombre: categoria.nombre,
-                    peso: peso.peso,
-                  },
-                ]
-              : [];
-          })
-        : [];
-      return {
-        tareas: propia?.pesoTareas ?? materia.pesoTareas,
-        asistencia: propia?.pesoAsistencia ?? materia.pesoAsistencia,
-        categorias: categoriasGrupo,
-        origen: propia || categoriasGrupo.length ? 'GRUPO' : 'MATERIA',
-      };
-    };
-
-    return {
-      resolver,
-      catalogo: categorias.map(({ id, nombre }) => ({ id, nombre })),
-    };
-  }
-
-  /**
-   * Sin categorías es el promedio simple de lo calificado. Con categorías se
-   * promedia cada una y luego se ponderan, repartiendo el peso sólo entre las
-   * que ya tienen calificaciones (igual que tareas/asistencia). Las tareas sin
-   * categoría del grupo no cuentan y se devuelven para avisar al docente.
-   */
-  private promediarTareas(
-    items: Array<{
-      tarea: { id: number; categoriaId: number | null };
-      entrega: { calificacion?: number | null } | null;
-    }>,
-    categorias: CategoriaPonderada[],
-  ) {
-    const promedio = (valores: number[]) =>
-      valores.length
-        ? Number(
-            (
-              valores.reduce((sum, value) => sum + value, 0) / valores.length
-            ).toFixed(2),
-          )
-        : null;
-    const calificaciones = (lista: typeof items) =>
-      lista
-        .map((item) => item.entrega?.calificacion)
-        .filter((value): value is number => typeof value === 'number');
-
-    if (!categorias.length) {
-      return {
-        promedio: promedio(calificaciones(items)),
-        porCategoria: [],
-        sinCategoria: [] as number[],
-      };
-    }
-
-    const porCategoria = categorias.map((categoria) => {
-      const tareas = items.filter(
-        (item) => item.tarea.categoriaId === categoria.id,
-      );
-      const valores = calificaciones(tareas);
-      return {
-        categoriaId: categoria.id,
-        nombre: categoria.nombre,
-        peso: categoria.peso,
-        promedio: promedio(valores),
-        calificadas: valores.length,
-        total: tareas.length,
-      };
-    });
-    const ids = new Set(categorias.map((categoria) => categoria.id));
-    const conCalificacion = porCategoria.filter(
-      (item) => item.promedio != null,
-    );
-    const pesoTotal = conCalificacion.reduce((sum, item) => sum + item.peso, 0);
-
-    return {
-      promedio: pesoTotal
-        ? Number(
-            (
-              conCalificacion.reduce(
-                (sum, item) => sum + (item.promedio as number) * item.peso,
-                0,
-              ) / pesoTotal
-            ).toFixed(2),
-          )
-        : null,
-      porCategoria,
-      sinCategoria: items
-        .filter((item) => !ids.has(item.tarea.categoriaId as number))
-        .map((item) => item.tarea.id),
-    };
-  }
-
-  private calcularCalificacionCalculada(
-    promedioTareas: number | null,
-    asistencia: { registradas: number; porcentaje: number },
-    ponderacion: PonderacionCalificacion,
-  ) {
-    let suma = 0;
-    let pesoAplicado = 0;
-
-    if (ponderacion.tareas > 0 && promedioTareas != null) {
-      suma += promedioTareas * ponderacion.tareas;
-      pesoAplicado += ponderacion.tareas;
-    }
-
-    if (ponderacion.asistencia > 0 && asistencia.registradas > 0) {
-      suma += asistencia.porcentaje * ponderacion.asistencia;
-      pesoAplicado += ponderacion.asistencia;
-    }
-
-    return pesoAplicado ? Math.round(suma / pesoAplicado) : null;
-  }
-
   private obtenerEstadoCalificacion(calificacion: number | null) {
     if (calificacion == null) return 'PENDIENTE';
     return calificacion >= 70 ? 'APROBADO' : 'REQUIERE_ATENCION';
@@ -1119,6 +1373,12 @@ export class CalificacionesService {
       requiereAtencion: rows.filter((row) => row.estado === 'REQUIERE_ATENCION')
         .length,
       pendientes: rows.filter((row) => row.estado === 'PENDIENTE').length,
+      desempeno: {
+        aprobados: rows.filter((row) => row.desempeno === 'APROBADO').length,
+        reprobados: rows.filter((row) => row.desempeno === 'REPROBADO').length,
+        sinCalificar: rows.filter((row) => row.desempeno === 'SIN_CALIFICAR')
+          .length,
+      },
       promedioGeneral: calificaciones.length
         ? Number(
             (

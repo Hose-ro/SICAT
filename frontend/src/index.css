@@ -38,14 +38,14 @@
   --accent-foreground:      oklch(0.30 0.04 264);
 
   /* Status — attendance & task states */
-  --destructive:            oklch(0.58 0.20 27);
-  --destructive-foreground: oklch(0.43 0.16 27);
+  --destructive:            oklch(0.55 0.24 27);
+  --destructive-foreground: oklch(0.47 0.22 27);
   --destructive-on-fill:    oklch(0.99 0.005 27);
-  --success:                oklch(0.50 0.12 150);
-  --success-foreground:     oklch(0.38 0.10 150);
+  --success:                oklch(0.52 0.17 150);
+  --success-foreground:     oklch(0.40 0.14 150);
   --success-on-fill:        oklch(0.99 0.005 150);
-  --warning:                oklch(0.76 0.14 75);
-  --warning-foreground:     oklch(0.38 0.08 75);
+  --warning:                oklch(0.75 0.17 70);
+  --warning-foreground:     oklch(0.42 0.12 65);
   --warning-on-fill:        oklch(0.23 0.035 75);
 
   --primary-ink:            oklch(0.46 0.16 264);
@@ -58,6 +58,16 @@
   --schedule-6:             oklch(0.43 0.07 200);
   --schedule-7:             oklch(0.46 0.08 90);
   --schedule-8:             oklch(0.42 0.12 280);
+
+  /* Categorías de criterios de evaluación. Son datos, no acciones. */
+  --criterio-examen:        oklch(0.47 0.14 305);
+  --criterio-practicas:     oklch(0.46 0.11 200);
+  --criterio-tareas:        oklch(0.46 0.13 264);
+  --criterio-proyecto:      oklch(0.43 0.12 150);
+  --criterio-exposicion:    oklch(0.50 0.12 45);
+  --criterio-participacion: oklch(0.48 0.13 75);
+  --criterio-asistencia:    oklch(0.40 0.10 150);
+  --criterio-otro:          oklch(0.46 0.08 280);
 
   /* Lines & focus */
   --border:                 oklch(0.90 0.008 264);
@@ -80,6 +90,33 @@
   --t:                      180ms;
   --radius-card:            22px;
   --radius-item:            14px;
+  /* Alto de .mobile-topbar, que es sticky: lo que también se pega arriba va debajo. */
+  --alto-topbar:            0px;
+
+  /* Visualización de datos (gráficas de jefatura). Escalas de datos, no
+     decoración: divergente alrededor de la meta y riesgo académico, donde
+     solo lo que necesita atención lleva color. */
+  --viz-surface:            var(--card);
+  --viz-grid:               oklch(0.934 0.006 264);
+  --viz-axis:               oklch(0.847 0.011 264);
+  --viz-ink:                var(--foreground);
+  --viz-ink-2:              var(--muted-foreground);
+  --viz-serie:              oklch(0.561 0.190 264);
+  --viz-serie-wash:         oklch(0.561 0.190 264 / 0.08);
+  --viz-apagado:            oklch(0.835 0.017 264);
+  --viz-apagado-activo:     oklch(0.675 0.027 264);
+  --viz-meta:               var(--foreground);
+  --viz-rojo-lejos:         oklch(0.550 0.170 25);
+  --viz-rojo-cerca:         oklch(0.740 0.110 26);
+  --viz-neutro:             oklch(0.921 0.006 264);
+  --viz-azul-cerca:         oklch(0.740 0.101 264);
+  --viz-azul-lejos:         oklch(0.561 0.190 264);
+  --viz-riesgo-reprobado:   oklch(0.550 0.170 25);
+  --viz-riesgo-reprobado-tinta: oklch(0.985 0.004 264);
+  --viz-riesgo-alerta:      oklch(0.776 0.141 77);
+  --viz-riesgo-alerta-tinta: var(--foreground);
+  --viz-riesgo-ok:          oklch(0.942 0.006 264);
+  --viz-riesgo-ok-tinta:    var(--muted-foreground);
 
 
 }
@@ -109,6 +146,14 @@
   --color-schedule-6:          var(--schedule-6);
   --color-schedule-7:          var(--schedule-7);
   --color-schedule-8:          var(--schedule-8);
+  --color-criterio-examen:     var(--criterio-examen);
+  --color-criterio-practicas:  var(--criterio-practicas);
+  --color-criterio-tareas:     var(--criterio-tareas);
+  --color-criterio-proyecto:   var(--criterio-proyecto);
+  --color-criterio-exposicion: var(--criterio-exposicion);
+  --color-criterio-participacion: var(--criterio-participacion);
+  --color-criterio-asistencia: var(--criterio-asistencia);
+  --color-criterio-otro:       var(--criterio-otro);
   --color-primary:              var(--primary);
   --color-primary-foreground:   var(--primary-foreground);
   --color-on-accent:            var(--on-accent);
@@ -161,15 +206,38 @@
   --border: oklch(0.37 0.015 264);
   --input: var(--border);
   --ring: var(--primary);
-  --success: oklch(0.68 0.14 150);
-  --success-foreground: oklch(0.85 0.09 150);
+  --success: oklch(0.70 0.18 150);
+  --success-foreground: oklch(0.85 0.14 150);
   --success-on-fill: oklch(0.18 0.03 150);
-  --warning: oklch(0.78 0.14 75);
-  --warning-foreground: oklch(0.92 0.05 75);
+  --warning: oklch(0.79 0.17 72);
+  --warning-foreground: oklch(0.90 0.10 75);
   --warning-on-fill: oklch(0.23 0.035 75);
-  --destructive: oklch(0.68 0.16 27);
-  --destructive-foreground: oklch(0.87 0.065 27);
+  --destructive: oklch(0.67 0.23 25);
+  --destructive-foreground: oklch(0.80 0.16 25);
   --destructive-on-fill: oklch(0.18 0.035 27);
+  --criterio-examen: oklch(0.78 0.12 305);
+  --criterio-practicas: oklch(0.78 0.10 200);
+  --criterio-tareas: oklch(0.78 0.12 264);
+  --criterio-proyecto: oklch(0.78 0.10 150);
+  --criterio-exposicion: oklch(0.82 0.10 45);
+  --criterio-participacion: oklch(0.84 0.11 75);
+  --criterio-asistencia: oklch(0.78 0.09 150);
+  --criterio-otro: oklch(0.78 0.07 280);
+  --viz-grid: oklch(0.284 0.014 264);
+  --viz-axis: oklch(0.371 0.015 264);
+  --viz-serie: oklch(0.639 0.160 264);
+  --viz-serie-wash: oklch(0.639 0.160 264 / 0.12);
+  --viz-apagado: oklch(0.367 0.017 264);
+  --viz-apagado-activo: oklch(0.554 0.027 264);
+  --viz-rojo-lejos: oklch(0.640 0.150 25);
+  --viz-rojo-cerca: oklch(0.445 0.120 25);
+  --viz-neutro: oklch(0.301 0.008 264);
+  --viz-azul-cerca: oklch(0.420 0.109 264);
+  --viz-azul-lejos: oklch(0.639 0.160 264);
+  --viz-riesgo-reprobado: oklch(0.522 0.157 26);
+  --viz-riesgo-alerta: oklch(0.671 0.124 77);
+  --viz-riesgo-alerta-tinta: oklch(0.209 0.009 264);
+  --viz-riesgo-ok: oklch(0.284 0.014 264);
 }
 
 /* Element defaults live in the base layer so Tailwind utilities (which sit
@@ -190,14 +258,17 @@
 .skip-link { position: fixed; left: 1rem; top: 1rem; z-index: 500; padding: .75rem 1rem; border-radius: .75rem; background: var(--primary); color: var(--primary-foreground); transform: translateY(-200%); }
 .skip-link:focus { transform: translateY(0); }
 
-.task-hero { position: relative; overflow: hidden; border-radius: var(--radius-card); border: 1px solid var(--border); background: var(--card); color: var(--foreground); }
-.task-hero-subtitle, .task-hero-meta { color: var(--muted-foreground); }
-.task-hero-emphasis { color: var(--foreground); }
-.task-hero-chip, .task-hero-badge, .task-hero-surface { border: 1px solid var(--border); background: var(--muted); color: var(--foreground); }
-.task-hero-button, .task-hero-button-primary { border: 1px solid var(--border); background: var(--background); color: var(--foreground); transition: transform var(--t) var(--ease), opacity var(--t) var(--ease); }
-.task-hero-button:hover { background: var(--muted); }
-.task-hero-button-primary { background: var(--primary); border-color: var(--primary); color: var(--primary-foreground); }
-.task-hero-button-primary:hover { background: var(--primary-strong); }
+/* Una variable local mantiene el color de cada criterio en su icono,
+   porcentaje y barra; el nombre sigue siendo la señal principal. */
+.criterio-examen { --criterio-color: var(--criterio-examen); }
+.criterio-practicas { --criterio-color: var(--criterio-practicas); }
+.criterio-tareas { --criterio-color: var(--criterio-tareas); }
+.criterio-proyecto { --criterio-color: var(--criterio-proyecto); }
+.criterio-exposicion { --criterio-color: var(--criterio-exposicion); }
+.criterio-participacion { --criterio-color: var(--criterio-participacion); }
+.criterio-asistencia { --criterio-color: var(--criterio-asistencia); }
+.criterio-otro { --criterio-color: var(--criterio-otro); }
+
 
 /* Avisos de FeedbackDialogs: entran desde abajo, sin retrasar al usuario. */
 .feedback-notice { transition: opacity var(--t) var(--ease), transform var(--t) var(--ease); }
@@ -211,6 +282,43 @@
 .tarea-trazo path { stroke-dasharray: 24; animation: tarea-trazo 420ms var(--ease) 80ms backwards; }
 @keyframes tarea-aparecer { from { opacity: 0; transform: translateY(6px); } }
 .tarea-aparecer { animation: tarea-aparecer 260ms var(--ease) backwards; }
+
+/* Secciones plegables (<details class="plegable">): el contenido se despliega
+   con altura animada donde el navegador lo permite; si no, abre al instante. */
+.plegable { interpolate-size: allow-keywords; }
+.plegable::details-content {
+  block-size: 0;
+  overflow-y: clip;
+  transition: block-size 280ms var(--ease), content-visibility 280ms allow-discrete;
+}
+.plegable[open]::details-content { block-size: auto; }
+@media (prefers-reduced-motion: reduce) { .plegable::details-content { transition: none; } }
+
+/* Tarjetas de docentes (jefatura): entran escalonadas y, con puntero real, se
+   elevan apenas. El anillo de registro vive en components/graficas. */
+@keyframes docente-entrar { from { opacity: 0; transform: translateY(10px); } }
+.docente-tarjeta {
+  animation: docente-entrar 420ms var(--ease) backwards;
+  animation-delay: calc(min(var(--i, 0), 8) * 45ms);
+  transition: border-color var(--t) var(--ease), box-shadow var(--t) var(--ease), transform var(--t) var(--ease);
+}
+.docente-estirado::after { content: ''; position: absolute; inset: 0; border-radius: inherit; }
+.docente-tarjeta:has(.docente-estirado:focus-visible) { outline: 3px solid color-mix(in oklch, var(--ring) 45%, transparent); outline-offset: 2px; }
+.docente-flecha { transition: transform var(--t) var(--ease), color var(--t) var(--ease); }
+@media (hover: hover) and (pointer: fine) {
+  .docente-tarjeta:has(.docente-estirado:hover) {
+    border-color: color-mix(in oklch, var(--primary) 35%, var(--border));
+    box-shadow: 0 1px 2px oklch(0.2 0.03 264 / 0.04), 0 8px 24px -8px oklch(0.2 0.03 264 / 0.12);
+    transform: translateY(-2px);
+  }
+  .docente-tarjeta:has(.docente-estirado:hover) .docente-flecha { color: var(--primary-ink); transform: translateX(3px); }
+}
+.docente-tarjeta:has(.docente-estirado:active) { transform: scale(0.995); }
+@media (prefers-reduced-motion: reduce) {
+  .docente-tarjeta { animation: none; }
+  .docente-tarjeta, .docente-flecha { transition: none; }
+  .docente-tarjeta:has(.docente-estirado:hover) { transform: none; }
+}
 
 .sidebar { position: fixed; top: 16px; left: 16px; bottom: 16px; width: var(--sidebar-w); display: flex; flex-direction: column; gap: 8px; padding: 18px 12px; border-radius: var(--radius-card); z-index: 100; overflow: hidden; background: var(--card); border: 1px solid var(--border); }
 /* Desktop changes density immediately; only the mobile drawer translates. */
@@ -277,20 +385,51 @@
 .dialog-backdrop { position: fixed; inset: 0; z-index: 200; background: color-mix(in oklab, var(--overlay) 45%, transparent); }
 .dialog-panel { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 201; width: min(32rem, calc(100vw - 2rem)); max-height: calc(100dvh - 2rem); overflow-y: auto; overscroll-behavior: contain; border: 1px solid var(--border); border-radius: 20px; background: var(--card); color: var(--foreground); }
 .dialog-panel--wide { width: min(48rem, calc(100vw - 2rem)); }
+/* Los diálogos no aparecen de golpe: entran desde 97 % y salen más rápido de lo que entran. */
+.dialog-backdrop { transition: opacity 160ms var(--ease); }
+.dialog-panel { transition: opacity 160ms var(--ease), transform 160ms var(--ease); }
+.dialog-backdrop[data-starting-style], .dialog-backdrop[data-ending-style] { opacity: 0; }
+.dialog-panel[data-starting-style], .dialog-panel[data-ending-style] { opacity: 0; transform: translate(-50%, -50%) scale(0.97); }
+.dialog-backdrop[data-ending-style], .dialog-panel[data-ending-style] { transition-duration: 120ms; }
 .dialog-panel--report { width: min(72rem, calc(100vw - 2rem)); }
+.sheet-backdrop { position: fixed; inset: 0; z-index: 200; background: color-mix(in oklab, var(--overlay) 18%, transparent); transition: opacity 180ms cubic-bezier(0.23, 1, 0.32, 1); }
+.sheet-panel { position: fixed; top: 0; right: 0; bottom: 0; z-index: 201; width: min(430px, 100vw); overflow-y: auto; overscroll-behavior: contain; border-left: 1px solid var(--border); background: var(--card); color: var(--foreground); box-shadow: -10px 0 30px oklch(0.27 0.03 264 / 0.08); transition: opacity 200ms cubic-bezier(0.23, 1, 0.32, 1), transform 200ms cubic-bezier(0.23, 1, 0.32, 1); }
+.sheet-backdrop[data-starting-style], .sheet-backdrop[data-ending-style], .sheet-panel[data-starting-style], .sheet-panel[data-ending-style] { opacity: 0; }
+/* El panel llega desde el borde derecho, donde vive. */
+.sheet-panel[data-starting-style], .sheet-panel[data-ending-style] { transform: translateX(24px); }
+.sheet-backdrop[data-ending-style], .sheet-panel[data-ending-style] { transition-duration: 140ms; }
+@media (prefers-reduced-motion: reduce) { .sheet-backdrop, .sheet-panel { transition: none; } }
 
 @media (max-width: 1023px) {
+  :root { --alto-topbar: 69px; }
   .mobile-topbar { display: flex; }
   .sidebar { top: 0; left: 0; bottom: 0; width: min(88vw, 320px); max-width: calc(100vw - 24px); padding: 16px 10px 14px; border-radius: 0; transform: translateX(0); transition: transform var(--t) var(--ease); }
   .sidebar[data-starting-style], .sidebar[data-ending-style] { transform: translateX(-100%); }
   .layout-main, .layout-main.collapsed { margin-left: 0; }
 }
+/* Barra inferior del docente en el teléfono. Su alto vive en --barra-inferior
+   para que el contenido, las barras fijas y los avisos queden por encima. */
+.barra-inferior { display: none; }
+.user__link { min-width: 0; flex: 1; border-radius: 10px; color: inherit; text-decoration: none; }
+.user__link:hover .user__name { text-decoration: underline; text-underline-offset: 3px; }
+.user__link:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+@media (max-width: 767px) {
+  :root:has(.barra-inferior) { --barra-inferior: 60px; }
+  .barra-inferior { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); position: fixed; inset-inline: 0; bottom: 0; z-index: 60; padding-bottom: env(safe-area-inset-bottom, 0px); background: var(--card); border-top: 1px solid var(--border); }
+  .barra-inferior__item { display: flex; min-height: 60px; flex-direction: column; align-items: center; justify-content: center; gap: 3px; border: 0; background: transparent; color: var(--muted-foreground); font-size: 11px; font-weight: 500; text-decoration: none; -webkit-tap-highlight-color: transparent; }
+  .barra-inferior__item svg { width: 22px; height: 22px; }
+  .barra-inferior__item.active { color: var(--primary-ink); font-weight: 600; }
+  .barra-inferior__item:focus-visible { outline: 2px solid var(--ring); outline-offset: -4px; border-radius: 12px; }
+  .layout-main { padding-bottom: calc(var(--barra-inferior, 0px) + env(safe-area-inset-bottom, 0px)); }
+}
 /* Actual boxes grow on touch layouts. No overlapping pseudo hit areas. */
 @media (max-width: 767px), (pointer: coarse) {
-  .sicat-button, button, [role=button], .task-hero-button, .task-hero-button-primary { min-height: 44px; min-width: 44px; }
+  .sicat-button, button, [role=button] { min-height: 44px; min-width: 44px; }
   input:not([type=checkbox]):not([type=radio]), select { min-height: 44px; }
   input[type=checkbox], input[type=radio] { min-width: 24px; min-height: 24px; }
   label:has(input[type=checkbox]), label:has(input[type=radio]) { min-height: 44px; }
+  /* En jefatura los enlaces de tablas y listas son la acción de la fila. */
+  .jefatura :is(td, li) a:not(.sicat-button) { display: inline-flex; min-height: 44px; align-items: center; }
 }
 @page { size: landscape; margin: 12mm; }
 @media print {
@@ -298,6 +437,16 @@
   .layout-main, .layout-main.collapsed { margin-left: 0; }
   body { background: var(--card); }
 }
+/* Movimiento reducido: nada se desplaza, gira ni escala, y las animaciones
+   terminan al instante. Los cambios de color, opacidad y sombra que ya tenían
+   transición la conservan con su duración: así selección, foco y estados se
+   siguen percibiendo sin movimiento. Los componentes con movimiento propio
+   declaran su alternativa (graficas.css, sheets, motion-reduce:*). */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-property: color, background-color, border-color, outline-color, text-decoration-color, fill, stroke, opacity, box-shadow !important;
+    scroll-behavior: auto !important;
+  }
 }

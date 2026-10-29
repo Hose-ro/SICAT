@@ -1,8 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import * as ExcelJS from 'exceljs';
-import PDFDocument from 'pdfkit';
 import { letraSexo } from '../common/sexo';
 import { zonaHoraria } from '../common/zona-horaria.util';
+import {
+  bordesExcel,
+  cabeceraExcel,
+  crearPdfInstitucional,
+  encabezadoExcel,
+  firmas,
+  observaciones,
+  tabla,
+  tablaDatos,
+  tituloSeccion,
+} from './formato-institucional';
 
 @Injectable()
 export class ReportesService {
@@ -18,24 +28,28 @@ export class ReportesService {
 
     const { materia, filtros, sesiones, alumnos, asistencias } = datosReporte;
 
-    // Header info
-    sheet.mergeCells('A1:E1');
-    sheet.getCell('A1').value =
-      `Materia: ${materia.nombre} | Docente: ${materia.docente?.nombre ?? ''}`;
-    sheet.getCell('A1').font = { bold: true, size: 14 };
+    const totalColumnas = 3 + sesiones.length + 5;
+    for (let col = 1; col <= totalColumnas; col++) {
+      sheet.getColumn(col).width = col === 3 ? 6 : 14;
+    }
+    encabezadoExcel(
+      workbook,
+      sheet,
+      { titulo: 'Reporte de asistencias', subtitulo: materia.nombre },
+      totalColumnas,
+    );
 
-    if (filtros) {
-      sheet.mergeCells('A2:E2');
-      sheet.getCell('A2').value = [
-        filtros.grupoId ? `Grupo: ${filtros.grupoId}` : null,
-        filtros.fecha ? `Fecha: ${filtros.fecha}` : null,
-        filtros.semana ? `Semana: ${filtros.semana}` : null,
-        filtros.mes ? `Mes: ${filtros.mes}` : null,
-        filtros.unidadId ? `Unidad: ${filtros.unidadId}` : null,
-      ]
-        .filter(Boolean)
-        .join(' | ');
-      sheet.getCell('A2').font = { italic: true, size: 11 };
+    const info = sheet.addRow([
+      `Materia: ${materia.nombre} | Docente: ${materia.docente?.nombre ?? ''}`,
+    ]);
+    sheet.mergeCells(info.number, 1, info.number, Math.min(totalColumnas, 5));
+    info.font = { bold: true, size: 12 };
+
+    const descripcion = this.descripcionFiltros(filtros, ': ');
+    if (descripcion) {
+      const fila = sheet.addRow([descripcion]);
+      sheet.mergeCells(fila.number, 1, fila.number, Math.min(totalColumnas, 5));
+      fila.font = { italic: true, size: 11 };
     }
 
     // Column headers
@@ -53,12 +67,7 @@ export class ReportesService {
       'J',
       '%',
     ]);
-    headerRow.font = { bold: true };
-    headerRow.fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: 'FFD9D9D9' },
-    };
+    cabeceraExcel(headerRow);
     sesiones.forEach((sesion, index) => {
       if (!sesion.suspensionMotivo) return;
       const cell = headerRow.getCell(index + 4);
@@ -113,6 +122,7 @@ export class ReportesService {
         j,
         `${pct}%`,
       ]);
+      bordesExcel(row, totalColumnas);
 
       // Color cells by attendance state
       estados.forEach((estado, idx) => {
@@ -161,11 +171,6 @@ export class ReportesService {
       );
     }
 
-    sheet.columns.forEach((col) => {
-      col.width = 14;
-    });
-    sheet.getColumn(3).width = 6;
-
     const buffer = await workbook.xlsx.writeBuffer();
     return Buffer.from(buffer);
   }
@@ -177,139 +182,87 @@ export class ReportesService {
     alumnos: any[];
     asistencias: any[];
   }): Promise<Buffer> {
-    return new Promise((resolve) => {
-      const doc = new PDFDocument({
-        margin: 30,
-        size: 'A4',
-        layout: 'landscape',
-      });
-      const chunks: Buffer[] = [];
-      doc.on('data', (chunk) => chunks.push(chunk));
-      doc.on('end', () => resolve(Buffer.concat(chunks)));
+    const { materia, filtros, sesiones, alumnos, asistencias } = datosReporte;
+    const { doc, terminar } = crearPdfInstitucional(
+      { titulo: 'Reporte de asistencias', subtitulo: materia.nombre },
+      { layout: 'landscape' },
+    );
 
-      const { materia, filtros, sesiones, alumnos, asistencias } = datosReporte;
+    const descripcion = this.descripcionFiltros(filtros, ' ');
+    tablaDatos(doc, [
+      ['Materia', materia.nombre],
+      ['Docente', materia.docente?.nombre ?? ''],
+      ...(descripcion ? [['Filtro', descripcion] as const] : []),
+    ]);
 
-      doc
-        .fontSize(14)
-        .font('Helvetica-Bold')
-        .text(`Reporte de Asistencias`, { align: 'center' });
-      doc
-        .fontSize(10)
-        .font('Helvetica')
-        .text(
-          `Materia: ${materia.nombre}  |  Docente: ${materia.docente?.nombre ?? ''}`,
-          { align: 'center' },
-        );
-      if (filtros) {
-        const descripcion = [
-          filtros.grupoId ? `Grupo ${filtros.grupoId}` : null,
-          filtros.fecha ? `Fecha ${filtros.fecha}` : null,
-          filtros.semana ? `Semana ${filtros.semana}` : null,
-          filtros.mes ? `Mes ${filtros.mes}` : null,
-          filtros.unidadId ? `Unidad ${filtros.unidadId}` : null,
-        ]
-          .filter(Boolean)
-          .join(' | ');
-        if (descripcion) {
-          doc.fontSize(9).text(descripcion, { align: 'center' });
-        }
-      }
-      doc.moveDown();
+    const mapaAsist = new Map<string, string>();
+    for (const a of asistencias) {
+      mapaAsist.set(`${a.alumnoId}_${a.claseSesionId}`, a.estado);
+    }
 
-      const suspendidas = sesiones.filter((sesion) => sesion.suspensionMotivo);
-      if (suspendidas.length) {
-        doc.fillColor('#B91C1C').fontSize(8);
-        for (const sesion of suspendidas) {
-          doc.text(
-            `Sin clases ${new Date(sesion.fecha).toLocaleDateString('es-MX', { timeZone: zonaHoraria() })}: ${sesion.suspensionMotivo}`,
-          );
-        }
-        doc.fillColor('#000000').moveDown(0.5);
-      }
-
-      const mapaAsist = new Map<string, string>();
-      for (const a of asistencias) {
-        mapaAsist.set(`${a.alumnoId}_${a.claseSesionId}`, a.estado);
-      }
-
-      const colWidth = 45;
-      const sexoWidth = 28;
-      const rowHeight = 18;
-      let x = 30;
-      let y = doc.y;
-
-      // Draw headers
-      doc.font('Helvetica-Bold').fontSize(8);
-      doc
-        .rect(x, y, 130, rowHeight)
-        .stroke()
-        .text('Alumno', x + 2, y + 4, { width: 126 });
-      x += 130;
-      doc
-        .rect(x, y, sexoWidth, rowHeight)
-        .stroke()
-        .text('Sexo', x + 2, y + 4, { width: sexoWidth - 4, align: 'center' });
-      x += sexoWidth;
-      sesiones.slice(0, 10).forEach((s) => {
-        const label = new Date(s.fecha).toLocaleDateString('es-MX', {
-          timeZone: zonaHoraria(),
-          month: '2-digit',
-          day: '2-digit',
-        });
-        doc
-          .fillColor(s.suspensionMotivo ? '#B91C1C' : '#000000')
-          .rect(x, y, colWidth, rowHeight)
-          .stroke()
-          .text(label, x + 2, y + 4, { width: colWidth - 4 });
-        doc.fillColor('#000000');
-        x += colWidth;
-      });
-
-      // Draw rows
-      doc.font('Helvetica').fontSize(8);
-      for (const alumno of alumnos) {
-        x = 30;
-        y += rowHeight;
-        if (y > 550) {
-          doc.addPage();
-          y = 30;
-        }
-        doc
-          .rect(x, y, 130, rowHeight)
-          .stroke()
-          .text(alumno.nombre.substring(0, 22), x + 2, y + 4, { width: 126 });
-        x += 130;
-        doc
-          .rect(x, y, sexoWidth, rowHeight)
-          .stroke()
-          .text(letraSexo(alumno.sexo) || '-', x + 2, y + 4, {
-            width: sexoWidth - 4,
-            align: 'center',
-          });
-        x += sexoWidth;
-        sesiones.slice(0, 10).forEach((s) => {
-          const estado = s.suspensionMotivo
-            ? 'SC'
-            : (mapaAsist.get(`${alumno.id}_${s.id}`) ?? '-');
-          const letra =
+    const visibles = sesiones.slice(0, 10);
+    const rojo = '#B91C1C';
+    tituloSeccion(doc, 'Registro de asistencia');
+    tabla(doc, {
+      columnas: [
+        'Alumno',
+        'Sexo',
+        ...visibles.map((s) =>
+          new Date(s.fecha).toLocaleDateString('es-MX', {
+            timeZone: zonaHoraria(),
+            month: '2-digit',
+            day: '2-digit',
+          }),
+        ),
+      ],
+      anchos: [150, 30, ...visibles.map(() => 45)],
+      alinear: ['left', 'center', ...visibles.map(() => 'center' as const)],
+      tamano: 8,
+      vacio: 'Sin alumnos en el padrón.',
+      filas: alumnos.map((alumno) => [
+        alumno.nombre,
+        letraSexo(alumno.sexo) || '-',
+        ...visibles.map((s) => {
+          if (s.suspensionMotivo) return { texto: 'SC', color: rojo };
+          const estado = mapaAsist.get(`${alumno.id}_${s.id}`);
+          return (
             { ASISTENCIA: 'A', FALTA: 'F', RETARDO: 'R', JUSTIFICADA: 'J' }[
-              estado
-            ] ?? (estado === 'SC' ? 'SC' : '-');
-          doc.fillColor(s.suspensionMotivo ? '#B91C1C' : '#000000');
-          doc
-            .rect(x, y, colWidth, rowHeight)
-            .stroke()
-            .text(letra, x + 2, y + 4, {
-              width: colWidth - 4,
-              align: 'center',
-            });
-          doc.fillColor('#000000');
-          x += colWidth;
-        });
-      }
-
-      doc.end();
+              estado ?? ''
+            ] ?? '-'
+          );
+        }),
+      ]),
     });
+
+    firmas(doc, [{ cargo: 'Docente', nombre: materia.docente?.nombre }]);
+
+    const suspendidas = sesiones.filter((sesion) => sesion.suspensionMotivo);
+    observaciones(doc, [
+      'A: asistencia · F: falta · R: retardo · J: justificada · SC: sin clases.',
+      ...suspendidas.map(
+        (sesion) =>
+          `Sin clases el ${new Date(sesion.fecha).toLocaleDateString('es-MX', { timeZone: zonaHoraria() })}: ${sesion.suspensionMotivo}.`,
+      ),
+      sesiones.length > visibles.length
+        ? `Se muestran las primeras ${visibles.length} de ${sesiones.length} sesiones; el Excel trae todas.`
+        : '',
+    ]);
+
+    return terminar();
+  }
+
+  /** "Grupo 3 | Fecha 2026-09-18" a partir de los filtros del reporte. */
+  private descripcionFiltros(filtros: any, separador: string) {
+    if (!filtros) return '';
+    return [
+      filtros.grupoId ? `Grupo${separador}${filtros.grupoId}` : null,
+      filtros.fecha ? `Fecha${separador}${filtros.fecha}` : null,
+      filtros.semana ? `Semana${separador}${filtros.semana}` : null,
+      filtros.mes ? `Mes${separador}${filtros.mes}` : null,
+      filtros.unidadId ? `Unidad${separador}${filtros.unidadId}` : null,
+    ]
+      .filter(Boolean)
+      .join(' | ');
   }
 
   async generarExcelTareas(
@@ -374,10 +327,8 @@ export class ReportesService {
     const alumnos = workbook.addWorksheet('Alumnos');
     const matriz = workbook.addWorksheet('Matriz');
 
-    resumen.mergeCells('A1:F1');
-    resumen.getCell('A1').value = 'Reporte de tareas SICAT';
-    resumen.getCell('A1').font = { bold: true, size: 16 };
-    resumen.addRow([]);
+    for (let col = 1; col <= 12; col++) resumen.getColumn(col).width = 18;
+    encabezadoExcel(workbook, resumen, { titulo: 'Reporte de tareas' }, 12);
     resumen.addRow([
       'Generado en',
       new Date(reporte.generatedAt).toLocaleString('es-MX', {
@@ -410,15 +361,10 @@ export class ReportesService {
       'Promedio',
       'Fecha límite',
     ]);
-    taskHeader.font = { bold: true };
-    taskHeader.fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: 'FFE7EEF8' },
-    };
+    cabeceraExcel(taskHeader);
 
     for (const task of reporte.tasks ?? []) {
-      resumen.addRow([
+      const fila = resumen.addRow([
         task.titulo,
         task.materia?.nombre ?? '',
         task.grupo?.nombre ?? '',
@@ -437,10 +383,8 @@ export class ReportesService {
             })
           : 'Sin límite',
       ]);
+      bordesExcel(fila, 12);
     }
-    resumen.columns.forEach((column) => {
-      column.width = 18;
-    });
 
     const studentHeader = alumnos.addRow([
       'Alumno',
@@ -511,76 +455,85 @@ export class ReportesService {
   }
 
   async generarPdfReporteTareas(reporte: any): Promise<Buffer> {
-    return new Promise((resolve) => {
-      const doc = new PDFDocument({ margin: 36, size: 'A4' });
-      const chunks: Buffer[] = [];
-      doc.on('data', (chunk) => chunks.push(chunk));
-      doc.on('end', () => resolve(Buffer.concat(chunks)));
-
-      doc.fontSize(18).font('Helvetica-Bold').text('Reporte de tareas SICAT');
-      doc.moveDown(0.4);
-      doc
-        .fontSize(10)
-        .font('Helvetica')
-        .text(
-          `Generado: ${new Date(reporte.generatedAt).toLocaleString('es-MX', { timeZone: zonaHoraria() })}`,
-        );
-      doc.text(
-        `Porcentaje de entrega: ${reporte.metrics?.porcentajeEntrega ?? 0}%`,
-      );
-      doc.text(`Tareas vencidas: ${reporte.metrics?.tareasVencidas ?? 0}`);
-      doc.text(`Entregas tardías: ${reporte.metrics?.entregasTardias ?? 0}`);
-      doc.text(
-        `Pendientes de revisión: ${reporte.metrics?.pendientesRevision ?? 0}`,
-      );
-      doc.moveDown();
-
-      doc.font('Helvetica-Bold').text('Tareas', { underline: true });
-      doc.moveDown(0.4);
-      for (const task of (reporte.tasks ?? []).slice(0, 18)) {
-        doc.font('Helvetica-Bold').fontSize(10).text(task.titulo);
-        doc
-          .font('Helvetica')
-          .fontSize(9)
-          .text(
-            [
-              task.materia?.nombre ?? '',
-              task.grupo?.nombre ?? '',
-              task.unidadRef?.nombre ??
-                (task.unidad ? `Unidad ${task.unidad}` : 'Sin unidad'),
-              task.estado,
-            ]
-              .filter(Boolean)
-              .join(' | '),
-          );
-        doc.text(
-          `Entrega ${task.porcentajeEntrega ?? 0}% | Tardías ${task.entregasTardias ?? 0} | Promedio ${task.promedio ?? '-'}`,
-        );
-        doc.moveDown(0.5);
-      }
-
-      doc.addPage();
-      doc
-        .font('Helvetica-Bold')
-        .fontSize(12)
-        .text('Alumnos con más pendientes', { underline: true });
-      doc.moveDown(0.4);
-      for (const student of (reporte.alumnosConMasPendientes ?? []).slice(
-        0,
-        20,
-      )) {
-        doc.font('Helvetica-Bold').fontSize(10).text(student.nombre);
-        doc
-          .font('Helvetica')
-          .fontSize(9)
-          .text(
-            `Control ${student.numeroControl ?? '-'} | Sexo ${letraSexo(student.sexo) || '-'} | Pendientes ${student.pendientes ?? 0} | Tardías ${student.tardias ?? 0} | Promedio ${student.promedio ?? '-'}`,
-          );
-        doc.moveDown(0.35);
-      }
-
-      doc.end();
+    const tareas: any[] = reporte.tasks ?? [];
+    const materias = [
+      ...new Set(tareas.map((task) => task.materia?.nombre).filter(Boolean)),
+    ];
+    const { doc, terminar } = crearPdfInstitucional({
+      titulo: 'Reporte de tareas',
+      subtitulo: materias.length === 1 ? materias[0] : undefined,
     });
+
+    tablaDatos(doc, [
+      [
+        'Generado',
+        new Date(reporte.generatedAt).toLocaleString('es-MX', {
+          timeZone: zonaHoraria(),
+        }),
+      ],
+      ['Porcentaje de entrega', `${reporte.metrics?.porcentajeEntrega ?? 0}%`],
+      ['Tareas vencidas', String(reporte.metrics?.tareasVencidas ?? 0)],
+      ['Entregas tardías', String(reporte.metrics?.entregasTardias ?? 0)],
+      [
+        'Pendientes de revisión',
+        String(reporte.metrics?.pendientesRevision ?? 0),
+      ],
+    ]);
+
+    tituloSeccion(doc, 'Tareas');
+    tabla(doc, {
+      columnas: [
+        'Tarea',
+        'Materia / grupo',
+        'Unidad',
+        'Estado',
+        'Entrega',
+        'Tardías',
+        'Promedio',
+      ],
+      anchos: [30, 24, 14, 12, 9, 9, 10],
+      alinear: ['left', 'left', 'left', 'left', 'center', 'center', 'center'],
+      tamano: 8,
+      vacio: 'Sin tareas con los filtros elegidos.',
+      filas: tareas.map((task) => [
+        task.titulo,
+        [task.materia?.nombre, task.grupo?.nombre].filter(Boolean).join(' · '),
+        task.unidadRef?.nombre ??
+          (task.unidad ? `Unidad ${task.unidad}` : 'Sin unidad'),
+        task.estado ?? '',
+        `${task.porcentajeEntrega ?? 0}%`,
+        task.entregasTardias ?? 0,
+        task.promedio ?? '-',
+      ]),
+    });
+
+    tituloSeccion(doc, 'Alumnos con más pendientes');
+    tabla(doc, {
+      columnas: [
+        'Alumno',
+        'No. control',
+        'Sexo',
+        'Pendientes',
+        'Tardías',
+        'Promedio',
+      ],
+      anchos: [40, 18, 8, 12, 10, 12],
+      alinear: ['left', 'left', 'center', 'center', 'center', 'center'],
+      tamano: 8,
+      vacio: 'Sin alumnos con tareas pendientes.',
+      filas: (reporte.alumnosConMasPendientes ?? [])
+        .slice(0, 20)
+        .map((student) => [
+          student.nombre,
+          student.numeroControl ?? '-',
+          letraSexo(student.sexo) || '-',
+          student.pendientes ?? 0,
+          student.tardias ?? 0,
+          student.promedio ?? '-',
+        ]),
+    });
+
+    return terminar();
   }
 
   async generarExcelCalificacionesCaptura(reporte: any): Promise<Buffer> {

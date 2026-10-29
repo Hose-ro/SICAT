@@ -62,6 +62,25 @@ export function materiasActivasDelDocenteWhere(
   };
 }
 
+/**
+ * La jefatura sólo gestiona materias de las carreras que tiene asignadas y
+ * activas. Una materia sin carrera queda fuera de su alcance.
+ */
+export async function asegurarCarreraDeJefe(
+  prisma: PrismaLike,
+  usuarioId: number,
+  carreraId: number | null | undefined,
+): Promise<void> {
+  const asignada = carreraId
+    ? await prisma.jefeCarreraAsignacion.count({
+        where: { usuarioId, carreraId, activa: true },
+      })
+    : 0;
+  if (!asignada) {
+    throw new ForbiddenException('Carrera fuera de tu alcance');
+  }
+}
+
 export async function asegurarAccesoMateria(
   prisma: PrismaLike,
   actor: ActorMateria | undefined,
@@ -69,6 +88,15 @@ export async function asegurarAccesoMateria(
   grupoId?: number | null,
 ): Promise<void> {
   if (!actor || actor.rol === 'ADMIN') return;
+  if (actor.rol === 'JEFE_CARRERA') {
+    const materia = await prisma.materia.findUnique({
+      where: { id: materiaId },
+      select: { carreraId: true },
+    });
+    if (!materia) throw new NotFoundException('Materia no encontrada');
+    await asegurarCarreraDeJefe(prisma, actor.id, materia.carreraId);
+    return;
+  }
   if (actor.rol !== 'DOCENTE') {
     throw new ForbiddenException('No tienes acceso a esta materia');
   }
@@ -131,4 +159,37 @@ export async function docenteResponsableDeMateria(
     orderBy: { id: 'asc' },
   });
   return horario?.docenteId ?? null;
+}
+
+/**
+ * Grupos de la materia en los que el actor da clase, para ofrecerle copiar
+ * algo (p. ej. sus criterios de evaluación) a sus otros grupos: todos si es
+ * ADMIN o el docente asignado a la materia; si no, los de sus horarios activos.
+ */
+export async function gruposDelDocenteEnMateria(
+  prisma: PrismaLike,
+  materiaId: number,
+  actor: ActorMateria | undefined,
+): Promise<Array<{ id: number; nombre: string }>> {
+  const materia = await prisma.materia.findUnique({
+    where: { id: materiaId },
+    select: {
+      docenteId: true,
+      grupos: {
+        select: { id: true, nombre: true },
+        orderBy: { nombre: 'asc' },
+      },
+    },
+  });
+  if (!materia) return [];
+  if (!actor || actor.rol === 'ADMIN' || materia.docenteId === actor.id) {
+    return materia.grupos;
+  }
+  const horarios = await prisma.horarioMateria.findMany({
+    where: { materiaId, docenteId: actor.id, activo: true },
+    select: { grupoId: true },
+    distinct: ['grupoId'],
+  });
+  const propios = new Set(horarios.map((horario) => horario.grupoId));
+  return materia.grupos.filter((grupo) => propios.has(grupo.id));
 }

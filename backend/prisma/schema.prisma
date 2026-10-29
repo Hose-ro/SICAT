@@ -56,6 +56,8 @@ enum TipoAlertaCarrera {
   MATERIA_SIN_HORARIO
   UNIDAD_ATRASADA
   ALUMNO_RIESGO
+  CALIFICACIONES_PENDIENTES
+  SEGUIMIENTO_DOCENTE
 }
 
 enum EstadoAlertaCarrera {
@@ -84,6 +86,27 @@ enum Sexo {
 
 /// Escolarizado va de lunes a viernes; mixto (antes "sabatino") sólo los
 /// sábados y con su propio calendario de semestre.
+enum TipoReunion {
+  ORDINARIA
+  EXTRAORDINARIA
+}
+
+enum ModalidadReunion {
+  PRESENCIAL
+  VIRTUAL
+}
+
+enum EstadoReunion {
+  PROGRAMADA
+  FINALIZADA
+  CANCELADA
+}
+
+enum FormatoDocumentoReunion {
+  PDF
+  DOCX
+}
+
 enum ModalidadGrupo {
   ESCOLARIZADO
   MIXTO
@@ -171,6 +194,7 @@ enum TipoNotificacion {
   HORARIO_APROBADO
   HORARIO_RECHAZADO
   AVISO_DOCENTE
+  REUNION_ACADEMICA
 }
 
 // ==================== MODELS ====================
@@ -198,6 +222,7 @@ model Carrera {
   reticulaMaterias     ReticulaMateria[]
   jefes                JefeCarreraAsignacion[]
   alertas              AlertaCarrera[]
+  reuniones            ReunionAcademica[]
   importacionesHorario ImportacionHorario[]
 }
 
@@ -205,6 +230,7 @@ model Usuario {
   id                  Int       @id @default(autoincrement())
   avatar              String?
   nombre              String
+  alias               String?   @db.VarChar(60)
   email               String?   @unique
   emailVerificadoAt   DateTime?
   numeroControl       String?   @unique
@@ -248,8 +274,10 @@ model Usuario {
   calificacionesAlumno  CalificacionUnidad[]       @relation("CalificacionAlumno")
   calificacionesDocente CalificacionUnidad[]       @relation("CalificacionDocente")
   notificaciones        Notificacion[]
+  incorporacionesJefe   IncorporacionJefatura[]
   carrerasJefe          JefeCarreraAsignacion[]
   alertasResponsable    AlertaCarrera[]            @relation("AlertaCarreraResponsable")
+  seguimientoNotas      SeguimientoNota[]
   authTokens            AuthToken[]
   authEventos           AuthAudit[]
   sesiones              Sesion[]
@@ -260,6 +288,12 @@ model Usuario {
   avisosRecibidos       Aviso[]                    @relation("AvisoAlumno")
   participaciones       Participacion[]            @relation("ParticipacionAlumno")
   participacionesDadas  Participacion[]            @relation("ParticipacionDocente")
+  reunionesCreadas      ReunionAcademica[]         @relation("ReunionCreador")
+  reunionesConvocado    ReunionConvocado[]
+  clasesJustificadas    ClaseJustificada[]
+  reunionesPresidente   ReunionAcademica[]         @relation("ReunionPresidente")
+  reunionesSecretario   ReunionAcademica[]         @relation("ReunionSecretario")
+  documentosReunion     ReunionDocumento[]
 }
 
 model AuthToken {
@@ -334,14 +368,35 @@ model AlertaCarrera {
   observacion      String?
   fechaSeguimiento DateTime?
   carreraId        Int
+  /// Periodo escolar ("2026-B") al que pertenece el seguimiento.
+  periodo          String?
   responsableId    Int?
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
   carrera          Carrera             @relation(fields: [carreraId], references: [id], onDelete: Cascade)
   responsable      Usuario?            @relation("AlertaCarreraResponsable", fields: [responsableId], references: [id])
+  notas            SeguimientoNota[]
 
   @@index([carreraId, estado, createdAt])
+  @@index([carreraId, periodo, estado])
   @@index([responsableId])
+}
+
+/// Historial de seguimiento de jefatura: cada nota queda con su autor, el
+/// estado que dejó y la fecha en que se revisará de nuevo. No se edita.
+model SeguimientoNota {
+  id            Int                 @id @default(autoincrement())
+  alertaId      Int
+  autorId       Int?
+  texto         String              @db.VarChar(2000)
+  estado        EstadoAlertaCarrera
+  fechaRevision DateTime?
+  createdAt     DateTime            @default(now())
+  alerta        AlertaCarrera       @relation(fields: [alertaId], references: [id], onDelete: Cascade)
+  autor         Usuario?            @relation(fields: [autorId], references: [id], onDelete: SetNull)
+
+  @@index([alertaId, createdAt])
+  @@index([autorId])
 }
 
 /// Fechas reales del periodo escolar. Una fila por clave de periodo ("2026-B")
@@ -437,6 +492,7 @@ model Materia {
   avisos         Aviso[]
   whatsapp       GrupoWhatsapp[]
   pausas         MateriaPausada[]
+  cierres        CierreCurso[]
 
   @@unique([clave, carreraId])
 }
@@ -456,23 +512,24 @@ model MateriaPausada {
 }
 
 model HorarioMateria {
-  id            Int           @id @default(autoincrement())
-  materiaId     Int
-  docenteId     Int
-  aulaId        Int?
-  grupoId       Int?
-  dias          String
-  horaInicio    String
-  horaFin       String
-  semestre      Int?
-  activo        Boolean       @default(true)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  materia       Materia       @relation(fields: [materiaId], references: [id], onDelete: Cascade)
-  docente       Usuario       @relation("HorarioDocente", fields: [docenteId], references: [id])
-  aula          Aula?         @relation("HorarioAula", fields: [aulaId], references: [id])
-  grupo         Grupo?        @relation("HorarioGrupo", fields: [grupoId], references: [id])
-  claseSesiones ClaseSesion[]
+  id              Int                @id @default(autoincrement())
+  materiaId       Int
+  docenteId       Int
+  aulaId          Int?
+  grupoId         Int?
+  dias            String
+  horaInicio      String
+  horaFin         String
+  semestre        Int?
+  activo          Boolean            @default(true)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  materia         Materia            @relation(fields: [materiaId], references: [id], onDelete: Cascade)
+  docente         Usuario            @relation("HorarioDocente", fields: [docenteId], references: [id])
+  aula            Aula?              @relation("HorarioAula", fields: [aulaId], references: [id])
+  grupo           Grupo?             @relation("HorarioGrupo", fields: [grupoId], references: [id])
+  claseSesiones   ClaseSesion[]
+  justificaciones ClaseJustificada[]
 
   @@index([materiaId, activo])
   @@index([docenteId, activo])
@@ -556,41 +613,90 @@ model BloqueImportacionHorario {
 }
 
 model Unidad {
-  id             Int                  @id @default(autoincrement())
+  id             Int                   @id @default(autoincrement())
   nombre         String
   orden          Int
-  status         EstadoUnidad         @default(PENDIENTE)
+  status         EstadoUnidad          @default(PENDIENTE)
   fechaInicio    DateTime?
   fechaFin       DateTime?
   materiaId      Int
-  materia        Materia              @relation(fields: [materiaId], references: [id])
+  materia        Materia               @relation(fields: [materiaId], references: [id])
   claseSesiones  ClaseSesion[]
-  tareas         Tarea[]              @relation("TareaUnidad")
+  tareas         Tarea[]               @relation("TareaUnidad")
   calificaciones CalificacionUnidad[]
+  pesosCriterio  CategoriaPesoUnidad[]
+  temas          TemaUnidad[]
 }
 
-/// Catálogo de categorías de evaluación (examen, prácticas, proyecto…) de una
+/// Tema del temario de una unidad (lo comparten todos los grupos de la
+/// materia). `semana` es la semana del curso en que se planea verlo.
+model TemaUnidad {
+  id        Int         @id @default(autoincrement())
+  unidadId  Int
+  orden     Int
+  nombre    String      @db.VarChar(300)
+  semana    Int?
+  createdAt DateTime    @default(now())
+  unidad    Unidad      @relation(fields: [unidadId], references: [id], onDelete: Cascade)
+  vistos    TemaVisto[]
+
+  @@index([unidadId, orden])
+}
+
+/// Bitácora: un tema que se vio en una clase. El avance de un grupo son los
+/// temas vistos en sus clases.
+model TemaVisto {
+  claseSesionId Int
+  temaId        Int
+  createdAt     DateTime    @default(now())
+  sesion        ClaseSesion @relation(fields: [claseSesionId], references: [id], onDelete: Cascade)
+  tema          TemaUnidad  @relation(fields: [temaId], references: [id], onDelete: Cascade)
+
+  @@id([claseSesionId, temaId])
+  @@index([temaId])
+}
+
+/// Qué mide un criterio de evaluación. Los de actividad (tareas, prácticas,
+/// examen…) promedian las actividades que lo llevan; ASISTENCIA y
+/// PARTICIPACION se calculan del pase de lista.
+enum TipoCriterio {
+  TAREAS
+  PRACTICAS
+  EXAMEN
+  PROYECTO
+  EXPOSICION
+  OTRO
+  ASISTENCIA
+  PARTICIPACION
+}
+
+/// Catálogo de criterios de evaluación (examen, prácticas, asistencia…) de una
 /// materia. El catálogo es de la materia para que una tarea sin grupo también
-/// pueda tener categoría; el peso de cada una lo pone cada grupo.
+/// pueda tener criterio; el peso de cada uno lo pone cada grupo.
 model CategoriaEvaluacion {
-  id        Int                  @id @default(autoincrement())
-  materiaId Int
-  nombre    String               @db.VarChar(60)
-  orden     Int                  @default(0)
-  createdAt DateTime             @default(now())
-  materia   Materia              @relation(fields: [materiaId], references: [id], onDelete: Cascade)
-  pesos     CategoriaPesoGrupo[]
-  tareas    Tarea[]
+  id          Int                   @id @default(autoincrement())
+  materiaId   Int
+  nombre      String                @db.VarChar(60)
+  tipo        TipoCriterio          @default(OTRO)
+  orden       Int                   @default(0)
+  createdAt   DateTime              @default(now())
+  materia     Materia               @relation(fields: [materiaId], references: [id], onDelete: Cascade)
+  pesos       CategoriaPesoGrupo[]
+  pesosUnidad CategoriaPesoUnidad[]
+  tareas      Tarea[]
 
   @@unique([materiaId, nombre])
 }
 
-/// Peso de una categoría en un grupo. Los pesos de un grupo suman 100; si el
-/// grupo no tiene ninguno, las tareas se promedian por igual.
+/// Peso de un criterio en un grupo: la parte de la calificación de cada unidad.
+/// Los pesos de un grupo suman 100 (asistencia y participación incluidas). Sin
+/// filas, el grupo usa la ponderación predeterminada (tareas / asistencia).
 model CategoriaPesoGrupo {
   categoriaId Int
   grupoId     Int
   peso        Int
+  /// Sólo participación: cuántas participaciones valen 100 en una unidad.
+  meta        Int?
   categoria   CategoriaEvaluacion @relation(fields: [categoriaId], references: [id], onDelete: Cascade)
   grupo       Grupo               @relation(fields: [grupoId], references: [id], onDelete: Cascade)
 
@@ -598,8 +704,26 @@ model CategoriaPesoGrupo {
   @@index([grupoId])
 }
 
-/// Ponderación tareas / asistencia propia de un grupo. Sin fila, el grupo usa
-/// la de la materia (`Materia.pesoTareas` / `pesoAsistencia`).
+/// Porcentajes propios de una unidad. Si la unidad tiene filas, se usan sólo
+/// ésas; si no, la lista del grupo.
+model CategoriaPesoUnidad {
+  categoriaId Int
+  grupoId     Int
+  unidadId    Int
+  peso        Int
+  meta        Int?
+  categoria   CategoriaEvaluacion @relation(fields: [categoriaId], references: [id], onDelete: Cascade)
+  grupo       Grupo               @relation(fields: [grupoId], references: [id], onDelete: Cascade)
+  unidad      Unidad              @relation(fields: [unidadId], references: [id], onDelete: Cascade)
+
+  @@id([categoriaId, grupoId, unidadId])
+  @@index([grupoId, unidadId])
+  @@index([unidadId])
+}
+
+/// Ponderación predeterminada tareas / asistencia propia de un grupo, la que
+/// rige mientras el grupo no tiene criterios. Sin fila, el grupo usa la de la
+/// materia (`Materia.pesoTareas` / `pesoAsistencia`).
 model PonderacionGrupo {
   materiaId      Int
   grupoId        Int
@@ -656,8 +780,8 @@ model Aviso {
 }
 
 /// Puntos de participación de un alumno en una clase (lo que muchos docentes
-/// llevan en libreta). Sólo se registra y se muestra: no entra en el cálculo
-/// de la calificación.
+/// llevan en libreta). Sólo cuenta en la calificación si el grupo tiene un
+/// criterio de participación (con su meta por unidad); si no, sólo se muestra.
 model Participacion {
   id            Int         @id @default(autoincrement())
   claseSesionId Int
@@ -676,40 +800,68 @@ model Participacion {
 }
 
 model CalificacionUnidad {
-  id                 Int      @id @default(autoincrement())
-  alumnoId           Int
-  materiaId          Int
-  grupoId            Int?
-  unidadId           Int
-  periodo            String
-  calificacionManual Float?
-  observacion        String?
-  docenteId          Int?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-  alumno             Usuario  @relation("CalificacionAlumno", fields: [alumnoId], references: [id], onDelete: Cascade)
-  materia            Materia  @relation(fields: [materiaId], references: [id], onDelete: Cascade)
-  grupo              Grupo?   @relation(fields: [grupoId], references: [id], onDelete: SetNull)
-  unidad             Unidad   @relation(fields: [unidadId], references: [id], onDelete: Cascade)
-  docente            Usuario? @relation("CalificacionDocente", fields: [docenteId], references: [id], onDelete: SetNull)
+  id                  Int      @id @default(autoincrement())
+  alumnoId            Int
+  materiaId           Int
+  grupoId             Int?
+  unidadId            Int
+  periodo             String
+  calificacionManual  Float?
+  /// Puntos que el docente suma a la calificación de la unidad (calculada o
+  /// manual) sin tocar los criterios. La final se topa en 100.
+  puntosExtra         Float?
+  observacion         String?
+  /// Evaluación de segunda oportunidad (TecNM) de una unidad no alcanzada en
+  /// la primera. `segundaNoPresento`: el docente la reprobó sin calificación
+  /// (en pantalla, "Reprobar"; p. ej. no se presentó).
+  calificacionSegunda Float?
+  segundaNoPresento   Boolean  @default(false)
+  docenteId           Int?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  alumno              Usuario  @relation("CalificacionAlumno", fields: [alumnoId], references: [id], onDelete: Cascade)
+  materia             Materia  @relation(fields: [materiaId], references: [id], onDelete: Cascade)
+  grupo               Grupo?   @relation(fields: [grupoId], references: [id], onDelete: SetNull)
+  unidad              Unidad   @relation(fields: [unidadId], references: [id], onDelete: Cascade)
+  docente             Usuario? @relation("CalificacionDocente", fields: [docenteId], references: [id], onDelete: SetNull)
 
   @@unique([alumnoId, materiaId, unidadId, periodo])
   @@index([materiaId, grupoId, unidadId, periodo])
   @@index([docenteId])
 }
 
+/// Curso cerrado de una materia en un grupo y periodo: congela la calificación
+/// final de cada alumno (primera y segunda oportunidad, nivel de desempeño)
+/// para el concentrado. Reabrirlo borra el registro.
+model CierreCurso {
+  id          Int      @id @default(autoincrement())
+  materiaId   Int
+  grupoId     Int
+  periodo     String
+  /// Quién cerró. Sin relación a Usuario a propósito: el nombre va en la foto.
+  docenteId   Int?
+  cerradoEn   DateTime @default(now())
+  concentrado Json
+  materia     Materia  @relation(fields: [materiaId], references: [id], onDelete: Cascade)
+  grupo       Grupo    @relation(fields: [grupoId], references: [id], onDelete: Cascade)
+
+  @@unique([materiaId, grupoId, periodo])
+}
+
 model Inscripcion {
-  id        Int               @id @default(autoincrement())
-  alumnoId  Int
-  materiaId Int
-  grupoId   Int?
-  estado    EstadoInscripcion @default(PENDIENTE)
-  periodo   String
-  createdAt DateTime          @default(now())
-  updatedAt DateTime          @updatedAt
-  alumno    Usuario           @relation("InscripcionAlumno", fields: [alumnoId], references: [id])
-  materia   Materia           @relation(fields: [materiaId], references: [id])
-  grupo     Grupo?            @relation(fields: [grupoId], references: [id], onDelete: SetNull)
+  aceptadaAt      DateTime?
+  incorporaciones IncorporacionJefatura[]
+  id              Int                     @id @default(autoincrement())
+  alumnoId        Int
+  materiaId       Int
+  grupoId         Int?
+  estado          EstadoInscripcion       @default(PENDIENTE)
+  periodo         String
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+  alumno          Usuario                 @relation("InscripcionAlumno", fields: [alumnoId], references: [id])
+  materia         Materia                 @relation(fields: [materiaId], references: [id])
+  grupo           Grupo?                  @relation(fields: [grupoId], references: [id], onDelete: SetNull)
 
   @@unique([alumnoId, materiaId, periodo])
   @@index([materiaId, grupoId, estado])
@@ -731,6 +883,8 @@ model ClaseSesion {
   fueFueraDeHorario   Boolean         @default(false)
   registroAtrasado    Boolean         @default(false)
   notificacionEnviada Boolean         @default(false)
+  /// Nota de la bitácora: qué pasó en la clase, en una línea.
+  bitacora            String?         @db.VarChar(500)
   createdAt           DateTime        @default(now())
   materia             Materia         @relation(fields: [materiaId], references: [id])
   docente             Usuario         @relation("ClaseSesionDocente", fields: [docenteId], references: [id])
@@ -739,6 +893,7 @@ model ClaseSesion {
   unidadRef           Unidad?         @relation(fields: [unidadId], references: [id])
   asistencias         Asistencia[]
   participaciones     Participacion[]
+  temasVistos         TemaVisto[]
 
   @@index([docenteId, fecha])
   @@index([horarioMateriaId, fecha])
@@ -802,6 +957,7 @@ model Tarea {
 
   @@index([docenteId, estado])
   @@index([materiaId, grupoId, unidadId])
+  @@index([categoriaId])
 }
 
 model EntregaTarea {
@@ -902,30 +1058,188 @@ model Notificacion {
 }
 
 model Grupo {
-  id                   Int                  @id @default(autoincrement())
+  id                   Int                   @id @default(autoincrement())
   nombre               String
   semestre             Int
   seccion              String
   carreraId            Int
-  carrera              Carrera              @relation(fields: [carreraId], references: [id])
+  carrera              Carrera               @relation(fields: [carreraId], references: [id])
   periodo              String
-  modalidad            ModalidadGrupo       @default(ESCOLARIZADO)
-  activo               Boolean              @default(true)
-  createdAt            DateTime             @default(now())
-  updatedAt            DateTime             @updatedAt
-  alumnos              Usuario[]            @relation("AlumnoGrupo")
-  docentes             Usuario[]            @relation("DocenteGrupo")
-  materias             Materia[]            @relation("GrupoMateria")
+  modalidad            ModalidadGrupo        @default(ESCOLARIZADO)
+  activo               Boolean               @default(true)
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  alumnos              Usuario[]             @relation("AlumnoGrupo")
+  docentes             Usuario[]             @relation("DocenteGrupo")
+  materias             Materia[]             @relation("GrupoMateria")
   inscripciones        Inscripcion[]
-  horarios             HorarioMateria[]     @relation("HorarioGrupo")
-  claseSesiones        ClaseSesion[]        @relation("ClaseSesionGrupo")
+  horarios             HorarioMateria[]      @relation("HorarioGrupo")
+  claseSesiones        ClaseSesion[]         @relation("ClaseSesionGrupo")
   tareas               Tarea[]
   importacionesHorario ImportacionHorario[]
   calificaciones       CalificacionUnidad[]
   ponderaciones        PonderacionGrupo[]
   pesosCategoria       CategoriaPesoGrupo[]
+  pesosCriterioUnidad  CategoriaPesoUnidad[]
   avisos               Aviso[]
   whatsapp             GrupoWhatsapp[]
+  cierres              CierreCurso[]
 
   @@unique([semestre, seccion, carreraId, periodo, modalidad])
+}
+
+/// Historial inmutable de incorporaciones realizadas por jefatura.
+model IncorporacionJefatura {
+  id             Int                @id @default(autoincrement())
+  inscripcionId  Int
+  actorId        Int
+  motivo         String             @db.VarChar(500)
+  estadoAnterior EstadoInscripcion?
+  createdAt      DateTime           @default(now())
+  inscripcion    Inscripcion        @relation(fields: [inscripcionId], references: [id], onDelete: Cascade)
+  actor          Usuario            @relation(fields: [actorId], references: [id])
+
+  @@index([inscripcionId, createdAt])
+  @@index([actorId, createdAt])
+}
+
+/// Reunión de academia que convoca la jefatura de carrera (modelo tomado de
+/// Reuniones-Academia): datos de la convocatoria, orden del día, docentes
+/// convocados con su asistencia y acuerdos del acta. `fecha` es AAAA-MM-DD y
+/// las horas HH:MM, en hora local del plantel, igual que los horarios.
+model ReunionAcademica {
+  id                 Int                  @id @default(autoincrement())
+  carreraId          Int
+  creadaPorId        Int?
+  titulo             String               @db.VarChar(200)
+  asunto             String?              @db.VarChar(2000)
+  tipo               TipoReunion          @default(ORDINARIA)
+  numeroActa         String?              @db.VarChar(50)
+  fecha              String               @db.VarChar(10)
+  horaInicio         String               @db.VarChar(5)
+  horaFin            String?              @db.VarChar(5)
+  modalidad          ModalidadReunion     @default(PRESENCIAL)
+  lugar              String?              @db.VarChar(255)
+  enlace             String?              @db.VarChar(255)
+  estado             EstadoReunion        @default(PROGRAMADA)
+  observaciones      String?              @db.VarChar(5000)
+  /// Datos del acta F01PSA01.02: nombre de la academia, párrafo de apertura,
+  /// presidente y secretario (convocados) y hora en que se cerró la reunión.
+  academia           String?              @db.VarChar(150)
+  apertura           String?              @db.VarChar(3000)
+  presidenteId       Int?
+  secretarioId       Int?
+  horaCierre         String?              @db.VarChar(5)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  carrera            Carrera              @relation(fields: [carreraId], references: [id], onDelete: Cascade)
+  creadaPor          Usuario?             @relation("ReunionCreador", fields: [creadaPorId], references: [id], onDelete: SetNull)
+  presidente         Usuario?             @relation("ReunionPresidente", fields: [presidenteId], references: [id], onDelete: SetNull)
+  secretario         Usuario?             @relation("ReunionSecretario", fields: [secretarioId], references: [id], onDelete: SetNull)
+  puntos             ReunionPunto[]
+  convocados         ReunionConvocado[]
+  acuerdos           ReunionAcuerdo[]
+  seguimiento        ReunionSeguimiento[]
+  documentos         ReunionDocumento[]
+  clasesJustificadas ClaseJustificada[]
+
+  @@index([carreraId, fecha])
+}
+
+/// Punto del orden del día.
+model ReunionPunto {
+  id          Int              @id @default(autoincrement())
+  reunionId   Int
+  orden       Int
+  descripcion String           @db.VarChar(1000)
+  reunion     ReunionAcademica @relation(fields: [reunionId], references: [id], onDelete: Cascade)
+
+  @@index([reunionId, orden])
+}
+
+/// Docente convocado. `asistio` queda en null hasta que se pasa asistencia.
+model ReunionConvocado {
+  reunionId Int
+  docenteId Int
+  asistio   Boolean?
+  reunion   ReunionAcademica @relation(fields: [reunionId], references: [id], onDelete: Cascade)
+  docente   Usuario          @relation(fields: [docenteId], references: [id], onDelete: Cascade)
+
+  @@id([reunionId, docenteId])
+  @@index([docenteId])
+}
+
+/// Una clase concreta (horario + fecha) que el docente no impartió porque se
+/// cruzaba con una reunión de academia a la que estaba convocado. Cuenta como
+/// un día sin clases, pero sólo para ese horario: el resto del día sigue igual.
+model ClaseJustificada {
+  id            Int              @id @default(autoincrement())
+  periodoClave  String
+  docenteId     Int
+  horarioId     Int
+  reunionId     Int
+  fecha         String           @db.VarChar(10)
+  motivo        String           @db.VarChar(500)
+  /// El docente decide, clase por clase, si sus alumnos ven el aviso.
+  avisarAlumnos Boolean          @default(true)
+  /// Creada por el sistema al convocar (no a mano por el docente).
+  automatica    Boolean          @default(false)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  docente       Usuario          @relation(fields: [docenteId], references: [id], onDelete: Cascade)
+  horario       HorarioMateria   @relation(fields: [horarioId], references: [id], onDelete: Cascade)
+  reunion       ReunionAcademica @relation(fields: [reunionId], references: [id], onDelete: Cascade)
+
+  @@unique([horarioId, fecha])
+  @@index([docenteId, fecha])
+  @@index([reunionId])
+}
+
+/// Acuerdo del acta, con su responsable y fecha límite.
+model ReunionAcuerdo {
+  id           Int                  @id @default(autoincrement())
+  reunionId    Int
+  orden        Int
+  descripcion  String               @db.VarChar(2000)
+  responsable  String?              @db.VarChar(150)
+  fechaLimite  String?              @db.VarChar(10)
+  reunion      ReunionAcademica     @relation(fields: [reunionId], references: [id], onDelete: Cascade)
+  seguimientos ReunionSeguimiento[]
+
+  @@index([reunionId, orden])
+}
+
+/// Seguimiento de acuerdos anteriores dentro del acta: el acuerdo (copiado de
+/// una reunión previa o escrito a mano) y su avance.
+model ReunionSeguimiento {
+  id              Int              @id @default(autoincrement())
+  reunionId       Int
+  orden           Int
+  acuerdoOrigenId Int?
+  descripcion     String           @db.VarChar(2000)
+  responsable     String?          @db.VarChar(150)
+  fechaLimite     String?          @db.VarChar(10)
+  avance          String?          @db.VarChar(500)
+  reunion         ReunionAcademica @relation(fields: [reunionId], references: [id], onDelete: Cascade)
+  acuerdoOrigen   ReunionAcuerdo?  @relation(fields: [acuerdoOrigenId], references: [id], onDelete: SetNull)
+
+  @@index([reunionId, orden])
+}
+
+/// Acta actualizada (firmada o corregida) que la jefatura sube al finalizar.
+/// Se guarda en la base porque el disco del servidor no es persistente.
+model ReunionDocumento {
+  id          Int                     @id @default(autoincrement())
+  reunionId   Int
+  formato     FormatoDocumentoReunion
+  nombre      String                  @db.VarChar(255)
+  mime        String                  @db.VarChar(120)
+  tamano      Int
+  contenido   Bytes
+  subidoPorId Int?
+  createdAt   DateTime                @default(now())
+  reunion     ReunionAcademica        @relation(fields: [reunionId], references: [id], onDelete: Cascade)
+  subidoPor   Usuario?                @relation(fields: [subidoPorId], references: [id], onDelete: SetNull)
+
+  @@unique([reunionId, formato])
 }

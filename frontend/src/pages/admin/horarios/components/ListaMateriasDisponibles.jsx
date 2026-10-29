@@ -118,7 +118,7 @@ export default function ListaMateriasDisponibles() {
                           key={a.id}
                           className={`px-1.5 py-0.5 rounded-full text-xs ${
                             esCompartida
-                              ? "bg-success/10 text-success-foreground"
+                              ? "bg-success/18 text-success-foreground"
                               : "bg-muted text-muted-foreground"
                           }`}
                         >
@@ -133,7 +133,7 @@ export default function ListaMateriasDisponibles() {
               </div>
 
               {error && (
-                <p className="text-xs text-destructive-foreground bg-destructive/10 rounded p-1.5">{error}</p>
+                <p className="text-xs text-destructive-foreground bg-destructive/18 rounded p-1.5">{error}</p>
               )}
 
               <Button variant="default"
@@ -165,12 +165,12 @@ export default function ListaMateriasDisponibles() {
 
 function EstadoBadge({ estado }) {
   if (estado === 'libre') return (
-    <span className="text-xs px-1.5 py-0.5 rounded-full bg-success/10 text-success-foreground whitespace-nowrap">
+    <span className="text-xs px-1.5 py-0.5 rounded-full bg-success/18 text-success-foreground whitespace-nowrap">
       Sin conflicto
     </span>
   )
   if (estado === 'conflicto') return (
-    <span className="text-xs px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive-foreground whitespace-nowrap">
+    <span className="text-xs px-1.5 py-0.5 rounded-full bg-destructive/18 text-destructive-foreground whitespace-nowrap">
       Conflicto
     </span>
   )

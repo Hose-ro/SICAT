@@ -259,8 +259,8 @@ export default function Registro() {
                         <input
                           id="numeroControl"
                           required
-                          maxLength={8}
-                          pattern="\d{3}[A-Za-z]\d{4}"
+                          pattern="[A-Za-z0-9]+"
+                          title="Sólo letras y números, sin espacios"
                           value={form.numeroControl}
                           onChange={updateField("numeroControl")}
                           placeholder="225Q0103"
@@ -448,7 +448,7 @@ export default function Registro() {
                     {!horarioDisponible.loading &&
                       horarioDisponible.disponible &&
                       usarHorarioExistente && (
-                        <div className="flex flex-col gap-4 rounded-2xl border border-success/25 bg-success/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex flex-col gap-4 rounded-2xl border border-success/40 bg-success/18 p-4 sm:flex-row sm:items-center sm:justify-between">
                           <div className="flex items-start gap-3">
                             <CheckCircle2
                               className="mt-0.5 h-5 w-5 shrink-0 text-success-foreground"
@@ -519,7 +519,7 @@ export default function Registro() {
                   {error && (
                     <div
                       role="alert"
-                      className="rounded-2xl border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground"
+                      className="rounded-2xl border border-destructive/40 bg-destructive/18 px-4 py-3 text-sm text-destructive-foreground"
                     >
                       {error}
                     </div>

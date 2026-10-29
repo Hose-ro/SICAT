@@ -2,8 +2,10 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Patch,
+  Put,
   Query,
   Req,
   Res,
@@ -15,15 +17,27 @@ import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { ReportesService } from '../reportes/reportes.service';
 import { CalificacionesService } from './calificaciones.service';
+import { CriteriosService } from './criterios.service';
 import { GuardarCalificacionManualDto } from './dto/guardar-calificacion-manual.dto';
 import { GuardarCalificacionesLoteDto } from './dto/guardar-calificaciones-lote.dto';
 import { GuardarPonderacionDto } from './dto/guardar-ponderacion.dto';
+import { GuardarCriteriosDto } from './dto/guardar-criterios.dto';
+
+/** Id positivo de la query, o 400 con el mensaje dado. */
+function idRequerido(valor: string | undefined, mensaje: string) {
+  const id = Number(valor);
+  if (!valor || !Number.isInteger(id) || id < 1) {
+    throw new BadRequestException(mensaje);
+  }
+  return id;
+}
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('calificaciones')
 export class CalificacionesController {
   constructor(
     private readonly calificacionesService: CalificacionesService,
+    private readonly criteriosService: CriteriosService,
     private readonly reportesService: ReportesService,
   ) {}
 
@@ -72,6 +86,71 @@ export class CalificacionesController {
     @Body() dto: GuardarPonderacionDto,
   ) {
     return this.calificacionesService.guardarPonderacion(req.user, dto);
+  }
+
+  /** Semáforo de una clase en una unidad, para el inicio del docente. */
+  @Get('desempeno')
+  @Roles('DOCENTE', 'ADMIN')
+  desempeno(
+    @Req() req: AuthenticatedRequest,
+    @Query('materiaId') materiaId?: string,
+    @Query('grupoId') grupoId?: string,
+    @Query('unidadId') unidadId?: string,
+  ) {
+    return this.calificacionesService.obtenerDesempeno(req.user, {
+      materiaId: idRequerido(materiaId, 'La materia es obligatoria'),
+      grupoId: idRequerido(grupoId, 'Elige un grupo'),
+      unidadId: unidadId
+        ? idRequerido(unidadId, 'La unidad no es válida')
+        : undefined,
+    });
+  }
+
+  @Get('criterios')
+  @Roles('DOCENTE', 'ADMIN')
+  criterios(
+    @Req() req: AuthenticatedRequest,
+    @Query('materiaId') materiaId?: string,
+    @Query('grupoId') grupoId?: string,
+  ) {
+    return this.criteriosService.obtener(
+      req.user,
+      idRequerido(materiaId, 'La materia es obligatoria'),
+      idRequerido(grupoId, 'Elige un grupo para ver sus criterios'),
+    );
+  }
+
+  @Put('criterios')
+  @Roles('DOCENTE', 'ADMIN')
+  guardarCriterios(
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: GuardarCriteriosDto,
+  ) {
+    return this.criteriosService.guardar(req.user, dto);
+  }
+
+  /**
+   * Con unidad, ésta deja sus porcentajes propios y vuelve a los de todas; sin
+   * unidad, el grupo vuelve a la ponderación predeterminada.
+   */
+  @Delete('criterios')
+  @Roles('DOCENTE', 'ADMIN')
+  quitarCriterios(
+    @Req() req: AuthenticatedRequest,
+    @Query('materiaId') materiaId?: string,
+    @Query('grupoId') grupoId?: string,
+    @Query('unidadId') unidadId?: string,
+  ) {
+    const materia = idRequerido(materiaId, 'La materia es obligatoria');
+    const grupo = idRequerido(grupoId, 'El grupo es obligatorio');
+    return unidadId
+      ? this.criteriosService.quitarUnidad(
+          req.user,
+          materia,
+          grupo,
+          idRequerido(unidadId, 'La unidad no es válida'),
+        )
+      : this.criteriosService.quitarTodos(req.user, materia, grupo);
   }
 
   @Get('alumno')

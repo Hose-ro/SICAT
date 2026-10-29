@@ -86,15 +86,24 @@ export const useCalificacionStore = create((set) => ({
     }
   },
 
-  guardarPonderacion: async (payload) => {
-    set({ error: null })
-    try {
-      const response = await api.patch('/calificaciones/ponderacion', payload)
-      return response.data
-    } catch (error) {
-      set({ error: error.response?.data?.message || 'Error al guardar la ponderación' })
-      throw error
-    }
+  // Criterios de evaluación de un grupo: la lista de todas las unidades y la
+  // propia de cada unidad. No pasan por `error` del store: el editor muestra
+  // sus propios mensajes.
+  obtenerCriterios: async (materiaId, grupoId) => {
+    const response = await api.get('/calificaciones/criterios', { params: { materiaId, grupoId } })
+    return response.data
+  },
+
+  guardarCriterios: async (payload) => {
+    const response = await api.put('/calificaciones/criterios', payload)
+    return response.data
+  },
+
+  // Con unidad, ésta vuelve a los criterios de todas; sin unidad, el grupo
+  // vuelve a la ponderación predeterminada.
+  quitarCriterios: async ({ materiaId, grupoId, unidadId }) => {
+    const response = await api.delete('/calificaciones/criterios', { params: { materiaId, grupoId, ...(unidadId ? { unidadId } : {}) } })
+    return response.data
   },
 
   exportarCaptura: async (filters = {}, formato = 'excel', nombreBase = 'calificaciones-captura') => {

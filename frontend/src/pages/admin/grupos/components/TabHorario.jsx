@@ -23,12 +23,12 @@ const HORA_INICIO_GRID = 7 * 60
 
 const COLORES = [
   "bg-accent border-border text-primary-ink",
-  "bg-success/10 border-success/30 text-success-foreground",
+  "bg-success/18 border-success/45 text-success-foreground",
   "bg-accent border-border text-foreground",
-  "bg-warning/10 border-warning/30 text-warning-foreground",
-  "bg-destructive/10 border-destructive/30 text-destructive-foreground",
+  "bg-warning/18 border-warning/45 text-warning-foreground",
+  "bg-destructive/18 border-destructive/45 text-destructive-foreground",
   "bg-accent border-border text-primary-ink",
-  "bg-warning/10 border-warning/30 text-warning-foreground",
+  "bg-warning/18 border-warning/45 text-warning-foreground",
   "bg-accent border-border text-primary-ink",
 ]
 
@@ -241,10 +241,10 @@ export default function TabHorario({ grupo }) {
         </p>
 
         {aviso && (
-          <p className="mt-3 rounded-xl bg-success/10 px-3 py-2 text-xs text-success-foreground">{aviso}</p>
+          <p className="mt-3 rounded-xl bg-success/18 px-3 py-2 text-xs text-success-foreground">{aviso}</p>
         )}
         {errorAula && (
-          <p className="mt-3 rounded-xl bg-destructive/10 px-3 py-2 text-xs text-destructive-foreground">{errorAula}</p>
+          <p className="mt-3 rounded-xl bg-destructive/18 px-3 py-2 text-xs text-destructive-foreground">{errorAula}</p>
         )}
       </section>
 

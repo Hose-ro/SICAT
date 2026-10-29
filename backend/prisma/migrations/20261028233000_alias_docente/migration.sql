@@ -1,0 +1,1 @@
+ALTER TABLE "Usuario" ADD COLUMN "alias" VARCHAR(60);

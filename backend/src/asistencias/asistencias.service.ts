@@ -415,14 +415,21 @@ export class AsistenciasService {
       ? await this.prisma.horarioMateria.findMany({
           where: { materiaId, grupoId: alumno.grupoId, activo: true },
           select: {
+            id: true,
             docenteId: true,
             dias: true,
             grupo: { select: { id: true, nombre: true } },
           },
         })
       : [];
-    const suspensiones = await this.periodos.listarSuspensionesDeDocentes([
+    const docenteIds = [
       ...new Set(horarios.map((horario) => horario.docenteId)),
+    ];
+    const [suspensiones, justificadas] = await Promise.all([
+      this.periodos.listarSuspensionesDeDocentes(docenteIds),
+      this.periodos.clasesJustificadas(docenteIds, undefined, {
+        soloVisiblesAlumnos: true,
+      }),
     ]);
     const diasSinClases = new Map<
       string,
@@ -443,6 +450,23 @@ export class AsistenciasService {
         diasSinClases.set(suspension.fecha, {
           fecha,
           motivo: suspension.motivo,
+          grupo: horario.grupo,
+        });
+      }
+    }
+    // Si el docente pasó lista de todos modos, la clase cuenta normal.
+    const fechasConSesion = new Set(
+      sesiones.map((sesion) => formatearFechaClave(sesion.fecha)),
+    );
+    for (const justificada of justificadas) {
+      if (fechasConSesion.has(justificada.fecha)) continue;
+      const horario = horarios.find(
+        (item) => item.id === justificada.horarioId,
+      );
+      if (horario && !diasSinClases.has(justificada.fecha)) {
+        diasSinClases.set(justificada.fecha, {
+          fecha: mediodiaEnZona(justificada.fecha) as Date,
+          motivo: justificada.motivo,
           grupo: horario.grupo,
         });
       }
@@ -854,7 +878,14 @@ export class AsistenciasService {
     const asistencia = await this.prisma.asistencia.findUnique({
       where: { id: asistenciaId },
       include: {
-        claseSesion: { select: { id: true, docenteId: true, fecha: true } },
+        claseSesion: {
+          select: {
+            id: true,
+            docenteId: true,
+            fecha: true,
+            horarioMateriaId: true,
+          },
+        },
       },
     });
     if (!asistencia) throw new NotFoundException('Asistencia no encontrada');
@@ -1047,6 +1078,11 @@ export class AsistenciasService {
     };
   }
 
+  /**
+   * Sólo se llama con la sesión ya creada. Si existe, el docente decidió dar
+   * la clase aunque estuviera justificada por una reunión de academia, así
+   * que únicamente bloquea el día sin clases completo.
+   */
   private async validarNoSuspendida(docenteId: number, fecha: Date) {
     const suspension = await this.periodos.obtenerSuspension(docenteId, fecha);
     if (suspension) {
@@ -1054,6 +1090,55 @@ export class AsistenciasService {
         `No se pasa lista este día: ${suspension.motivo}`,
       );
     }
+  }
+
+  /**
+   * Claves `horarioId:fecha` de las clases justificadas que ya tienen sesión.
+   * Una materia y grupo admiten una sola sesión por día, así que se cruzan por
+   * esos datos y no sólo por el horario de la sesión.
+   */
+  private async clasesJustificadasConSesion(
+    justificadas: Array<{ horarioId: number; fecha: string }>,
+    horarios: Array<{ id: number; materiaId: number; grupoId: number | null }>,
+  ) {
+    const resultado = new Set<string>();
+    const fechas = justificadas.map((item) => item.fecha).sort();
+    const desde = parsearFechaClave(fechas[0] ?? '');
+    const hasta = parsearFechaClave(fechas[fechas.length - 1] ?? '');
+    if (!desde || !hasta) return resultado;
+
+    const sesiones = await this.prisma.claseSesion.findMany({
+      where: {
+        materiaId: {
+          in: [...new Set(horarios.map((horario) => horario.materiaId))],
+        },
+        fecha: {
+          gte: obtenerInicioDelDia(desde),
+          lte: obtenerFinDelDia(hasta),
+        },
+      },
+      select: { materiaId: true, grupoId: true, fecha: true },
+    });
+    const claves = new Set(
+      sesiones.map(
+        (sesion) =>
+          `${sesion.materiaId}:${sesion.grupoId}:${formatearFechaClave(sesion.fecha)}`,
+      ),
+    );
+    for (const justificada of justificadas) {
+      const horario = horarios.find(
+        (item) => item.id === justificada.horarioId,
+      );
+      if (
+        horario &&
+        claves.has(
+          `${horario.materiaId}:${horario.grupoId}:${justificada.fecha}`,
+        )
+      ) {
+        resultado.add(`${justificada.horarioId}:${justificada.fecha}`);
+      }
+    }
+    return resultado;
   }
 
   private async construirSuspensionesHistorial(
@@ -1105,21 +1190,62 @@ export class AsistenciasService {
         aula: { select: { id: true, nombre: true } },
       },
     });
-    const suspensiones = await this.periodos.listarSuspensionesDeDocentes(
-      [...new Set(horarios.map((horario) => horario.docenteId))],
-      fechaFiltro ?? undefined,
-    );
-    if (!suspensiones.length) return [];
+    const docenteIds = [
+      ...new Set(horarios.map((horario) => horario.docenteId)),
+    ];
+    const [suspensiones, justificadas] = await Promise.all([
+      this.periodos.listarSuspensionesDeDocentes(
+        docenteIds,
+        fechaFiltro ?? undefined,
+      ),
+      this.periodos.clasesJustificadas(docenteIds, fechaFiltro ?? undefined),
+    ]);
+    if (!suspensiones.length && !justificadas.length) return [];
 
     const vistos = new Set<string>();
-    return suspensiones.flatMap((suspension) => {
+    const conSesion = await this.clasesJustificadasConSesion(
+      justificadas,
+      horarios,
+    );
+    // Una clase justificada por reunión se ve igual que un día sin clases,
+    // pero sólo para su horario. Si el docente pasó lista de todos modos, ya
+    // no: manda la sesión.
+    const porClase = justificadas.flatMap((justificada) => {
+      if (conSesion.has(`${justificada.horarioId}:${justificada.fecha}`)) {
+        return [];
+      }
+      const horario = horarios.find(
+        (item) => item.id === justificada.horarioId,
+      );
+      return horario
+        ? [
+            {
+              suspension: {
+                id: `reunion-${justificada.id}`,
+                docenteId: justificada.docenteId,
+                fecha: justificada.fecha,
+                motivo: justificada.motivo,
+                institucional: false,
+              },
+              horarios: [horario],
+            },
+          ]
+        : [];
+    });
+    const porDia = suspensiones.map((suspension) => {
       const fecha = mediodiaEnZona(suspension.fecha) as Date;
-      return horarios
-        .filter(
+      return {
+        suspension,
+        horarios: horarios.filter(
           (horario) =>
             horario.docenteId === suspension.docenteId &&
             horarioAplicaEnFecha(horario.dias, fecha),
-        )
+        ),
+      };
+    });
+    return [...porDia, ...porClase].flatMap(({ suspension, horarios }) => {
+      const fecha = mediodiaEnZona(suspension.fecha) as Date;
+      return horarios
         .filter((horario) => {
           const clave = `${suspension.docenteId}:${suspension.fecha}:${horario.materiaId}:${horario.grupoId}`;
           if (vistos.has(clave)) return false;

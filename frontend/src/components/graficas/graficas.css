@@ -1,0 +1,111 @@
+/* Gráficas de jefatura (Inicio, Docentes y Grupos). Los colores salen de los
+   tokens --viz-* de index.css, definidos para ambos temas junto al resto del
+   sistema; aquí solo se usan. */
+.viz { --ease-out: cubic-bezier(0.23, 1, 0.32, 1); }
+
+/* Las tablas de calor se desplazan en horizontal dentro de su marco: el gesto
+   nativo debe poder mover en ambos ejes. pan-y queda para trazos con gestos propios. */
+.viz-plot { position: relative; }
+.viz-plot:not(.overflow-x-auto) { touch-action: pan-y; }
+.viz-plot.overflow-x-auto { touch-action: pan-x pan-y; overscroll-behavior-x: contain; }
+.viz-plot svg { display: block; overflow: visible; }
+.viz-plot:focus-visible { outline: 2px solid var(--ring); outline-offset: 4px; border-radius: 6px; }
+.viz-tick { fill: var(--viz-ink-2); font-size: 11px; font-variant-numeric: tabular-nums; }
+.viz-label { fill: var(--viz-ink); font-size: 12px; font-weight: 600; }
+.viz-label-2 { fill: var(--viz-ink-2); font-size: 11px; }
+
+/* Movimiento: cambiar de modalidad transforma la forma en su sitio (estado), sin rehacerla. */
+.viz-morph { transition: d 240ms var(--ease-out); }
+.viz-pos { transition: transform 240ms var(--ease-out); }
+/* Un solo momento al abrir: la línea se dibuja de izquierda a derecha. */
+.viz-revelar { animation: viz-revelar 560ms var(--ease-out) both; }
+@keyframes viz-revelar { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+
+.viz-tooltip {
+  position: absolute; z-index: 5; pointer-events: none; min-width: 180px;
+  background: var(--popover); color: var(--popover-foreground);
+  border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px;
+  box-shadow: 0 8px 24px oklch(0.12 0.015 264 / 0.12);
+  font-size: 12px; line-height: 1.45;
+  transition: opacity 120ms ease;
+}
+.viz-tooltip[data-oculto] { opacity: 0; }
+.viz-tooltip b { font-size: 15px; font-weight: 650; }
+.viz-key { display: inline-block; width: 12px; height: 2px; border-radius: 1px; vertical-align: middle; margin-right: 6px; }
+.viz-key--caja { height: 10px; width: 10px; border-radius: 3px; }
+
+/* Mapa de calor: el hueco de 2px entre celdas es la superficie. */
+.viz-heat { border-collapse: separate; border-spacing: 2px; }
+.viz-cell {
+  display: block; height: 30px; min-width: 44px; border-radius: 4px;
+  outline-offset: 2px;
+}
+/* Las celdas son enlaces: ganan a la regla táctil de jefatura que vuelve inline-flex los enlaces de tabla. */
+.viz td a.viz-cell { display: block; width: 100%; }
+@media (hover: hover) and (pointer: fine) {
+  .viz td a.viz-cell:hover { box-shadow: 0 0 0 2px var(--viz-surface), 0 0 0 4px var(--viz-apagado-activo); }
+}
+.viz-cell:focus-visible { outline: 2px solid var(--ring); }
+.viz-cell[data-activo] { box-shadow: 0 0 0 2px var(--viz-surface), 0 0 0 4px var(--viz-meta); }
+.viz-cell--vacia { background: repeating-linear-gradient(135deg, transparent 0 5px, var(--viz-grid) 5px 6px); }
+
+/* Mapa de riesgo: la celda es un botón que abre el expediente del alumno. */
+.viz-riesgo {
+  display: flex; align-items: center; justify-content: center; gap: 3px;
+  height: 36px; min-width: 52px; width: 100%; padding: 0 6px; border-radius: 5px;
+  font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums;
+  transition: transform 160ms var(--ease-out), box-shadow 120ms ease;
+  outline-offset: 2px;
+}
+.viz-riesgo svg { width: 12px; height: 12px; flex-shrink: 0; }
+.viz-riesgo:active { transform: scale(0.97); }
+.viz-riesgo:focus-visible { outline: 2px solid var(--ring); }
+.viz-riesgo[data-activo] { box-shadow: 0 0 0 2px var(--viz-surface), 0 0 0 4px var(--viz-meta); }
+@media (hover: hover) and (pointer: fine) {
+  .viz-riesgo:hover { box-shadow: 0 0 0 2px var(--viz-surface), 0 0 0 4px var(--viz-apagado-activo); }
+}
+.viz-riesgo--reprobado { background: var(--viz-riesgo-reprobado); color: var(--viz-riesgo-reprobado-tinta); }
+.viz-riesgo--alerta { background: var(--viz-riesgo-alerta); color: var(--viz-riesgo-alerta-tinta); }
+.viz-riesgo--ok { background: var(--viz-riesgo-ok); color: var(--viz-riesgo-ok-tinta); font-weight: 500; }
+.viz-riesgo--sin { background: transparent; box-shadow: inset 0 0 0 1px var(--viz-axis); color: var(--viz-ink-2); font-weight: 500; }
+.viz-riesgo.viz-cell--vacia { cursor: default; }
+.viz-muestra { display: inline-block; width: 12px; height: 12px; border-radius: 3px; }
+.viz-muestra.viz-cell--vacia, .viz-muestra.viz-riesgo--ok { box-shadow: inset 0 0 0 1px var(--viz-axis); }
+
+/* Comparativo: la barra crece desde la izquierda con transform, nunca con width. */
+.viz-barra { transform-origin: left center; transition: transform 240ms var(--ease-out); }
+
+@media (prefers-reduced-motion: reduce) {
+  .viz-morph, .viz-pos, .viz-barra { transition: none; }
+  .viz-revelar { animation: none; }
+  .viz-riesgo { transition: box-shadow 120ms ease; }
+  .viz-riesgo:active { transform: none; }
+}
+
+
+/* Anillos (Anillos.jsx): el progreso se dibuja desde vacío y los tramos, uno tras
+   otro. `--i` en un ancestro escalona la entrada dentro de una lista. */
+@keyframes anillo-trazar { from { stroke-dashoffset: var(--vacio); } }
+@keyframes anillo-tramo { from { stroke-dasharray: 0 1000; } }
+.anillo-trazo {
+  animation: anillo-trazar 1000ms cubic-bezier(.16, 1, .3, 1) backwards;
+  animation-delay: calc(min(var(--i, 0), 8) * 45ms + 180ms);
+}
+.anillo-tramo {
+  animation: anillo-tramo 700ms cubic-bezier(.16, 1, .3, 1) backwards;
+  animation-delay: calc(var(--orden, 0) * 140ms + 180ms);
+}
+.anillo-success { stroke: var(--success); }
+.anillo-success-suave { stroke: color-mix(in srgb, var(--success) 45%, var(--card)); }
+.anillo-warning { stroke: var(--warning); }
+.anillo-destructive { stroke: var(--destructive); }
+.anillo-punto-success { background: var(--success); }
+.anillo-punto-success-suave { background: color-mix(in srgb, var(--success) 45%, var(--card)); }
+.anillo-punto-warning { background: var(--warning); }
+.anillo-punto-destructive { background: var(--destructive); }
+.anillo-texto-success { color: var(--success-foreground); }
+.anillo-texto-warning { color: var(--warning-foreground); }
+.anillo-texto-destructive { color: var(--destructive-foreground); }
+@media (prefers-reduced-motion: reduce) {
+  .anillo-trazo, .anillo-tramo { animation: none; }
+}

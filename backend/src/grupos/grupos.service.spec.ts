@@ -1,4 +1,8 @@
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { HorariosService } from '../horarios/horarios.service';
 import { UsuariosService } from '../usuarios/usuarios.service';
@@ -27,6 +31,9 @@ describe('GruposService', () => {
   const tokenUpdateMany = jest.fn();
   const tokenCreateMany = jest.fn();
   const transaction = jest.fn();
+  const horarioFindMany = jest.fn();
+  const inscripcionFindMany = jest.fn();
+  const inscripcionDeleteMany = jest.fn();
   const prisma = {
     grupo: {
       findUnique: grupoFindUnique,
@@ -41,6 +48,11 @@ describe('GruposService', () => {
       findMany: usuarioFindMany,
     },
     authToken: { updateMany: tokenUpdateMany, createMany: tokenCreateMany },
+    horarioMateria: { findMany: horarioFindMany },
+    inscripcion: {
+      findMany: inscripcionFindMany,
+      deleteMany: inscripcionDeleteMany,
+    },
     $transaction: transaction,
   } as unknown as PrismaService;
   const horarios = {} as unknown as HorariosService;
@@ -251,6 +263,101 @@ describe('GruposService', () => {
     await expect(
       service.agregarAlumnosAMiGrupo(4, 37, [11]),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  describe('alumno externo agregado por el docente', () => {
+    const ana = {
+      id: 11,
+      nombre: 'Ana',
+      numeroControl: '225Q0103',
+      email: null,
+      telefono: null,
+      sexo: null,
+    };
+
+    beforeEach(() => {
+      grupoFindFirst.mockResolvedValue(grupoDelDocente);
+      // El docente imparte las materias 7 y 8 en el grupo.
+      horarioFindMany.mockResolvedValue([
+        { materiaId: 7 },
+        { materiaId: 7 },
+        { materiaId: 8 },
+      ]);
+    });
+
+    it('lo inscribe sólo en la materia elegida, sin meterlo al grupo', async () => {
+      usuarioFindMany.mockResolvedValue([{ id: 11 }]);
+      inscripcionFindMany.mockResolvedValue([]);
+      grupoFindFirst
+        .mockResolvedValueOnce(grupoDelDocente)
+        .mockResolvedValueOnce({
+          ...grupoDelDocente,
+          docentes: [],
+          horarios: [],
+          alumnos: [],
+        });
+
+      await service.agregarAlumnosAMiGrupo(4, 37, [11], [7]);
+
+      expect(usuarioUpdate).not.toHaveBeenCalled();
+      expect(inscribirAlumnosDelGrupo).toHaveBeenCalledWith(prisma, 4, {
+        alumnoIds: [11],
+        materiaIds: [7],
+      });
+    });
+
+    it('sin materia elegida usa sólo las del docente, no las de todo el grupo', async () => {
+      usuarioFindMany.mockResolvedValue([{ id: 11 }]);
+      inscripcionFindMany.mockResolvedValue([]);
+      grupoFindFirst
+        .mockResolvedValueOnce(grupoDelDocente)
+        .mockResolvedValueOnce({
+          ...grupoDelDocente,
+          docentes: [],
+          horarios: [],
+          alumnos: [],
+        });
+
+      await service.agregarAlumnosAMiGrupo(4, 37, [11]);
+
+      expect(horarioFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { grupoId: 4, docenteId: 37, activo: true },
+        }),
+      );
+      expect(inscribirAlumnosDelGrupo).toHaveBeenCalledWith(prisma, 4, {
+        alumnoIds: [11],
+        materiaIds: [7, 8],
+      });
+    });
+
+    it('no deja agregarlo a una materia de otro docente', async () => {
+      await expect(
+        service.agregarAlumnosAMiGrupo(4, 37, [11], [99]),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(inscribirAlumnosDelGrupo).not.toHaveBeenCalled();
+    });
+
+    it('al quitarlo sólo borra sus inscripciones en las materias del docente', async () => {
+      usuarioFindUnique.mockResolvedValue({ id: 11, grupoId: 2 });
+      inscripcionFindMany.mockResolvedValue([
+        { alumno: ana, materia: { id: 7, nombre: 'Cálculo' } },
+      ]);
+
+      await expect(service.quitarAlumnoDeMiGrupo(4, 37, 11)).resolves.toEqual({
+        ok: true,
+      });
+      expect(inscripcionDeleteMany).toHaveBeenCalledWith({
+        where: expect.objectContaining({
+          grupoId: 4,
+          materiaId: { in: [7, 8] },
+          alumnoId: { in: [11] },
+        }) as unknown,
+      });
+      // Su grupo de origen no se toca.
+      expect(usuarioUpdate).not.toHaveBeenCalled();
+      expect(quitarInscripcionesDelGrupo).not.toHaveBeenCalled();
+    });
   });
 
   it('no elimina un grupo inexistente', async () => {

@@ -11,6 +11,7 @@ import { PrismaService } from '../prisma.service';
 import {
   ActorMateria,
   asegurarAccesoMateria,
+  asegurarCarreraDeJefe,
   esDocenteDeMateria,
   materiasActivasDelDocenteWhere,
   materiasDelDocenteWhere,
@@ -33,10 +34,27 @@ export class MateriasService {
     actor?: { id: number; rol: string },
     docenteId?: number | null,
   ) {
+    if (actor?.rol === 'JEFE_CARRERA') {
+      await asegurarCarreraDeJefe(this.prisma, actor.id, dto.carreraId);
+      const existente = await this.prisma.materia.count({
+        where: {
+          clave: dto.clave.trim().toUpperCase(),
+          carreraId: dto.carreraId,
+        },
+      });
+      if (existente) {
+        throw new ConflictException(
+          'Ya existe una materia con esa clave en la carrera',
+        );
+      }
+    }
     const materia = await this.prisma.materia.create({
       data: {
         nombre: dto.nombre,
-        clave: dto.clave,
+        clave:
+          actor?.rol === 'JEFE_CARRERA'
+            ? dto.clave.trim().toUpperCase()
+            : dto.clave,
         descripcion: dto.descripcion,
         horaInicio: dto.horaInicio ?? '',
         horaFin: dto.horaFin ?? '',
@@ -392,6 +410,11 @@ export class MateriasService {
       }
     }
 
+    // Mover la materia a otra carrera también tiene que quedar en su alcance.
+    if (actor?.rol === 'JEFE_CARRERA' && dto.carreraId !== undefined) {
+      await asegurarCarreraDeJefe(this.prisma, actor.id, dto.carreraId);
+    }
+
     if (dto.carreraId !== undefined && dto.carreraId !== null) {
       const carrera = await this.prisma.carrera.findUnique({
         where: { id: dto.carreraId },
@@ -411,7 +434,24 @@ export class MateriasService {
       semestre: dto.semestre,
     };
 
-    await this.prisma.materia.update({ where: { id }, data });
+    // Unidades y datos generales se guardan juntos: si la reducción requiere
+    // confirmación (409) o algo falla, la materia queda como estaba.
+    const plan =
+      dto.numUnidades === undefined || dto.numUnidades === materia.numUnidades
+        ? null
+        : await this.planUnidades(id, dto.numUnidades, dto.forzar);
+
+    if (!plan) {
+      await this.prisma.materia.update({ where: { id }, data });
+      return this.findOne(id);
+    }
+    await this.prisma.$transaction(
+      async (tx) => {
+        await tx.materia.update({ where: { id }, data });
+        await this.aplicarUnidades(tx, id, plan);
+      },
+      { maxWait: 10_000, timeout: 30_000 },
+    );
     return this.findOne(id);
   }
 
@@ -467,19 +507,31 @@ export class MateriasService {
     });
     if (!materia) throw new NotFoundException('Materia no encontrada');
 
+    const plan = await this.planUnidades(id, dto.numUnidades, dto.forzar);
+    await this.prisma.$transaction((tx) => this.aplicarUnidades(tx, id, plan), {
+      maxWait: 10_000,
+      timeout: 30_000,
+    });
+
+    return this.findOne(id, actor);
+  }
+
+  /**
+   * Calcula el cambio de unidades sin escribir nada. Si reducir borraría
+   * registros y no se confirmó, responde 409 con el detalle de lo que se pierde.
+   */
+  private async planUnidades(id: number, objetivo: number, forzar?: boolean) {
     const unidades = await this.prisma.unidad.findMany({
       where: { materiaId: id },
       orderBy: { orden: 'asc' },
       select: { id: true, orden: true, nombre: true },
     });
-
-    const objetivo = dto.numUnidades;
     const sobrantes = unidades.filter((unidad) => unidad.orden > objetivo);
 
     if (sobrantes.length) {
       const resumen = await this.contarDatosDeUnidades(id, sobrantes);
       const total = resumen.calificaciones + resumen.tareas + resumen.sesiones;
-      if (total > 0 && !dto.forzar) {
+      if (total > 0 && !forzar) {
         throw new ConflictException({
           requiereConfirmacion: true,
           message: `Reducir a ${objetivo} unidades borrará ${this.describirResumen(resumen)} de ${sobrantes.map((u) => u.nombre).join(', ')}.`,
@@ -488,44 +540,48 @@ export class MateriasService {
         });
       }
     }
+    return { objetivo, unidades, sobrantes };
+  }
 
-    await this.prisma.$transaction(
-      async (tx) => {
-        if (sobrantes.length) {
-          await this.borrarUnidades(tx, id, sobrantes);
-        }
+  private async aplicarUnidades(
+    tx: Prisma.TransactionClient,
+    id: number,
+    {
+      objetivo,
+      unidades,
+      sobrantes,
+    }: Awaited<ReturnType<MateriasService['planUnidades']>>,
+  ) {
+    if (sobrantes.length) {
+      await this.borrarUnidades(tx, id, sobrantes);
+    }
 
-        // Se completan los órdenes que falten hasta el objetivo, por si la
-        // materia tenía huecos o ninguna unidad.
-        const conservadas = new Set(
-          unidades
-            .filter((unidad) => unidad.orden <= objetivo)
-            .map((unidad) => unidad.orden),
-        );
-        const faltantes: Prisma.UnidadCreateManyInput[] = [];
-        for (let orden = 1; orden <= objetivo; orden++) {
-          if (conservadas.has(orden)) continue;
-          faltantes.push({
-            nombre: `Unidad ${orden}`,
-            orden,
-            materiaId: id,
-          });
-        }
-        if (faltantes.length) {
-          await tx.unidad.createMany({ data: faltantes });
-        }
-
-        // numUnidades es sólo un contador: se recalcula de las filas reales.
-        const total = await tx.unidad.count({ where: { materiaId: id } });
-        await tx.materia.update({
-          where: { id },
-          data: { numUnidades: total },
-        });
-      },
-      { maxWait: 10_000, timeout: 30_000 },
+    // Se completan los órdenes que falten hasta el objetivo, por si la
+    // materia tenía huecos o ninguna unidad.
+    const conservadas = new Set(
+      unidades
+        .filter((unidad) => unidad.orden <= objetivo)
+        .map((unidad) => unidad.orden),
     );
+    const faltantes: Prisma.UnidadCreateManyInput[] = [];
+    for (let orden = 1; orden <= objetivo; orden++) {
+      if (conservadas.has(orden)) continue;
+      faltantes.push({
+        nombre: `Unidad ${orden}`,
+        orden,
+        materiaId: id,
+      });
+    }
+    if (faltantes.length) {
+      await tx.unidad.createMany({ data: faltantes });
+    }
 
-    return this.findOne(id, actor);
+    // numUnidades es sólo un contador: se recalcula de las filas reales.
+    const total = await tx.unidad.count({ where: { materiaId: id } });
+    await tx.materia.update({
+      where: { id },
+      data: { numUnidades: total },
+    });
   }
 
   private describirResumen(resumen: {
@@ -588,6 +644,27 @@ export class MateriasService {
   }
 
   /**
+   * La jefatura sólo elimina materias recién dadas de alta o capturadas por
+   * error: en cuanto se imparten en un grupo o tienen registros, el borrado
+   * le corresponde a coordinación.
+   */
+  private async asegurarSinHistorial(id: number) {
+    const [grupos, inscripciones, calificaciones, tareas, sesiones] =
+      await Promise.all([
+        this.prisma.grupo.count({ where: { materias: { some: { id } } } }),
+        this.prisma.inscripcion.count({ where: { materiaId: id } }),
+        this.prisma.calificacionUnidad.count({ where: { materiaId: id } }),
+        this.prisma.tarea.count({ where: { materiaId: id } }),
+        this.prisma.claseSesion.count({ where: { materiaId: id } }),
+      ]);
+    if (grupos + inscripciones + calificaciones + tareas + sesiones > 0) {
+      throw new ConflictException(
+        'La materia ya se imparte o tiene registros; quítala de sus grupos o pide a coordinación que la elimine',
+      );
+    }
+  }
+
+  /**
    * Borrado definitivo. Se lleva lo que cuelga de la materia: horarios,
    * sesiones de clase con sus asistencias, tareas con sus entregas,
    * inscripciones, calificaciones y unidades. Los grupos y las academias
@@ -596,6 +673,7 @@ export class MateriasService {
   async remove(id: number, actor?: ActorMateria) {
     await asegurarAccesoMateria(this.prisma, actor, id);
     await this.findOne(id);
+    if (actor?.rol === 'JEFE_CARRERA') await this.asegurarSinHistorial(id);
 
     return this.prisma.$transaction(
       async (tx) => {

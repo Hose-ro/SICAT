@@ -60,12 +60,16 @@ export function Segmentado({ label, value, onChange, options, className, apilado
             className={cn(
               'rounded-[10px] text-muted-foreground transition-colors duration-150 hover:text-foreground',
               apilado ? 'flex min-w-0 flex-col items-center px-1 py-1.5' : 'inline-flex h-8 shrink-0 items-center gap-1.5 px-3 text-[13px] font-medium',
-              activo && 'bg-card text-foreground ring-1 ring-border',
+              option.fondo && cn(option.fondo, 'text-foreground'),
+              activo && (option.fondo ? 'ring-2 ring-foreground/25' : 'bg-card text-foreground ring-1 ring-border'),
             )}>
             {apilado ? (
               <>
-                <span className={cn('text-base font-semibold leading-tight tabular-nums', option.tono)}>{option.count}</span>
-                <span className="max-w-full text-center text-[11px] font-medium leading-tight">{option.label}</span>
+                <span className={cn('text-base font-semibold leading-tight tabular-nums', option.fondo && 'text-lg', option.tono)}>{option.count}</span>
+                <span className="inline-flex max-w-full items-center gap-1 text-center text-[11px] font-medium leading-tight">
+                  {option.punto && <span aria-hidden="true" className={cn('size-1.5 shrink-0 rounded-full max-sm:hidden', option.punto)} />}
+                  {option.label}
+                </span>
               </>
             ) : (
               <>

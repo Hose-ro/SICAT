@@ -1,27 +1,22 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
-import {
-  CalendarDays,
-  CheckCircle2,
-  Clock3,
-  Send,
-} from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import api from '../api/axios'
 import { useAuthStore } from '../store/authStore'
 import { useTareaStore } from '../store/tareaStore'
 
 import TaskNotice from '../components/TaskNotice'
 import TareasDocente from './docente/TareasDocente'
-import { DELIVERY_STATE_LABEL, TASK_TYPE_LABEL, searchTasks, taskError, deliveryHelp } from '../lib/tareas'
+import { TASK_TYPE_LABEL, etiquetaEstadoAlumno, searchTasks, taskError, deliveryHelp, tipoActividad } from '../lib/tareas'
 
 const DELIVERY_STATE_CLASS = {
   PENDIENTE: 'bg-muted text-foreground',
   ENTREGADA: "bg-primary/10 text-primary-ink",
   REVISADA: "bg-primary/10 text-primary-ink",
-  INCORRECTA: "bg-destructive/10 text-destructive-foreground",
-  CALIFICADA: 'bg-success/10 text-foreground',
-  NO_ENTREGADA: 'bg-warning/10 text-foreground',
+  INCORRECTA: "bg-destructive/18 text-destructive-foreground",
+  CALIFICADA: 'bg-success/18 text-foreground',
+  NO_ENTREGADA: 'bg-warning/18 text-foreground',
 }
 
 function formatDateTime(date) {
@@ -35,58 +30,18 @@ function formatDateTime(date) {
   })
 }
 
-function SummaryCard({ icon, label, value, tone = 'blue' }) {
-  const IconComponent = icon
-  const tones = {
-    blue: 'border-border bg-card text-foreground',
-    green: 'border-success/30 bg-success/10 text-foreground',
-    amber: 'border-warning/30 bg-warning/10 text-foreground',
-    slate: 'border-border bg-muted/40 text-foreground',
-  }
+const CAMPO = 'h-10 w-full rounded-[10px] border border-input bg-background px-3 text-base text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40 sm:text-sm'
 
+function SelectField({ label, value, onChange, children }) {
   return (
-    <div className={`rounded-3xl border p-4 shadow-sm ${tones[tone] || tones.blue}`}>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <p className="text-sm font-medium">{label}</p>
-          <p className="mt-2 text-3xl font-semibold">{value ?? 0}</p>
-        </div>
-        <div className="rounded-2xl bg-card p-3">
-          <IconComponent className="h-5 w-5" />
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function SelectField({ label, value, onChange, children, disabled = false }) {
-  return (
-    <label className="flex min-w-[10rem] flex-col gap-1">
-      <span className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{label}</span>
-      <select
-        value={value}
-        onChange={onChange}
-        disabled={disabled}
-        className="rounded-2xl border border-border bg-card px-4 py-3 text-sm text-foreground shadow-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:bg-muted/40"
-      >
-        {children}
-      </select>
+    <label className="flex flex-col gap-1 sm:w-52">
+      <span className="text-sm font-medium text-foreground">{label}</span>
+      <select value={value} onChange={onChange} className={CAMPO}>{children}</select>
     </label>
   )
 }
 
-function TaskSearch({ query, setQuery, order, setOrder, docente = false }) {
-  return <div className="mb-4 flex flex-col gap-3 sm:flex-row">
-    <label className="flex flex-1 flex-col gap-1 text-sm font-medium">Buscar tareas
-      <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Título, materia, grupo o unidad" className="rounded-xl border border-input bg-background px-4 py-3 font-normal" />
-    </label>
-    <SelectField label="Ordenar por" value={order} onChange={(event) => setOrder(event.target.value)}>
-      <option value="deadline">Fecha límite más cercana</option>
-      <option value="title">Título: A a Z</option>
-      {docente && <option value="review">Más entregas por revisar</option>}
-    </SelectField>
-  </div>
-}
+const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`
 
 function AlumnoTareasModule() {
   const { studentTasks, loading, error, obtenerMisTareas } = useTareaStore()
@@ -111,142 +66,125 @@ function AlumnoTareasModule() {
   }, [studentTasks, filters.estado, query, order])
 
   const stats = useMemo(() => ({
-    pendientes: studentTasks.filter((item) => item.estadoAlumno === 'PENDIENTE' || item.estadoAlumno === 'NO_ENTREGADA').length,
+    // Lo que se aplica en clase no queda "pendiente" de entregar para el alumno.
+    pendientes: studentTasks.filter((item) => (item.estadoAlumno === 'PENDIENTE' || item.estadoAlumno === 'NO_ENTREGADA') && item.tarea?.tipoEntrega !== 'PRESENCIAL').length,
     entregadas: studentTasks.filter((item) => ['ENTREGADA', 'REVISADA', 'CALIFICADA', 'INCORRECTA'].includes(item.estadoAlumno)).length,
     tardias: studentTasks.filter((item) => item.miEntrega?.fueTardia).length,
     calificadas: studentTasks.filter((item) => item.estadoAlumno === 'CALIFICADA').length,
   }), [studentTasks])
+  const hayFiltros = Boolean(filters.materiaId || filters.estado || query)
 
   return (
-    <div className="space-y-6">
-      <section className="task-hero px-6 py-7">
-        <div className="max-w-2xl space-y-3">
-          <span className="task-hero-chip inline-flex w-fit rounded-full px-4 py-1 text-xs font-semibold uppercase tracking-[0.18em]">
-            Módulo alumno
-          </span>
-          <h1 className="text-3xl font-semibold tracking-tight">Mis tareas y entregas</h1>
-          <p className="task-hero-subtitle text-sm">
-            Revisa pendientes, sube varios archivos, consulta observaciones y vuelve a enviar cuando el docente lo permita.
-          </p>
-        </div>
-      </section>
+    <div className="mx-auto max-w-[76rem] space-y-6">
+      <header>
+        <h1 className="text-[1.75rem] font-semibold leading-tight tracking-[-0.02em] text-foreground">Mis tareas</h1>
+        <p className="mt-1.5 text-sm text-muted-foreground">
+          {loading && !studentTasks.length ? 'Revisando tus tareas…' : (
+            <>
+              <span className={stats.pendientes ? 'font-medium text-foreground' : ''}>{plural(stats.pendientes, 'por entregar', 'por entregar')}</span>
+              {' · '}{plural(stats.entregadas, 'entregada', 'entregadas')}
+              {stats.tardias > 0 && ` · ${plural(stats.tardias, 'tardía', 'tardías')}`}
+              {' · '}{plural(stats.calificadas, 'calificada', 'calificadas')}
+            </>
+          )}
+        </p>
+      </header>
 
       <TaskNotice error={catalogError} />
-      <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <SummaryCard icon={Clock3} label="Pendientes" value={stats.pendientes} tone="amber" />
-        <SummaryCard icon={Send} label="Entregadas" value={stats.entregadas} tone="blue" />
-        <SummaryCard icon={CalendarDays} label="Tardías" value={stats.tardias} tone="slate" />
-        <SummaryCard icon={CheckCircle2} label="Calificadas" value={stats.calificadas} tone="green" />
+
+      <section aria-label="Filtros" className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+        <label className="flex flex-1 flex-col gap-1 sm:min-w-[16rem]">
+          <span className="text-sm font-medium text-foreground">Buscar</span>
+          <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Título, materia o unidad" className={CAMPO} />
+        </label>
+        <SelectField label="Materia" value={filters.materiaId} onChange={(event) => setFilters((prev) => ({ ...prev, materiaId: event.target.value }))}>
+          <option value="">Todas las materias</option>
+          {materias.map((materia) => <option key={materia.id} value={materia.id}>{materia.nombre}</option>)}
+        </SelectField>
+        <SelectField label="Estado" value={filters.estado} onChange={(event) => setFilters((prev) => ({ ...prev, estado: event.target.value }))}>
+          <option value="">Todos</option>
+          <option value="PENDIENTE">Pendientes</option>
+          <option value="ENTREGADA">Por revisar por el docente</option>
+          <option value="REVISADA">Revisadas</option>
+          <option value="CALIFICADA">Calificadas</option>
+          <option value="INCORRECTA">Requieren atención</option>
+          <option value="NO_ENTREGADA">No entregadas</option>
+        </SelectField>
+        <SelectField label="Ordenar por" value={order} onChange={(event) => setOrder(event.target.value)}>
+          <option value="deadline">Fecha límite más cercana</option>
+          <option value="title">Título: A a Z</option>
+        </SelectField>
       </section>
 
-      <section className="rounded-[2rem] border border-border bg-card p-5 shadow-sm">
-        <div className="flex flex-col gap-4 xl:flex-row">
-          <SelectField
-            label="Materia"
-            value={filters.materiaId}
-            onChange={(event) => setFilters((prev) => ({ ...prev, materiaId: event.target.value }))}
-          >
-            <option value="">Todas las materias</option>
-            {materias.map((materia) => (
-              <option key={materia.id} value={materia.id}>{materia.nombre}</option>
-            ))}
-          </SelectField>
+      <div className="flex min-h-9 items-center justify-between gap-3 text-sm text-muted-foreground">
+        <span aria-live="polite">{plural(filteredTasks.length, 'tarea', 'tareas')}{hayFiltros ? ' con estos filtros' : ''}</span>
+        {hayFiltros && (
+          <Button variant="ghost" type="button" className="h-8 px-2" onClick={() => { setFilters({ materiaId: '', estado: '' }); setQuery('') }}>
+            Limpiar filtros
+          </Button>
+        )}
+      </div>
 
-          <SelectField
-            label="Estado"
-            value={filters.estado}
-            onChange={(event) => setFilters((prev) => ({ ...prev, estado: event.target.value }))}
-          >
-            <option value="">Todos</option>
-            <option value="PENDIENTE">Pendientes</option>
-            <option value="ENTREGADA">Por revisar por el docente</option>
-            <option value="REVISADA">Revisadas</option>
-            <option value="CALIFICADA">Calificadas</option>
-            <option value="INCORRECTA">Requieren atención</option>
-            <option value="NO_ENTREGADA">No entregadas</option>
-          </SelectField>
+      {loading ? (
+        <div role="status" className="rounded-[var(--radius-card)] border border-dashed border-border px-6 py-16 text-center text-sm text-muted-foreground">
+          Cargando tareas…
         </div>
-      </section>
-
-      <section className="rounded-[2rem] border border-border bg-card p-5 shadow-sm">
-        <div className="mb-4">
-          <h2 className="text-lg font-semibold text-foreground">Tus tareas</h2>
-          <p className="text-sm text-muted-foreground">Consulta qué debes entregar, las observaciones de tu docente y tu calificación.</p>
+      ) : error ? <TaskNotice error={error} onRetry={() => obtenerMisTareas(filters.materiaId || undefined).catch(() => {})} /> : filteredTasks.length === 0 ? (
+        <div className="rounded-[var(--radius-card)] border border-dashed border-border px-6 py-16 text-center text-sm text-muted-foreground">
+          {hayFiltros ? 'Ninguna tarea coincide con los filtros.' : 'Todavía no tienes tareas.'}
         </div>
-
-        <TaskSearch query={query} setQuery={setQuery} order={order} setOrder={setOrder} />
-        <div className="mb-4 flex items-center justify-between gap-3 text-sm text-muted-foreground"><span aria-live="polite">{filteredTasks.length} {filteredTasks.length === 1 ? 'tarea encontrada' : 'tareas encontradas'}</span><Button variant="ghost" type="button" onClick={() => { setFilters({ materiaId: '', estado: '' }); setQuery('') }} className="font-semibold underline">Limpiar filtros</Button></div>
-        {loading ? (
-          <div className="rounded-3xl border border-dashed border-border bg-muted/40 px-6 py-16 text-center text-sm text-muted-foreground">
-            Cargando tareas...
-          </div>
-        ) : error ? <TaskNotice error={error} onRetry={() => obtenerMisTareas(filters.materiaId || undefined).catch(() => {})} /> : filteredTasks.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-border bg-muted/40 px-6 py-16 text-center text-sm text-muted-foreground">
-            No hay tareas con los filtros actuales.
-          </div>
-        ) : (
-          <div className="grid gap-4 xl:grid-cols-2">
-            {filteredTasks.map(({ tarea, miEntrega, estadoAlumno, puedeEditarEntrega }) => (
-              <article key={tarea.id} className="rounded-[1.75rem] border border-border bg-muted/40 p-5 shadow-sm">
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="space-y-3">
-                    <div className="flex flex-wrap gap-2">
-                      <span className={`rounded-full px-3 py-1 text-xs font-semibold ${DELIVERY_STATE_CLASS[estadoAlumno] || 'bg-muted text-foreground'}`}>
-                        {DELIVERY_STATE_LABEL[estadoAlumno] || estadoAlumno}
-                      </span>
-                      <span className="rounded-full bg-card px-3 py-1 text-xs font-semibold text-muted-foreground">
-                        {TASK_TYPE_LABEL[tarea.tipoEntrega] || tarea.tipoEntrega}
-                      </span>
-                      {miEntrega?.fueTardia && (
-                        <span className="rounded-full bg-warning/10 px-3 py-1 text-xs font-semibold text-foreground">
-                          Entrega tardía
-                        </span>
-                      )}
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-semibold text-foreground">{tarea.titulo}</h3>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {tarea.materia?.nombre} · {tarea.grupo?.nombre || 'Grupo'} · {tarea.unidadRef?.nombre || 'Sin unidad'}
-                      </p>
-                    </div>
-                    <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
-                      <p><span className="font-semibold text-foreground">Fecha límite:</span> {tarea.tieneFechaLimite ? formatDateTime(tarea.fechaLimite) : 'Sin límite'}</p>
-                      <p><span className="font-semibold text-foreground">Entrega:</span> {miEntrega?.fechaEntrega ? formatDateTime(miEntrega.fechaEntrega) : 'Aún sin entrega'}</p>
-                    </div>
-                    {(miEntrega?.observacion || tarea.miEntrega?.observacion) && (
-                      <div className="rounded-2xl border border-border bg-card p-4 text-sm text-muted-foreground">
-                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Observación docente</p>
-                        <p className="mt-2">{miEntrega?.observacion || tarea.miEntrega?.observacion}</p>
-                      </div>
+      ) : (
+        <ul className="divide-y divide-border rounded-[var(--radius-card)] border border-border bg-card">
+          {filteredTasks.map(({ tarea, miEntrega, estadoAlumno, puedeEditarEntrega }) => {
+            const calificacion = typeof miEntrega?.calificacion === 'number' ? miEntrega.calificacion : miEntrega?.calificacionTipo
+            const observacion = miEntrega?.observacion || tarea.miEntrega?.observacion
+            const accion = tarea.tipoEntrega !== 'PRESENCIAL' && puedeEditarEntrega ? miEntrega ? 'Ver y actualizar entrega' : 'Entregar tarea' : 'Ver tarea'
+            return (
+              <li key={tarea.id} className="grid gap-4 p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_14rem] lg:items-start">
+                <div className="min-w-0 space-y-2">
+                  <div className="flex flex-wrap gap-2">
+                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${DELIVERY_STATE_CLASS[estadoAlumno] || 'bg-muted text-foreground'}`}>
+                      {etiquetaEstadoAlumno(estadoAlumno, tarea, Boolean(miEntrega))}
+                    </span>
+                    <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                      {tipoActividad(tarea).singular} · {TASK_TYPE_LABEL[tarea.tipoEntrega] || tarea.tipoEntrega}
+                    </span>
+                    {miEntrega?.fueTardia && (
+                      <span className="rounded-full bg-warning/20 px-2.5 py-0.5 text-xs font-medium text-warning-foreground">Entrega tardía</span>
                     )}
                   </div>
-
-                  <div className="rounded-3xl border border-border bg-card p-4 text-sm text-muted-foreground">
-                    <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Calificación</p>
-                    <p className="mt-2 text-2xl font-semibold text-foreground">
-                      {typeof miEntrega?.calificacion === 'number'
-                        ? miEntrega.calificacion
-                        : miEntrega?.calificacionTipo || 'Pendiente'}
+                  <h2 className="text-base font-semibold leading-snug text-foreground">
+                    <Link to={`/alumno/tareas/${tarea.id}`} className="underline-offset-4 hover:underline">{tarea.titulo}</Link>
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    {[tarea.materia?.nombre, tarea.grupo?.nombre, tarea.unidadRef?.nombre].filter(Boolean).join(' · ')}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Fecha límite: <span className="text-foreground">{tarea.tieneFechaLimite ? formatDateTime(tarea.fechaLimite) : 'sin límite'}</span>
+                    {miEntrega?.fechaEntrega && <> · Entregaste el <span className="text-foreground">{formatDateTime(miEntrega.fechaEntrega)}</span></>}
+                  </p>
+                  {observacion && (
+                    <p className="rounded-[var(--radius-item)] bg-muted/60 px-3 py-2 text-sm text-foreground">
+                      <span className="font-medium">Tu docente: </span>{observacion}
                     </p>
-                    <p className="mt-3 text-xs text-muted-foreground">
-                      {deliveryHelp(tarea, miEntrega, puedeEditarEntrega)}
-                    </p>
-                  </div>
+                  )}
                 </div>
-
-                <div className="mt-5 flex flex-wrap gap-2">
-                  <Link
-                    to={`/alumno/tareas/${tarea.id}`}
-                    className="inline-flex items-center gap-2 rounded-2xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary"
-                  >
-                    {tarea.tipoEntrega !== 'PRESENCIAL' && puedeEditarEntrega ? miEntrega ? 'Ver y actualizar entrega' : 'Entregar tarea' : 'Consultar tarea'}
+                <div className="flex flex-wrap items-center justify-between gap-3 lg:flex-col lg:items-end lg:text-right">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Calificación</p>
+                    <p className="text-xl font-semibold tabular-nums text-foreground">{calificacion ?? 'Sin calificar'}</p>
+                    <p className="mt-1 max-w-[14rem] text-xs text-muted-foreground">{deliveryHelp(tarea, miEntrega, puedeEditarEntrega)}</p>
+                  </div>
+                  <Link to={`/alumno/tareas/${tarea.id}`}
+                    className="inline-flex min-h-9 items-center gap-1.5 rounded-[10px] border border-border bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted">
+                    {accion}<ArrowRight className="size-4" aria-hidden="true" />
                   </Link>
                 </div>
-              </article>
-            ))}
-          </div>
-        )}
-      </section>
+              </li>
+            )
+          })}
+        </ul>
+      )}
     </div>
   )
 }

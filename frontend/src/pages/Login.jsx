@@ -195,7 +195,7 @@ export default function Login() {
                   </div>
 
                   {registered && (
-                    <div className="space-y-2 rounded-2xl border border-success/25 bg-success/10 px-4 py-3 text-sm text-success-foreground">
+                    <div className="space-y-2 rounded-2xl border border-success/40 bg-success/18 px-4 py-3 text-sm text-success-foreground">
                       <p>
                         {!EMAIL_AUTH_ENABLED
                           ? "Cuenta creada. Espera la aprobación administrativa."
@@ -235,7 +235,7 @@ export default function Login() {
                   {error && (
                     <div
                       role="alert"
-                      className="rounded-2xl border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground"
+                      className="rounded-2xl border border-destructive/40 bg-destructive/18 px-4 py-3 text-sm text-destructive-foreground"
                     >
                       {error}
                       {/no está activada/.test(error) && (

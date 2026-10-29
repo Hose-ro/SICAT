@@ -30,16 +30,16 @@ export default function TabAlumnos({ grupo, onAgregarClick, onImportarClick, onC
             <span className="font-medium text-warning-foreground"> · {sinActivar} sin activar su cuenta</span>
           )}
         </p>
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Button variant="outline" onClick={onImportarClick} className="w-full px-4 py-2 text-sm sm:w-auto">
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={onImportarClick} className="px-4 py-2 text-sm">
             Importar lista (Excel)
           </Button>
-          <Button variant="outline" onClick={onCodigosClick} disabled={alumnos.length === 0} className="w-full px-4 py-2 text-sm sm:w-auto">
+          <Button variant="outline" onClick={onCodigosClick} disabled={alumnos.length === 0} className="px-4 py-2 text-sm">
             Códigos de activación
           </Button>
           <Button variant="default"
             onClick={onAgregarClick}
-            className="w-full px-4 py-2 text-sm sm:w-auto"
+            className="px-4 py-2 text-sm"
           >
             + Agregar alumnos
           </Button>
@@ -74,7 +74,7 @@ export default function TabAlumnos({ grupo, onAgregarClick, onImportarClick, onC
                     {a.activadoAt ? (
                       <span className="text-xs text-muted-foreground">Activa</span>
                     ) : (
-                      <span className="rounded-full bg-warning/15 px-2 py-0.5 text-xs font-medium text-warning-foreground">Sin activar</span>
+                      <span className="rounded-full bg-warning/22 px-2 py-0.5 text-xs font-medium text-warning-foreground">Sin activar</span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-right">

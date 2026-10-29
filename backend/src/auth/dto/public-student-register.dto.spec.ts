@@ -48,6 +48,29 @@ describe('PublicStudentRegisterDto', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
+  it('acepta números de control alfanuméricos de cualquier largo', async () => {
+    const registro = (numeroControl: string) =>
+      pipe.transform(
+        {
+          nombre: 'Eva Díaz',
+          numeroControl,
+          password: 'password-seguro',
+          carreraId: '2',
+          semestre: '4',
+        },
+        metadata,
+      ) as Promise<PublicStudentRegisterDto>;
+
+    for (const valor of ['c12', 'tecnm2024isc000123', '20240567']) {
+      await expect(registro(valor)).resolves.toEqual(
+        expect.objectContaining({ numeroControl: valor.toUpperCase() }),
+      );
+    }
+    for (const valor of ['225-Q0103', '225 Q0103']) {
+      await expect(registro(valor)).rejects.toBeInstanceOf(BadRequestException);
+    }
+  });
+
   it('acepta registro sin correo para el modo de acceso institucional', async () => {
     const result = (await pipe.transform(
       {

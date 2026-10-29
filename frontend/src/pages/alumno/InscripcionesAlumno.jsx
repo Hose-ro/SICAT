@@ -6,9 +6,9 @@ import api from '../../api/axios'
 import { getCurrentAcademicPeriod } from '../../lib/periodo'
 
 const ESTADO_STYLE = {
-  PENDIENTE: "bg-warning/10 text-warning-foreground",
-  ACEPTADA: "bg-success/10 text-success-foreground",
-  RECHAZADA: "bg-destructive/10 text-destructive-foreground",
+  PENDIENTE: "bg-warning/18 text-warning-foreground",
+  ACEPTADA: "bg-success/18 text-success-foreground",
+  RECHAZADA: "bg-destructive/18 text-destructive-foreground",
 }
 
 export default function InscripcionesAlumno() {
@@ -70,7 +70,7 @@ export default function InscripcionesAlumno() {
                   <span className="text-xs text-muted-foreground ml-2">{m.docente?.nombre}</span>
                 </div>
                 <Button variant="default" onClick={() => handleSolicitar(m.id)} disabled={solicitando === m.id}
-                  className="w-full px-3 py-1 text-xs disabled:opacity-50 sm:w-auto">
+                  className="px-3 py-1 text-xs disabled:opacity-50">
                   Solicitar
                 </Button>
               </div>

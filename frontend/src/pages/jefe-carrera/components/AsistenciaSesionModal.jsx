@@ -1,131 +1,107 @@
+import { useEffect, useState } from 'react'
 import Modal from '@/components/Modal'
 import SexoBadge from '@/components/SexoBadge'
-import { useEffect, useState } from 'react'
-import { CalendarClock, MapPin, UserRound, UsersRound, X } from 'lucide-react'
 import api from '@/api/axios'
+import { mensajeError } from '../supervision/useJefatura'
+import { fechaLarga } from '../supervision/formato'
 
-const ESTADO_LABELS = {
-  ASISTENCIA: 'Asistencia',
-  RETARDO: 'Retardo',
-  FALTA: 'Falta',
-  JUSTIFICADA: 'Justificada',
+const ESTADOS = {
+  ASISTENCIA: { label: 'Asistencia', texto: 'text-success-foreground' },
+  RETARDO: { label: 'Retardo', texto: 'text-warning-foreground' },
+  FALTA: { label: 'Falta', texto: 'text-destructive-foreground' },
+  JUSTIFICADA: { label: 'Justificada', texto: 'text-primary-ink' },
 }
 
-const ESTADO_STYLES = {
-  ASISTENCIA: "border-success/30 bg-success/10 text-success-foreground",
-  RETARDO: "border-warning/30 bg-warning/10 text-warning-foreground",
-  FALTA: "border-destructive/30 bg-destructive/10 text-destructive-foreground",
-  JUSTIFICADA: "border-border bg-accent text-primary-ink",
-}
-
-function formatHora(value) {
-  if (!value) return '--:--'
-  if (typeof value === 'string') return value.slice(0, 5)
+function hora(value) {
+  if (!value) return '—'
+  if (typeof value === 'string' && /^\d{2}:\d{2}/.test(value)) return value.slice(0, 5)
   return new Date(value).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
 }
 
 /**
- * Vista de solo lectura para jefatura de carrera: horario real de la sesión
- * en curso y la lista de asistencia que el docente capturó al iniciarla.
+ * Lista capturada de una sesión, de solo lectura para jefatura. Solo se
+ * consulta dentro de la carrera seleccionada.
  */
-export default function AsistenciaSesionModal({ sesionId, onClose }) {
-  // Un solo estado combinado: cada rama del fetch dispara un único setState,
-  // evitando los renders en cascada de actualizar loading/error/data por separado.
+export default function AsistenciaSesionModal({ sesionId, carreraId, periodo, onClose }) {
+  // Un solo estado combinado: cada rama del fetch dispara un único setState.
   const [{ data, loading, error }, setState] = useState({ data: null, loading: true, error: '' })
 
   useEffect(() => {
     let cancelled = false
-    api.get(`/jefe-carrera/sesiones/${sesionId}/asistencia`)
+    api.get(`/jefe-carrera/sesiones/${sesionId}/asistencia`, { params: { carreraId, periodo } })
       .then(({ data: response }) => { if (!cancelled) setState({ data: response, loading: false, error: '' }) })
-      .catch((requestError) => { if (!cancelled) setState({ data: null, loading: false, error: requestError.response?.data?.message ?? 'No se pudo cargar la asistencia de la sesión' }) })
+      .catch((requestError) => { if (!cancelled) setState({ data: null, loading: false, error: mensajeError(requestError, 'No se pudo cargar la lista de la sesión') }) })
     return () => { cancelled = true }
-  }, [sesionId])
+  }, [sesionId, carreraId, periodo])
+
+  const sesion = data?.sesion
+  const enCurso = Boolean(sesion?.activa)
+  const descripcion = sesion
+    ? [sesion.fecha && fechaLarga(sesion.fecha), sesion.grupo?.nombre && `Grupo ${sesion.grupo.nombre}`, sesion.docente?.nombre].filter(Boolean).join(' · ')
+    : undefined
 
   return (
-    <Modal open onClose={onClose} title={data?.sesion?.materia?.nombre ?? 'Clase en curso'} wide><p className="text-sm text-muted-foreground">{data?.sesion?.docente?.nombre} · {data?.sesion?.grupo?.nombre ?? 'Sin grupo'}</p>
-        
+    <Modal open onClose={onClose} title={sesion ? `Lista capturada · ${sesion.materia.nombre}` : 'Lista capturada'} description={descripcion} wide>
+      {loading && <p role="status" className="py-10 text-center text-sm text-muted-foreground">Cargando la lista…</p>}
+      {error && <p role="alert" className="rounded-[var(--radius-item)] border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm text-destructive-foreground">{error}</p>}
 
-        <div className="p-5">
-          {loading && (
-            <p className="py-10 text-center text-sm text-muted-foreground">Cargando información de la sesión…</p>
-          )}
-          {error && (
-            <p className="rounded-xl border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground">
-              {error}
+      {!loading && !error && data && (
+        <>
+          <dl className="grid grid-cols-2 gap-x-6 gap-y-3 border-b border-border pb-4 text-[0.8125rem] sm:grid-cols-4">
+            <Dato label={enCurso ? 'Inició' : 'Sesión abierta a las'} value={hora(sesion.horaInicio)} />
+            <Dato label={enCurso ? 'Termina' : 'Horario programado'} value={enCurso ? hora(sesion.horaFinProgramada) : `${hora(sesion.horaInicioProgramada)}–${hora(sesion.horaFinProgramada)}`} />
+            <Dato label="Aula" value={sesion.aula?.nombre ?? 'Sin aula'} />
+            <Dato label="Unidad" value={sesion.unidad?.nombre ?? 'Sin unidad registrada'} />
+          </dl>
+
+          <p className="flex flex-wrap gap-x-4 gap-y-1 text-[0.8125rem] text-foreground">
+            <span><b className="tabular-nums">{data.resumen.asistencias}</b> asistencias</span>
+            <span><b className="tabular-nums">{data.resumen.retardos}</b> retardos</span>
+            <span><b className="tabular-nums">{data.resumen.faltas}</b> faltas</span>
+            <span><b className="tabular-nums">{data.resumen.justificadas}</b> justificadas</span>
+          </p>
+
+          {data.asistencias.length ? (
+            <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Lista de asistencia">
+              <table className="w-full border-collapse text-[0.8125rem]">
+                <caption className="sr-only">Lista de asistencia ({data.resumen.total} alumnos)</caption>
+                <thead>
+                  <tr className="text-left text-xs text-muted-foreground">
+                    <th scope="col" className="py-2 pr-4 font-medium">Alumno</th>
+                    <th scope="col" className="py-2 pr-4 font-medium">Número de control</th>
+                    <th scope="col" className="py-2 font-medium">Registro</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.asistencias.map((alumno) => {
+                    const estado = ESTADOS[alumno.estado]
+                    return (
+                      <tr key={alumno.id} className="border-t border-border">
+                        <td className="py-2.5 pr-4"><span className="flex items-center gap-2 font-medium text-foreground">{alumno.nombre}<SexoBadge sexo={alumno.sexo} /></span></td>
+                        <td className="py-2.5 pr-4 tabular-nums text-muted-foreground">{alumno.numeroControl ?? '—'}</td>
+                        <td className={`py-2.5 font-medium ${estado?.texto ?? 'text-muted-foreground'}`}>{estado?.label ?? 'Sin registrar'}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="border-t border-border py-8 text-center text-sm text-muted-foreground">
+              {enCurso ? 'El docente todavía no captura la lista de esta sesión.' : 'La sesión se abrió, pero no tiene registros de asistencia.'}
             </p>
           )}
-
-          {!loading && !error && data && (
-            <div className="space-y-5">
-              <div className="grid gap-3 sm:grid-cols-3">
-                <InfoTile icon={<CalendarClock className="h-4 w-4" />} label="Empezó" value={formatHora(data.sesion.horaInicio)} />
-                <InfoTile icon={<CalendarClock className="h-4 w-4" />} label="Finaliza" value={formatHora(data.sesion.horaFinProgramada)} />
-                <InfoTile icon={<MapPin className="h-4 w-4" />} label="Aula" value={data.sesion.aula?.nombre ?? 'Sin aula'} />
-              </div>
-
-              <div className="flex flex-wrap gap-2 text-xs">
-                <Pill label="Presentes" value={data.resumen.asistencias} tone="emerald" />
-                <Pill label="Retardos" value={data.resumen.retardos} tone="amber" />
-                <Pill label="Faltas" value={data.resumen.faltas} tone="rose" />
-                <Pill label="Justificadas" value={data.resumen.justificadas} tone="sky" />
-              </div>
-
-              <div>
-                <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
-                  <UsersRound className="h-4 w-4" /> Lista de asistencia ({data.resumen.total})
-                </div>
-                {data.asistencias.length ? (
-                  <div className="divide-y divide-border overflow-hidden rounded-xl border border-border">
-                    {data.asistencias.map((alumno) => (
-                      <div key={alumno.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
-                        <div className="flex min-w-0 items-center gap-2">
-                          <UserRound className="h-4 w-4 shrink-0 text-muted-foreground" />
-                          <div className="min-w-0">
-                            <p className="flex items-center gap-2 truncate text-sm font-medium text-foreground">
-                              <SexoBadge sexo={alumno.sexo} />
-                              {alumno.nombre}
-                            </p>
-                            <p className="text-xs text-muted-foreground">{alumno.numeroControl ?? 'Sin número de control'}</p>
-                          </div>
-                        </div>
-                        <span className={`inline-flex whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium ${ESTADO_STYLES[alumno.estado] ?? 'border-border bg-muted text-muted-foreground'}`}>
-                          {ESTADO_LABELS[alumno.estado] ?? 'Sin registrar'}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="rounded-xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
-                    El docente aún no ha tomado asistencia en esta sesión.
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      </Modal>
+        </>
+      )}
+    </Modal>
   )
 }
 
-function InfoTile({ icon, label, value }) {
+function Dato({ label, value }) {
   return (
-    <div className="rounded-xl border border-border bg-muted/40 px-3 py-2">
-      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">{icon} {label}</p>
-      <p className="mt-1 text-sm font-semibold text-foreground">{value}</p>
+    <div className="min-w-0">
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="mt-0.5 font-medium tabular-nums text-foreground">{value}</dd>
     </div>
-  )
-}
-
-function Pill({ label, value, tone }) {
-  const tones = {
-    emerald: "bg-success/10 text-success-foreground",
-    amber: "bg-warning/10 text-warning-foreground",
-    rose: "bg-destructive/10 text-destructive-foreground",
-    sky: "bg-accent text-primary-ink",
-  }
-  return (
-    <span className={`rounded-full px-3 py-1 font-semibold ${tones[tone]}`}>
-      {label}: {value}
-    </span>
   )
 }

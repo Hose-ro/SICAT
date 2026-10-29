@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button'
 import { useCallback, useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useHorarioStore } from '../../../store/horarioStore'
 import SelectorDocente from './components/SelectorDocente'
 import GridHorario from './components/GridHorario'
@@ -58,6 +59,19 @@ export default function HorariosPage({ soloPropias = false }) {
     [eliminarClase],
   )
 
+  // Desde los primeros pasos de Inicio: ?nueva=1&grupo=<id> abre el editor
+  // con el grupo ya elegido, en cuanto se sabe de quién es el horario.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const nuevaPedida = soloPropias && searchParams.get('nueva') === '1'
+  const grupoPedido = Number(searchParams.get('grupo')) || null
+  const abrirPedida = nuevaPedida && Boolean(contexto)
+  if (abrirPedida && !editor) {
+    setEditor({ preset: grupoPedido ? { grupoId: grupoPedido } : null })
+  }
+  useEffect(() => {
+    if (abrirPedida) setSearchParams({}, { replace: true })
+  }, [abrirPedida, setSearchParams])
+
   function alternarEdicion() {
     setModoEdicion((previo) => {
       if (previo) setEditor(null)
@@ -79,7 +93,7 @@ export default function HorariosPage({ soloPropias = false }) {
       </div>
 
       {error && (
-        <div className="flex items-center justify-between rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground">
+        <div className="flex items-center justify-between rounded-lg border border-destructive/45 bg-destructive/18 px-4 py-3 text-sm text-destructive-foreground">
           <span>{error}</span>
           <Button variant="destructive" onClick={clearError} className="ml-4">
             ✕
@@ -87,7 +101,7 @@ export default function HorariosPage({ soloPropias = false }) {
         </div>
       )}
 
-      <div className="flex flex-col gap-3 text-sm sm:flex-row sm:items-center">
+      <div className="flex flex-wrap items-center gap-2 text-sm">
         {!soloPropias && (
           <>
             <Button variant="ghost"
@@ -135,7 +149,7 @@ export default function HorariosPage({ soloPropias = false }) {
           {modoEdicion && contexto && !editor && (
             <Button variant="outline"
               onClick={() => setEditor({ preset: null })}
-              className="border border-dashed px-4 py-3 text-sm font-medium"
+              className="self-start border border-dashed px-4 py-3 text-sm font-medium"
             >
               + Nueva clase
             </Button>

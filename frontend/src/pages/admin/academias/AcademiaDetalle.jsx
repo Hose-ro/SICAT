@@ -45,7 +45,7 @@ export default function AcademiaDetalle() {
       </div>
 
       {error && (
-        <div className="bg-destructive/10 border border-destructive/30 rounded-lg px-4 py-3 text-sm text-destructive-foreground flex items-center justify-between">
+        <div className="bg-destructive/18 border border-destructive/45 rounded-lg px-4 py-3 text-sm text-destructive-foreground flex items-center justify-between">
           <span>{error}</span>
           <Button variant="destructive" onClick={clearError} className="ml-4">✕</Button>
         </div>

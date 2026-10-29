@@ -48,7 +48,7 @@ export default function TabTareasMateria({ materiaId }) {
                       <span className={`ml-1 px-2 py-0.5 rounded-full text-xs ${
                         t.tipoEntrega === 'EN_LINEA' ? "bg-primary/10 text-primary-ink" :
                         t.tipoEntrega === 'FIRMA' ? "bg-primary/10 text-primary-ink" :
-                        t.tipoEntrega === 'REVISION_EN_LINEA' ? 'bg-success/10 text-foreground' :
+                        t.tipoEntrega === 'REVISION_EN_LINEA' ? 'bg-success/18 text-foreground' :
                         'bg-muted text-foreground'
                       }`}>{TASK_TYPE_LABEL[t.tipoEntrega] || t.tipoEntrega}</span>
                     </p>

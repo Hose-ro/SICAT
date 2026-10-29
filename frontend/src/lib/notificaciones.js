@@ -1,7 +1,7 @@
 import {
   AlarmClock, Bell, BookOpen, CalendarCheck, CalendarClock, CalendarRange, CalendarX, ChartColumn,
   CircleCheck, CircleX, ClipboardCheck, Clock, Inbox, ListChecks, Megaphone, MessageSquareText, StickyNote,
-  Sun, Upload, UserRound,
+  Sun, Upload, UserRound, UsersRound,
 } from 'lucide-react'
 
 // `tone` maps the event to the status tokens (DESIGN.md: status is semantic):
@@ -39,13 +39,14 @@ export const NOTIFICATION_META = {
   HORARIO_APROBADO: { icon: CalendarCheck, label: 'Horario aprobado', tone: 'success' },
   HORARIO_RECHAZADO: { icon: CalendarX, label: 'Horario rechazado', tone: 'destructive' },
   AVISO_DOCENTE: { icon: Megaphone, label: 'Aviso del docente', tone: 'neutral' },
+  REUNION_ACADEMICA: { icon: UsersRound, label: 'Reunión de academia', tone: 'neutral' },
 }
 
 export const NOTIFICATION_TONE_CLASS = {
   neutral: 'bg-muted text-muted-foreground',
-  success: 'bg-success/10 text-success-foreground',
-  warning: 'bg-warning/15 text-warning-foreground',
-  destructive: 'bg-destructive/10 text-destructive-foreground',
+  success: 'bg-success/18 text-success-foreground',
+  warning: 'bg-warning/22 text-warning-foreground',
+  destructive: 'bg-destructive/18 text-destructive-foreground',
 }
 
 export function getNotificationMeta(tipo) {
@@ -78,16 +79,22 @@ export function resolveNotificationRoute(notificacion, rol) {
 
   if (rol === 'JEFE_CARRERA') {
     if (['Asistencias', 'ClaseSesion', 'HorarioMateria'].includes(referenciaTipo)) {
-      return '/jefe-carrera/clases'
+      return '/jefe-carrera/horarios'
     }
-    if (['Materia', 'Unidad'].includes(referenciaTipo)) {
-      return '/jefe-carrera/seguimiento'
-    }
-    if (referenciaTipo === 'Usuario') return '/jefe-carrera/docentes'
+    if (referenciaTipo === 'Materia' && referenciaId) return `/jefe-carrera/materias/${referenciaId}`
+    if (['Materia', 'Unidad'].includes(referenciaTipo)) return '/jefe-carrera/materias'
+    if (referenciaTipo === 'Docente' && referenciaId) return `/jefe-carrera/docentes/${referenciaId}`
     if (referenciaTipo?.startsWith('Reporte')) return '/jefe-carrera/reportes'
-    return '/jefe-carrera/alertas'
+    return '/jefe-carrera/seguimientos'
   }
 
+  if (referenciaTipo === 'ReunionAcademica') {
+    return `/docente/reuniones${referenciaId ? `?reunion=${referenciaId}` : ''}`
+  }
+  // "Acta disponible" / "Acta firmada": abre el acta sin pasar por la lista.
+  if (referenciaTipo === 'ReunionActa') {
+    return `/docente/reuniones${referenciaId ? `?reunion=${referenciaId}&acta=${referenciaId}` : ''}`
+  }
   switch (referenciaTipo) {
     case 'Tarea':
       if (!referenciaId) return '/tareas'

@@ -7,6 +7,9 @@ import { useTareaStore } from '../../store/tareaStore'
 
 import TaskNotice from '../../components/TaskNotice'
 import TaskRubric from '../../components/TaskRubric'
+import CriteriosModal from '@/components/calificaciones/CriteriosModal'
+import useCriterios from '@/hooks/useCriterios'
+import { criteriosDeActividad, tipoCriterio } from '@/lib/criterios'
 import { mergeTaskFiles, taskError, TASK_TYPE_HELP } from '../../lib/tareas'
 
 const DEFAULT_FORM = {
@@ -48,6 +51,8 @@ export default function TareaForm() {
   const queryMateriaId = searchParams.get('materiaId')
   const queryGrupoId = searchParams.get('grupoId')
   const queryUnidadId = searchParams.get('unidadId')
+  // "Nueva actividad ▸ Examen" llega con el criterio ya elegido.
+  const queryCategoriaId = searchParams.get('categoriaId')
   const isEditing = Boolean(editId)
 
   const { crear, editar, obtenerDetalle, saving, error, clearError } = useTareaStore()
@@ -62,13 +67,18 @@ export default function TareaForm() {
     materiaId: queryMateriaId || '',
     grupoId: queryGrupoId || '',
     unidadId: queryUnidadId || '',
+    categoriaId: queryCategoriaId || '',
   })
   const [existingFiles, setExistingFiles] = useState([])
   const [removeFileIds, setRemoveFileIds] = useState([])
   const [newFiles, setNewFiles] = useState([])
   const [loadingInitial, setLoadingInitial] = useState(isEditing)
-  // Categorías de la materia y su peso en el grupo elegido.
-  const [ponderacionCargada, setPonderacionCargada] = useState({ clave: '', datos: null })
+  // Criterio que ya tenía la tarea, por si no está en la lista de su unidad.
+  const [criterioGuardado, setCriterioGuardado] = useState(null)
+  const [criteriosAbierto, setCriteriosAbierto] = useState(false)
+  // Mientras el docente no elija cómo se entrega, el tipo de actividad lo propone.
+  const [entregaTocada, setEntregaTocada] = useState(false)
+  const [sugerenciaDe, setSugerenciaDe] = useState('')
 
   useEffect(() => {
     clearError()
@@ -101,29 +111,32 @@ export default function TareaForm() {
           tipoTrabajo: task.tipoTrabajo || 'PROYECTO',
           equiposEditablesPorAlumnos: task.equiposEditablesPorAlumnos !== false,
         })
+        setCriterioGuardado(task.categoria ?? null)
         setExistingFiles(task.archivos || [])
       })
       .catch((error) => setLocalError(taskError(error, 'No se pudo cargar la tarea. Vuelve a la lista e intenta de nuevo.')))
       .finally(() => setLoadingInitial(false))
   }, [editId, isEditing, obtenerDetalle])
 
-  const clavePonderacion = form.materiaId && form.grupoId ? `${form.materiaId}:${form.grupoId}` : ''
-  useEffect(() => {
-    if (!clavePonderacion) return
-    const [materiaId, grupoId] = clavePonderacion.split(':')
-    let vigente = true
-    api.get('/calificaciones/ponderacion', { params: { materiaId, grupoId } })
-      .then((res) => { if (vigente) setPonderacionCargada({ clave: clavePonderacion, datos: res.data }) })
-      .catch(() => { if (vigente) setPonderacionCargada({ clave: clavePonderacion, datos: null }) })
-    return () => { vigente = false }
-  }, [clavePonderacion])
-  const ponderacion = ponderacionCargada.clave === clavePonderacion ? ponderacionCargada.datos : null
-
-  const categoriasGrupo = ponderacion?.categorias ?? []
-  // Si el grupo pondera por categoría se elige entre las suyas; si no, entre
-  // las del catálogo de la materia (no cambian la nota de este grupo).
-  const opcionesCategoria = categoriasGrupo.length ? categoriasGrupo : ponderacion?.catalogo ?? []
-  const categoriaObligatoria = categoriasGrupo.length > 0
+  // Los tipos de actividad son los criterios del grupo (los de la unidad, si
+  // tiene porcentajes propios). Con la ponderación predeterminada todas las
+  // tareas valen igual y no hay que elegir.
+  const criterios = useCriterios(form.materiaId, form.grupoId)
+  const conCriterios = criterios.datos?.base.origen === 'GRUPO'
+  const opcionesCriterio = useMemo(() => {
+    const lista = criteriosDeActividad(criterios.datos, form.unidadId)
+    const actual = Number(form.categoriaId)
+    if (actual && !lista.some((item) => item.id === actual) && criterioGuardado?.id === actual) {
+      return [...lista, { ...criterioGuardado, peso: null, fueraDeLista: true }]
+    }
+    return lista
+  }, [criterios.datos, form.unidadId, form.categoriaId, criterioGuardado])
+  const criterioElegido = opcionesCriterio.find((criterio) => String(criterio.id) === String(form.categoriaId))
+  if (!isEditing && !entregaTocada && criterioElegido && sugerenciaDe !== form.categoriaId) {
+    setSugerenciaDe(form.categoriaId)
+    setForm((prev) => ({ ...prev, tipoEntrega: tipoCriterio(criterioElegido.tipo).entrega ?? prev.tipoEntrega }))
+  }
+  const enClase = form.tipoEntrega === 'PRESENCIAL'
 
   const selectedMateria = useMemo(
     () => materias.find((materia) => materia.id === Number(form.materiaId)),
@@ -132,6 +145,7 @@ export default function TareaForm() {
 
   const handleChange = (event) => {
     const { name, value, type, checked } = event.target
+    if (name === 'tipoEntrega') setEntregaTocada(true)
     setForm((prev) => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
@@ -157,7 +171,7 @@ export default function TareaForm() {
     if (saving || !loaded || !formRef.current.reportValidity()) return
     setLocalError('')
     if (!form.titulo.trim() || !form.instrucciones.trim()) {
-      setLocalError('Escribe un título y las instrucciones de la tarea.')
+      setLocalError(enClase ? 'Escribe el tema y lo que abarca.' : 'Escribe un título y las instrucciones de la tarea.')
       return
     }
     if (form.tipoEvaluacion === 'RUBRICA') {
@@ -199,58 +213,43 @@ export default function TareaForm() {
 
   return (
     <div className="space-y-6">
-      <section className="task-hero px-6 py-7">
-        <Button variant="ghost"
-          type="button"
-          onClick={() => navigate(-1)}
-          className="task-hero-button inline-flex items-center gap-2  px-4 py-2 text-sm font-semibold"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Volver
-        </Button>
-
-        <div className="mt-5 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-2xl space-y-3">
-            <div>
-              <h1 className="text-3xl font-semibold tracking-tight">
-                {isEditing ? 'Editar tarea' : 'Nueva tarea'}
-              </h1>
-              <p className="task-hero-subtitle mt-2 text-sm">
-                Configura la tarea por materia y grupo, define si tendrá fecha límite, sube adjuntos y decide si quedará en borrador o publicada.
-              </p>
-            </div>
-          </div>
-          <div className="task-hero-surface rounded-3xl px-5 py-4 text-sm">
-            <p className="task-hero-emphasis font-semibold">Formatos permitidos</p>
-            <p className="task-hero-subtitle mt-1">PDF, Word e imagen. Hasta 12 archivos nuevos de 15 MB cada uno.</p>
-          </div>
-        </div>
-      </section>
+      <Button variant="ghost" type="button" onClick={() => navigate(-1)} className="h-9 gap-2 px-2 text-muted-foreground hover:text-foreground">
+        <ArrowLeft className="size-4" aria-hidden="true" />
+        Volver
+      </Button>
+      <header>
+        <h1 className="text-[1.75rem] font-semibold leading-tight tracking-[-0.02em] text-foreground">
+          {isEditing ? 'Editar actividad' : 'Nueva actividad'}
+        </h1>
+        <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">
+          Elige el grupo y el tipo de actividad (tarea, práctica, examen…), cómo se entrega y su fecha. Puede quedar en borrador o publicarse.
+        </p>
+      </header>
 
       <TaskNotice error={localError || error} />
 
       <form ref={formRef} onSubmit={(event) => { event.preventDefault(); submitWithState(isEditing ? originalState : 'PUBLICADA') }} className="grid gap-6 xl:grid-cols-[1.4fr_0.8fr]">
-        <section className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
+        <section className="rounded-[var(--radius-card)] border border-border bg-card p-5 sm:p-6">
           <div className="grid gap-5">
             <div>
-              <label className="mb-2 block text-sm font-semibold text-foreground" htmlFor="task-title">Título *</label>
+              <label className="mb-2 block text-sm font-semibold text-foreground" htmlFor="task-title">{enClase ? 'Tema *' : 'Título *'}</label>
               <input
                 id="task-title" required maxLength={160} name="titulo"
                 value={form.titulo}
                 onChange={handleChange}
-                placeholder="Ej. Ensayo sobre arquitectura de software libre"
+                placeholder={enClase ? 'Ej. Examen parcial 1: sistemas de archivos' : 'Ej. Ensayo sobre arquitectura de software libre'}
                 className="w-full rounded-2xl border border-border px-4 py-3 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
               />
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-semibold text-foreground" htmlFor="task-instructions">Instrucciones *</label>
+              <label className="mb-2 block text-sm font-semibold text-foreground" htmlFor="task-instructions">{enClase ? 'Temas que abarca e indicaciones *' : 'Instrucciones *'}</label>
               <textarea
                 id="task-instructions" required maxLength={5000} name="instrucciones"
                 value={form.instrucciones}
                 onChange={handleChange}
                 rows={8}
-                placeholder="Describe la actividad, el criterio de evaluación y cualquier requisito de entrega."
+                placeholder={enClase ? 'Temas 2.1 a 2.4. Qué pueden llevar (calculadora, formulario) y cómo se califica.' : 'Describe la actividad, el criterio de evaluación y cualquier requisito de entrega.'}
                 className="w-full rounded-2xl border border-border px-4 py-3 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
               />
             </div>
@@ -304,45 +303,50 @@ export default function TareaForm() {
               </label>
             </div>
 
-            {opcionesCategoria.length > 0 && (
+            {form.materiaId && form.grupoId && criterios.datos && (
               <div>
-                <label className="flex flex-col gap-2">
-                  <span className="text-sm font-semibold text-foreground">
-                    Categoría {categoriaObligatoria ? '*' : '(opcional)'}
-                  </span>
-                  <select
-                    name="categoriaId"
-                    required={categoriaObligatoria}
-                    value={form.categoriaId}
-                    onChange={handleChange}
-                    className="w-full min-w-0 rounded-2xl border border-border px-4 py-3 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring lg:max-w-sm"
-                  >
-                    <option value="">{categoriaObligatoria ? 'Selecciona una categoría' : 'Sin categoría'}</option>
-                    {opcionesCategoria.map((categoria) => (
-                      <option key={categoria.id} value={categoria.id}>
-                        {categoria.peso ? `${categoria.nombre} (${categoria.peso} %)` : categoria.nombre}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                {conCriterios ? (
+                  <label className="flex flex-col gap-2">
+                    <span className="text-sm font-semibold text-foreground">Tipo de actividad *</span>
+                    <select
+                      name="categoriaId"
+                      required
+                      value={form.categoriaId}
+                      onChange={handleChange}
+                      className="w-full min-w-0 rounded-2xl border border-border px-4 py-3 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring lg:max-w-sm"
+                    >
+                      <option value="">Selecciona el tipo</option>
+                      {opcionesCriterio.map((criterio) => (
+                        <option key={criterio.id} value={criterio.id}>
+                          {criterio.fueraDeLista ? `${criterio.nombre} (no cuenta en esta unidad)` : `${criterio.nombre} (${criterio.peso} %)`}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
                 <p className="mt-2 text-xs text-muted-foreground">
-                  {categoriaObligatoria
-                    ? 'Este grupo pondera las tareas por categoría; sin categoría la tarea no cuenta en el promedio.'
-                    : 'Este grupo promedia todas las tareas por igual. Los pesos se configuran en Calificaciones → Ponderación.'}
+                  {conCriterios
+                    ? 'El tipo es el criterio con el que cuenta esta actividad en la calificación del grupo.'
+                    : 'Este grupo usa la ponderación predeterminada: todas las tareas valen igual. Para calificar exámenes, prácticas o participación por separado,'}
+                  {' '}
+                  <Button variant="link" type="button" className="h-auto min-h-0 p-0 text-xs" onClick={() => setCriteriosAbierto(true)}>
+                    {conCriterios ? 'Editar criterios' : 'define sus criterios'}
+                  </Button>
+                  {conCriterios ? '' : '.'}
                 </p>
               </div>
             )}
 
             <div className="grid gap-4 lg:grid-cols-2">
               <label className="flex flex-col gap-2">
-                <span className="text-sm font-semibold text-foreground">Tipo de tarea</span>
+                <span className="text-sm font-semibold text-foreground">¿Cómo se entrega?</span>
                 <select
                   name="tipoEntrega"
                   value={form.tipoEntrega}
                   onChange={handleChange}
                   className="w-full min-w-0 rounded-2xl border border-border px-4 py-3 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  <option value="PRESENCIAL">Presencial</option>
+                  <option value="PRESENCIAL">En clase (sin entrega en línea)</option>
                   <option value="EN_LINEA">Entrega con archivo</option>
                   <option value="FIRMA">Entrega con foto de firma</option>
                   <option value="REVISION_EN_LINEA">Comentario o archivos</option>
@@ -389,13 +393,14 @@ export default function TareaForm() {
                 </div>
               )}
             </div>
-            <div className="rounded-3xl border border-border bg-muted/40 p-5">
+            {/* Subsección del mismo formulario: separada por una línea, no otra tarjeta. */}
+            <div className="border-t border-border pt-5">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
                   <h2 className="text-sm font-semibold text-foreground">Archivos adjuntos</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">Material de referencia o plantilla para el alumnado.</p>
+                  <p className="mt-1 text-sm text-muted-foreground">Material de referencia o plantilla para el alumnado. PDF, Word o imagen; hasta 12 archivos nuevos de 15 MB cada uno.</p>
                 </div>
-                <label className="inline-flex max-w-full cursor-pointer flex-wrap items-center gap-2 rounded-2xl border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground transition hover:bg-muted/40">
+                <label className="inline-flex max-w-full cursor-pointer flex-wrap items-center gap-2 rounded-[10px] border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted">
                   <UploadCloud className="h-4 w-4" />
                   Agregar archivos
                   <input type="file" multiple accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.webp" onChange={handleFileSelect} className="block w-full min-w-0 text-xs" />
@@ -404,7 +409,7 @@ export default function TareaForm() {
 
               {existingFiles.length > 0 && (
                 <div className="mt-4 space-y-2">
-                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Adjuntos actuales</p>
+                  <p className="text-sm font-medium text-foreground">Adjuntos actuales</p>
                   {existingFiles.map((file) => (
                     <label key={file.id} className="flex items-center justify-between rounded-2xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
                       <div>
@@ -423,7 +428,7 @@ export default function TareaForm() {
 
               {newFiles.length > 0 && (
                 <div className="mt-4 space-y-2">
-                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Nuevos archivos</p>
+                  <p className="text-sm font-medium text-foreground">Nuevos archivos</p>
                   {newFiles.map((file, index) => (
                     <div key={`${file.name}-${file.size}`} className="rounded-2xl border border-dashed border-border bg-card px-4 py-3 text-sm text-muted-foreground">
                       {file.name}
@@ -437,7 +442,7 @@ export default function TareaForm() {
         </section>
 
         <aside className="space-y-6">
-          <section className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
+          <section className="rounded-[var(--radius-card)] border border-border bg-card p-5 sm:p-6">
             <div className="flex items-center gap-2">
               <FileText className="h-4 w-4 text-muted-foreground" />
               <h2 className="text-lg font-semibold text-foreground">Publicación y entrega</h2>
@@ -453,15 +458,15 @@ export default function TareaForm() {
                   className="mt-1"
                 />
                 <div>
-                  <p className="text-sm font-semibold text-foreground">Usar fecha límite</p>
-                  <p className="text-sm text-muted-foreground">Si se desactiva, la tarea seguirá abierta hasta que la cierres manualmente.</p>
+                  <p className="text-sm font-semibold text-foreground">{enClase ? 'Tiene fecha de aplicación' : 'Usar fecha límite'}</p>
+                  <p className="text-sm text-muted-foreground">{enClase ? 'El día y la hora en que se aplica en clase. Aparece en el calendario del grupo.' : 'Si se desactiva, la tarea seguirá abierta hasta que la cierres manualmente.'}</p>
                 </div>
               </label>
 
               {form.tieneFechaLimite && (
                 <div className="grid gap-4 sm:grid-cols-2">
                   <label className="flex flex-col gap-2">
-                    <span className="text-sm font-semibold text-foreground">Fecha límite</span>
+                    <span className="text-sm font-semibold text-foreground">{enClase ? 'Fecha de aplicación' : 'Fecha límite'}</span>
                     <input
                       type="date"
                       required name="fechaLimite"
@@ -472,7 +477,7 @@ export default function TareaForm() {
                   </label>
 
                   <label className="flex flex-col gap-2">
-                    <span className="text-sm font-semibold text-foreground">Hora límite</span>
+                    <span className="text-sm font-semibold text-foreground">{enClase ? 'Hora' : 'Hora límite'}</span>
                     <input
                       type="time"
                       name="horaLimite"
@@ -484,7 +489,7 @@ export default function TareaForm() {
                 </div>
               )}
 
-              <label className="flex items-start gap-3 rounded-2xl border border-border bg-muted/40 px-4 py-3">
+              {!enClase && <label className="flex items-start gap-3 rounded-2xl border border-border bg-muted/40 px-4 py-3">
                 <input
                   type="checkbox"
                   name="permiteReenvio"
@@ -496,40 +501,51 @@ export default function TareaForm() {
                   <p className="text-sm font-semibold text-foreground">Permitir reenvío</p>
                   <p className="text-sm text-muted-foreground">Permite actualizar entregas después de la fecha límite mientras la tarea siga abierta. Antes del límite, el alumno puede actualizar su entrega.</p>
                 </div>
-              </label>
+              </label>}
             </div>
           </section>
 
-          {form.tipoEvaluacion === 'RUBRICA' && <section className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
-            <h2 className="mb-3 text-lg font-semibold">Criterios de evaluación</h2>
+          {form.tipoEvaluacion === 'RUBRICA' && <section className="rounded-[var(--radius-card)] border border-border bg-card p-5 sm:p-6">
+            <h2 className="mb-3 text-lg font-semibold">Rúbrica</h2>
             <TaskRubric value={form.rubricJson} onChange={(rubricJson) => setForm((prev) => ({ ...prev, rubricJson }))} />
           </section>}
 
-          <section className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
+          <section className="rounded-[var(--radius-card)] border border-border bg-card p-5 sm:p-6">
             <div className="flex flex-col gap-3">
               <p className="text-sm text-muted-foreground">{isEditing ? 'Guardar cambios conserva el estado actual de la tarea.' : 'El borrador solo es visible para ti. Al publicar, el grupo podrá ver la actividad.'}</p>
-              <Button variant="outline"
-                type="button"
-                onClick={() => submitWithState(isEditing ? originalState : 'BORRADOR')}
-                disabled={saving || !loaded}
-                className="inline-flex items-center justify-center gap-2 border px-4 py-3 text-sm font-semibold disabled:opacity-60"
-              >
-                <Save className="h-4 w-4" />
-                {saving ? 'Guardando...' : isEditing ? 'Guardar cambios' : 'Guardar borrador'}
-              </Button>
-              {(!isEditing || originalState === 'BORRADOR') && <Button variant="default"
-                type="button"
-                onClick={() => submitWithState('PUBLICADA')}
-                disabled={saving || !loaded}
-                className="inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold disabled:opacity-60"
-              >
-                <Send className="h-4 w-4" />
-                {saving ? 'Publicando...' : 'Publicar tarea'}
-              </Button>}
+              <div className="flex flex-wrap gap-2 xl:flex-col">
+                <Button variant="outline"
+                  type="button"
+                  onClick={() => submitWithState(isEditing ? originalState : 'BORRADOR')}
+                  disabled={saving || !loaded}
+                  className="inline-flex items-center justify-center gap-2 border px-4 py-3 text-sm font-semibold disabled:opacity-60"
+                >
+                  <Save className="h-4 w-4" />
+                  {saving ? 'Guardando...' : isEditing ? 'Guardar cambios' : 'Guardar borrador'}
+                </Button>
+                {(!isEditing || originalState === 'BORRADOR') && <Button variant="default"
+                  type="button"
+                  onClick={() => submitWithState('PUBLICADA')}
+                  disabled={saving || !loaded}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold disabled:opacity-60"
+                >
+                  <Send className="h-4 w-4" />
+                  {saving ? 'Publicando...' : 'Publicar'}
+                </Button>}
+              </div>
             </div>
           </section>
         </aside>
       </form>
+      <CriteriosModal
+        open={criteriosAbierto}
+        onClose={() => setCriteriosAbierto(false)}
+        materiaId={form.materiaId}
+        grupo={(selectedMateria?.grupos ?? []).find((grupo) => String(grupo.id) === form.grupoId)}
+        materiaNombre={selectedMateria?.nombre}
+        alcanceInicial={form.unidadId ? Number(form.unidadId) : 'base'}
+        onGuardado={() => criterios.recargar()}
+      />
     </div>
   )
 }

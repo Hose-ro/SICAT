@@ -6,6 +6,7 @@ import { conteoTarea, fechaCorta, rangoFechas } from '@/lib/tareas'
 import { Chip } from './Estados'
 import { MenuAcciones } from './Controles'
 import FilaTarea from './FilaTarea'
+import MenuNuevaActividad from './MenuNuevaActividad'
 import NuevaTareaRapida from './NuevaTareaRapida'
 
 function Nodo({ status }) {
@@ -28,12 +29,13 @@ function unirConPuntos(partes) {
  */
 export default function UnidadTareas({
   unidad, tareas, ultimo, forzarAbierta, puedeCrear, formularioCompleto, procesando,
-  menuTarea, onPublicar, onCrearBorrador, onCerrarUnidad, onReporte,
+  menuTarea, onPublicar, onCrearBorrador, onCerrarUnidad, onReporte, criterios, onConfigurarCriterios,
 }) {
   const finalizada = unidad?.status === 'FINALIZADA'
   const activa = unidad?.status === 'ACTIVA'
   const [abiertaManual, setAbiertaManual] = useState(null)
-  const [creando, setCreando] = useState(false)
+  // null o { criterio }: el borrador rápido abierto con el tipo elegido.
+  const [creando, setCreando] = useState(null)
   const abierta = forzarAbierta || (abiertaManual ?? !finalizada)
 
   const publicadas = tareas.filter((t) => t.estado !== 'BORRADOR')
@@ -75,7 +77,7 @@ export default function UnidadTareas({
           {rango && <span className="text-sm text-muted-foreground tabular-nums">{rango}</span>}
           {!abierta && (
             <span className="text-sm text-muted-foreground">
-              {tareas.length} {tareas.length === 1 ? 'tarea' : 'tareas'}{promedio && <> · promedio <span className="font-medium text-foreground tabular-nums">{promedio}</span></>}
+              {tareas.length} {tareas.length === 1 ? 'actividad' : 'actividades'}{promedio && <> · promedio <span className="font-medium text-foreground tabular-nums">{promedio}</span></>}
             </span>
           )}
           <div className="ml-auto flex items-center gap-1">
@@ -84,9 +86,11 @@ export default function UnidadTareas({
                 <FolderDown aria-hidden="true" />{cerrando ? 'Descargando…' : 'Descargar cierre'}
               </Button>
             ) : puedeCrear && (
-              <Button variant="ghost" size="sm" onClick={() => { setAbiertaManual(true); setCreando(true) }}>
-                <Plus aria-hidden="true" />Tarea
-              </Button>
+              <MenuNuevaActividad datos={criterios} unidadId={unidad?.id} label={`Agregar actividad a ${unidad ? `la Unidad ${unidad.orden}` : 'las tareas sin unidad'}`}
+                className="h-7 w-auto gap-1 px-2.5 text-[0.8rem] font-medium text-foreground"
+                trigger={<><Plus className="size-3.5" aria-hidden="true" />Agregar</>}
+                onElegir={(criterio) => { setAbiertaManual(true); setCreando({ criterio }) }}
+                onConfigurar={onConfigurarCriterios} />
             )}
             {unidad && (
               <MenuAcciones label={`Más acciones de la Unidad ${unidad.orden}`} items={[
@@ -104,11 +108,12 @@ export default function UnidadTareas({
             <ul className="@container border-t border-border">
               {tareas.map((tarea) => (
                 <FilaTarea key={tarea.id} tarea={tarea} items={menuTarea(tarea)} publicando={procesando === `tarea-${tarea.id}`}
-                  onPublicar={() => onPublicar(tarea)} />
+                  onPublicar={() => onPublicar(tarea)} criterios={criterios} />
               ))}
               {creando && (
-                <NuevaTareaRapida unidad={unidad} formularioCompleto={formularioCompleto} onCancelar={() => setCreando(false)}
-                  onCrear={async (datos) => { await onCrearBorrador(unidad, datos); setCreando(false) }} />
+                <NuevaTareaRapida unidad={unidad} formularioCompleto={formularioCompleto} criterios={criterios} criterioInicial={creando.criterio}
+                  onCancelar={() => setCreando(null)}
+                  onCrear={async (datos) => { await onCrearBorrador(unidad, datos); setCreando(null) }} />
               )}
               {!tareas.length && !creando && (
                 <li className="px-5 py-5 text-sm text-muted-foreground">
@@ -116,7 +121,7 @@ export default function UnidadTareas({
                   {puedeCrear && (
                     <>
                       {' '}
-                      <button type="button" onClick={() => setCreando(true)} className="font-medium text-primary-ink underline-offset-4 hover:underline">Planear la primera</button>
+                      <button type="button" onClick={() => setCreando({ criterio: null })} className="font-medium text-primary-ink underline-offset-4 hover:underline">Planear la primera</button>
                     </>
                   )}
                 </li>

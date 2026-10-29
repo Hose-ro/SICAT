@@ -285,7 +285,7 @@ export default function PeriodoEscolarCard({ editable = false, compacto = false 
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">{notaLarga(periodo)}</p>
                   {avisoSabados(periodo) && (
-                    <p role="note" className="mt-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-foreground">
+                    <p role="note" className="mt-2 rounded-lg border border-warning/40 bg-warning/18 px-3 py-2 text-xs text-foreground">
                       {avisoSabados(periodo)}
                     </p>
                   )}
@@ -337,7 +337,7 @@ export default function PeriodoEscolarCard({ editable = false, compacto = false 
                   </div>
 
                   {error && (
-                    <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground">
+                    <p role="alert" className="rounded-xl border border-destructive/45 bg-destructive/18 px-3 py-2 text-sm text-destructive-foreground">
                       {error}
                     </p>
                   )}

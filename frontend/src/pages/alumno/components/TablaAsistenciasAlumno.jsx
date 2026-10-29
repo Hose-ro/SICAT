@@ -6,9 +6,9 @@ import { useAsistenciaStore } from '../../../store/asistenciaStore'
 import AttendanceBadge from '../../../components/AttendanceBadge'
 
 const ESTADO_CONFIG = {
-  ASISTENCIA:  { label: 'Asistencia',  bg: "bg-success/10", text: "text-success-foreground", ring: "ring-ring", dot: "bg-success" },
-  FALTA:       { label: 'Falta',       bg: "bg-destructive/10",    text: "text-destructive-foreground",    ring: "ring-ring",    dot: "bg-destructive"    },
-  RETARDO:     { label: 'Retardo',     bg: "bg-warning/10",   text: "text-warning-foreground",   ring: "ring-ring",   dot: "bg-warning/15"   },
+  ASISTENCIA:  { label: 'Asistencia',  bg: "bg-success/18", text: "text-success-foreground", ring: "ring-ring", dot: "bg-success" },
+  FALTA:       { label: 'Falta',       bg: "bg-destructive/18",    text: "text-destructive-foreground",    ring: "ring-ring",    dot: "bg-destructive"    },
+  RETARDO:     { label: 'Retardo',     bg: "bg-warning/18",   text: "text-warning-foreground",   ring: "ring-ring",   dot: "bg-warning/22"   },
   JUSTIFICADA: { label: 'Justificada', bg: "bg-accent",     text: "text-primary-ink",     ring: "ring-ring",     dot: "bg-primary"     },
 }
 
@@ -92,19 +92,19 @@ export default function TablaAsistenciasAlumno({ materiaId }) {
   return (
     <div className="space-y-4">
       {asistenciaDeHoy?.suspendida && (
-        <div className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground">
+        <div className="rounded-2xl border border-destructive/45 bg-destructive/18 px-4 py-3 text-sm text-destructive-foreground">
           Hoy no habrá clases: {asistenciaDeHoy.suspensionMotivo}
         </div>
       )}
       {asistenciaDeHoy?.estado && (
         <div className={`flex items-center gap-3 rounded-2xl border px-4 py-3 ${
-          asistenciaDeHoy.estado === 'ASISTENCIA' ? "border-success/30 bg-success/10" :
-          asistenciaDeHoy.estado === 'FALTA' ? "border-destructive/30 bg-destructive/10" :
-          "border-warning/30 bg-warning/10"
+          asistenciaDeHoy.estado === 'ASISTENCIA' ? "border-success/45 bg-success/18" :
+          asistenciaDeHoy.estado === 'FALTA' ? "border-destructive/45 bg-destructive/18" :
+          "border-warning/45 bg-warning/18"
         }`}>
           <div className={`h-2.5 w-2.5 shrink-0 rounded-full ${ESTADO_CONFIG[asistenciaDeHoy.estado]?.dot}`} />
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Hoy</p>
+            <p className="text-xs font-medium text-muted-foreground">Hoy</p>
             <p className="text-sm font-medium text-foreground">
               {ESTADO_CONFIG[asistenciaDeHoy.estado]?.label}
               <span className="ml-2 font-normal text-muted-foreground">
@@ -197,7 +197,7 @@ export default function TablaAsistenciasAlumno({ materiaId }) {
           )}
 
           <div className="overflow-hidden rounded-2xl border border-border bg-card">
-            <div className="grid grid-cols-[1fr_80px_140px_100px] gap-2 border-b border-border bg-background px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <div className="grid grid-cols-[1fr_80px_140px_100px] gap-2 border-b border-border bg-background px-4 py-2.5 text-xs font-medium text-muted-foreground">
             <span>Fecha</span>
             <span className="text-center">Unidad</span>
             <span className="text-center">Estado</span>
@@ -214,7 +214,7 @@ export default function TablaAsistenciasAlumno({ materiaId }) {
                   {a.unidad ?? <span className="text-muted-foreground">—</span>}
                 </span>
                 <div className="flex justify-center">
-                  {a.suspendida ? <span className="rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive-foreground">Sin clases</span> : <EstadoBadge estado={a.estado} />}
+                  {a.suspendida ? <span className="rounded-full bg-destructive/18 px-2.5 py-1 text-xs font-medium text-destructive-foreground">Sin clases</span> : <EstadoBadge estado={a.estado} />}
                 </div>
                 <div className="flex justify-center">
                   {a.estado === 'FALTA' && (

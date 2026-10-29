@@ -18,7 +18,7 @@ const FORM_NUEVO = {
 }
 
 const PESTANAS = [
-  { clave: 'existente', etiqueta: 'Buscar existente' },
+  { clave: 'existente', etiqueta: 'Alumno de otro grupo' },
   { clave: 'nuevo', etiqueta: 'Crear uno nuevo' },
   { clave: 'importar', etiqueta: 'Importar lista (Excel)' },
 ]
@@ -31,17 +31,23 @@ function mensajeError(error, fallback) {
 
 /**
  * Las mismas tres formas de dar de alta alumnos que ya existen en el padrón de
- * una materia, pero apuntando al grupo: aquí el alumno queda asignado al grupo
- * del docente, no inscrito a una materia.
+ * una materia, pero apuntando al grupo. Crear e importar arman el padrón del
+ * grupo; el alumno que viene de fuera (sin grupo o de otro) entra sólo a la
+ * materia del docente, para que no aparezca en las clases de los demás.
  */
-export default function AgregarAlumnosGrupoModal({ grupo, onClose, onListo, admin = false }) {
+export default function AgregarAlumnosGrupoModal({ grupo, onClose, onListo, admin = false, pestanaInicial = 'existente' }) {
   // El admin sólo carga el padrón por lista; dar de alta uno a uno o buscar
   // existentes ya lo hace desde "Agregar alumnos" y Usuarios.
   const pestanas = admin ? PESTANAS.filter((opcion) => opcion.clave === 'importar') : PESTANAS
-  const [pestana, setPestana] = useState(admin ? 'importar' : 'existente')
+  const [pestana, setPestana] = useState(() =>
+    admin ? 'importar' : PESTANAS.some((opcion) => opcion.clave === pestanaInicial) ? pestanaInicial : 'existente',
+  )
   const [busqueda, setBusqueda] = useState('')
   const [disponibles, setDisponibles] = useState([])
   const [seleccion, setSeleccion] = useState([])
+  const misMaterias = grupo.materias ?? []
+  const [materiaId, setMateriaId] = useState(misMaterias[0]?.id ?? null)
+  const materiaElegida = misMaterias.find((materia) => materia.id === materiaId)
   const [form, setForm] = useState(FORM_NUEVO)
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState('')
@@ -90,9 +96,10 @@ export default function AgregarAlumnosGrupoModal({ grupo, onClose, onListo, admi
     try {
       await api.post(`/grupos/mis-grupos/${grupo.id}/alumnos`, {
         alumnoIds: seleccion,
+        materiaIds: [materiaId],
       })
       await onListo(
-        `${seleccion.length} alumno${seleccion.length === 1 ? '' : 's'} agregado${seleccion.length === 1 ? '' : 's'} a ${grupo.nombre}.`,
+        `${seleccion.length} alumno${seleccion.length === 1 ? '' : 's'} agregado${seleccion.length === 1 ? '' : 's'} sólo a ${materiaElegida?.nombre ?? 'tu materia'}.`,
       )
     } catch (err) {
       setError(mensajeError(err, 'No se pudo agregar a los alumnos'))
@@ -177,7 +184,7 @@ export default function AgregarAlumnosGrupoModal({ grupo, onClose, onListo, admi
     )
     if (conControlInvalido.length > 0) {
       setError(
-        `Revisa el número de control de ${conControlInvalido.length} alumno${conControlInvalido.length === 1 ? '' : 's'}: debe tener el formato 225Q0103 (8 caracteres). Puedes corregirlo o dejarlo en blanco.`,
+        `Revisa el número de control de ${conControlInvalido.length} alumno${conControlInvalido.length === 1 ? '' : 's'}: sólo puede tener letras y números, sin espacios. Puedes corregirlo o dejarlo en blanco.`,
       )
       return
     }
@@ -239,8 +246,42 @@ export default function AgregarAlumnosGrupoModal({ grupo, onClose, onListo, admi
           {grupo.periodo}
         </p>
 
-        {pestana === 'existente' && (
+        {pestana === 'existente' && misMaterias.length === 0 && (
+          <p className="rounded-xl bg-muted px-3 py-4 text-sm text-muted-foreground">
+            Todavía no impartes ninguna materia en este grupo. Un alumno de fuera
+            del grupo se agrega a una materia: cuando tengas horario aquí podrás
+            sumarlo.
+          </p>
+        )}
+
+        {pestana === 'existente' && misMaterias.length > 0 && (
           <div className="space-y-3">
+            <div className="rounded-xl border border-border bg-muted/40 px-3 py-2.5">
+              {misMaterias.length === 1 ? (
+                <p className="text-sm text-foreground">
+                  Se agrega sólo a <strong>{misMaterias[0].nombre}</strong>.
+                </p>
+              ) : (
+                <label className="flex flex-wrap items-center gap-2 text-sm text-foreground">
+                  Agregar sólo a
+                  <select
+                    value={materiaId ?? ''}
+                    onChange={(event) => setMateriaId(Number(event.target.value))}
+                    className="min-w-0 flex-1 rounded-lg border border-border bg-background px-2 py-1.5 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                  >
+                    {misMaterias.map((materia) => (
+                      <option key={materia.id} value={materia.id}>
+                        {materia.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              <p className="mt-1 text-xs text-muted-foreground">
+                No entra al grupo: las demás materias y docentes no lo verán, y
+                conserva su grupo de origen.
+              </p>
+            </div>
             <input aria-label="Buscar por nombre o número de control"
               value={busqueda}
               onChange={(event) => setBusqueda(event.target.value)}
@@ -253,13 +294,10 @@ export default function AgregarAlumnosGrupoModal({ grupo, onClose, onListo, admi
                 return (
                   <label
                     key={alumno.id}
-                    className={`flex items-center gap-3 rounded-lg px-2 py-2 ${
-                      enOtroGrupo ? 'opacity-60' : 'cursor-pointer hover:bg-muted'
-                    }`}
+                    className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2 hover:bg-muted"
                   >
                     <input
                       type="checkbox"
-                      disabled={enOtroGrupo}
                       checked={seleccion.includes(alumno.id)}
                       onChange={() => alternar(alumno.id)}
                     />
@@ -268,9 +306,7 @@ export default function AgregarAlumnosGrupoModal({ grupo, onClose, onListo, admi
                       {alumno.nombre}
                       <span className="text-xs text-muted-foreground">
                         {alumno.numeroControl ?? 'sin control'} ·{' '}
-                        {enOtroGrupo
-                          ? `ya está en ${alumno.grupo.nombre}`
-                          : 'sin grupo'}
+                        {enOtroGrupo ? `de ${alumno.grupo.nombre}` : 'sin grupo'}
                       </span>
                     </span>
                   </label>
@@ -282,9 +318,6 @@ export default function AgregarAlumnosGrupoModal({ grupo, onClose, onListo, admi
                 </p>
               )}
             </div>
-            <p className="text-xs text-muted-foreground">
-              A quien ya está en otro grupo lo mueve el administrador.
-            </p>
             {error && (
               <p role="alert" className="text-sm text-destructive-foreground">
                 {error}
@@ -353,7 +386,7 @@ export default function AgregarAlumnosGrupoModal({ grupo, onClose, onListo, admi
         {pestana === 'importar' && (
           <div className="space-y-3">
             {resumenImportacion ? (
-              <div className="space-y-3 rounded-xl border border-success/30 bg-success/10 p-4 text-sm text-foreground">
+              <div className="space-y-3 rounded-xl border border-success/45 bg-success/18 p-4 text-sm text-foreground">
                 <p className="font-medium">Importación terminada</p>
                 <ul className="list-inside list-disc space-y-1">
                   <li>Alumnos nuevos dados de alta: {resumenImportacion.creados}</li>
@@ -466,7 +499,7 @@ export default function AgregarAlumnosGrupoModal({ grupo, onClose, onListo, admi
                                         }
                                         title={
                                           invalido
-                                            ? 'Debe tener el formato 225Q0103'
+                                            ? 'Sólo letras y números, sin espacios'
                                             : undefined
                                         }
                                         className={`w-full rounded-lg border bg-background px-2 py-1.5 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 ${

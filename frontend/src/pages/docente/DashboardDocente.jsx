@@ -9,6 +9,7 @@ import {
   Check,
   ChevronRight,
   ClipboardCheck,
+  FileChartColumn,
   FilePlus2,
   FileText,
   GraduationCap,
@@ -16,9 +17,16 @@ import {
   UserPlus,
 } from 'lucide-react'
 import api from '../../api/axios'
+import { confirmAction } from '@/lib/feedback'
 import { useAuthStore } from '../../store/authStore'
 import PeriodoEscolarCard from '../../components/PeriodoEscolarCard'
-import { fechaDeClave } from '../../lib/periodo'
+import DesempenoUnidad from './components/DesempenoUnidad'
+import MisClasesRiesgo from './components/MisClasesRiesgo'
+import ProximasReuniones from './components/ProximasReuniones'
+import BienvenidaDocente from './components/BienvenidaDocente'
+import PrimerosPasos from './components/PrimerosPasos'
+import { pasosDelDocente } from './primerosPasos'
+import { claveDeFecha, fechaDeClave } from '../../lib/periodo'
 import './dashboard-agenda.css'
 
 const DIAS_LARGOS = [
@@ -73,6 +81,9 @@ export default function DashboardDocente() {
   const [errorClase, setErrorClase] = useState('')
   const [iniciando, setIniciando] = useState(false)
   const [busqueda, setBusqueda] = useState('')
+  const [claseRiesgo, setClaseRiesgo] = useState(null)
+  const [bienvenida, setBienvenida] = useState(false)
+  const claveBienvenida = `sicat.docente.bienvenida.${user?.id}`
   // El "faltan X min" del encabezado se queda viejo si nadie lo refresca.
   const [ahora, setAhora] = useState(() => new Date())
 
@@ -81,7 +92,16 @@ export default function DashboardDocente() {
     api
       .get('/dashboard/docente')
       .then((res) => {
-        if (active) setPanel(res.data)
+        if (!active) return
+        setPanel(res.data)
+        // La bienvenida sale una sola vez y sólo a quien aún no prepara su
+        // curso: el docente que ya trabaja en SICAT no la necesita.
+        // Sin `configuracion` (backend anterior) no se sabe qué falta.
+        const pendiente = Boolean(res.data.configuracion) && pasosDelDocente({ configuracion: res.data.configuracion, materias: res.data.materias ?? [], revisado: true })
+          .some((paso) => !paso.hecho)
+        let vista = false
+        try { vista = localStorage.getItem(claveBienvenida) === 'vista' } catch { /* sin almacenamiento */ }
+        if (pendiente && !vista) setBienvenida(true)
       })
       .catch((err) => {
         if (active) {
@@ -94,7 +114,7 @@ export default function DashboardDocente() {
     return () => {
       active = false
     }
-  }, [])
+  }, [claveBienvenida])
 
   useEffect(() => {
     const id = setInterval(() => setAhora(new Date()), 60_000)
@@ -132,6 +152,40 @@ export default function DashboardDocente() {
     [navigate],
   )
 
+  /**
+   * La clase se justificó por una reunión de academia, pero el docente la dio
+   * de todos modos: se abre como clase atrasada de hoy y cuenta normal.
+   */
+  const fechaHoy = panel?.fecha
+  const pasarListaPorReunion = useCallback(
+    async (clase) => {
+      if (!clase) return
+      setErrorClase('')
+      if (!(await confirmAction({
+        title: 'Pasar lista de todos modos',
+        description: 'Esta clase está justificada por una reunión de academia. Esta asistencia contará en la calificación.',
+        confirmLabel: 'Pasar lista',
+      }))) return
+
+      setIniciando(true)
+      try {
+        const { data } = await api.post('/clases/atrasada', {
+          horarioId: clase.horarioId,
+          fecha: fechaHoy ?? claveDeFecha(new Date()),
+          aunqueJustificada: true,
+        })
+        navigate(`/docente/pasar-lista/${data.id}`)
+      } catch (err) {
+        setErrorClase(
+          err.response?.data?.message ?? 'No se pudo abrir la clase',
+        )
+      } finally {
+        setIniciando(false)
+      }
+    },
+    [navigate, fechaHoy],
+  )
+
   const claseDestacada = panel?.claseActual ?? panel?.proximaClase ?? null
 
   const materiasFiltradas = useMemo(() => {
@@ -156,20 +210,64 @@ export default function DashboardDocente() {
 
   if (error) {
     return (
-      <div className="rounded-2xl border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground">
+      <div className="rounded-2xl border border-destructive/40 bg-destructive/18 px-4 py-3 text-sm text-destructive-foreground">
         {error}
       </div>
     )
   }
 
-  const pendientes = panel?.pendientes ?? {}
-  const urgentes =
-    (pendientes.alumnosEnRiesgo ?? 0) + (panel?.resumen?.listasPendientes ?? 0)
+  const pendientes = { ...panel?.pendientes, listasPendientes: panel?.resumen?.listasPendientes ?? 0 }
+  const configuracion = panel?.configuracion
+  // Sin grupos ni clases, todo lo demás de Inicio estaría vacío: sólo se
+  // muestra por dónde empezar.
+  const sinPreparar = Boolean(configuracion) && configuracion.grupos.length === 0 && configuracion.clasesProgramadas === 0
+
+  const cerrarBienvenida = () => {
+    setBienvenida(false)
+    try { localStorage.setItem(claveBienvenida, 'vista') } catch { /* sin almacenamiento */ }
+    // Al terminar la explicación, el siguiente paso es la guía.
+    requestAnimationFrame(() => document.getElementById('primeros-pasos')?.focus())
+  }
+
+  const guia = configuracion && (
+    <PrimerosPasos
+      configuracion={configuracion}
+      materias={panel?.materias ?? []}
+      userId={user?.id}
+      principal={sinPreparar}
+      onComoFunciona={() => setBienvenida(true)}
+    />
+  )
+
+  if (sinPreparar) {
+    return (
+      <div className="docente-agenda">
+        <header>
+          <h1 className="text-[1.75rem] font-semibold leading-tight tracking-[-0.02em] text-foreground">Hola, {user?.nombre?.split(' ')[0] ?? 'Docente'}</h1>
+          <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">
+            Antes de tu primera clase, prepara tu curso en cuatro pasos. Cuando termines, aquí verás tus clases del día, tus pendientes y a los alumnos que necesitan atención.
+          </p>
+        </header>
+        <div className="docente-agenda-grid">
+          <div className="min-w-0">{guia}</div>
+          <aside className="min-w-0 space-y-4" aria-label="Calendario escolar">
+            <section className="agenda-periodos rounded-[var(--radius-card)] border border-border bg-card p-5">
+              <h2 className="mb-5 text-base font-semibold">Calendario escolar</h2>
+              <PeriodoEscolarCard compacto />
+            </section>
+          </aside>
+        </div>
+        <BienvenidaDocente open={bienvenida} onClose={cerrarBienvenida} />
+      </div>
+    )
+  }
 
   return (
     <div className="docente-agenda">
-      <Encabezado nombre={user?.nombre?.split(' ')[0] ?? 'Docente'} fecha={ahora} resumen={panel?.resumen} urgentes={urgentes} />
-      {errorClase && <p role="alert" className="mb-4 rounded-xl bg-destructive/10 p-3 text-sm text-destructive-foreground">{errorClase}</p>}
+      <Encabezado nombre={user?.nombre?.split(' ')[0] ?? 'Docente'} fecha={ahora} resumen={panel?.resumen} />
+      {errorClase && <p role="alert" className="mb-4 rounded-xl bg-destructive/18 p-3 text-sm text-destructive-foreground">{errorClase}</p>}
+      {guia && <div className="mb-7">{guia}</div>}
+      <BienvenidaDocente open={bienvenida} onClose={cerrarBienvenida} />
       <div className="docente-agenda-grid">
         <div className="min-w-0 space-y-7">
           <AgendaHoy
@@ -177,18 +275,39 @@ export default function DashboardDocente() {
             proximasSuspensiones={panel?.proximasSuspensiones ?? []}
             iniciando={iniciando}
             onPasarLista={pasarLista}
+            onPasarListaReunion={pasarListaPorReunion}
             destacada={claseDestacada}
             suspension={panel?.suspensionHoy}
             ahora={ahora}
           />
-          <Materias materias={materiasFiltradas} total={panel?.materias?.length ?? 0} busqueda={busqueda} onBuscar={setBusqueda} />
+          <ProximasReuniones />
         </div>
-        <aside className="min-w-0 space-y-4" aria-label="Acciones y calendario docente">
+        <aside className="min-w-0 space-y-4" aria-label="Acciones del docente">
           <AccesosRapidos claseActual={panel?.claseActual} onPasarLista={pasarLista} iniciando={iniciando} />
           <Pendientes pendientes={pendientes} />
-          <section className="agenda-periodos rounded-2xl border border-border bg-card p-5">
-            <p className="agenda-eyebrow">CALENDARIO ESCOLAR</p>
-            <h2 className="mb-5 text-base font-semibold">Periodos escolares</h2>
+        </aside>
+      </div>
+      {/* A todo lo ancho: la tabla lleva una columna por criterio. */}
+      <div className="agenda-banda space-y-7">
+        <MisClasesRiesgo
+          materias={panel?.materias ?? []}
+          onElegir={(clave) => setClaseRiesgo((actual) => ({ clave, n: (actual?.n ?? 0) + 1 }))}
+        />
+        <DesempenoUnidad
+          materias={panel?.materias ?? []}
+          claseActual={panel?.claseActual}
+          proximaClase={panel?.proximaClase}
+          userId={user?.id}
+          seleccion={claseRiesgo}
+        />
+      </div>
+      <div className="docente-agenda-grid">
+        <div className="min-w-0">
+          <Materias materias={materiasFiltradas} total={panel?.materias?.length ?? 0} busqueda={busqueda} onBuscar={setBusqueda} />
+        </div>
+        <aside className="min-w-0 space-y-4" aria-label="Calendario escolar">
+          <section className="agenda-periodos rounded-[var(--radius-card)] border border-border bg-card p-5">
+            <h2 className="mb-5 text-base font-semibold">Calendario escolar</h2>
             <PeriodoEscolarCard compacto />
           </section>
         </aside>
@@ -197,29 +316,17 @@ export default function DashboardDocente() {
   )
 }
 
-function Encabezado({ nombre, fecha, resumen, urgentes }) {
+// El día es el título: la pantalla trata de hoy.
+function Encabezado({ nombre, fecha, resumen }) {
   const clases = resumen?.clasesHoy ?? 0
-  const listas = resumen?.listasPendientes ?? 0
 
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-      <div className="min-w-0">
-        <p className="agenda-eyebrow">{fechaLarga(fecha)}</p>
-        <h1 className="agenda-heading">Tu día de clases,<br />en orden.</h1>
-        {clases > 0 && <p className="mt-1 text-sm text-muted-foreground">
-          Hola, {nombre}. Tienes {clases} clase{clases === 1 ? '' : 's'} programada{clases === 1 ? '' : 's'} hoy.
-          {listas > 0 &&
-            ` · ${listas} lista${listas === 1 ? '' : 's'} sin pasar`}
-        </p>}
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {urgentes > 0 && (
-          <span className="rounded-full bg-destructive/10 px-3 py-1 text-xs font-medium text-destructive-foreground">
-            {urgentes} urgente{urgentes === 1 ? '' : 's'}
-          </span>
-        )}
-      </div>
-    </div>
+    <header>
+      <h1 className="text-[1.75rem] font-semibold leading-tight tracking-[-0.02em] text-foreground">{fechaLarga(fecha)}</h1>
+      <p className="mt-1.5 text-sm text-muted-foreground">
+        Hola, {nombre}. {clases === 0 ? 'Hoy no tienes clases programadas.' : `Tienes ${clases} clase${clases === 1 ? '' : 's'} hoy.`}
+      </p>
+    </header>
   )
 }
 
@@ -228,9 +335,9 @@ function DiaSinClases({ suspension }) {
   return (
     <section
       role="status"
-      className="flex items-start gap-4 rounded-2xl border-2 border-destructive/30 bg-destructive/10 p-5"
+      className="flex items-start gap-4 rounded-2xl border-2 border-destructive/45 bg-destructive/18 p-5"
     >
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-destructive/15 text-destructive-foreground">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-destructive/22 text-destructive-foreground">
         <CalendarOff className="h-5 w-5" />
       </span>
       <div className="min-w-0">
@@ -252,7 +359,6 @@ function ClaseDestacada({
   clase,
   ahora,
   iniciando,
-  error,
   onPasarLista,
 }) {
   if (!clase) {
@@ -278,10 +384,10 @@ function ClaseDestacada({
   let tonoEtiqueta = 'bg-muted text-muted-foreground'
   if (iniciada) {
     etiqueta = 'Clase iniciada'
-    tonoEtiqueta = "bg-success/15 text-success-foreground "
+    tonoEtiqueta = "bg-success/22 text-success-foreground "
   } else if (clase.dentroDeHorario) {
     etiqueta = 'En curso'
-    tonoEtiqueta = "bg-success/15 text-success-foreground "
+    tonoEtiqueta = "bg-success/22 text-success-foreground "
   }
 
   let detalleTiempo = `${clase.horaInicio} – ${clase.horaFin}`
@@ -337,11 +443,6 @@ function ClaseDestacada({
         </div>
       </div>
 
-      {error && (
-        <p className="mt-3 rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground">
-          {error}
-        </p>
-      )}
     </section>
   )
 }
@@ -376,11 +477,16 @@ function AccesosRapidos({ claseActual, onPasarLista, iniciando }) {
       detalle: 'Horario y aula',
       onClick: () => navigate('/docente/horario/editar'),
     },
+    {
+      icono: FileChartColumn,
+      titulo: 'Reporte parcial',
+      detalle: 'Del semestre, en PDF o Excel',
+      onClick: () => navigate('/reportes/parcial-semestre'),
+    },
   ]
 
   return (
-    <section className="agenda-accesos rounded-2xl border border-border bg-card p-5">
-      <p className="agenda-eyebrow">EN UN CLIC</p>
+    <section className="agenda-accesos rounded-[var(--radius-card)] border border-border bg-card p-5">
       <h2 className="mb-4 text-base font-semibold">Acciones rápidas</h2>
       {accesos.map((acceso) => (
         <Button variant="outline"
@@ -402,14 +508,12 @@ function AccesosRapidos({ claseActual, onPasarLista, iniciando }) {
   )
 }
 
-function AgendaHoy({ clases, proximasSuspensiones, iniciando, onPasarLista, destacada, suspension, ahora }) {
+function AgendaHoy({ clases, proximasSuspensiones, iniciando, onPasarLista, onPasarListaReunion, destacada, suspension, ahora }) {
   const otrasClases = suspension ? clases : clases.filter(clase => clase.horarioId !== destacada?.horarioId)
   return (
-    <article className="rounded-2xl border border-border bg-card p-5">
+    <article className="rounded-[var(--radius-card)] border border-border bg-card p-5">
       <div className="flex items-center justify-between gap-3">
-        <div><p className="agenda-eyebrow">{ahora.toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-          <h2 className="text-xl font-semibold tracking-tight text-foreground">Hoy, {DIAS_LARGOS[ahora.getDay()].toLowerCase()}</h2>
-        </div>
+        <h2 className="text-xl font-semibold tracking-tight text-foreground">Clases de hoy</h2>
         <Link to="/docente/horario" className="inline-flex items-center gap-2 text-xs font-medium text-primary-ink">
           Ver horario completo <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </Link>
@@ -450,6 +554,8 @@ function AgendaHoy({ clases, proximasSuspensiones, iniciando, onPasarLista, dest
                 clase={clase}
                 iniciando={iniciando}
                 onPasarLista={onPasarLista}
+                onPasarListaReunion={onPasarListaReunion}
+                ahora={ahora}
               />
             </li>
           ))}
@@ -488,14 +594,33 @@ function fechaLocalCorta(clave) {
   })
 }
 
-function EstadoClase({ clase, iniciando, onPasarLista }) {
+function EstadoClase({ clase, iniciando, onPasarLista, onPasarListaReunion, ahora }) {
   if (clase.estado === 'SUSPENDIDA') {
-    return (
+    const etiqueta = (
       <span
-        className="shrink-0 rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive-foreground"
+        className="shrink-0 rounded-full bg-destructive/18 px-2.5 py-1 text-xs font-medium text-destructive-foreground"
         title={clase.suspensionMotivo ?? undefined}
       >
-        Sin clases
+        {clase.reunionId ? 'Reunión de academia' : 'Sin clases'}
+      </span>
+    )
+    // Justificada por reunión y ya pasada su hora: el docente puede haberla
+    // dado de todos modos.
+    const minutosAhora = ahora ? ahora.getHours() * 60 + ahora.getMinutes() : 0
+    if (!clase.reunionId || !onPasarListaReunion || minutosAhora <= minutosDeHora(clase.horaFin)) {
+      return etiqueta
+    }
+    return (
+      <span className="inline-flex shrink-0 flex-wrap items-center justify-end gap-2">
+        {etiqueta}
+        <Button variant="ghost"
+          type="button"
+          onClick={() => onPasarListaReunion(clase)}
+          disabled={iniciando}
+          className="shrink-0 rounded-lg bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary-ink transition hover:bg-primary/20 disabled:opacity-60"
+        >
+          Pasar lista de todos modos
+        </Button>
       </span>
     )
   }
@@ -518,7 +643,7 @@ function EstadoClase({ clase, iniciando, onPasarLista }) {
         disabled={iniciando}
         className={`shrink-0 rounded-lg px-2.5 py-1 text-xs font-medium transition disabled:opacity-60 ${
           atrasada
-            ? "bg-destructive/10 text-destructive-foreground hover:bg-destructive/20"
+            ? "bg-destructive/18 text-destructive-foreground hover:bg-destructive/20"
             : "bg-primary/10 text-primary-ink hover:bg-primary/20"
         }`}
       >
@@ -532,65 +657,62 @@ function EstadoClase({ clase, iniciando, onPasarLista }) {
   )
 }
 
+const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`
+
+/** Sólo lo que de verdad espera algo: un renglón en cero no pide atención. */
 function Pendientes({ pendientes }) {
   const filas = [
     {
+      icono: ClipboardCheck,
+      tono: 'text-destructive-foreground',
+      n: pendientes.listasPendientes ?? 0,
+      texto: (n) => `${plural(n, 'lista', 'listas')} sin pasar`,
+      to: '/asistencias',
+    },
+    {
       icono: AlertTriangle,
-      tono: "text-destructive-foreground",
-      texto: `${pendientes.alumnosEnRiesgo ?? 0} alumno${pendientes.alumnosEnRiesgo === 1 ? '' : 's'} en riesgo por inasistencias`,
+      tono: 'text-destructive-foreground',
+      n: pendientes.alumnosEnRiesgo ?? 0,
+      texto: (n) => `${plural(n, 'alumno', 'alumnos')} en riesgo`,
       to: '/docente/riesgo',
     },
     {
       icono: FileText,
-      tono: "text-warning-foreground ",
-      texto: `${pendientes.entregasSinCalificar ?? 0} entrega${pendientes.entregasSinCalificar === 1 ? '' : 's'} sin calificar`,
+      tono: 'text-warning-foreground',
+      n: pendientes.entregasSinCalificar ?? 0,
+      texto: (n) => `${plural(n, 'entrega', 'entregas')} sin calificar`,
       to: '/tareas',
     },
     {
       icono: UserPlus,
-      tono: "text-primary-ink",
-      texto: `${pendientes.solicitudes ?? 0} solicitud${pendientes.solicitudes === 1 ? '' : 'es'} de inscripción`,
+      tono: 'text-primary-ink',
+      n: pendientes.solicitudes ?? 0,
+      texto: (n) => `${plural(n, 'solicitud', 'solicitudes')} de inscripción`,
       to: '/docente/solicitudes',
     },
-  ]
+  ].filter((fila) => fila.n > 0)
 
-  const sinPendientes = filas.every((fila) => fila.texto.startsWith('0 '))
-
-  if (sinPendientes) return (
-    <article className="flex items-center gap-3 rounded-2xl border border-border bg-success/10 p-5">
+  if (!filas.length) return (
+    <article className="flex items-center gap-3 rounded-[var(--radius-card)] border border-border bg-success/18 p-5">
       <Check className="h-5 w-5 shrink-0 text-success-foreground" aria-hidden="true" />
       <div><h2 className="text-sm font-semibold">Estás al día</h2><p className="mt-1 text-xs text-muted-foreground">No hay pendientes por revisar.</p></div>
     </article>
   )
 
   return (
-    <article className="rounded-2xl border border-border bg-card p-5">
-      <h2 className="text-sm font-semibold text-foreground">
-        Requiere tu atención
-      </h2>
-
-      {sinPendientes ? (
-        <p className="mt-4 text-sm text-muted-foreground">
-          Estás al día. No hay pendientes por revisar.
-        </p>
-      ) : (
-        <ul className="mt-2 divide-y divide-border">
-          {filas.map((fila) => (
-            <li key={fila.to}>
-              <Link
-                to={fila.to}
-                className="-mx-2 flex items-center gap-3 rounded-xl px-2 py-2.5 transition hover:bg-muted/50"
-              >
-                <fila.icono className={`h-4 w-4 shrink-0 ${fila.tono}`} />
-                <span className="min-w-0 flex-1 text-sm text-foreground">
-                  {fila.texto}
-                </span>
-                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
+    <article className="rounded-[var(--radius-card)] border border-border bg-card p-5">
+      <h2 className="text-sm font-semibold text-foreground">Requiere tu atención</h2>
+      <ul className="mt-2 divide-y divide-border">
+        {filas.map((fila) => (
+          <li key={fila.to}>
+            <Link to={fila.to} className="-mx-2 flex items-center gap-3 rounded-xl px-2 py-2.5 transition hover:bg-muted/50">
+              <fila.icono className={`h-4 w-4 shrink-0 ${fila.tono}`} aria-hidden="true" />
+              <span className="min-w-0 flex-1 text-sm text-foreground">{fila.texto(fila.n)}</span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            </Link>
+          </li>
+        ))}
+      </ul>
     </article>
   )
 }
@@ -660,7 +782,7 @@ function Materias({ materias, total, busqueda, onBuscar }) {
 function EstadoMateria({ materia }) {
   if (materia.alumnosEnRiesgo > 0) {
     return (
-      <span className="shrink-0 rounded-full bg-destructive/10 px-2.5 py-0.5 text-xs font-medium text-destructive-foreground">
+      <span className="shrink-0 rounded-full bg-destructive/18 px-2.5 py-0.5 text-xs font-medium text-destructive-foreground">
         {materia.alumnosEnRiesgo} en riesgo
       </span>
     )
@@ -668,14 +790,14 @@ function EstadoMateria({ materia }) {
 
   if (materia.entregasSinCalificar > 0) {
     return (
-      <span className="shrink-0 rounded-full bg-warning/15 px-2.5 py-0.5 text-xs font-medium text-warning-foreground ">
+      <span className="shrink-0 rounded-full bg-warning/22 px-2.5 py-0.5 text-xs font-medium text-warning-foreground ">
         {materia.entregasSinCalificar} por calificar
       </span>
     )
   }
 
   return (
-    <span className="shrink-0 rounded-full bg-success/15 px-2.5 py-0.5 text-xs font-medium text-success-foreground ">
+    <span className="shrink-0 rounded-full bg-success/22 px-2.5 py-0.5 text-xs font-medium text-success-foreground ">
       Al día
     </span>
   )

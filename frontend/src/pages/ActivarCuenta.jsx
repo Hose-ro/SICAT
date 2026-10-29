@@ -73,7 +73,7 @@ export default function ActivarCuenta() {
         <div className="space-y-5">
           <p
             aria-live="polite"
-            className="rounded-lg bg-success/10 p-4 text-sm text-success-foreground"
+            className="rounded-lg bg-success/18 p-4 text-sm text-success-foreground"
           >
             Tu cuenta está lista. Inicia sesión con tu número de control y la
             contraseña que elegiste.
@@ -168,7 +168,7 @@ export default function ActivarCuenta() {
           />
         </div>
         {error && (
-          <div role="alert" className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive-foreground">
+          <div role="alert" className="rounded-lg bg-destructive/18 p-3 text-sm text-destructive-foreground">
             {error}
           </div>
         )}

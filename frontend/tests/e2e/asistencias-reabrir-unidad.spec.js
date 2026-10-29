@@ -29,9 +29,10 @@ test('clase sin unidad activa: "Regresar a Unidad 2" la reabre', async ({ page }
   })
 
   await page.goto('/asistencias')
-  // La clase aparece como principal y en la lista del día; basta la primera.
+  // Sin unidad activa, la acción de la clase es la unidad; regresar a la anterior queda al lado.
   const card = page.getByRole('article').first()
-  await expect(card.getByRole('button', { name: 'Inicia Unidad 3 primero' })).toBeDisabled()
+  await expect(card.getByRole('button', { name: 'Iniciar Unidad 3' })).toBeVisible()
+  await expect(card.getByText('Para pasar lista, inicia Unidad 3.')).toBeVisible()
 
   await card.getByRole('button', { name: 'Regresar a Unidad 2' }).click()
   const dialog = page.getByRole('alertdialog').or(page.getByRole('dialog'))
@@ -40,5 +41,5 @@ test('clase sin unidad activa: "Regresar a Unidad 2" la reabre', async ({ page }
 
   await expect(card.getByRole('button', { name: 'Finalizar Unidad 2' })).toBeVisible()
   await expect(page.getByRole('button', { name: /Regresar a/ })).toHaveCount(0)
-  await expect(card.getByRole('button', { name: 'Iniciar clase' })).toBeEnabled()
+  await expect(card.getByRole('button', { name: 'Iniciar y pasar lista' })).toBeEnabled()
 })

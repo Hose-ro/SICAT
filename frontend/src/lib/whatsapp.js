@@ -1,4 +1,4 @@
-import { horaCorta, plazoTarea, TASK_TYPE_LABEL } from './tareas'
+import { esEnClase, horaCorta, plazoTarea, TASK_TYPE_LABEL, tipoActividad } from './tareas'
 
 /**
  * Compartir con el grupo de WhatsApp de la clase. No hay API: en el celular se
@@ -15,14 +15,26 @@ function fechaMensaje(value) {
   return `${d.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' }).replace(',', '')}, ${horaCorta(d)}`
 }
 
+const capitalizar = (texto) => texto.charAt(0).toUpperCase() + texto.slice(1)
+
 function encabezado(materia, grupo) {
   return [materia, grupo && `(${grupo})`].filter(Boolean).join(' ')
 }
 
 export function mensajeTareaNueva(tarea, { conDocumento = true } = {}) {
   const conFecha = tarea.tieneFechaLimite && tarea.fechaLimite
+  const tipo = tipoActividad(tarea)
+  // Un examen o una exposición se aplican en clase: no hay "entrega".
+  if (esEnClase(tarea)) {
+    return [
+      `${tipo.emoji} *${tipo.anuncio}* · ${encabezado(tarea.materia?.nombre, tarea.grupo?.nombre)}`,
+      `*${tarea.titulo}*`,
+      `📅 En clase: ${conFecha ? fechaMensaje(tarea.fechaLimite) : 'fecha por confirmar'}`,
+      conDocumento && 'Los temas y las indicaciones van en el documento adjunto.',
+    ].filter(Boolean).join('\n')
+  }
   return [
-    `📚 *Nueva tarea* · ${encabezado(tarea.materia?.nombre, tarea.grupo?.nombre)}`,
+    `${tipo.emoji} *${tipo.anuncio}* · ${encabezado(tarea.materia?.nombre, tarea.grupo?.nombre)}`,
     `*${tarea.titulo}*`,
     `📅 Entrega: ${conFecha ? fechaMensaje(tarea.fechaLimite) : 'sin fecha límite'}`,
     TASK_TYPE_LABEL[tarea.tipoEntrega] && `📝 ${TASK_TYPE_LABEL[tarea.tipoEntrega]}`,
@@ -35,7 +47,14 @@ export function mensajeRecordatorio(tarea, ahora = new Date(), { conDocumento = 
   const titulo = `*${tarea.titulo}*`
   const fecha = plazo.dias === null ? '' : fechaMensaje(tarea.fechaLimite)
   let cuando
-  if (plazo.dias === null) cuando = `La tarea ${titulo} sigue abierta: aún pueden entregarla.`
+  if (esEnClase(tarea)) {
+    const nombre = `${tipoActividad(tarea).articulo} ${titulo}`
+    if (plazo.dias === null) cuando = `Recuerden ${nombre}.`
+    else if (plazo.vencido) cuando = `${capitalizar(nombre)} fue el ${fecha}.`
+    else if (plazo.dias === 0) cuando = `${capitalizar(nombre)} es *hoy* a las ${horaCorta(tarea.fechaLimite)}.`
+    else if (plazo.dias === 1) cuando = `${capitalizar(nombre)} es *mañana* (${fecha}).`
+    else cuando = `Faltan *${plazo.dias} días* para ${nombre} (${fecha}).`
+  } else if (plazo.dias === null) cuando = `La tarea ${titulo} sigue abierta: aún pueden entregarla.`
   else if (plazo.vencido) cuando = `El plazo de ${titulo} venció (${fecha}).`
   else if (plazo.dias === 0) cuando = `La tarea ${titulo} vence *hoy* a las ${horaCorta(tarea.fechaLimite)}.`
   else if (plazo.dias === 1) cuando = `La tarea ${titulo} vence *mañana* (${fecha}).`

@@ -22,6 +22,7 @@ describe('CalendarioService', () => {
     horarioMateria: { findMany: horarioFindMany },
     suspensionClase: { findMany: suspensionClaseFindMany },
     suspensionInstitucional: { findMany: suspensionInstFindMany },
+    claseJustificada: { findMany: jest.fn().mockResolvedValue([]) },
     tarea: { findMany: tareaFindMany },
     inscripcion: { findMany: jest.fn().mockResolvedValue([]) },
     $transaction: jest.fn((ops: unknown[]) => Promise.all(ops)),

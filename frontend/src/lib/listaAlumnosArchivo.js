@@ -7,22 +7,22 @@
  * orden de las columnas ni que la primera fila sea el encabezado. Las columnas
  * se ubican primero por el texto del encabezado y lo que quede sin identificar
  * —o el archivo completo, si no trae encabezado— por la forma del contenido:
- * número de control de 8 alfanuméricos, correo y teléfono de 10 dígitos.
+ * número de control alfanumérico, correo y teléfono de 10 dígitos.
  */
 
 export const FILA_ALUMNO_VACIA = { nombre: '', numeroControl: '', email: '', telefono: '' }
 
-/** Formato con el que el backend guarda el número de control: 225Q0103. */
-const PATRON_CONTROL_OFICIAL = /^\d{3}[A-Za-z]\d{4}$/
+/** Lo que acepta el backend: letras y números, de cualquier largo. */
+const PATRON_CONTROL_OFICIAL = /^[A-Za-z0-9]+$/
 
 /**
  * Para *ubicar* la columna basta con que el dato tenga la forma general del
- * número de control: 8 alfanuméricos con al menos un dígito (el dígito evita
- * confundirlo con un apellido de ocho letras). Así la lista se lee completa
- * aunque algún número venga mal escrito y el docente lo corrija en la vista
- * previa, en lugar de perderse en silencio.
+ * número de control: de 3 a 30 alfanuméricos con al menos un dígito (el
+ * dígito evita confundirlo con un apellido). Un teléfono no cuenta, aunque
+ * sea sólo de dígitos. Así la lista se lee completa aunque algún número venga
+ * mal escrito y el docente lo corrija en la vista previa.
  */
-const PATRON_CONTROL = /^(?=.*\d)[A-Za-z0-9]{8}$/
+const PATRON_CONTROL = /^(?=.*\d)[A-Za-z0-9]{3,30}$/
 const PATRON_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 /** Orden de asignación: primero los campos con forma inconfundible y al final
@@ -72,7 +72,7 @@ export function esNumeroControlValido(valor) {
 }
 
 function pareceNumeroControl(valor) {
-  return PATRON_CONTROL.test(limpiarControl(valor))
+  return PATRON_CONTROL.test(limpiarControl(valor)) && !pareceTelefono(valor)
 }
 
 function pareceEmail(valor) {

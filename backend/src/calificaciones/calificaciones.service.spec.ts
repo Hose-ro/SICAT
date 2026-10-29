@@ -15,6 +15,11 @@ describe('CalificacionesService: política docente–materia–grupo', () => {
   const tareaFindMany = jest.fn();
   const claseSesionFindMany = jest.fn();
   const calificacionFindMany = jest.fn();
+  const categoriaPesoGrupoCount = jest.fn();
+  const ponderacionGrupoUpsert = jest.fn();
+  const asistenciaFindMany = jest.fn();
+  const participacionFindMany = jest.fn();
+  const cierreCursoFindFirst = jest.fn();
   const prisma = {
     materia: {
       findUnique: materiaFindUnique,
@@ -27,10 +32,17 @@ describe('CalificacionesService: política docente–materia–grupo', () => {
       upsert: calificacionUpsert,
       findMany: calificacionFindMany,
     },
-    ponderacionGrupo: { findMany: ponderacionGrupoFindMany },
+    ponderacionGrupo: {
+      findMany: ponderacionGrupoFindMany,
+      upsert: ponderacionGrupoUpsert,
+    },
     categoriaEvaluacion: { findMany: categoriaFindMany },
+    categoriaPesoGrupo: { count: categoriaPesoGrupoCount },
     tarea: { findMany: tareaFindMany },
     claseSesion: { findMany: claseSesionFindMany },
+    asistencia: { findMany: asistenciaFindMany },
+    participacion: { findMany: participacionFindMany },
+    cierreCurso: { findFirst: cierreCursoFindFirst },
     $transaction: transaction,
   } as unknown as PrismaService;
   const service = new CalificacionesService(prisma);
@@ -61,6 +73,7 @@ describe('CalificacionesService: política docente–materia–grupo', () => {
     transaction.mockResolvedValue([]);
     ponderacionGrupoFindMany.mockResolvedValue([]);
     categoriaFindMany.mockResolvedValue([]);
+    categoriaPesoGrupoCount.mockResolvedValue(0);
   });
 
   it('el reporte se niega a un docente que no imparte la materia en el grupo pedido', async () => {
@@ -140,13 +153,15 @@ describe('CalificacionesService: política docente–materia–grupo', () => {
     });
   });
 
-  describe('categorías por grupo', () => {
+  describe('criterios por grupo', () => {
     const admin = { id: 1, rol: 'ADMIN' };
     type FilaReporte = {
-      alumno: { nombre: string };
+      alumno: { nombre: string; sexo: string | null };
       promedioTareas: number | null;
       calificacionCalculada: number | null;
       promedioPorCategoria: unknown[];
+      criterios: unknown[];
+      origenCriterios: string;
     };
     const tarea = (
       id: number,
@@ -165,6 +180,19 @@ describe('CalificacionesService: política docente–materia–grupo', () => {
         calificacion,
       })),
     });
+    const criterio = (
+      id: number,
+      nombre: string,
+      tipo: string,
+      pesos: Array<{ grupoId: number; peso: number }>,
+    ) => ({
+      id,
+      nombre,
+      tipo,
+      orden: id,
+      pesos: pesos.map((fila) => ({ ...fila, meta: null })),
+      pesosUnidad: [],
+    });
 
     beforeEach(() => {
       materiaFindUnique.mockResolvedValue({
@@ -177,13 +205,15 @@ describe('CalificacionesService: política docente–materia–grupo', () => {
         ],
       });
       inscripcionFindMany.mockResolvedValue([
-        { alumno: { id: 500, nombre: 'Ana', grupoId: 3 } },
-        { alumno: { id: 501, nombre: 'Beto', grupoId: 4 } },
-        { alumno: { id: 502, nombre: 'Carla', grupoId: 3 } },
+        { alumno: { id: 500, nombre: 'Ana', grupoId: 3, sexo: 'MUJER' } },
+        { alumno: { id: 501, nombre: 'Beto', grupoId: 4, sexo: 'HOMBRE' } },
+        { alumno: { id: 502, nombre: 'Carla', grupoId: 3, sexo: null } },
       ]);
+      // 8A: examen 48 + prácticas 32 + asistencia 20 = 100. 8B no tiene criterios.
       categoriaFindMany.mockResolvedValue([
-        { id: 1, nombre: 'Examen', pesos: [{ grupoId: 3, peso: 60 }] },
-        { id: 2, nombre: 'Prácticas', pesos: [{ grupoId: 3, peso: 40 }] },
+        criterio(1, 'Examen', 'EXAMEN', [{ grupoId: 3, peso: 48 }]),
+        criterio(2, 'Prácticas', 'PRACTICAS', [{ grupoId: 3, peso: 32 }]),
+        criterio(3, 'Asistencia', 'ASISTENCIA', [{ grupoId: 3, peso: 20 }]),
       ]);
       tareaFindMany.mockResolvedValue([
         tarea(10, 1, { 500: 100, 501: 100, 502: 90 }),
@@ -195,7 +225,7 @@ describe('CalificacionesService: política docente–materia–grupo', () => {
       calificacionFindMany.mockResolvedValue([]);
     });
 
-    it('pondera por categoría en el grupo que las tiene y promedia simple en el que no', async () => {
+    it('pondera por criterio en el grupo que los tiene y usa la predeterminada en el que no', async () => {
       const reporte = await service.obtenerReporteDocente(admin, {
         materiaId: 12,
       });
@@ -203,63 +233,348 @@ describe('CalificacionesService: política docente–materia–grupo', () => {
       const fila = (nombre: string) =>
         rows.find((row) => row.alumno.nombre === nombre) as FilaReporte;
 
-      // Examen 100 × 60 + prácticas (50 + 70) / 2 × 40; la tarea sin categoría no cuenta.
+      // Examen 100 × 48 + prácticas (50 + 70) / 2 × 32, repartido entre lo que
+      // tiene valor (sin clases todavía, la asistencia no cuenta).
       expect(fila('Ana').promedioTareas).toBe(84);
       expect(fila('Ana').calificacionCalculada).toBe(84);
+      expect(fila('Ana').alumno.sexo).toBe('MUJER');
+      expect(fila('Ana').origenCriterios).toBe('GRUPO');
+      expect(fila('Ana').criterios).toEqual([
+        expect.objectContaining({
+          nombre: 'Examen',
+          peso: 48,
+          valor: 100,
+          calificadas: 1,
+          total: 1,
+        }),
+        expect.objectContaining({
+          nombre: 'Prácticas',
+          peso: 32,
+          valor: 60,
+          calificadas: 2,
+          total: 2,
+        }),
+        expect.objectContaining({
+          nombre: 'Asistencia',
+          peso: 20,
+          valor: null,
+        }),
+      ]);
       expect(fila('Ana').promedioPorCategoria).toEqual([
-        expect.objectContaining({ nombre: 'Examen', peso: 60, promedio: 100 }),
+        expect.objectContaining({ nombre: 'Examen', peso: 48, promedio: 100 }),
         expect.objectContaining({ nombre: 'Prácticas', promedio: 60 }),
       ]);
       // Sólo hay examen calificado: su peso se reparte entre lo calificado.
       expect(fila('Carla').promedioTareas).toBe(90);
-      // 8B no tiene categorías: promedio simple, como siempre.
+      // 8B no tiene criterios: promedio simple de todo, como siempre.
       expect(fila('Beto').promedioTareas).toBe(75);
+      expect(fila('Beto').origenCriterios).toBe('PREDETERMINADA');
       expect(fila('Beto').promedioPorCategoria).toEqual([]);
       expect(reporte.tareasSinCategoria).toBe(1);
       expect(reporte.categorias).toEqual([
-        { id: 1, nombre: 'Examen' },
-        { id: 2, nombre: 'Prácticas' },
+        { id: 1, nombre: 'Examen', tipo: 'EXAMEN' },
+        { id: 2, nombre: 'Prácticas', tipo: 'PRACTICAS' },
       ]);
     });
 
-    it('usa la ponderación propia del grupo filtrado', async () => {
+    it('manda la ponderación anterior armada con los criterios del grupo', async () => {
       ponderacionGrupoFindMany.mockResolvedValue([
-        { materiaId: 12, grupoId: 3, pesoTareas: 50, pesoAsistencia: 50 },
+        { materiaId: 12, grupoId: 4, pesoTareas: 50, pesoAsistencia: 50 },
       ]);
-      const reporte = await service.obtenerReporteDocente(admin, {
+      const conCriterios = await service.obtenerReporteDocente(admin, {
         materiaId: 12,
         grupoId: 3,
       });
-      expect(reporte.ponderacion).toEqual({
-        tareas: 50,
-        asistencia: 50,
+      expect(conCriterios.ponderacion).toEqual({
+        tareas: 80,
+        asistencia: 20,
         categorias: [
-          { id: 1, nombre: 'Examen', peso: 60 },
-          { id: 2, nombre: 'Prácticas', peso: 40 },
+          { id: 1, nombre: 'Examen', peso: 48 },
+          { id: 2, nombre: 'Prácticas', peso: 32 },
         ],
         origen: 'GRUPO',
       });
+
+      const predeterminada = await service.obtenerReporteDocente(admin, {
+        materiaId: 12,
+        grupoId: 4,
+      });
+      expect(predeterminada.ponderacion).toEqual({
+        tareas: 50,
+        asistencia: 50,
+        categorias: [],
+        origen: 'GRUPO',
+      });
+      expect(predeterminada.criterios).toEqual(
+        expect.objectContaining({ origen: 'PREDETERMINADA', legado: 'GRUPO' }),
+      );
     });
 
-    it('exige grupo y que los pesos de las categorías sumen 100', async () => {
+    it('una pantalla vieja no puede guardar categorías ni pisar los criterios', async () => {
       const base = { materiaId: 12, pesoTareas: 80, pesoAsistencia: 20 };
       await expect(
         service.guardarPonderacion(admin, {
           ...base,
+          grupoId: 3,
           categorias: [{ nombre: 'Examen', peso: 100 }],
         }),
-      ).rejects.toThrow('Elige un grupo');
+      ).rejects.toThrow('Recarga la página');
+
+      categoriaPesoGrupoCount.mockResolvedValue(3);
+      await expect(
+        service.guardarPonderacion(admin, { ...base, grupoId: 3 }),
+      ).rejects.toThrow('Recarga la página');
+      expect(ponderacionGrupoUpsert).not.toHaveBeenCalled();
+
+      categoriaPesoGrupoCount.mockResolvedValue(0);
+      categoriaFindMany.mockResolvedValue([]);
+      materiaFindUnique.mockResolvedValue({
+        id: 12,
+        pesoTareas: 80,
+        pesoAsistencia: 20,
+      });
+      ponderacionGrupoFindMany.mockResolvedValue([
+        { materiaId: 12, grupoId: 4, pesoTareas: 60, pesoAsistencia: 40 },
+      ]);
       await expect(
         service.guardarPonderacion(admin, {
-          ...base,
-          grupoId: 3,
-          categorias: [
-            { nombre: 'Examen', peso: 60 },
-            { nombre: 'Prácticas', peso: 30 },
-          ],
+          materiaId: 12,
+          grupoId: 4,
+          pesoTareas: 60,
+          pesoAsistencia: 40,
         }),
-      ).rejects.toThrow('deben sumar 100');
-      expect(transaction).not.toHaveBeenCalled();
+      ).resolves.toEqual(
+        expect.objectContaining({
+          tareas: 60,
+          asistencia: 40,
+          origen: 'GRUPO',
+        }),
+      );
+      expect(ponderacionGrupoUpsert).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('desempeño por unidad', () => {
+    const admin = { id: 1, rol: 'ADMIN' };
+    const asistencia = (
+      alumnoId: number,
+      claseSesionId: number,
+      estado: string,
+    ) => ({
+      alumnoId,
+      claseSesionId,
+      estado,
+    });
+
+    beforeEach(() => {
+      materiaFindUnique.mockResolvedValue({
+        ...materia,
+        nombre: 'Redes',
+        clave: 'RED-1',
+        numUnidades: 2,
+        pesoTareas: 80,
+        pesoAsistencia: 20,
+        grupos: [{ id: 3, nombre: '8A' }],
+        unidades: [
+          { id: 5, nombre: 'Unidad 1', orden: 1, status: 'FINALIZADA' },
+          { id: 6, nombre: 'Unidad 2', orden: 2, status: 'ACTIVA' },
+        ],
+      });
+      inscripcionFindMany.mockResolvedValue([
+        { alumno: { id: 500, nombre: 'Ana', grupoId: 3 } },
+        { alumno: { id: 501, nombre: 'Beto', grupoId: 3 } },
+        { alumno: { id: 502, nombre: 'Carla', grupoId: 3 } },
+      ]);
+      tareaFindMany.mockResolvedValue([
+        {
+          id: 20,
+          grupoId: 3,
+          unidadId: 6,
+          unidad: 2,
+          categoriaId: null,
+          grupo: { id: 3, nombre: '8A' },
+          entregas: [
+            { alumnoId: 500, estadoRevision: 'CALIFICADA', calificacion: 95 },
+            { alumnoId: 501, estadoRevision: 'CALIFICADA', calificacion: 75 },
+            { alumnoId: 502, estadoRevision: 'CALIFICADA', calificacion: 76 },
+          ],
+        },
+      ]);
+      claseSesionFindMany.mockResolvedValue(
+        [900, 901, 902].map((id) => ({
+          id,
+          grupoId: 3,
+          unidadId: 6,
+          unidad: 2,
+        })),
+      );
+      asistenciaFindMany.mockResolvedValue([
+        asistencia(500, 900, 'ASISTENCIA'),
+        asistencia(500, 901, 'ASISTENCIA'),
+        asistencia(500, 902, 'ASISTENCIA'),
+        asistencia(501, 900, 'ASISTENCIA'),
+        asistencia(501, 901, 'FALTA'),
+        asistencia(501, 902, 'FALTA'),
+      ]);
+      participacionFindMany.mockResolvedValue([]);
+      calificacionFindMany.mockResolvedValue([]);
+    });
+
+    it('usa la unidad en curso y pinta el semáforo de cada alumno', async () => {
+      const vista = await service.obtenerDesempeno(admin, {
+        materiaId: 12,
+        grupoId: 3,
+      });
+      expect(vista.unidad).toEqual(
+        expect.objectContaining({ id: 6, orden: 2 }),
+      );
+      expect(vista.criterios.map((item) => [item.clave, item.peso])).toEqual([
+        ['tareas', 80],
+        ['asistencia', 20],
+      ]);
+      expect(vista.origenCriterios).toBe('PREDETERMINADA');
+      expect(vista.resumen).toEqual({
+        total: 3,
+        aprobados: 2,
+        reprobados: 1,
+        sinCalificar: 0,
+      });
+      const alumno = (nombre: string) =>
+        vista.alumnos.find((item) => item.alumno.nombre === nombre);
+      // (95 × 80 + 100 × 20) / 100
+      expect(alumno('Ana')).toEqual(
+        expect.objectContaining({ calificacion: 96, desempeno: 'APROBADO' }),
+      );
+      expect(alumno('Ana')?.criterios).toEqual([
+        { clave: 'tareas', valor: 95, calificadas: 1, total: 1 },
+        { clave: 'asistencia', valor: 100, calificadas: 3, total: 3 },
+      ]);
+      // (75 × 80 + 33 × 20) / 100 = 66.6; además faltó 2 de 3.
+      expect(alumno('Beto')).toEqual(
+        expect.objectContaining({
+          calificacion: 67,
+          desempeno: 'REPROBADO',
+          motivos: ['CALIFICACION_BAJA', 'ASISTENCIA'],
+        }),
+      );
+      // Sin registros de asistencia sólo cuenta la tarea; 76 ya aprueba.
+      expect(alumno('Carla')).toEqual(
+        expect.objectContaining({
+          calificacion: 76,
+          desempeno: 'APROBADO',
+          motivos: [],
+          asistencia: expect.objectContaining({ porcentaje: null }),
+        }),
+      );
+    });
+
+    it('dos tareas vencidas sin entregar ponen en riesgo aunque la nota sea buena', async () => {
+      const ayer = new Date(Date.now() - 86_400_000);
+      const manana = new Date(Date.now() + 86_400_000);
+      const tarea = (
+        id: number,
+        fechaLimite: Date,
+        entregas: Array<Record<string, unknown>>,
+      ) => ({
+        id,
+        grupoId: 3,
+        unidadId: 6,
+        unidad: 2,
+        categoriaId: null,
+        estado: 'PUBLICADA',
+        tieneFechaLimite: true,
+        fechaLimite,
+        grupo: { id: 3, nombre: '8A' },
+        entregas,
+      });
+      const calificada = (alumnoId: number) => ({
+        alumnoId,
+        estadoRevision: 'CALIFICADA',
+        calificacion: 95,
+      });
+      tareaFindMany.mockResolvedValue([
+        tarea(20, ayer, [calificada(500), calificada(501), calificada(502)]),
+        tarea(21, ayer, [calificada(500), calificada(501)]),
+        tarea(22, ayer, [calificada(500)]),
+        // Aún no vence: no cuenta aunque nadie la haya entregado.
+        tarea(23, manana, []),
+        // Presencial sin capturar: no es culpa del alumno.
+        { ...tarea(24, ayer, []), tipoEntrega: 'PRESENCIAL' },
+      ]);
+      asistenciaFindMany.mockResolvedValue([]);
+      const vista = await service.obtenerDesempeno(admin, {
+        materiaId: 12,
+        grupoId: 3,
+      });
+      const alumno = (nombre: string) =>
+        vista.alumnos.find((item) => item.alumno.nombre === nombre);
+      expect(alumno('Ana')?.motivos).toEqual([]);
+      // 1 de 3 vencidas sin entregar: 33 %.
+      expect(alumno('Beto')?.motivos).toEqual(['ENTREGAS']);
+      expect(alumno('Carla')?.motivos).toEqual(['ENTREGAS']);
+    });
+
+    it('en una unidad cerrada sólo hay aprobados y reprobados', async () => {
+      tareaFindMany.mockResolvedValue([]);
+      claseSesionFindMany.mockResolvedValue([]);
+      calificacionFindMany.mockResolvedValue([
+        {
+          alumnoId: 500,
+          unidadId: 5,
+          calificacionManual: 75,
+          observacion: null,
+        },
+      ]);
+      const vista = await service.obtenerDesempeno(admin, {
+        materiaId: 12,
+        grupoId: 3,
+        unidadId: 5,
+      });
+      expect(vista.unidad?.id).toBe(5);
+      expect(vista.resumen).toEqual(
+        expect.objectContaining({
+          aprobados: 1,
+          reprobados: 0,
+          sinCalificar: 2,
+        }),
+      );
+    });
+
+    it('se suman a la manual sin cambiarla y la final se topa en 100', async () => {
+      tareaFindMany.mockResolvedValue([]);
+      claseSesionFindMany.mockResolvedValue([]);
+      calificacionFindMany.mockResolvedValue([
+        {
+          alumnoId: 500,
+          unidadId: 5,
+          calificacionManual: 65,
+          puntosExtra: 10,
+          observacion: null,
+        },
+        {
+          alumnoId: 501,
+          unidadId: 5,
+          calificacionManual: 95,
+          puntosExtra: 10,
+          observacion: null,
+        },
+      ]);
+      const reporte = await service.obtenerReporteDocente(admin, {
+        materiaId: 12,
+        grupoId: 3,
+        unidadId: 5,
+      });
+      const fila = (id: number) =>
+        reporte.rows.find((row) => row.alumno.id === id);
+      expect(fila(500)).toEqual(
+        expect.objectContaining({
+          calificacionManual: 65,
+          calificacionBase: 65,
+          puntosExtra: 10,
+          calificacionFinal: 75,
+        }),
+      );
+      expect(fila(501)?.calificacionFinal).toBe(100);
     });
   });
 
@@ -270,7 +585,10 @@ describe('CalificacionesService: política docente–materia–grupo', () => {
       calificaciones,
     });
 
-    beforeEach(() => horarioMateriaCount.mockResolvedValue(1));
+    beforeEach(() => {
+      horarioMateriaCount.mockResolvedValue(1);
+      cierreCursoFindFirst.mockResolvedValue(null);
+    });
 
     it('guarda todo en una transacción y arma el reporte una sola vez', async () => {
       const reporte = jest
@@ -330,6 +648,19 @@ describe('CalificacionesService: política docente–materia–grupo', () => {
           ]) as never,
         ),
       ).rejects.toThrow('La unidad no pertenece a la materia seleccionada');
+      expect(transaction).not.toHaveBeenCalled();
+    });
+
+    it('no cambia calificaciones de un curso cerrado', async () => {
+      cierreCursoFindFirst.mockResolvedValue({ grupo: { nombre: '8A' } });
+      await expect(
+        service.guardarManualLote(
+          docente,
+          lote([
+            { alumnoId: 500, unidadId: 5, calificacionManual: 90 },
+          ]) as never,
+        ),
+      ).rejects.toThrow('El curso de 8A está cerrado');
       expect(transaction).not.toHaveBeenCalled();
     });
   });

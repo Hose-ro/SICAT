@@ -661,6 +661,46 @@
   },
   {
     "rol": "JEFE_CARRERA",
+    "path": "/jefe-carrera/grupos",
+    "theme": "light",
+    "width": 1280,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "JEFE_CARRERA",
+    "path": "/jefe-carrera/grupos",
+    "theme": "dark",
+    "width": 390,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "JEFE_CARRERA",
+    "path": "/jefe-carrera/grupos/8",
+    "theme": "light",
+    "width": 1280,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "JEFE_CARRERA",
+    "path": "/jefe-carrera/grupos/8",
+    "theme": "dark",
+    "width": 390,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "JEFE_CARRERA",
     "path": "/jefe-carrera/docentes",
     "theme": "light",
     "width": 1280,
@@ -681,7 +721,7 @@
   },
   {
     "rol": "JEFE_CARRERA",
-    "path": "/jefe-carrera/clases",
+    "path": "/jefe-carrera/docentes/37",
     "theme": "light",
     "width": 1280,
     "violations": [],
@@ -691,7 +731,67 @@
   },
   {
     "rol": "JEFE_CARRERA",
-    "path": "/jefe-carrera/clases",
+    "path": "/jefe-carrera/docentes/37",
+    "theme": "dark",
+    "width": 390,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "JEFE_CARRERA",
+    "path": "/jefe-carrera/materias",
+    "theme": "light",
+    "width": 1280,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "JEFE_CARRERA",
+    "path": "/jefe-carrera/materias",
+    "theme": "dark",
+    "width": 390,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "JEFE_CARRERA",
+    "path": "/jefe-carrera/materias/411",
+    "theme": "light",
+    "width": 1280,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "JEFE_CARRERA",
+    "path": "/jefe-carrera/materias/411",
+    "theme": "dark",
+    "width": 390,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "JEFE_CARRERA",
+    "path": "/jefe-carrera/horarios",
+    "theme": "light",
+    "width": 1280,
+    "violations": [],
+    "overflow": false,
+    "h1": 1,
+    "errors": []
+  },
+  {
+    "rol": "JEFE_CARRERA",
+    "path": "/jefe-carrera/horarios",
     "theme": "dark",
     "width": 390,
     "violations": [],

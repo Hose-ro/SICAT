@@ -8,12 +8,13 @@ import Modal from '@/components/Modal'
 import TaskNotice from '@/components/TaskNotice'
 import { notify } from '@/lib/feedback'
 import { mensajeError } from '@/lib/avisos'
+import { textoMotivos } from '@/lib/desempeno'
 import { cn } from '@/lib/utils'
 import api from '@/api/axios'
 
 const ESTADO = {
-  ASISTENCIA: { letra: 'A', label: 'Asistió', className: 'bg-success/15 text-success-foreground' },
-  FALTA: { letra: 'F', label: 'Falta', className: 'bg-destructive/15 text-destructive-foreground' },
+  ASISTENCIA: { letra: 'A', label: 'Asistió', className: 'bg-success/22 text-success-foreground' },
+  FALTA: { letra: 'F', label: 'Falta', className: 'bg-destructive/22 text-destructive-foreground' },
   RETARDO: { letra: 'R', label: 'Retardo', className: 'bg-warning/20 text-warning-foreground' },
   JUSTIFICADA: { letra: 'J', label: 'Justificada', className: 'bg-muted text-muted-foreground' },
 }
@@ -26,24 +27,43 @@ function fechaCorta(value) {
   return new Date(value).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
 }
 
+// Un servidor anterior solo mandaba alumnos en riesgo por asistencia.
+const motivosDe = (fila) => fila.motivos ?? ['ASISTENCIA']
+const porCalificacion = (motivos) => motivos.includes('CALIFICACION_BAJA')
+
+/** La fila en la forma que entiende textoMotivos (la misma del semáforo). */
+const comoDesempeno = (fila) => ({
+  motivos: motivosDe(fila),
+  asistencia: { registradas: fila.registros, faltas: fila.faltas, retardos: fila.retardos },
+  entregas: { vencidas: fila.tareasVencidas, sinEntregar: fila.tareasSinEntregar },
+})
+
 function borradorAviso(fila) {
   const nombre = fila.alumno.nombre.split(' ')[0]
-  const partes = [
-    fila.faltas && `${fila.faltas} ${fila.faltas === 1 ? 'falta' : 'faltas'}`,
-    fila.retardos && `${fila.retardos} ${fila.retardos === 1 ? 'retardo' : 'retardos'}`,
-  ].filter(Boolean).join(' y ')
-  const tareas = fila.tareasSinEntregar
-    ? ` Además, tienes ${fila.tareasSinEntregar} ${fila.tareasSinEntregar === 1 ? 'tarea vencida sin entregar' : 'tareas vencidas sin entregar'}.`
-    : ''
+  const motivos = motivosDe(fila)
+  const frases = []
+  if (motivos.includes('ASISTENCIA') && fila.registros) {
+    const partes = [
+      fila.faltas && `${fila.faltas} ${fila.faltas === 1 ? 'falta' : 'faltas'}`,
+      fila.retardos && `${fila.retardos} ${fila.retardos === 1 ? 'retardo' : 'retardos'}`,
+    ].filter(Boolean).join(' y ')
+    frases.push(`llevas ${partes} de ${fila.registros} clases (${fila.porcentajeAusencias} %)`)
+  }
+  if (porCalificacion(motivos) && fila.calificacion != null) frases.push(`tu promedio en la materia va en ${fila.calificacion}`)
+  if (fila.tareasSinEntregar) {
+    frases.push(`tienes ${fila.tareasSinEntregar} ${fila.tareasSinEntregar === 1 ? 'tarea vencida sin entregar' : 'tareas vencidas sin entregar'}`)
+  }
+  const [primera = 'quiero platicar contigo sobre cómo vas', ...resto] = frases
+  const soloAsistencia = motivos.length === 1 && motivos[0] === 'ASISTENCIA'
   return {
-    titulo: `Tu asistencia en ${fila.materia.nombre}`,
-    cuerpo: `${nombre}, llevas ${partes} de ${fila.registros} clases (${fila.porcentajeAusencias} %).${tareas} Búscame para ver cómo ponerte al corriente.`,
+    titulo: `${soloAsistencia ? 'Tu asistencia' : 'Tu desempeño'} en ${fila.materia.nombre}`,
+    cuerpo: `${nombre}, ${primera}.${resto.map((f) => ` Además, ${f}.`).join('')} Búscame para ver cómo ponerte al corriente.`,
   }
 }
 
 function Tendencia({ estados }) {
   return (
-    <span className="flex gap-1" aria-label={`Últimas clases: ${estados.map((e) => ESTADO[e]?.label ?? e).join(', ')}`}>
+    <span role="img" className="flex gap-1" aria-label={`Últimas clases: ${estados.map((e) => ESTADO[e]?.label ?? e).join(', ')}`}>
       {estados.map((estado, indice) => (
         <span key={indice} aria-hidden="true"
           className={cn('grid size-6 place-items-center rounded-md text-xs font-semibold', ESTADO[estado]?.className)}>
@@ -124,7 +144,7 @@ export default function AlumnosRiesgo() {
     contenido = (
       <div className="rounded-[var(--radius-card)] border border-dashed border-border px-6 py-12 text-center">
         <p className="text-sm font-medium text-foreground">Ningún alumno está en riesgo por ahora.</p>
-        <p className="mt-1 text-sm text-muted-foreground">La lista se arma con la asistencia que registras en cada clase.</p>
+        <p className="mt-1 text-sm text-muted-foreground">La lista se arma con las calificaciones, la asistencia y las entregas de cada unidad.</p>
       </div>
     )
   } else {
@@ -138,14 +158,28 @@ export default function AlumnosRiesgo() {
                 <p className="text-sm text-muted-foreground">
                   {fila.alumno.numeroControl ? `${fila.alumno.numeroControl} · ` : ''}{fila.materia.nombre}{fila.grupo ? ` · ${fila.grupo.nombre}` : ''}
                 </p>
+                <p className="mt-2 text-sm font-medium text-warning-foreground">{textoMotivos(comoDesempeno(fila), datos.criterio).join(' · ')}</p>
+                {fila.unidades?.length > 0 && (
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {fila.unidades.map((u) => `${u.nombre}${u.calificacion != null ? `: ${u.calificacion}` : ''}`).join(' · ')}
+                  </p>
+                )}
                 <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
-                  <span>
-                    <span className="text-lg font-semibold tabular-nums text-destructive-foreground">{fila.porcentajeAusencias} %</span>
-                    <span className="ml-1.5 text-muted-foreground">
-                      {fila.faltas} F · {fila.retardos} R de {fila.registros} clases
+                  {fila.calificacion !== undefined && (
+                    <span>
+                      <span className={cn('text-lg font-semibold tabular-nums', porCalificacion(motivosDe(fila)) ? 'text-destructive-foreground' : 'text-foreground')}>{fila.calificacion ?? '—'}</span>
+                      <span className="ml-1.5 text-muted-foreground">promedio</span>
                     </span>
-                  </span>
-                  <Tendencia estados={fila.tendencia} />
+                  )}
+                  {fila.registros > 0 && (
+                    <span>
+                      <span className={cn('text-lg font-semibold tabular-nums', motivosDe(fila).includes('ASISTENCIA') ? 'text-destructive-foreground' : 'text-foreground')}>{fila.porcentajeAusencias} %</span>
+                      <span className="ml-1.5 text-muted-foreground">
+                        {fila.faltas} F · {fila.retardos} R de {fila.registros} clases
+                      </span>
+                    </span>
+                  )}
+                  {fila.tendencia?.length > 0 && <Tendencia estados={fila.tendencia} />}
                   <span className={fila.tareasSinEntregar ? 'text-warning-foreground' : 'text-muted-foreground'}>
                     {fila.tareasVencidas
                       ? `${fila.tareasSinEntregar} de ${fila.tareasVencidas} tareas vencidas sin entregar`
@@ -154,7 +188,7 @@ export default function AlumnosRiesgo() {
                 </div>
               </div>
               <div className="flex flex-col items-start gap-1.5 sm:items-end">
-                <Button variant={fila.ultimoAviso ? 'outline' : 'default'} onClick={() => abrirAviso(fila)} disabled={!fila.grupo}
+                <Button variant="outline" onClick={() => abrirAviso(fila)} disabled={!fila.grupo}
                   title={fila.grupo ? undefined : 'Las clases sin grupo no admiten avisos'} className="gap-2">
                   <Megaphone className="size-4" aria-hidden="true" />{fila.ultimoAviso ? 'Avisar de nuevo' : 'Enviar aviso'}
                 </Button>
@@ -178,9 +212,11 @@ export default function AlumnosRiesgo() {
         <div>
           <h1 className="text-[1.75rem] font-semibold leading-tight tracking-[-0.02em] text-foreground">Alumnos en riesgo</h1>
           <p className="mt-1.5 text-sm text-muted-foreground">
-            {datos?.criterio
-              ? `Con ${datos.criterio.porcentaje} % o más de faltas y retardos y al menos ${datos.criterio.minRegistros} clases registradas en el periodo.`
-              : 'Faltas y retardos del periodo en curso.'}
+            {datos?.criterio?.porcentajeEntregas != null
+              ? `Con alguna unidad en riesgo: calificación reprobatoria (menor a ${datos.criterio.aprobatoria}), ${datos.criterio.porcentaje} % o más de faltas y retardos (desde ${datos.criterio.minRegistros} clases) o ${datos.criterio.porcentajeEntregas} % o más de tareas vencidas sin entregar (desde ${datos.criterio.minTareas}).`
+              : datos?.criterio
+                ? `Con ${datos.criterio.porcentaje} % o más de faltas y retardos y al menos ${datos.criterio.minRegistros} clases registradas en el periodo.`
+                : 'Calificación, asistencia y entregas del periodo en curso.'}
           </p>
         </div>
         {materias.length > 1 && (
@@ -193,6 +229,11 @@ export default function AlumnosRiesgo() {
           </label>
         )}
       </header>
+      {datos?.clasesSinDatos?.length > 0 && (
+        <p role="alert" className="rounded-[var(--radius-card)] border border-warning/35 bg-warning/18 px-4 py-3 text-sm text-foreground">
+          No se pudo calcular {datos.clasesSinDatos.map((c) => `${c.materia.nombre} · ${c.grupo.nombre}`).join(', ')}; la lista puede estar incompleta.
+        </p>
+      )}
       {contenido}
 
       {avisando && (

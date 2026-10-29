@@ -7,7 +7,7 @@ export class ActivarCuentaDto {
   @ApiProperty()
   @IsString()
   @MinLength(1)
-  @MaxLength(30)
+  @MaxLength(200)
   numeroControl: string;
 
   @ApiProperty({ example: 'K7P2-M9QX' })

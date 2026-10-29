@@ -26,7 +26,7 @@ export default function TabClaseSesion({ materiaId }) {
   return (
     <div className="space-y-4">
       {sesionActiva ? (
-        <div className="bg-success/10 border border-success/30 rounded-lg p-4">
+        <div className="bg-success/18 border border-success/45 rounded-lg p-4">
           <p className="font-semibold text-success-foreground">Clase activa - Unidad {sesionActiva.unidad}</p>
           <p className="text-sm text-success-foreground">Iniciada: {new Date(sesionActiva.horaInicio).toLocaleTimeString('es-MX')}</p>
           <Button variant="destructive" onClick={handleFinalizar} disabled={loading}

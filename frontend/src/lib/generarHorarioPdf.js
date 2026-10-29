@@ -1,3 +1,4 @@
+import { cargarLogos, encabezadoPdf, MARGEN_PDF, piePdf } from './formatoInstitucional'
 import { sanitizarNombreArchivo } from './nombreArchivo'
 
 const DIAS = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado']
@@ -51,21 +52,12 @@ function dibujarBloque(doc, x, y, w, h, color, horario) {
 }
 
 export async function generarHorarioPdf({ nombreArchivo, titulo, subtitulo, horarios }) {
-  const { jsPDF } = await import('jspdf')
-  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+  const [{ jsPDF }, logos] = await Promise.all([import('jspdf'), cargarLogos()])
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'letter', compress: true })
   const pageWidth = doc.internal.pageSize.getWidth()
   const pageHeight = doc.internal.pageSize.getHeight()
-  const margin = 12
-
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(16)
-  doc.setTextColor(30, 41, 59)
-  doc.text(titulo, margin, margin + 4)
-
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(10)
-  doc.setTextColor(100, 116, 139)
-  doc.text(subtitulo, margin, margin + 10)
+  const margin = MARGEN_PDF
+  const inicioContenido = encabezadoPdf(doc, { titulo, subtitulo }, logos)
 
   // Hour range sized to the actual data (±1h padding) instead of a fixed
   // 07:00-21:00 window, so the grid always fills the page without empty rows.
@@ -81,8 +73,9 @@ export async function generarHorarioPdf({ nombreArchivo, titulo, subtitulo, hora
 
   const gridLeft = margin
   const gridRight = pageWidth - margin
-  const gridTop = margin + 16
-  const gridBottom = pageHeight - margin
+  const gridTop = inicioContenido - 4
+  // Abajo queda lugar para el "PÁGINA 1 DE 1" del formato.
+  const gridBottom = pageHeight - 16
   const dayHeaderH = 7
   const rowH = (gridBottom - gridTop - dayHeaderH) / numHoras
   const hourColW = 12
@@ -132,5 +125,6 @@ export async function generarHorarioPdf({ nombreArchivo, titulo, subtitulo, hora
     })
   })
 
+  piePdf(doc)
   doc.save(`${sanitizarNombreArchivo(nombreArchivo, 'horario')}.pdf`)
 }

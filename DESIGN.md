@@ -11,9 +11,9 @@ colors:
   muted: "#eef1f7"
   muted-foreground: "#6a7790"
   accent: "#e4ebfb"
-  destructive: "#d6503e"
-  success: "#27a567"
-  warning: "#e0a23a"
+  destructive: "#db0003"
+  success: "#00822b"
+  warning: "#f19700"
   border: "#dde2ee"
   ring: "#4f7cff"
 typography:
@@ -77,6 +77,18 @@ components:
 
 # Design System: SICAT
 
+## Inicio de jefatura — prioridad de operación (2026-10-28)
+
+El usuario confirmó el orden: clases de hoy, alumnos en riesgo y pendientes de docentes. El resumen del periodo y la preparación no anteceden esas tareas en una carrera en marcha. El registro de asistencias usa una sola escala fija de 0–100 %, barras semanales, meta de 90 %, detalle persistente al seleccionar y tabla alternativa. La semana en curso se distingue como provisional; una semana sin clases evaluables no se dibuja como 0 %. Se conserva la identidad institucional y los cálculos existentes. El contrato completo está en `.impeccable/surfaces/frontend-src-pages-jefe-carrera-jefeinicio-jsx.md`.
+
+## Navegación de jefatura — pendientes y retorno (2026-10-28)
+
+El menú del jefe se agrupa en **Operación** (Inicio · Pendientes y seguimiento · Horarios), **Consulta académica** (Grupos y alumnos · Docentes · Materias) y **Coordinación** (Reuniones · Informes). «Pendientes y seguimiento» separa *Por atender* (pendientes derivados del resumen, con clave estable por clase/fecha, materia/grupo o alumno) de *Observaciones registradas*; una observación cerrada nunca oculta un pendiente que sigue existiendo. Los indicadores de Inicio abren su conjunto con `?tipo=` visible. Los recorridos transversales llevan `?desde=` (ruta interna validada, misma carrera y periodo) y muestran «Volver a [origen]» junto a la ubicación jerárquica. El detalle de materia es materia + grupo (`?oferta=`) + sección (`?tab=resumen|alumnos|unidades`). Materias distingue *Oferta del periodo* (vista de trabajo) de *Retícula* (catálogo compartido, donde vive «Agregar»). «Registro de listas» sustituye a «Cobertura» en la interfaz.
+
+**Tokens de visualización.** Los colores de gráficas (`--viz-*`) viven en `index.css` para ambos temas, en OKLCH; superficie, tinta y meta remiten a `--card`, `--foreground` y `--muted-foreground`. Son escalas de datos (divergente alrededor de la meta, riesgo), no acentos. Sin blanco puro.
+
+**Movimiento reducido.** Nada se desplaza, gira ni escala; las animaciones terminan al instante; color, opacidad y sombra conservan su transición para que selección, foco y estado sigan percibiéndose.
+
 ## 1. Overview
 
 **Creative North Star: "The Registrar's Ledger"**
@@ -110,9 +122,9 @@ A blue-tinted neutral system. Canonical values are OKLCH (hue 264 for neutrals a
 - **Hairline** (`oklch(0.90 0.008 264)`, ~`#dde2ee`): Borders and dividers. Always a full border, never a one-sided colored stripe.
 
 ### Status
-- **Present / Success** (`oklch(0.62 0.14 150)`): Attendance present, task graded/approved.
-- **Late / Warning** (`oklch(0.76 0.14 75)`): Attendance late or justified, pending review.
-- **Absent / Destructive** (`oklch(0.58 0.20 27)`): Attendance absent, destructive actions (delete user, delete session).
+- **Present / Success** (`oklch(0.52 0.17 150)`): Attendance present, task graded/approved.
+- **Late / Warning** (`oklch(0.75 0.17 70)`): Attendance late or justified, pending review.
+- **Absent / Destructive** (`oklch(0.55 0.24 27)`): Attendance absent, destructive actions (delete user, delete session).
 
 ### Named Rules
 **The One Signal Rule.** Registrar Blue appears on at most 10% of any screen. Its rarity is what makes it read as "the action." If two blue buttons compete on one screen, one of them is wrong.

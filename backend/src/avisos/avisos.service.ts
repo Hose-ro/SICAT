@@ -229,10 +229,17 @@ export class AvisosService {
     docenteId: number,
     fechas: string[],
     motivo: string,
+    /** Sólo esas clases (p. ej. las que se cruzan con una reunión). */
+    horarioIds?: number[],
   ) {
     try {
       const horarios = await this.prisma.horarioMateria.findMany({
-        where: { docenteId, activo: true, grupoId: { not: null } },
+        where: {
+          docenteId,
+          activo: true,
+          grupoId: { not: null },
+          ...(horarioIds ? { id: { in: horarioIds } } : {}),
+        },
         select: {
           dias: true,
           materiaId: true,
@@ -298,13 +305,23 @@ export class AvisosService {
   }
 
   /** Si el docente quita la suspensión, avisa que siempre sí hay clase. */
-  async retirarAvisosDeSuspension(docenteId: number, fecha: string) {
+  async retirarAvisosDeSuspension(
+    docenteId: number,
+    fecha: string,
+    /** Sólo el aviso de esa clase; sin ella, los de todo el día. */
+    clase?: { materiaId: number; grupoId: number },
+    /**
+     * `notificar: false` sólo retira el aviso (el docente ya no quiere que sus
+     * alumnos lo vean), sin decirles que sí hay clase.
+     */
+    { notificar = true } = {},
+  ) {
     try {
       const avisos = await this.prisma.aviso.findMany({
-        where: { docenteId, suspensionFecha: fecha },
+        where: { docenteId, suspensionFecha: fecha, ...(clase ?? {}) },
         include: { materia: { select: { nombre: true } } },
       });
-      for (const aviso of avisos) {
+      for (const aviso of notificar ? avisos : []) {
         const alumnos = await alumnosDeClase(
           this.prisma,
           aviso.materiaId,

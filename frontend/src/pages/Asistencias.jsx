@@ -1,14 +1,13 @@
 import useAsyncAction from '@/hooks/useAsyncAction'
 import { Button } from '@/components/ui/button'
-import { confirmAction } from '@/lib/feedback'
+import { confirmAction, notify } from '@/lib/feedback'
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { AlertTriangle, ArrowRight, CalendarDays, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import api from '../api/axios'
 import { useAuthStore } from '../store/authStore'
 import { useClaseStore } from '../store/claseStore'
 import { useAsistenciaStore } from '../store/asistenciaStore'
-import AttendanceBadge from '../components/AttendanceBadge'
 import SexoBadge from '../components/SexoBadge'
 import AsistenciaSesionPanel from './docente/components/AsistenciaSesionPanel'
 import VistaPreviaReporteModal from './docente/components/VistaPreviaReporteModal'
@@ -55,17 +54,17 @@ function estadoClaseLabel(estado) {
 function estadoClaseStyle(estado) {
   switch (estado) {
     case 'EN_CURSO':
-      return "bg-success/10 text-success-foreground"
+      return "bg-success/18 text-success-foreground"
     case 'FUERA_DE_HORARIO':
-      return "bg-warning/10 text-warning-foreground"
+      return "bg-warning/18 text-warning-foreground"
     case 'FINALIZADA':
       return "bg-muted text-foreground"
     case 'SUSPENDIDA':
-      return "bg-destructive/10 text-destructive-foreground"
+      return "bg-destructive/18 text-destructive-foreground"
     case 'PROGRAMADA_AHORA':
       return "bg-accent text-primary-ink"
     case 'PASADA':
-      return "bg-destructive/10 text-destructive-foreground"
+      return "bg-destructive/18 text-destructive-foreground"
     case 'PROXIMA':
     default:
       return "bg-accent text-primary-ink"
@@ -85,9 +84,9 @@ function getApiErrorMessage(error, fallback) {
 function StatPill({ label, value, tone = 'slate' }) {
   const tones = {
     slate: "bg-muted text-foreground",
-    emerald: "bg-success/10 text-success-foreground",
-    rose: "bg-destructive/10 text-destructive-foreground",
-    amber: "bg-warning/10 text-warning-foreground",
+    emerald: "bg-success/18 text-success-foreground",
+    rose: "bg-destructive/18 text-destructive-foreground",
+    amber: "bg-warning/18 text-warning-foreground",
     sky: "bg-accent text-primary-ink",
   }
 
@@ -126,7 +125,7 @@ function ExportActions({ onVer, onExportPdf, onExportExcel, label, disabled = fa
       >
         Exportar PDF
       </Button>
-      <Button variant="default"
+      <Button variant="outline"
         type="button"
         onClick={onExportExcel}
         disabled={disabled}
@@ -219,7 +218,7 @@ function ReporteAcumuladoCard({ materias = [], materiaSugeridaId, grupoSugeridoI
   return (
     <section
       aria-labelledby="reporte-acumulado-titulo"
-      className="rounded-3xl border border-primary/30 bg-primary/5 p-5 shadow-sm"
+      className="rounded-[var(--radius-card)] border border-border bg-card p-5"
     >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="min-w-0 space-y-3">
@@ -288,9 +287,14 @@ function ReporteAcumuladoCard({ materias = [], materiaSugeridaId, grupoSugeridoI
   )
 }
 
+/**
+ * Una clase del día con una sola acción siguiente según su estado: iniciar la
+ * unidad, iniciar la clase, pasar lista o finalizar, y editar la lista después.
+ */
 function ClaseCard({
   clase,
   principal = false,
+  ocupado = false,
   onIniciar,
   onTomarAsistencia,
   onFinalizar,
@@ -302,124 +306,89 @@ function ClaseCard({
   const unidadPendiente = unidades.find((unidad) => unidad.status === 'PENDIENTE')
   // La última finalizada es la única que se puede reabrir (vienen ordenadas).
   const unidadAnterior = unidades.findLast((unidad) => unidad.status === 'FINALIZADA')
-  const requiereUnidadActiva = !clase.sesion?.id && !clase.unidadActiva
-  const inicioAyudaId = `clase-${clase.horarioId}-inicio-ayuda`
+  const suspendida = clase.estado === 'SUSPENDIDA'
+  const sesion = clase.sesion
+  // Una sola acción azul en la pantalla: la de la clase principal.
+  const enfasis = principal ? 'default' : 'outline'
+  const ayudaId = `clase-${clase.horarioId}-ayuda`
 
-  const iniciarLabel = clase.sesion?.id
-    ? 'Clase iniciada'
-    : clase.estado === 'SUSPENDIDA'
-      ? 'Sin clases'
-    : requiereUnidadActiva
-      ? unidadPendiente
-        ? `Inicia ${unidadPendiente.nombre} primero`
-        : 'Sin unidad disponible'
-      : 'Iniciar clase'
-
-  return (
-    <article className={`rounded-3xl border border-border bg-card shadow-sm ${principal ? 'p-6' : 'p-5'}`}>
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div className="space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className={`rounded-full px-3 py-1 text-xs font-semibold ${estadoClaseStyle(clase.estado)}`}>
-              {estadoClaseLabel(clase.estado)}
-            </span>
-            <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
-              {formatTime(clase.horaInicio)} - {formatTime(clase.horaFin)}
-            </span>
-            {clase.sesion?.fueFueraDeHorario && (
-              <span className="rounded-full bg-warning/10 px-3 py-1 text-xs font-medium text-warning-foreground">
-                Sesión iniciada fuera de horario
-              </span>
-            )}
-          </div>
-
-          <div>
-            <h2 className={`${principal ? 'text-2xl' : 'text-lg'} font-semibold text-foreground`}>
-              {clase.materia?.nombre}
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {clase.grupo?.nombre ?? 'Sin grupo'} · {clase.aula?.nombre ?? 'Aula pendiente'}
-            </p>
-            {clase.suspensionMotivo && <p className="mt-2 rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground">Sin clases: {clase.suspensionMotivo}</p>}
-          </div>
-
-          <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
-            <p>Materia: {clase.materia?.clave ?? 'Sin clave'}</p>
-            <p>Fecha: {formatDate(new Date())}</p>
-            <p>Unidad activa: {clase.unidadActiva?.nombre ?? 'No hay unidad activa'}</p>
-            <p>Periodo: {clase.grupo?.periodo ?? 'Sin periodo'}</p>
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-2 lg:min-w-[220px]">
-          <Button variant="default"
-            type="button"
-            onClick={onIniciar}
-            disabled={clase.estado === 'SUSPENDIDA' || Boolean(clase.sesion?.id) || requiereUnidadActiva}
-            aria-describedby={requiereUnidadActiva ? inicioAyudaId : undefined}
-            className="px-4 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {iniciarLabel}
-          </Button>
-          {requiereUnidadActiva && (
-            <p id={inicioAyudaId} className="px-1 text-xs leading-relaxed text-muted-foreground">
-              Activa una unidad para asociar correctamente la asistencia de esta clase.
-            </p>
-          )}
-          <Button variant="outline"
-            type="button"
-            onClick={onTomarAsistencia}
-            disabled={clase.estado === 'SUSPENDIDA' || !clase.sesion?.id}
-            className="border px-4 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Tomar asistencia
-          </Button>
-          <Button variant="destructive"
-            type="button"
-            onClick={onFinalizar}
-            disabled={clase.estado === 'SUSPENDIDA' || !clase.sesion?.activa}
-            className="border px-4 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Finalizar clase
-          </Button>
-        </div>
-      </div>
-
-      <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-4">
-        {!clase.unidadActiva && unidadPendiente && (
-          <Button variant="ghost"
-            type="button"
-            onClick={() => onIniciarUnidad(unidadPendiente)}
-            className="bg-success/10 px-3 py-2 text-xs font-semibold text-success-foreground  hover:bg-success/15"
-          >
+  let acciones = null
+  let ayuda = null
+  if (suspendida) {
+    ayuda = clase.suspensionMotivo ? `Sin clases: ${clase.suspensionMotivo}` : 'Sin clases este día.'
+  } else if (sesion?.activa) {
+    acciones = (
+      <>
+        <Button variant={enfasis} type="button" onClick={onTomarAsistencia}>Pasar lista</Button>
+        <Button variant="outline" type="button" onClick={onFinalizar} className="text-destructive-foreground">Finalizar clase</Button>
+      </>
+    )
+  } else if (sesion?.id) {
+    acciones = <Button variant="outline" type="button" onClick={onTomarAsistencia}>Editar lista</Button>
+  } else if (!clase.unidadActiva) {
+    ayuda = unidadPendiente
+      ? `Para pasar lista, inicia ${unidadPendiente.nombre}.`
+      : 'La materia no tiene unidades por iniciar.'
+    acciones = (
+      <>
+        {unidadPendiente && (
+          <Button variant={enfasis} type="button" disabled={ocupado} aria-describedby={ayudaId}
+            onClick={() => onIniciarUnidad(unidadPendiente)}>
             Iniciar {unidadPendiente.nombre}
           </Button>
         )}
-
-        {!clase.unidadActiva && unidadAnterior && (
-          <Button variant="ghost"
-            type="button"
-            onClick={() => onReabrirUnidad(unidadAnterior)}
-            className="bg-muted px-3 py-2 text-xs font-semibold text-muted-foreground hover:bg-muted/80 hover:text-foreground"
-          >
+        {unidadAnterior && (
+          <Button variant="ghost" type="button" disabled={ocupado} onClick={() => onReabrirUnidad(unidadAnterior)}>
             Regresar a {unidadAnterior.nombre}
           </Button>
         )}
+      </>
+    )
+  } else {
+    acciones = (
+      <Button variant={enfasis} type="button" disabled={ocupado} onClick={onIniciar}>
+        {ocupado ? 'Iniciando…' : 'Iniciar y pasar lista'}
+      </Button>
+    )
+  }
 
-        {clase.unidadActiva && (
-          <Button variant="ghost"
-            type="button"
-            onClick={() => onFinalizarUnidad(clase.unidadActiva, clase)}
-            className="bg-warning/10 px-3 py-2 text-xs font-semibold text-warning-foreground  hover:bg-warning/15"
-          >
+  const detalle = [
+    clase.grupo?.nombre ?? 'Sin grupo',
+    clase.aula?.nombre ?? 'Sin aula',
+    clase.unidadActiva?.nombre ?? 'Sin unidad activa',
+  ].join(' · ')
+
+  return (
+    <article aria-labelledby={`clase-${clase.horarioId}-titulo`}
+      className="grid grid-cols-[3rem_minmax(0,1fr)] items-start gap-x-3 gap-y-3 py-4 sm:grid-cols-[3.5rem_minmax(0,1fr)_auto] sm:gap-x-4">
+      <p className="text-sm font-semibold tabular-nums text-foreground">
+        {formatTime(clase.horaInicio)}
+        <span className="block text-xs font-normal text-muted-foreground">{formatTime(clase.horaFin)}</span>
+      </p>
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <h3 id={`clase-${clase.horarioId}-titulo`} className={`${principal ? 'text-lg' : 'text-base'} font-semibold leading-snug text-foreground`}>
+            {clase.materia?.nombre}
+          </h3>
+          <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${estadoClaseStyle(clase.estado)}`}>
+            {estadoClaseLabel(clase.estado)}
+          </span>
+        </div>
+        <p className="mt-0.5 text-sm text-muted-foreground">{detalle}</p>
+        {sesion?.fueFueraDeHorario && (
+          <p className="mt-1 text-xs text-warning-foreground">Se inició fuera de su horario.</p>
+        )}
+        {ayuda && (
+          <p id={ayudaId} className={`mt-1 text-xs ${suspendida ? 'text-destructive-foreground' : 'text-muted-foreground'}`}>{ayuda}</p>
+        )}
+        {clase.unidadActiva && !suspendida && (
+          <Button variant="link" type="button" disabled={ocupado} onClick={() => onFinalizarUnidad(clase.unidadActiva, clase)}
+            className="mt-1 h-auto min-h-0 px-0 text-xs text-muted-foreground hover:text-foreground">
             Finalizar {clase.unidadActiva.nombre}
           </Button>
         )}
-
-        <span className="text-xs text-muted-foreground">
-          La lista se arma con alumnos del grupo que además tienen inscripción aceptada en la materia.
-        </span>
       </div>
+      {acciones && <div className="col-start-2 flex flex-wrap gap-2 sm:col-start-auto sm:justify-end">{acciones}</div>}
     </article>
   )
 }
@@ -446,13 +415,13 @@ function RankingFaltas({ items }) {
   const resumen = `${items.length} ${items.length === 1 ? 'alumno' : 'alumnos'} · hasta ${maximo} ${maximo === 1 ? 'falta' : 'faltas'}`
 
   return (
-    <div className="overflow-hidden rounded-3xl border border-destructive/30 bg-destructive/10">
+    <div className="overflow-hidden rounded-[var(--radius-card)] border border-destructive/45 bg-destructive/18">
       <button
         type="button"
         onClick={() => setAbierto((prev) => !prev)}
         aria-expanded={abierto}
         aria-controls={panelId}
-        className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left transition-colors hover:bg-destructive/15"
+        className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left transition-colors hover:bg-destructive/22"
       >
         <div className="min-w-0">
           <h3 className="text-sm font-semibold text-destructive-foreground">Ranking de alumnos con más faltas</h3>
@@ -465,7 +434,7 @@ function RankingFaltas({ items }) {
       </button>
 
       {abierto && (
-        <ol id={panelId} className="divide-y divide-destructive/20 border-t border-destructive/30">
+        <ol id={panelId} className="divide-y divide-destructive/20 border-t border-destructive/45">
           {items.map((item, indice) => (
             <li key={item.alumnoId} className="flex items-center gap-3 bg-card/60 px-5 py-2.5 text-sm">
               <span className="w-6 shrink-0 text-xs font-semibold tabular-nums text-muted-foreground">{indice + 1}.</span>
@@ -478,7 +447,7 @@ function RankingFaltas({ items }) {
                   <span className="block text-xs text-muted-foreground">{item.numeroControl}</span>
                 )}
               </span>
-              <span className="shrink-0 rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-semibold tabular-nums text-destructive-foreground">
+              <span className="shrink-0 rounded-full bg-destructive/18 px-2.5 py-1 text-xs font-semibold tabular-nums text-destructive-foreground">
                 {item.faltas} {item.faltas === 1 ? 'falta' : 'faltas'}
               </span>
             </li>
@@ -494,7 +463,7 @@ function HistorialTable({ items, onEditar, onVer, onExportarPdf, onExportarExcel
 
   if (items.length === 0) {
     return (
-      <div className="rounded-3xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
+      <div className="rounded-[var(--radius-card)] border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
         No hay registros con los filtros actuales.
       </div>
     )
@@ -508,7 +477,7 @@ function HistorialTable({ items, onEditar, onVer, onExportarPdf, onExportarExcel
   const resumen = `${sesiones} ${sesiones === 1 ? 'sesión' : 'sesiones'}${sinClases ? ` · ${sinClases} ${sinClases === 1 ? 'día sin clases' : 'días sin clases'}` : ''} · última fecha ${formatDate(ultima?.fecha)}`
 
   return (
-    <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
+    <div className="overflow-hidden rounded-[var(--radius-card)] border border-border bg-card">
       <button
         type="button"
         onClick={onToggle}
@@ -554,7 +523,7 @@ function HistorialTable({ items, onEditar, onVer, onExportarPdf, onExportarExcel
                   {item.suspendida ? 'No aplica' : item.unidad?.nombre ?? 'Sin unidad'}
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {item.suspendida ? <span className="rounded-full bg-destructive/10 px-3 py-1 text-xs font-semibold text-destructive-foreground">No requiere lista</span> : <>
+                  {item.suspendida ? <span className="rounded-full bg-destructive/18 px-3 py-1 text-xs font-semibold text-destructive-foreground">No requiere lista</span> : <>
                   <StatPill label="A" value={item.resumen?.asistencias ?? 0} tone="emerald" />
                   <StatPill label="F" value={item.resumen?.faltas ?? 0} tone="rose" />
                   <StatPill label="R" value={item.resumen?.retardos ?? 0} tone="amber" />
@@ -838,7 +807,7 @@ function FiltroToolbar({
   )
 
   return (
-    <div className="rounded-3xl border border-border bg-card p-5 shadow-sm">
+    <div className="rounded-[var(--radius-card)] border border-border bg-card p-5">
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
         {showDocente && (
           <label className="min-w-0">
@@ -992,7 +961,7 @@ function FiltroToolbar({
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2">
-        <Button variant="default"
+        <Button variant="outline"
           type="button"
           onClick={onApply}
           className="px-4 py-3 text-sm font-semibold"
@@ -1007,28 +976,14 @@ function FiltroToolbar({
   )
 }
 
-function AttendanceBar({ percentage }) {
+const TONO_ASISTENCIA = (pct) => (pct >= 85 ? 'success' : pct >= 70 ? 'warning' : 'destructive')
+
+function AttendanceBar({ percentage, label }) {
   const pct = Math.min(100, Math.max(0, percentage ?? 0))
-  const color =
-    pct >= 85 ? "bg-success" :
-    pct >= 70 ? "bg-warning/15" :
-    "bg-destructive"
-
+  const relleno = { success: 'bg-success', warning: 'bg-warning', destructive: 'bg-destructive' }[TONO_ASISTENCIA(pct)]
   return (
-    <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-      <div
-        className={`h-full rounded-full transition-[color,background-color,border-color,opacity,transform] duration-500 ${color}`}
-        style={{ width: `${pct}%` }}
-      />
-    </div>
-  )
-}
-
-function MiniStat({ label, value, color = "text-foreground" }) {
-  return (
-    <div className="flex flex-col items-center gap-0.5 text-center">
-      <span className={`text-base font-bold tabular-nums ${color}`}>{value}</span>
-      <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{label}</span>
+    <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} aria-label={label}>
+      <div className={`h-full rounded-full ${relleno}`} style={{ width: `${pct}%` }} />
     </div>
   )
 }
@@ -1036,76 +991,51 @@ function MiniStat({ label, value, color = "text-foreground" }) {
 function AlumnoMateriaCard({ item }) {
   const { materia, grupo, resumen, ultimaSesion } = item
   const pct = resumen.porcentaje ?? 0
-
-  const detalleGrupo = grupo
-    ? `${grupo.nombre} · ${grupo.periodo}`
-    : materia.carrera
-      ? `${materia.carrera.nombre}${materia.semestre ? ` · Sem. ${materia.semestre}` : ''}`
-      : 'Sin grupo asignado'
-
-  const statusMsg =
-    (resumen.totalSesiones ?? 0) === 0
-      ? null
-      : (resumen.sinRegistro ?? 0) > 0
-        ? { text: `${resumen.sinRegistro} sesión(es) aún sin captura`, warn: true }
-        : { text: 'Todos los registros al día', warn: false }
+  const sesiones = resumen.totalSesiones ?? 0
+  const detalle = [
+    materia.clave,
+    grupo ? `${grupo.nombre} · ${grupo.periodo}` : materia.carrera?.nombre,
+    materia.docente?.nombre ?? 'Docente por asignar',
+  ].filter(Boolean).join(' · ')
+  const conteos = [
+    ['asistencia', 'asistencias', resumen.asistencias ?? 0, 'text-success-foreground'],
+    ['falta', 'faltas', resumen.faltas ?? 0, 'text-destructive-foreground'],
+    ['retardo', 'retardos', resumen.retardos ?? 0, 'text-warning-foreground'],
+    ['justificada', 'justificadas', resumen.justificados ?? 0, 'text-primary-ink'],
+  ]
+  const tono = { success: 'text-success-foreground', warning: 'text-warning-foreground', destructive: 'text-destructive-foreground' }[TONO_ASISTENCIA(pct)]
 
   return (
-    <article className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
-      <div className="p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2 mb-2">
-              <span className="rounded-md bg-muted px-2 py-0.5 text-[11px] font-bold tracking-wider text-muted-foreground uppercase">
-                {materia.clave}
-              </span>
-            </div>
-            <h2 className="text-base font-semibold leading-snug text-foreground line-clamp-2">
-              {materia.nombre}
-            </h2>
-            <p className="mt-1 text-xs text-muted-foreground truncate">{detalleGrupo}</p>
-            <p className="mt-0.5 text-xs text-muted-foreground truncate">
-              {materia.docente?.nombre ?? 'Docente por asignar'}
-            </p>
-          </div>
-          <div className="shrink-0 flex flex-col items-end gap-2">
-            <AttendanceBadge percentage={pct} />
-            <span className="text-[11px] text-muted-foreground tabular-nums">
-              {resumen.totalSesiones ?? 0} sesiones
-            </span>
-          </div>
+    <article className="flex flex-col rounded-[var(--radius-card)] border border-border bg-card p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-base font-semibold leading-snug text-foreground">{materia.nombre}</h2>
+          <p className="mt-1 text-xs text-muted-foreground">{detalle}</p>
         </div>
-
-        <div className="mt-4">
-          <AttendanceBar percentage={pct} />
-        </div>
-
-        <div className="mt-4 grid grid-cols-4 divide-x divide-border rounded-xl bg-background py-3">
-          <MiniStat label="Asist." value={resumen.asistencias ?? 0} color="text-success-foreground" />
-          <MiniStat label="Faltas" value={resumen.faltas ?? 0} color="text-destructive-foreground" />
-          <MiniStat label="Retard." value={resumen.retardos ?? 0} color="text-warning-foreground" />
-          <MiniStat label="Justif." value={resumen.justificados ?? 0} color="text-primary-ink" />
+        <div className="shrink-0 text-right">
+          <p className={`text-xl font-semibold tabular-nums ${sesiones ? tono : 'text-muted-foreground'}`}>{sesiones ? `${pct} %` : '—'}</p>
+          <p className="text-xs text-muted-foreground tabular-nums">{sesiones} {sesiones === 1 ? 'clase' : 'clases'}</p>
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-3 border-t border-border bg-background/60 px-5 py-3">
-        <div className="min-w-0">
-          {statusMsg ? (
-            <p className={`text-xs truncate ${statusMsg.warn ? "text-warning-foreground" : "text-success-foreground"}`}>
-              {statusMsg.warn ? '⚠ ' : '✓ '}{statusMsg.text}
-            </p>
-          ) : (
-            <p className="text-xs text-muted-foreground">Última clase: {formatDate(ultimaSesion)}</p>
-          )}
-          {statusMsg && (
-            <p className="text-[11px] text-muted-foreground mt-0.5">Última clase: {formatDate(ultimaSesion)}</p>
-          )}
-        </div>
-        <Link
-          to={`/alumno/materias/${materia.id}`}
-          className="shrink-0 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition hover:bg-primary"
-        >
-          Ver detalles
+      {sesiones > 0 && <div className="mt-3"><AttendanceBar percentage={pct} label={`Asistencia en ${materia.nombre}: ${pct} %`} /></div>}
+
+      <p className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-sm tabular-nums text-muted-foreground">
+        {conteos.map(([uno, varios, n, color]) => (
+          <span key={uno}><span className={`font-semibold ${n ? color : ''}`}>{n}</span> {n === 1 ? uno : varios}</span>
+        ))}
+      </p>
+
+      <div className="mt-auto flex flex-wrap items-center justify-between gap-3 pt-4">
+        <p className={`flex items-center gap-1.5 text-xs ${(resumen.sinRegistro ?? 0) > 0 ? 'text-warning-foreground' : 'text-muted-foreground'}`}>
+          {(resumen.sinRegistro ?? 0) > 0 && <AlertTriangle className="size-3.5 shrink-0" aria-hidden="true" />}
+          {(resumen.sinRegistro ?? 0) > 0
+            ? `${resumen.sinRegistro} ${resumen.sinRegistro === 1 ? 'clase' : 'clases'} sin lista todavía`
+            : `Última clase: ${formatDate(ultimaSesion)}`}
+        </p>
+        <Link to={`/alumno/materias/${materia.id}`}
+          className="inline-flex min-h-9 items-center gap-1.5 rounded-[10px] border border-border bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted">
+          Ver detalle<ArrowRight className="size-4" aria-hidden="true" />
         </Link>
       </div>
     </article>
@@ -1147,129 +1077,50 @@ function AlumnoAsistenciasView() {
     }
   }, [])
 
-  const estadisticas = resumen.reduce((acc, item) => {
-    acc.materias++
-    acc.asistencias += item.resumen?.asistencias ?? 0
-    acc.faltas += item.resumen?.faltas ?? 0
-    acc.retardos += item.resumen?.retardos ?? 0
-    acc.justificados += item.resumen?.justificados ?? 0
-    acc.sinRegistro += item.resumen?.sinRegistro ?? 0
-    acc.totalSesiones += item.resumen?.totalSesiones ?? 0
+  const total = resumen.reduce((acc, item) => {
+    for (const clave of ['asistencias', 'faltas', 'retardos', 'justificados', 'sinRegistro']) acc[clave] += item.resumen?.[clave] ?? 0
     return acc
-  }, {
-    materias: 0,
-    asistencias: 0,
-    faltas: 0,
-    retardos: 0,
-    justificados: 0,
-    sinRegistro: 0,
-    totalSesiones: 0,
-  })
-
-  const totalRegistrado = (
-    estadisticas.asistencias +
-    estadisticas.faltas +
-    estadisticas.retardos +
-    estadisticas.justificados
-  )
-  const porcentajeGlobal = totalRegistrado > 0
-    ? Math.round((estadisticas.asistencias / totalRegistrado) * 100)
-    : 0
-
-  const pctColor =
-    porcentajeGlobal >= 85 ? "text-success-foreground" :
-    porcentajeGlobal >= 70 ? "text-warning-foreground" :
-    "text-destructive-foreground"
+  }, { asistencias: 0, faltas: 0, retardos: 0, justificados: 0, sinRegistro: 0 })
+  const registrado = total.asistencias + total.faltas + total.retardos + total.justificados
+  const porcentaje = registrado ? Math.round((total.asistencias / registrado) * 100) : null
+  const tono = porcentaje == null ? '' : { success: 'text-success-foreground', warning: 'text-warning-foreground', destructive: 'text-destructive-foreground' }[TONO_ASISTENCIA(porcentaje)]
+  const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`
 
   return (
-    <div className="space-y-8">
-      <header className="flex flex-col gap-1">
-        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Panel del alumno</p>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Mis asistencias</h1>
-        <p className="text-sm text-muted-foreground">
-          Consulta tu avance por materia e identifica faltas antes de que afecten tu evaluación.
+    <div className="mx-auto max-w-[76rem] space-y-6">
+      <header>
+        <h1 className="text-[1.75rem] font-semibold leading-tight tracking-[-0.02em] text-foreground">Mis asistencias</h1>
+        <p className="mt-1.5 text-sm text-muted-foreground">
+          {loading ? 'Revisando tus asistencias…' : resumen.length === 0 ? 'Tu asistencia por materia aparecerá aquí cuando tus docentes pasen lista.' : (
+            <>
+              {porcentaje != null && <><span className={`font-semibold ${tono}`}>{porcentaje} %</span> de asistencia en general · </>}
+              {plural(resumen.length, 'materia', 'materias')} · {plural(total.faltas, 'falta', 'faltas')} · {plural(total.retardos, 'retardo', 'retardos')}
+              {total.justificados > 0 && ` · ${plural(total.justificados, 'justificada', 'justificadas')}`}
+            </>
+          )}
         </p>
       </header>
 
       {error && (
-        <div className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground">
-          <span className="mt-0.5 shrink-0 text-destructive-foreground">⚠</span>
+        <div role="alert" className="flex items-start gap-2 rounded-[var(--radius-item)] border border-destructive/45 bg-destructive/18 px-4 py-3 text-sm text-destructive-foreground">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
           {error}
         </div>
       )}
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Materias</p>
-          <p className="mt-3 text-4xl font-bold tabular-nums text-foreground">{estadisticas.materias}</p>
-          <p className="mt-1 text-xs text-muted-foreground">inscritas este periodo</p>
+      {loading ? (
+        <div role="status" aria-label="Cargando tus asistencias" className="grid gap-3 xl:grid-cols-2">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div key={index} className="h-44 animate-pulse rounded-[var(--radius-card)] border border-border bg-card" />
+          ))}
         </div>
-        <div className="rounded-2xl border border-success/30 bg-success/10 p-5 shadow-sm">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-success-foreground">Asistencias</p>
-          <p className="mt-3 text-4xl font-bold tabular-nums text-success-foreground">{estadisticas.asistencias}</p>
-          <p className="mt-1 text-xs text-success-foreground">presencias registradas</p>
-        </div>
-        <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-5 shadow-sm">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-destructive-foreground">Faltas</p>
-          <p className="mt-3 text-4xl font-bold tabular-nums text-destructive-foreground">{estadisticas.faltas}</p>
-          <p className="mt-1 text-xs text-destructive-foreground">ausencias acumuladas</p>
-        </div>
-        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">% Global</p>
-          <p className={`mt-3 text-4xl font-bold tabular-nums ${pctColor}`}>{porcentajeGlobal}%</p>
-          <div className="mt-2">
-            <AttendanceBar percentage={porcentajeGlobal} />
-          </div>
-        </div>
-      </section>
-
-      {!loading && resumen.length > 0 && (estadisticas.retardos > 0 || estadisticas.justificados > 0 || estadisticas.sinRegistro > 0) && (
-        <div className="flex flex-wrap gap-2 text-xs">
-          {estadisticas.retardos > 0 && (
-            <span className="rounded-full bg-warning/10 px-3 py-1.5 font-medium text-warning-foreground ring-1 ring-ring">
-              {estadisticas.retardos} retardo{estadisticas.retardos !== 1 ? 's' : ''}
-            </span>
-          )}
-          {estadisticas.justificados > 0 && (
-            <span className="rounded-full bg-accent px-3 py-1.5 font-medium text-primary-ink ring-1 ring-ring">
-              {estadisticas.justificados} justificado{estadisticas.justificados !== 1 ? 's' : ''}
-            </span>
-          )}
-          {estadisticas.sinRegistro > 0 && (
-            <span className="rounded-full bg-muted px-3 py-1.5 font-medium text-muted-foreground ring-1 ring-ring">
-              {estadisticas.sinRegistro} sin captura
-            </span>
-          )}
-          <span className="rounded-full bg-muted px-3 py-1.5 font-medium text-muted-foreground ring-1 ring-ring">
-            {estadisticas.totalSesiones} sesiones totales
-          </span>
-        </div>
+      ) : resumen.length > 0 && (
+        <section aria-label="Por materia" className="grid gap-3 xl:grid-cols-2">
+          {resumen.map((item) => (
+            <AlumnoMateriaCard key={item.materia.id} item={item} />
+          ))}
+        </section>
       )}
-
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-foreground">Por materia</h2>
-        {loading ? (
-          <div className="grid gap-3 xl:grid-cols-2">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <div
-                key={index}
-                className="h-52 animate-pulse rounded-2xl border border-border bg-card"
-              />
-            ))}
-          </div>
-        ) : resumen.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center">
-            <p className="text-sm font-medium text-muted-foreground">Sin materias disponibles</p>
-            <p className="mt-1 text-xs text-muted-foreground">No hay sesiones registradas en este momento.</p>
-          </div>
-        ) : (
-          <div className="grid gap-3 xl:grid-cols-2">
-            {resumen.map((item) => (
-              <AlumnoMateriaCard key={item.materia.id} item={item} />
-            ))}
-          </div>
-        )}
-      </section>
     </div>
   )
 }
@@ -1314,10 +1165,12 @@ function claveAtrasada(item) {
  */
 function ClasesAtrasadasSection({
   items,
+  opcionales = [],
   loading,
   error,
   procesando,
   onCapturar,
+  onPasarListaOpcional,
   onMarcarTodas,
   marcandoLote,
 }) {
@@ -1378,7 +1231,7 @@ function ClasesAtrasadasSection({
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-semibold text-foreground">Asistencias atrasadas</h2>
             {items.length > 0 && (
-              <span className="rounded-full bg-warning/10 px-3 py-1 text-xs font-semibold text-warning-foreground">
+              <span className="rounded-full bg-warning/18 px-3 py-1 text-xs font-semibold text-warning-foreground">
                 {items.length} pendiente{items.length === 1 ? '' : 's'}
               </span>
             )}
@@ -1397,24 +1250,24 @@ function ClasesAtrasadasSection({
       </div>
 
       {error && (
-        <p role="alert" className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground">
+        <p role="alert" className="rounded-2xl border border-destructive/45 bg-destructive/18 px-4 py-3 text-sm text-destructive-foreground">
           {error}
         </p>
       )}
 
       {loading && items.length === 0 ? (
-        <div className="rounded-3xl border border-border bg-card p-6 text-center text-sm text-muted-foreground">
+        <div className="rounded-[var(--radius-card)] border border-border bg-card p-6 text-center text-sm text-muted-foreground">
           Revisando tu horario...
         </div>
       ) : items.length === 0 ? (
-        <div className="rounded-3xl border border-dashed border-border bg-card p-6 text-center text-sm text-muted-foreground">
+        <div className="rounded-[var(--radius-card)] border border-dashed border-border bg-card p-6 text-center text-sm text-muted-foreground">
           No tienes asistencias atrasadas: todas las clases de tu horario ya tienen lista.
         </div>
       ) : (
         abierta && (
           <>
             {capturables.length > 0 && (
-              <div className="rounded-3xl border border-border bg-card p-4 shadow-sm">
+              <div className="rounded-[var(--radius-card)] border border-border bg-card p-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <label className="flex items-center gap-3 text-sm text-foreground">
                     <input
@@ -1442,7 +1295,7 @@ function ClasesAtrasadasSection({
                 </div>
 
                 {confirmando && (
-                  <div className="mt-3 flex flex-col gap-3 rounded-2xl border border-warning/30 bg-warning/10 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="mt-3 flex flex-col gap-3 rounded-2xl border border-warning/45 bg-warning/18 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                     <p className="text-sm text-warning-foreground">
                       Se marcará <strong>asistencia</strong> a todos los alumnos en {seleccion.length}{' '}
                       clase{seleccion.length === 1 ? '' : 's'}. Después puedes abrir cualquiera y ajustar casos sueltos.
@@ -1472,7 +1325,7 @@ function ClasesAtrasadasSection({
 
             <div className="grid gap-4 xl:grid-cols-2">
               {grupos.map((entry) => (
-                <article key={entry.clave} className="rounded-3xl border border-border bg-muted/40 p-5">
+                <article key={entry.clave} className="rounded-[var(--radius-card)] border border-border bg-muted/40 p-5">
                   <div>
                     <h3 className="text-lg font-semibold text-foreground">{entry.materia?.nombre}</h3>
                     <p className="mt-1 text-sm text-muted-foreground">
@@ -1537,17 +1390,86 @@ function ClasesAtrasadasSection({
           </>
         )
       )}
+
+      {opcionales.length > 0 && (
+        <ClasesOpcionalesReunion
+          items={opcionales}
+          procesando={procesando}
+          deshabilitado={marcandoLote}
+          onPasarLista={onPasarListaOpcional}
+        />
+      )}
     </section>
+  )
+}
+
+/**
+ * Clases que el docente justificó por una reunión de academia. No son
+ * pendientes, pero si de todos modos dio la clase puede pasar lista y esa
+ * asistencia cuenta como cualquier otra.
+ */
+function ClasesOpcionalesReunion({ items, procesando, deshabilitado, onPasarLista }) {
+  return (
+    <div className="rounded-[var(--radius-card)] border border-border bg-card p-5">
+      <h3 className="text-base font-semibold text-foreground">Sin clase por reunión (opcional)</h3>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Las justificaste por una reunión de academia y no cuentan como pendientes. Si diste la clase, puedes pasar lista.
+      </p>
+      <ul className="mt-4 space-y-2">
+        {items.map((item) => {
+          const clave = claveAtrasada(item)
+          const enProceso = procesando === clave
+          const sinUnidad = !item.unidad
+          const ayudaId = sinUnidad ? `opcional-${clave}-ayuda` : undefined
+          return (
+            <li
+              key={clave}
+              className="flex flex-col gap-3 rounded-2xl bg-muted/40 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-foreground">
+                  <span className="capitalize">{formatFechaClave(item.fecha)}</span>
+                  {' · '}
+                  {item.materia?.nombre}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {formatTime(item.horaInicio)} - {formatTime(item.horaFin)} · {item.grupo?.nombre ?? 'Sin grupo'}
+                  {item.motivo ? ` · ${item.motivo}` : ''}
+                </p>
+                {sinUnidad && (
+                  <p id={ayudaId} className="mt-1 text-xs leading-relaxed text-warning-foreground">
+                    Inicia una unidad de la materia para poder capturar esta lista.
+                  </p>
+                )}
+              </div>
+              <Button variant="outline"
+                type="button"
+                onClick={() => onPasarLista(item)}
+                disabled={enProceso || sinUnidad || deshabilitado}
+                aria-describedby={ayudaId}
+                className="shrink-0 border px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {enProceso ? 'Abriendo...' : 'Pasar lista de todos modos'}
+              </Button>
+            </li>
+          )
+        })}
+      </ul>
+    </div>
   )
 }
 
 
 function DocenteAsistenciasView() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const materiaInicial = searchParams.get('materia') ?? ''
+  const grupoInicial = materiaInicial ? searchParams.get('grupo') ?? '' : ''
   const {
     panelDocente,
     cargarPanelDocente,
     clasesAtrasadas,
+    clasesOpcionales,
     cargarClasesAtrasadas,
     registrarClaseAtrasada,
     marcarAsistenciaAtrasadas,
@@ -1555,15 +1477,14 @@ function DocenteAsistenciasView() {
     finalizar,
   } = useClaseStore()
   const { historial, estadisticas, obtenerHistorial, exportar } = useAsistenciaStore()
-  const { user } = useAuthStore()
-  const [selectedSessionId, setSelectedSessionId] = useState(null)
+  const [iniciandoId, setIniciandoId] = useState(null)
   const [mensaje, setMensaje] = useState('')
   const [exportSuggestion, setExportSuggestion] = useState(null)
-  const [historialAbierto, setHistorialAbierto] = useState(false)
+  const [historialAbierto, setHistorialAbierto] = useState(Boolean(materiaInicial))
   const [vistaPrevia, setVistaPrevia] = useState(null)
   const [filters, setFilters] = useState({
-    materiaId: '',
-    grupoId: '',
+    materiaId: materiaInicial,
+    grupoId: grupoInicial,
     unidadId: '',
     fecha: '',
     semana: '',
@@ -1583,7 +1504,6 @@ function DocenteAsistenciasView() {
   const [atrasadaProcesando, setAtrasadaProcesando] = useState('')
   const [marcandoLote, setMarcandoLote] = useState(false)
   const opcionesRequestId = useRef(0)
-  const panelCapturaRef = useRef(null)
 
   const cargarOpcionesFiltros = async (materiaId, grupoId = '') => {
     if (!materiaId) return null
@@ -1645,15 +1565,16 @@ function DocenteAsistenciasView() {
   }
 
   useEffect(() => {
+    const inicial = Object.fromEntries(Object.entries({ materiaId: materiaInicial, grupoId: grupoInicial }).filter(([, valor]) => valor))
     Promise.all([
       cargarPanelDocente(),
-      obtenerHistorial({}),
+      obtenerHistorial(inicial),
       cargarAtrasadas(),
     ]).catch(() => {})
 
     const requestId = opcionesRequestId.current + 1
     opcionesRequestId.current = requestId
-    api.get('/asistencias/filtros-disponibles')
+    api.get('/asistencias/filtros-disponibles', { params: inicial })
       .then((response) => {
         if (requestId !== opcionesRequestId.current) return
         setOpcionesFiltros(response.data)
@@ -1669,7 +1590,7 @@ function DocenteAsistenciasView() {
     }, 30000)
 
     return () => clearInterval(interval)
-  }, [cargarPanelDocente, obtenerHistorial, cargarAtrasadas])
+  }, [cargarPanelDocente, obtenerHistorial, cargarAtrasadas, materiaInicial, grupoInicial])
 
   const clasesHoy = panelDocente?.clasesHoy ?? []
   const clasePrincipal = panelDocente?.claseActual ?? panelDocente?.proximaClase ?? null
@@ -1681,26 +1602,19 @@ function DocenteAsistenciasView() {
   const unidades = opcionesFiltros.unidades ?? []
   const resumenFiltro = describirFiltro(filters, { materias, grupos, unidades })
 
+  // Pasar lista vive en su propia pantalla, igual que desde Inicio.
+  const abrirPaseDeLista = (sesionId) => navigate(`/docente/pasar-lista/${sesionId}`)
+
   const handleStartClass = async (clase) => {
+    if (iniciandoId) return
     setMensaje('')
-
-    if (!clase?.unidadActiva) {
-      const unidadPendiente = clase?.materia?.unidades?.find((unidad) => unidad.status === 'PENDIENTE')
-      setMensaje(
-        unidadPendiente
-          ? `Primero inicia ${unidadPendiente.nombre}; después podrás iniciar la clase.`
-          : 'No hay una unidad disponible para iniciar esta clase.',
-      )
-      return
-    }
-
+    setIniciandoId(clase.horarioId)
     try {
       const response = await iniciar({ horarioId: clase.horarioId })
-      setSelectedSessionId(response.id)
-      if (response.advertencia) setMensaje(response.advertencia)
-      await cargarTodo()
+      abrirPaseDeLista(response.id)
     } catch (error) {
       setMensaje(getApiErrorMessage(error, 'No se pudo iniciar la clase.'))
+      setIniciandoId(null)
     }
   }
 
@@ -1723,19 +1637,24 @@ function DocenteAsistenciasView() {
     }
   })
 
-  const handleIniciarUnidad = async (unidad) => {
+  const handleIniciarUnidad = useAsyncAction(async (unidad) => {
     setMensaje('')
     try {
       await api.patch(`/unidades/${unidad.id}/iniciar`)
       await cargarTodo()
-      setMensaje(`${unidad.nombre} está activa. Ya puedes iniciar la clase.`)
+      notify(`${unidad.nombre} está activa. Ya puedes iniciar la clase.`, 'success')
     } catch (error) {
       setMensaje(getApiErrorMessage(error, 'No se pudo iniciar la unidad.'))
     }
-  }
+  })
 
-  const handleFinalizarUnidad = async (unidad, clase) => {
+  const handleFinalizarUnidad = useAsyncAction(async (unidad, clase) => {
     if (!unidad?.id) return
+    if (!(await confirmAction({
+      title: `Finalizar ${unidad.nombre}`,
+      description: `Las clases que inicies después ya no contarán para ${unidad.nombre}. Si fue un error, podrás regresar a ella.`,
+      confirmLabel: `Finalizar ${unidad.nombre}`,
+    }))) return
     setMensaje('')
     try {
       await api.patch(`/unidades/${unidad.id}/finalizar`)
@@ -1751,7 +1670,7 @@ function DocenteAsistenciasView() {
     } catch (error) {
       setMensaje(error.response?.data?.message || 'No se pudo finalizar la unidad.')
     }
-  }
+  })
 
   const handleReabrirUnidad = useAsyncAction(async (unidad) => {
     if (!unidad?.id) return
@@ -1761,13 +1680,13 @@ function DocenteAsistenciasView() {
     try {
       await api.patch(`/unidades/${unidad.id}/reabrir`)
       await cargarTodo()
-      setMensaje(`${unidad.nombre} está activa de nuevo.`)
+      notify(`${unidad.nombre} está activa de nuevo.`, 'success')
     } catch (error) {
       setMensaje(getApiErrorMessage(error, 'No se pudo reabrir la unidad.'))
     }
   })
 
-  const handleCapturarAtrasada = async (item) => {
+  const handleCapturarAtrasada = async (item, { aunqueJustificada = false } = {}) => {
     const clave = claveAtrasada(item)
     setMensaje('')
     setAtrasadaProcesando(clave)
@@ -1778,21 +1697,26 @@ function DocenteAsistenciasView() {
         const sesion = await registrarClaseAtrasada({
           horarioId: item.horarioId,
           fecha: item.fecha,
+          aunqueJustificada,
         })
         sesionId = sesion.id
       }
 
-      setSelectedSessionId(sesionId)
-      setMensaje(
-        `Captura la lista del ${formatFechaClave(item.fecha)}. Se guardará con la fecha real de la clase.`,
-      )
-      await cargarTodo()
-      panelCapturaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      abrirPaseDeLista(sesionId)
     } catch (error) {
       setMensaje(getApiErrorMessage(error, 'No se pudo abrir la clase atrasada.'))
     } finally {
       setAtrasadaProcesando('')
     }
+  }
+
+  const handlePasarListaOpcional = async (item) => {
+    if (!(await confirmAction({
+      title: 'Pasar lista de todos modos',
+      description: `La clase del ${formatFechaClave(item.fecha)} está justificada por una reunión de academia. Esta asistencia contará en la calificación.`,
+      confirmLabel: 'Pasar lista',
+    }))) return
+    await handleCapturarAtrasada(item, { aunqueJustificada: true })
   }
 
   const handleMarcarAtrasadas = async (elegidas) => {
@@ -1808,7 +1732,7 @@ function DocenteAsistenciasView() {
           `${resultado.omitidas.length} se omitieron: ${resultado.omitidas[0].motivo}.`,
         )
       }
-      setMensaje(partes.join(' '))
+      notify(partes.join(' '), 'success')
       await cargarTodo()
     } catch (error) {
       setMensaje(getApiErrorMessage(error, 'No se pudo marcar la asistencia de las clases elegidas.'))
@@ -1833,14 +1757,6 @@ function DocenteAsistenciasView() {
       semana: filters.semana || undefined,
       mes: filters.mes || undefined,
     })
-  }
-
-  const abrirPaseDeLista = (sesionId) => {
-    if (!sesionId) {
-      setMensaje('Primero debes iniciar la clase para poder tomar asistencia.')
-      return
-    }
-    navigate(`/docente/pasar-lista/${sesionId}`)
   }
 
   const handleFilterChange = (key, value) => {
@@ -1896,124 +1812,72 @@ function DocenteAsistenciasView() {
 
   return (
     <div className="space-y-6">
-      <header className="space-y-2">
-        <h1 className="text-3xl font-semibold tracking-tight text-foreground">Asistencia docente</h1>
-        <p className="max-w-3xl text-sm text-muted-foreground">
-          La pantalla prioriza tu horario real del día. Inicia la clase, captura la lista del grupo y materia correctos, y edita el historial cuando sea necesario.
-        </p>
+      <header>
+        <h1 className="text-[1.75rem] font-semibold leading-tight tracking-[-0.02em] text-foreground">Asistencias</h1>
+        <p className="mt-1.5 text-sm text-muted-foreground">Inicia tus clases de hoy, pasa lista y consulta el historial.</p>
       </header>
 
       {mensaje && (
-        <div className="rounded-3xl border border-warning/30 bg-warning/10 px-5 py-4 text-sm text-warning-foreground">
+        <p role="alert" className="rounded-[var(--radius-item)] border border-destructive/45 bg-destructive/18 px-4 py-3 text-sm text-destructive-foreground">
           {mensaje}
-        </div>
+        </p>
       )}
 
       {exportSuggestion && (
-        <div className="rounded-3xl border border-border bg-card p-5 shadow-sm">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <p className="text-sm text-muted-foreground">{exportSuggestion.label}</p>
-            <ExportActions
-              label={exportSuggestion.type === 'unidad' ? 'Reporte de unidad' : 'Reporte de clase'}
-              onExportPdf={() => exportar(exportSuggestion.materiaId, {
-                formato: 'pdf',
-                sesionId: exportSuggestion.sesionId,
-                unidadId: exportSuggestion.unidadId,
-              })}
-              onExportExcel={() => exportar(exportSuggestion.materiaId, {
-                formato: 'excel',
-                sesionId: exportSuggestion.sesionId,
-                unidadId: exportSuggestion.unidadId,
-              })}
-            />
-          </div>
+        <div role="status" className="flex flex-col gap-3 rounded-[var(--radius-item)] border border-success/45 bg-success/18 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
+          <p className="text-sm text-foreground">{exportSuggestion.label}</p>
+          <ExportActions
+            label={exportSuggestion.type === 'unidad' ? 'Reporte de unidad' : 'Reporte de clase'}
+            onExportPdf={() => exportar(exportSuggestion.materiaId, {
+              formato: 'pdf',
+              sesionId: exportSuggestion.sesionId,
+              unidadId: exportSuggestion.unidadId,
+            })}
+            onExportExcel={() => exportar(exportSuggestion.materiaId, {
+              formato: 'excel',
+              sesionId: exportSuggestion.sesionId,
+              unidadId: exportSuggestion.unidadId,
+            })}
+          />
         </div>
       )}
 
-      <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-foreground">Clase actual</h2>
-          <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
-            Docente: {user?.nombre}
-          </span>
-        </div>
-
-        {clasePrincipal ? (
-          <ClaseCard
-            principal
-            clase={clasePrincipal}
-            onIniciar={() => handleStartClass(clasePrincipal)}
-            onTomarAsistencia={() => abrirPaseDeLista(clasePrincipal.sesion?.id)}
-            onFinalizar={() => handleFinalizeClass(clasePrincipal)}
-            onIniciarUnidad={handleIniciarUnidad}
-            onFinalizarUnidad={handleFinalizarUnidad}
-            onReabrirUnidad={handleReabrirUnidad}
-          />
-        ) : (
-          <div className="rounded-3xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
-            {clasesHoy.some((clase) => clase.estado === 'SUSPENDIDA')
-              ? `Hoy no habrá clases: ${clasesHoy.find((clase) => clase.suspensionMotivo)?.suspensionMotivo ?? 'día sin clases'}.`
-              : 'No tienes clases programadas para hoy.'}
+      {/* Una sola lista del día: la clase actual va en su lugar, sin repetirse arriba. */}
+      <section aria-labelledby="clases-hoy" className="rounded-[var(--radius-card)] border border-border bg-card px-4 sm:px-6">
+        <h2 id="clases-hoy" className="pt-5 text-lg font-semibold text-foreground">Hoy</h2>
+        {clasesHoy.length ? (
+          <div className="divide-y divide-border">
+            {clasesHoy.map((clase) => (
+              <ClaseCard
+                key={`${clase.horarioId}-${clase.grupoId ?? 'sin-grupo'}`}
+                clase={clase}
+                principal={clase.horarioId === clasePrincipal?.horarioId}
+                ocupado={iniciandoId === clase.horarioId}
+                onIniciar={() => handleStartClass(clase)}
+                onTomarAsistencia={() => abrirPaseDeLista(clase.sesion.id)}
+                onFinalizar={() => handleFinalizeClass(clase)}
+                onIniciarUnidad={handleIniciarUnidad}
+                onFinalizarUnidad={handleFinalizarUnidad}
+                onReabrirUnidad={handleReabrirUnidad}
+              />
+            ))}
           </div>
+        ) : (
+          <p className="pb-6 pt-2 text-sm text-muted-foreground">No tienes clases programadas para hoy.</p>
         )}
-      </section>
-
-      <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-foreground">Mis clases de hoy</h2>
-          <Button variant="outline"
-            type="button"
-            onClick={() => cargarTodo()}
-            className="border px-3 py-2 text-sm font-medium"
-          >
-            Actualizar
-          </Button>
-        </div>
-
-        <div className="grid gap-4 xl:grid-cols-2">
-          {clasesHoy.map((clase) => (
-            <ClaseCard
-              key={`${clase.horarioId}-${clase.grupoId ?? 'sin-grupo'}`}
-              clase={clase}
-              onIniciar={() => handleStartClass(clase)}
-              onTomarAsistencia={() => abrirPaseDeLista(clase.sesion?.id)}
-              onFinalizar={() => handleFinalizeClass(clase)}
-              onIniciarUnidad={handleIniciarUnidad}
-              onFinalizarUnidad={handleFinalizarUnidad}
-              onReabrirUnidad={handleReabrirUnidad}
-            />
-          ))}
-        </div>
       </section>
 
       <ClasesAtrasadasSection
         items={clasesAtrasadas ?? []}
+        opcionales={clasesOpcionales ?? []}
         loading={atrasadasLoading}
         error={atrasadasError}
         procesando={atrasadaProcesando}
         onCapturar={handleCapturarAtrasada}
+        onPasarListaOpcional={handlePasarListaOpcional}
         onMarcarTodas={handleMarcarAtrasadas}
         marcandoLote={marcandoLote}
       />
-
-      <section ref={panelCapturaRef} className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-foreground">Toma de asistencia</h2>
-          {selectedSessionId && (
-            <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
-              Sesión #{selectedSessionId}
-            </span>
-          )}
-        </div>
-
-        <AsistenciaSesionPanel
-          sesionId={selectedSessionId}
-          onSaved={() => {
-            cargarTodo()
-            if (filters.materiaId) obtenerHistorial(filters)
-          }}
-        />
-      </section>
 
       <section className="space-y-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -2054,7 +1918,7 @@ function DocenteAsistenciasView() {
           gruposRestringidos
         />
 
-        <div className="flex flex-col gap-2 rounded-3xl border border-border bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-2 rounded-[var(--radius-card)] border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <p className="text-sm font-medium text-foreground">Reporte de lo filtrado</p>
             <p className="mt-0.5 text-xs text-muted-foreground">{resumenFiltro}</p>
@@ -2073,7 +1937,7 @@ function DocenteAsistenciasView() {
         </div>
 
         {opcionesError && (
-          <p role="alert" className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground">
+          <p role="alert" className="rounded-2xl border border-destructive/45 bg-destructive/18 px-4 py-3 text-sm text-destructive-foreground">
             {opcionesError}
           </p>
         )}
@@ -2086,7 +1950,7 @@ function DocenteAsistenciasView() {
           items={historial}
           abierto={historialAbierto}
           onToggle={() => setHistorialAbierto((prev) => !prev)}
-          onEditar={(item) => setSelectedSessionId(item.id)}
+          onEditar={(item) => abrirPaseDeLista(item.id)}
           onVer={(item) => setVistaPrevia({ materiaId: item.materia.id, opciones: opcionesReporteItem(item), descripcion: describirSesion(item) })}
           onExportarPdf={(item) => exportar(item.materia.id, { formato: 'pdf', ...opcionesReporteItem(item) })}
           onExportarExcel={(item) => exportar(item.materia.id, { formato: 'excel', ...opcionesReporteItem(item) })}
@@ -2237,7 +2101,7 @@ function AdminAsistenciasView() {
         showDocente
       />
 
-      <div className="flex flex-col gap-2 rounded-3xl border border-border bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-2 rounded-[var(--radius-card)] border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <p className="text-sm font-medium text-foreground">Reporte de lo filtrado</p>
           <p className="mt-0.5 text-xs text-muted-foreground">

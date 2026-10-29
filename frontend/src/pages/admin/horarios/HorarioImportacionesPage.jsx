@@ -70,15 +70,15 @@ const STATUS = {
   },
   PENDIENTE_REVISION: {
     label: "Por revisar",
-    className: "bg-warning/15 text-warning-foreground",
+    className: "bg-warning/22 text-warning-foreground",
   },
   ERROR: {
     label: "Captura manual",
-    className: "bg-destructive/10 text-destructive-foreground",
+    className: "bg-destructive/18 text-destructive-foreground",
   },
   APROBADA: {
     label: "Aprobada",
-    className: "bg-success/10 text-success-foreground",
+    className: "bg-success/18 text-success-foreground",
   },
   RECHAZADA: {
     label: "Rechazada",
@@ -124,7 +124,7 @@ function obtenerStatus(item) {
   ) {
     return {
       label: "Sin lector",
-      className: "bg-warning/15 text-warning-foreground",
+      className: "bg-warning/22 text-warning-foreground",
     };
   }
   return STATUS[item.estado] ?? STATUS.ERROR;
@@ -389,7 +389,7 @@ export default function HorarioImportacionesPage() {
             el grupo.
           </p>
         </div>
-        <span className="w-fit rounded-full bg-warning/15 px-3 py-1.5 text-sm font-medium text-warning-foreground">
+        <span className="w-fit rounded-full bg-warning/22 px-3 py-1.5 text-sm font-medium text-warning-foreground">
           {pendientes} pendiente{pendientes === 1 ? "" : "s"}
         </span>
       </header>
@@ -399,8 +399,8 @@ export default function HorarioImportacionesPage() {
           role={message.type === "error" ? "alert" : "status"}
           className={`rounded-2xl border px-4 py-3 text-sm ${
             message.type === "error"
-              ? "border-destructive/25 bg-destructive/10 text-destructive-foreground"
-              : "border-success/25 bg-success/10 text-success-foreground"
+              ? "border-destructive/40 bg-destructive/18 text-destructive-foreground"
+              : "border-success/40 bg-success/18 text-success-foreground"
           }`}
         >
           {message.text}
@@ -408,7 +408,7 @@ export default function HorarioImportacionesPage() {
       )}
 
       {lector && !lector.configurado && (
-        <div className="flex items-start gap-3 rounded-2xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-foreground">
+        <div className="flex items-start gap-3 rounded-2xl border border-warning/45 bg-warning/18 px-4 py-3 text-sm text-foreground">
           <AlertTriangle
             className="mt-0.5 h-5 w-5 shrink-0 text-warning-foreground"
             aria-hidden="true"
@@ -549,7 +549,7 @@ export default function HorarioImportacionesPage() {
                     )}
                   </div>
                   {detalle.errorProcesamiento && (
-                    <div className="rounded-xl border border-warning/30 bg-warning/10 p-3 text-sm text-foreground">
+                    <div className="rounded-xl border border-warning/45 bg-warning/18 p-3 text-sm text-foreground">
                       <p className="font-medium">
                         {(
                           ERRORES_LECTOR[detalle.codigoErrorProcesamiento] ?? {}
@@ -779,7 +779,7 @@ export default function HorarioImportacionesPage() {
                   </label>
 
                   {editable && !rejecting && (
-                    <div className="flex flex-col-reverse gap-2 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-4">
                       <Button variant="destructive"
                         type="button"
                         disabled={saving}
@@ -789,7 +789,7 @@ export default function HorarioImportacionesPage() {
                         <X className="h-4 w-4" aria-hidden="true" />
                         Rechazar
                       </Button>
-                      <div className="flex flex-col gap-2 sm:flex-row">
+                      <div className="flex flex-wrap gap-2">
                         <Button variant="outline"
                           type="button"
                           disabled={saving || !completos}
@@ -813,7 +813,7 @@ export default function HorarioImportacionesPage() {
                   )}
 
                   {editable && rejecting && (
-                    <div className="space-y-3 rounded-2xl border border-destructive/25 bg-destructive/10 p-4">
+                    <div className="space-y-3 rounded-2xl border border-destructive/40 bg-destructive/18 p-4">
                       <label className="block space-y-1 text-sm font-medium text-foreground">
                         Motivo para el alumno
                         <textarea

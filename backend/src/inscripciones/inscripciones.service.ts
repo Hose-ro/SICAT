@@ -28,6 +28,20 @@ import {
   normalizePhone,
 } from '../common/identity-normalization';
 
+// Nunca incluir Usuario sin `select`: la fila completa trae el hash de la
+// contraseña y los contadores de bloqueo, y esto se devuelve tal cual al cliente.
+const ALUMNO_PUBLICO = {
+  select: {
+    id: true,
+    nombre: true,
+    numeroControl: true,
+    email: true,
+    telefono: true,
+    sexo: true,
+  },
+} as const;
+const DOCENTE_PUBLICO = { select: { id: true, nombre: true } } as const;
+
 @Injectable()
 export class InscripcionesService {
   constructor(
@@ -54,7 +68,6 @@ export class InscripcionesService {
 
     const materia = await this.prisma.materia.findUnique({
       where: { id: dto.materiaId },
-      include: { docente: true },
     });
     if (!materia) throw new NotFoundException('Materia no encontrada');
 
@@ -64,6 +77,7 @@ export class InscripcionesService {
 
     const alumno = await this.prisma.usuario.findUnique({
       where: { id: alumnoId },
+      select: { nombre: true },
     });
 
     if (materia.docenteId) {
@@ -83,7 +97,7 @@ export class InscripcionesService {
   async obtenerMisSolicitudes(alumnoId: number) {
     return this.prisma.inscripcion.findMany({
       where: { alumnoId },
-      include: { materia: { include: { docente: true } } },
+      include: { materia: { include: { docente: DOCENTE_PUBLICO } } },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -95,7 +109,7 @@ export class InscripcionesService {
         estado: 'PENDIENTE',
         materia: materiasDelDocenteWhere(docenteId),
       },
-      include: { alumno: true, materia: true },
+      include: { alumno: ALUMNO_PUBLICO, materia: true },
       orderBy: { createdAt: 'asc' },
     });
   }
@@ -116,7 +130,7 @@ export class InscripcionesService {
 
     const updated = await this.prisma.inscripcion.update({
       where: { id },
-      data: { estado: 'ACEPTADA' },
+      data: { estado: 'ACEPTADA', aceptadaAt: new Date() },
     });
 
     await this.notificaciones.crear({
@@ -167,7 +181,10 @@ export class InscripcionesService {
 
     return this.prisma.inscripcion.findMany({
       where: { materiaId, estado: 'ACEPTADA' },
-      include: { alumno: true, grupo: { select: { id: true, nombre: true } } },
+      include: {
+        alumno: ALUMNO_PUBLICO,
+        grupo: { select: { id: true, nombre: true } },
+      },
       orderBy: { alumno: { nombre: 'asc' } },
     });
   }
@@ -275,7 +292,11 @@ export class InscripcionesService {
       if (existente) {
         await this.prisma.inscripcion.update({
           where: { id: existente.id },
-          data: { estado: 'ACEPTADA', grupoId: dto.grupoId ?? null },
+          data: {
+            estado: 'ACEPTADA',
+            aceptadaAt: new Date(),
+            grupoId: dto.grupoId ?? null,
+          },
         });
         resultado.reactivados += 1;
       } else {
@@ -285,6 +306,7 @@ export class InscripcionesService {
             materiaId,
             periodo,
             estado: 'ACEPTADA',
+            aceptadaAt: new Date(),
             grupoId: dto.grupoId ?? null,
           },
         });
@@ -489,7 +511,11 @@ export class InscripcionesService {
         } else if (yaInscrito) {
           await this.prisma.inscripcion.update({
             where: { id: yaInscrito.id },
-            data: { estado: 'ACEPTADA', grupoId: dto.grupoId ?? null },
+            data: {
+              estado: 'ACEPTADA',
+              aceptadaAt: new Date(),
+              grupoId: dto.grupoId ?? null,
+            },
           });
         } else {
           await this.prisma.inscripcion.create({
@@ -498,6 +524,7 @@ export class InscripcionesService {
               materiaId,
               periodo,
               estado: 'ACEPTADA',
+              aceptadaAt: new Date(),
               grupoId: dto.grupoId ?? null,
             },
           });
@@ -625,7 +652,7 @@ export class InscripcionesService {
         estado: 'ACEPTADA',
         periodo: periodoNormalizado,
       },
-      include: { materia: { include: { docente: true } } },
+      include: { materia: { include: { docente: DOCENTE_PUBLICO } } },
     });
   }
 }

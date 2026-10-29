@@ -131,7 +131,7 @@ export default function ModalCodigosActivacion({ grupo, onClose }) {
         </div>
       ) : (
         <div className="space-y-4">
-          <p role="status" className="rounded-xl border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-foreground">
+          <p role="status" className="rounded-xl border border-warning/40 bg-warning/18 px-3 py-2 text-sm text-foreground">
             Se generaron {alumnos.length} código{alumnos.length === 1 ? '' : 's'}, vigentes {resultado.vigenciaDias} días.
             Descárgalos o imprímelos ahora: al cerrar esta ventana ya no se pueden volver a ver.
           </p>

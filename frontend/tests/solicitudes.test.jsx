@@ -18,7 +18,7 @@ test('un fallo del servidor se muestra como error con reintento, no como "sin so
  render(<SolicitudesPendientes />)
  const alert=await screen.findByRole('alert')
  expect(alert.textContent).toContain('Error interno')
- expect(screen.queryByText('No hay solicitudes pendientes')).toBeNull()
+ expect(screen.queryByText('No hay solicitudes por revisar.')).toBeNull()
  await user.click(screen.getByRole('button',{name:'Volver a intentar'}))
  expect(await screen.findByText('Ana Ramírez')).toBeTruthy()
  expect(screen.queryByRole('alert')).toBeNull()
@@ -33,7 +33,7 @@ test('sin respuesta del servicio se usa un mensaje genérico', async () => {
 test('la lista vacía real sigue mostrando el estado vacío', async () => {
  api.get.mockResolvedValueOnce({ data: [] })
  render(<SolicitudesPendientes />)
- expect(await screen.findByText('No hay solicitudes pendientes')).toBeTruthy()
+ expect(await screen.findByText('No hay solicitudes por revisar.')).toBeTruthy()
 })
 
 test('aceptar o rechazar con error conserva la solicitud y avisa al docente', async () => {

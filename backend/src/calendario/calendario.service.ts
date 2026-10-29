@@ -3,6 +3,7 @@ import {
   EstadoTarea,
   ModalidadGrupo,
   Prisma,
+  TipoEntrega,
   TipoTokenAuth,
 } from '@prisma/client';
 import { createHash, randomBytes } from 'crypto';
@@ -19,6 +20,14 @@ const ESTADOS_TAREA_VISIBLE: EstadoTarea[] = [
   EstadoTarea.PUBLICADA,
   EstadoTarea.VENCIDA,
 ];
+
+/** Cómo se anuncia en el calendario cada tipo de actividad (si no, "Entrega"). */
+const ACTIVIDAD_EN_CALENDARIO: Record<string, string> = {
+  EXAMEN: 'Examen',
+  PROYECTO: 'Proyecto',
+  PRACTICAS: 'Práctica',
+  EXPOSICION: 'Exposición',
+};
 
 const HORARIO_SELECT = {
   id: true,
@@ -157,7 +166,7 @@ export class CalendarioService {
         : [];
 
     const docenteIds = [...new Set(horarios.map((h) => h.docenteId))];
-    const [propias, institucionales, tareas] = await Promise.all([
+    const [propias, institucionales, justificadas, tareas] = await Promise.all([
       this.prisma.suspensionClase.findMany({
         where: { docenteId: { in: docenteIds }, periodoClave: { in: claves } },
         select: { docenteId: true, fecha: true },
@@ -165,6 +174,15 @@ export class CalendarioService {
       this.prisma.suspensionInstitucional.findMany({
         where: { periodoClave: { in: claves } },
         select: { fecha: true, motivo: true },
+      }),
+      this.prisma.claseJustificada.findMany({
+        where: {
+          horarioId: { in: horarios.map((h) => h.id) },
+          periodoClave: { in: claves },
+          // El docente decide si sus alumnos se enteran de la clase sin dar.
+          ...(esDocente ? {} : { avisarAlumnos: true }),
+        },
+        select: { horarioId: true, fecha: true },
       }),
       esDocente
         ? this.tareasDocente(usuario.id, inicio)
@@ -190,6 +208,9 @@ export class CalendarioService {
           ...propias
             .filter((s) => s.docenteId === horario.docenteId)
             .map((s) => s.fecha),
+          ...justificadas
+            .filter((s) => s.horarioId === horario.id)
+            .map((s) => s.fecha),
         ],
       };
     });
@@ -204,10 +225,12 @@ export class CalendarioService {
         const p = partesEnZona(tarea.fechaLimite as Date);
         const hora =
           tarea.horaLimite ?? `${dosDigitos(p.hour)}:${dosDigitos(p.minute)}`;
+        const enClase = tarea.tipoEntrega === TipoEntrega.PRESENCIAL;
+        const tipo = ACTIVIDAD_EN_CALENDARIO[tarea.categoria?.tipo ?? ''];
         return {
           uid: `tarea-${tarea.id}@sicat`,
-          resumen: `Entrega: ${tarea.titulo}`,
-          descripcion: `${tarea.materia.nombre}${tarea.grupo ? ` · ${tarea.grupo.nombre}` : ''}. Hora límite ${hora}.`,
+          resumen: `${tipo ?? (enClase ? 'En clase' : 'Entrega')}: ${tarea.titulo}`,
+          descripcion: `${tarea.materia.nombre}${tarea.grupo ? ` · ${tarea.grupo.nombre}` : ''}. ${enClase ? `Se aplica en clase, ${hora}.` : `Hora límite ${hora}.`}`,
           fecha: `${p.year}-${dosDigitos(p.month)}-${dosDigitos(p.day)}`,
         };
       }),
@@ -243,6 +266,8 @@ export class CalendarioService {
         titulo: true,
         fechaLimite: true,
         horaLimite: true,
+        tipoEntrega: true,
+        categoria: { select: { tipo: true } },
         materia: { select: { nombre: true } },
         grupo: { select: { nombre: true } },
       },
@@ -278,6 +303,8 @@ export class CalendarioService {
         titulo: true,
         fechaLimite: true,
         horaLimite: true,
+        tipoEntrega: true,
+        categoria: { select: { tipo: true } },
         materia: { select: { nombre: true } },
         grupo: { select: { nombre: true } },
       },

@@ -8,10 +8,28 @@ export default defineConfig({
   migrations: {
     path: "prisma/migrations",
   },
+  // Prisma 6 sólo lee `datasource` de este archivo con engine "classic"; sin
+  // él lo ignora y migrate usa env("DIRECT_URL") del schema, que en Render
+  // apunta al pooler (P1002 otra vez el 2026-10-22).
+  engine: "classic",
   // Este bloque sobrescribe url/directUrl del schema.prisma, así que directUrl
   // tiene que ir aquí también o `migrate deploy` usa el pooler de Neon (P1002).
   datasource: {
     url: process.env["DATABASE_URL"] as string,
-    ...(process.env["DIRECT_URL"] && { directUrl: process.env["DIRECT_URL"] }),
+    ...(directUrl() && { directUrl: directUrl() }),
   },
 });
+
+// `migrate deploy` toma un advisory lock de sesión; por el pooler de Neon
+// (pgbouncer) el unlock cae en otra conexión y el lock queda colgado, y el
+// siguiente arranque en Render muere con P1002. Si no hay DIRECT_URL (o apunta
+// al pooler), se usa el host directo de Neon, que es el mismo sin "-pooler".
+function directUrl(): string | undefined {
+  const url = process.env["DIRECT_URL"] || process.env["DATABASE_URL"];
+  if (!url) return undefined;
+  if (!/-pooler\./.test(url)) return process.env["DIRECT_URL"] || undefined;
+  return url
+    .replace("-pooler.", ".")
+    .replace(/([?&])pgbouncer=true&?/, "$1")
+    .replace(/[?&]$/, "");
+}

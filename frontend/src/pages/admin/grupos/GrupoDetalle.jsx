@@ -98,7 +98,7 @@ export default function GrupoDetalle() {
       </div>
 
       {error && (
-        <div className="bg-destructive/10 border border-destructive/30 rounded-lg px-4 py-3 text-sm text-destructive-foreground flex items-center justify-between">
+        <div className="bg-destructive/18 border border-destructive/45 rounded-lg px-4 py-3 text-sm text-destructive-foreground flex items-center justify-between">
           <span>{error}</span>
           <Button variant="destructive" onClick={clearError} className="ml-4">✕</Button>
         </div>
@@ -183,7 +183,7 @@ export default function GrupoDetalle() {
             <p className="text-sm text-muted-foreground">
               Sus alumnos quedan sin grupo y el historial académico se conserva: las clases, tareas y calificaciones siguen registradas en cada materia.
             </p>
-            <div className="flex flex-col gap-2 sm:flex-row">
+            <div className="flex gap-2">
               <Button variant="outline"
                 onClick={() => setConfirmEliminar(false)}
                 className="flex-1 border py-2 text-sm"

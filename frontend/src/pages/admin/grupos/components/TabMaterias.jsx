@@ -5,9 +5,9 @@ import api from '../../../../api/axios'
 import { useGrupoStore } from '../../../../store/grupoStore'
 
 const ESTADO_CONFIG = {
-  ASIGNADA:   { label: 'Asignada',    cls: "bg-success/10 text-success-foreground" },
+  ASIGNADA:   { label: 'Asignada',    cls: "bg-success/18 text-success-foreground" },
   DISPONIBLE: { label: 'Disponible',  cls: "bg-accent text-primary-ink" },
-  FALTANTE:   { label: 'Sin materia', cls: "bg-warning/10 text-warning-foreground" },
+  FALTANTE:   { label: 'Sin materia', cls: "bg-warning/18 text-warning-foreground" },
 }
 
 export default function TabMaterias({ grupo, onAgregarClick }) {
@@ -76,7 +76,7 @@ export default function TabMaterias({ grupo, onAgregarClick }) {
         </div>
         <Button variant="default"
           onClick={onAgregarClick}
-          className="w-full px-4 py-2 text-sm sm:w-auto"
+          className="self-start px-4 py-2 text-sm"
         >
           + Agregar materias
         </Button>
@@ -94,7 +94,7 @@ export default function TabMaterias({ grupo, onAgregarClick }) {
             <span className="text-muted-foreground">{disponibles} disponibles</span>
           </div>
           <div className="flex items-center gap-1.5 text-xs">
-            <span className="w-2 h-2 rounded-full bg-warning/15 inline-block" />
+            <span className="w-2 h-2 rounded-full bg-warning/22 inline-block" />
             <span className="text-muted-foreground">{faltantes} sin materia creada</span>
           </div>
         </div>
@@ -217,12 +217,12 @@ export default function TabMaterias({ grupo, onAgregarClick }) {
                     <td className="px-4 py-3">
                       {m.docente
                         ? <span className="text-foreground">{m.docente.nombre}</span>
-                        : <span className="text-xs bg-destructive/10 text-destructive-foreground px-2 py-0.5 rounded-full">Sin docente</span>}
+                        : <span className="text-xs bg-destructive/18 text-destructive-foreground px-2 py-0.5 rounded-full">Sin docente</span>}
                     </td>
                     <td className="px-4 py-3">
                       {m.aula
                         ? <span className="text-foreground">{m.aula.nombre}</span>
-                        : <span className="text-xs bg-warning/10 text-warning-foreground px-2 py-0.5 rounded-full">Sin aula</span>}
+                        : <span className="text-xs bg-warning/18 text-warning-foreground px-2 py-0.5 rounded-full">Sin aula</span>}
                     </td>
                     <td className="px-4 py-3 text-right">
                       {confirmId === m.id ? (

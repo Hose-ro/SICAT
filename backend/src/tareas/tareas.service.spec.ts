@@ -420,3 +420,260 @@ describe('TareasService.recordarPendientes', () => {
     expect(crearParaVarios).not.toHaveBeenCalled();
   });
 });
+
+describe('TareasService.capturarCalificaciones (actividades en clase)', () => {
+  const tareaFindUnique = jest.fn();
+  const tareaUpdateMany = jest.fn();
+  const inscripcionFindMany = jest.fn();
+  const entregaFindMany = jest.fn();
+  const entregaUpsert = jest.fn();
+  const entregaUpdate = jest.fn();
+  const entregaDelete = jest.fn();
+  const transaction = jest.fn();
+  const crearVarias = jest.fn();
+  const prisma = {
+    tarea: { findUnique: tareaFindUnique, updateMany: tareaUpdateMany },
+    inscripcion: { findMany: inscripcionFindMany },
+    entregaTarea: {
+      findMany: entregaFindMany,
+      upsert: entregaUpsert,
+      update: entregaUpdate,
+      delete: entregaDelete,
+    },
+    $transaction: transaction,
+  } as unknown as PrismaService;
+  const service = new TareasService(prisma, {
+    crearVarias,
+  } as unknown as NotificacionesService);
+  const admin = { id: 1, rol: 'ADMIN' };
+  const tarea = {
+    id: 50,
+    titulo: 'Examen parcial 1',
+    materiaId: 12,
+    grupoId: 3,
+    docenteId: 31,
+    estado: EstadoTarea.PUBLICADA,
+    tipoEntrega: TipoEntrega.PRESENCIAL,
+  };
+  const alumno = (id: number) => ({
+    alumno: { id, nombre: `Alumno ${id}`, grupoId: 3 },
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    tareaFindUnique.mockResolvedValue(tarea);
+    tareaUpdateMany.mockResolvedValue({ count: 0 });
+    inscripcionFindMany.mockResolvedValue([1, 2, 3, 4].map(alumno));
+    entregaFindMany.mockResolvedValue([
+      {
+        id: 102,
+        alumnoId: 2,
+        estadoRevision: 'CALIFICADA',
+        calificacion: 80,
+        observacion: null,
+      },
+      {
+        id: 103,
+        alumnoId: 3,
+        estadoRevision: 'NO_ENTREGADA',
+        calificacion: 0,
+        observacion: null,
+      },
+      {
+        id: 104,
+        alumnoId: 4,
+        estadoRevision: 'CALIFICADA',
+        calificacion: 70,
+        observacion: null,
+      },
+    ]);
+    entregaUpsert.mockImplementation((args: unknown) => ({ upsert: args }));
+    entregaUpdate.mockImplementation((args: unknown) => ({ update: args }));
+    entregaDelete.mockImplementation((args: unknown) => ({ delete: args }));
+    transaction.mockResolvedValue([]);
+  });
+
+  it('califica, marca "no presentó" con 0 y quita, y sólo avisa lo que cambió', async () => {
+    const resultado = await service.capturarCalificaciones(50, admin, {
+      calificaciones: [
+        { alumnoId: 1, calificacion: 95 },
+        { alumnoId: 2, calificacion: 80 },
+        { alumnoId: 3, calificacion: null },
+        { alumnoId: 4, noPresento: true },
+      ],
+    });
+
+    expect(transaction).toHaveBeenCalledTimes(1);
+    expect(transaction.mock.calls[0][0]).toHaveLength(3);
+    expect(entregaUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { tareaId_alumnoId: { tareaId: 50, alumnoId: 1 } },
+        update: expect.objectContaining({
+          estadoRevision: 'CALIFICADA',
+          calificacion: 95,
+          calificacionTipo: 'NUMERICA',
+        }),
+      }),
+    );
+    expect(entregaUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { tareaId_alumnoId: { tareaId: 50, alumnoId: 4 } },
+        update: expect.objectContaining({
+          estadoRevision: 'NO_ENTREGADA',
+          calificacion: 0,
+        }),
+      }),
+    );
+    // Quitar un "no presentó" borra la fila: vuelve a no tener registro.
+    expect(entregaDelete).toHaveBeenCalledWith({ where: { id: 103 } });
+    // La de 80 no cambió.
+    expect(entregaUpsert).toHaveBeenCalledTimes(2);
+
+    expect(crearVarias).toHaveBeenCalledWith([
+      expect.objectContaining({
+        usuarioId: 1,
+        tipo: TipoNotificacion.CALIFICACION_DISPONIBLE,
+        mensaje: 'Obtuviste 95/100 en «Examen parcial 1»',
+      }),
+      expect.objectContaining({
+        usuarioId: 4,
+        mensaje: expect.stringContaining('no presentaste'),
+      }),
+    ]);
+    expect(resultado.actualizadas).toBe(3);
+  });
+
+  it('quitar una calificación la deja registrada pero sin nota', async () => {
+    await service.capturarCalificaciones(50, admin, {
+      calificaciones: [{ alumnoId: 2, calificacion: null }],
+    });
+    expect(entregaUpdate).toHaveBeenCalledWith({
+      where: { id: 102 },
+      data: {
+        calificacion: null,
+        calificacionTipo: null,
+        estadoRevision: 'ENTREGADA',
+      },
+    });
+    expect(crearVarias).toHaveBeenCalledWith([]);
+  });
+
+  it('sólo es para actividades en clase publicadas y alumnos de la lista', async () => {
+    tareaFindUnique.mockResolvedValueOnce({
+      ...tarea,
+      tipoEntrega: TipoEntrega.EN_LINEA,
+    });
+    await expect(
+      service.capturarCalificaciones(50, admin, {
+        calificaciones: [{ alumnoId: 1, calificacion: 90 }],
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
+
+    tareaFindUnique.mockResolvedValueOnce({
+      ...tarea,
+      estado: EstadoTarea.BORRADOR,
+    });
+    await expect(
+      service.capturarCalificaciones(50, admin, {
+        calificaciones: [{ alumnoId: 1, calificacion: 90 }],
+      }),
+    ).rejects.toThrow('Publica la actividad');
+
+    await expect(
+      service.capturarCalificaciones(50, admin, {
+        calificaciones: [{ alumnoId: 99, calificacion: 90 }],
+      }),
+    ).rejects.toThrow('no pertenece');
+    await expect(
+      service.capturarCalificaciones(50, admin, {
+        calificaciones: [{ alumnoId: 1, calificacion: 90, noPresento: true }],
+      }),
+    ).rejects.toThrow('no lleva calificación');
+    expect(transaction).not.toHaveBeenCalled();
+  });
+});
+
+describe('TareasService: publicar exige un criterio que cuente', () => {
+  const tareaFindUnique = jest.fn();
+  const tareaUpdate = jest.fn();
+  const materiaFindUnique = jest.fn();
+  const ponderacionFindMany = jest.fn();
+  const categoriaFindMany = jest.fn();
+  const prisma = {
+    tarea: { findUnique: tareaFindUnique, update: tareaUpdate },
+    materia: { findUnique: materiaFindUnique },
+    ponderacionGrupo: { findMany: ponderacionFindMany },
+    categoriaEvaluacion: { findMany: categoriaFindMany },
+    inscripcion: { findMany: jest.fn().mockResolvedValue([]) },
+    entregaTarea: { findMany: jest.fn().mockResolvedValue([]) },
+  } as unknown as PrismaService;
+  const service = new TareasService(prisma, {
+    crearParaVarios: jest.fn(),
+  } as unknown as NotificacionesService);
+  const admin = { id: 1, rol: 'ADMIN' };
+  const borrador = {
+    id: 60,
+    titulo: 'Examen',
+    materiaId: 12,
+    grupoId: 3,
+    unidadId: 7,
+    docenteId: 31,
+    estado: EstadoTarea.BORRADOR,
+    tipoEntrega: TipoEntrega.PRESENCIAL,
+    tieneFechaLimite: false,
+    fechaLimite: null,
+    fechaPublicacion: null,
+    categoriaId: null as number | null,
+  };
+  const criterio = (
+    id: number,
+    tipo: string,
+    grupoId: number,
+    peso: number,
+  ) => ({
+    id,
+    nombre: `C${id}`,
+    tipo,
+    orden: id,
+    pesos: [{ grupoId, peso, meta: null }],
+    pesosUnidad: [],
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    materiaFindUnique.mockResolvedValue({
+      id: 12,
+      pesoTareas: 80,
+      pesoAsistencia: 20,
+    });
+    ponderacionFindMany.mockResolvedValue([]);
+    categoriaFindMany.mockResolvedValue([
+      criterio(5, 'EXAMEN', 3, 60),
+      criterio(6, 'ASISTENCIA', 3, 40),
+    ]);
+    tareaUpdate.mockImplementation(({ data }: { data: object }) => ({
+      ...borrador,
+      ...data,
+    }));
+  });
+
+  it('pide elegir el tipo cuando el grupo tiene criterios propios', async () => {
+    tareaFindUnique.mockResolvedValue(borrador);
+    await expect(service.publicar(60, admin)).rejects.toThrow(
+      'Elige el tipo de actividad',
+    );
+    tareaFindUnique.mockResolvedValue({ ...borrador, categoriaId: 6 });
+    await expect(service.publicar(60, admin)).rejects.toThrow('no cuenta');
+    expect(tareaUpdate).not.toHaveBeenCalled();
+
+    tareaFindUnique.mockResolvedValue({ ...borrador, categoriaId: 5 });
+    await expect(service.publicar(60, admin)).resolves.toBeTruthy();
+    expect(tareaUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  it('con la ponderación predeterminada se publica sin tipo', async () => {
+    categoriaFindMany.mockResolvedValue([criterio(5, 'EXAMEN', 9, 100)]);
+    tareaFindUnique.mockResolvedValue(borrador);
+    await expect(service.publicar(60, admin)).resolves.toBeTruthy();
+  });
+});

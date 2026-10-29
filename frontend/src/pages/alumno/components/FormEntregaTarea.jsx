@@ -5,7 +5,7 @@ import api from '../../../api/axios'
 import { useTareaStore } from '../../../store/tareaStore'
 
 import TaskNotice from '../../../components/TaskNotice'
-import { mergeTaskFiles, taskError, deliveryHelp, taskFileUrl } from '../../../lib/tareas'
+import { mergeTaskFiles, taskError, taskFileUrl } from '../../../lib/tareas'
 
 function getAcceptByTaskType(tipoEntrega) {
   if (tipoEntrega === 'FIRMA') return '.png,.jpg,.jpeg,.webp'
@@ -69,26 +69,24 @@ export default function FormEntregaTarea({ tarea, miEntrega, puedeEditar, onSucc
 
   if (tarea.tipoEntrega === 'PRESENCIAL') {
     return (
-      <div className="rounded-3xl border border-border bg-muted/40 p-5 text-sm text-muted-foreground">
-        {summaryText}
-      </div>
+      <p className="rounded-[var(--radius-item)] bg-muted/60 px-4 py-3 text-sm text-muted-foreground">{summaryText}</p>
     )
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       <TaskNotice error={error} success={success} />
-      <p className="text-sm text-muted-foreground">{deliveryHelp(tarea, miEntrega, isEditable)}</p>
-      <div className="rounded-3xl border border-border bg-muted/40 p-5">
-        <p className="text-sm font-semibold text-foreground">Indicaciones de entrega</p>
-        <p className="mt-2 text-sm text-muted-foreground">{summaryText}</p>
+      {/* El estado de la entrega ya se dice arriba, en "Tu entrega". */}
+      <div className="rounded-[var(--radius-item)] bg-muted/60 px-4 py-3">
+        <p className="text-sm font-medium text-foreground">Indicaciones de entrega</p>
+        <p className="mt-1 text-sm text-muted-foreground">{summaryText}</p>
       </div>
 
       {existingFiles.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Archivos actuales</p>
+          <p className="text-sm font-medium text-foreground">Archivos actuales</p>
           {existingFiles.map((file) => (
-            <label key={file.id} className="flex items-center justify-between rounded-2xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+            <label key={file.id} className="flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-item)] border border-border px-4 py-3 text-sm text-muted-foreground">
               <a href={taskFileUrl(file.url, api.defaults.baseURL)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 font-medium text-foreground hover:text-primary-ink">
                 <FileBadge2 className="h-4 w-4" />
                 {file.nombre}
@@ -106,8 +104,8 @@ export default function FormEntregaTarea({ tarea, miEntrega, puedeEditar, onSucc
         </div>
       )}
 
-      <label className="flex cursor-pointer flex-col gap-3 rounded-3xl border border-dashed border-border bg-muted/40 px-5 py-6 text-center">
-        <div className="mx-auto rounded-full bg-card p-3 shadow-sm">
+      <label className="flex cursor-pointer flex-col gap-3 rounded-[var(--radius-item)] border border-dashed border-border px-5 py-6 text-center transition-colors hover:bg-muted/40">
+        <div className="mx-auto rounded-full bg-muted p-3">
           <UploadCloud className="h-5 w-5 text-muted-foreground" />
         </div>
         <div>
@@ -132,18 +130,19 @@ export default function FormEntregaTarea({ tarea, miEntrega, puedeEditar, onSucc
 
       {archivos.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Nuevos archivos</p>
+          <p className="text-sm font-medium text-foreground">Nuevos archivos</p>
           {archivos.map((file, index) => (
-            <div key={`${file.name}-${file.size}`} className="rounded-2xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
-              {file.name} · {(file.size / 1024 / 1024).toFixed(2)} MB
-              <Button variant="destructive" type="button" disabled={saving} onClick={() => setArchivos((files) => files.filter((_, i) => i !== index))} className="ml-3" aria-label={`Quitar ${file.name}`}>Quitar</Button>
+            <div key={`${file.name}-${file.size}`} className="flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-item)] border border-border px-4 py-2 text-sm text-muted-foreground">
+              <span className="min-w-0 break-words"><span className="text-foreground">{file.name}</span> · {(file.size / 1024 / 1024).toFixed(2)} MB</span>
+              <Button variant="ghost" type="button" disabled={saving} onClick={() => setArchivos((files) => files.filter((_, i) => i !== index))}
+                className="h-8 px-2 text-destructive-foreground hover:bg-destructive/18 hover:text-destructive-foreground" aria-label={`Quitar ${file.name}`}>Quitar</Button>
             </div>
           ))}
         </div>
       )}
 
       <div>
-        <label className="mb-2 block text-sm font-semibold text-foreground" htmlFor="delivery-comment">Comentario al docente</label>
+        <label className="mb-1 block text-sm font-medium text-foreground" htmlFor="delivery-comment">Comentario al docente</label>
         <textarea
           id="delivery-comment"
           maxLength={5000}
@@ -151,7 +150,7 @@ export default function FormEntregaTarea({ tarea, miEntrega, puedeEditar, onSucc
           onChange={(event) => setComentario(event.target.value)}
           rows={4}
           disabled={!isEditable || saving}
-          className="w-full rounded-2xl border border-border px-4 py-3 text-sm text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring disabled:bg-muted/40"
+          className="w-full rounded-[10px] border border-input bg-background px-3 py-2 text-base text-foreground outline-none transition-[border-color,box-shadow] focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40 disabled:opacity-60 sm:text-sm"
           placeholder="Explica tu entrega o agrega contexto adicional"
         />
       </div>

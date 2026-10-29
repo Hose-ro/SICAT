@@ -36,7 +36,7 @@ export default function SelectorAula({ materia, onClose }) {
   return (
     <div className="space-y-2">
       {error && (
-        <p className="text-xs text-destructive-foreground bg-destructive/10 rounded p-2">{error}</p>
+        <p className="text-xs text-destructive-foreground bg-destructive/18 rounded p-2">{error}</p>
       )}
       {materia.aula && (
         <div className="flex items-center justify-between text-sm bg-muted rounded p-2">

@@ -1,57 +1,52 @@
 import { Button } from '@/components/ui/button'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import {
-  AlertTriangle,
-  CheckCircle2,
-  ChevronDown,
-  CircleDashed,
-  ClipboardList,
   Download,
   FileSpreadsheet,
-  Filter,
-  GraduationCap,
   LayoutGrid,
   List,
-  Plus,
   RefreshCcw,
   RotateCcw,
   Save,
   Search,
-  Trash2,
   X,
 } from 'lucide-react'
 import api from '../api/axios'
 import SexoBadge from '../components/SexoBadge'
 import useUnsavedChangesGuard from '@/hooks/useUnsavedChangesGuard'
+import useAnimarCambio from '@/hooks/useAnimarCambio'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { confirmAction, notify } from '@/lib/feedback'
 import { useAuthStore } from '../store/authStore'
 import { useCalificacionStore } from '../store/calificacionStore'
 import { desglosePorCategoria } from '../lib/calificaciones'
+import CriteriosGuiados from '@/components/calificaciones/CriteriosGuiados'
+import DesempenoChip from '@/components/calificaciones/DesempenoChip'
+import FiltroDesempeno from '@/components/calificaciones/FiltroDesempeno'
+import { DESEMPENO, infoDesempeno, normalizarDesempeno } from '@/lib/desempeno'
+import { Chip } from '@/components/Chip'
+import { cn } from '@/lib/utils'
+import { moverFoco } from '@/lib/capturaTeclado'
+import { Segmentado } from '@/pages/docente/components/tareas/Controles'
 
-const STATUS_META = {
-  APROBADO: {
-    label: 'Aprobado',
-    className: "bg-success/10 text-success-foreground ring-ring",
-  },
-  REQUIERE_ATENCION: {
-    label: 'Requiere atención',
-    className: "bg-warning/10 text-warning-foreground ring-ring",
-  },
-  PENDIENTE: {
-    label: 'Pendiente',
-    className: "bg-background text-muted-foreground ring-ring",
-  },
-}
-
-// Mismo umbral que usa el servidor para marcar "Requiere atención".
+// Mínima aprobatoria, la misma que usa el servidor.
 const CALIFICACION_APROBATORIA = 70
 
-const ESTADO_FILTRO_LABEL = {
-  APROBADO: 'Aprobadas',
-  REQUIERE_ATENCION: 'Requieren atención',
-  PENDIENTE: 'Sin calificar',
+// El semáforo lo calcula el servidor; un reporte sin `desempeno` (servidor
+// anterior) se traduce de `estado`.
+const DESEMPENO_DE_ESTADO = { APROBADO: 'APROBADO', REQUIERE_ATENCION: 'REPROBADO', PENDIENTE: 'SIN_CALIFICAR' }
+const desempenoDe = (row) =>
+  normalizarDesempeno(row?.desempeno, getCalificacionFinal(row ?? {})) ?? DESEMPENO_DE_ESTADO[row?.estado] ?? 'SIN_CALIFICAR'
+
+function resumenDesempeno(rows) {
+  const cuenta = (estado) => rows.filter((row) => desempenoDe(row) === estado).length
+  return {
+    total: rows.length,
+    aprobados: cuenta('APROBADO'),
+    reprobados: cuenta('REPROBADO'),
+    sinCalificar: cuenta('SIN_CALIFICAR'),
+  }
 }
 
 function formatGrade(value) {
@@ -70,12 +65,13 @@ function getRowKey(row) {
 function getServerDraft(row) {
   return {
     calificacionManual: row.calificacionManual == null ? '' : String(row.calificacionManual),
+    puntosExtra: row.puntosExtra == null ? '' : String(row.puntosExtra),
     observacion: row.observacionManual ?? '',
   }
 }
 
 function isSameDraft(a, b) {
-  return a.calificacionManual === b.calificacionManual && a.observacion === b.observacion
+  return a.calificacionManual === b.calificacionManual && a.puntosExtra === b.puntosExtra && a.observacion === b.observacion
 }
 
 // Mismo rango que valida el servidor; vacío significa "usar la calculada".
@@ -85,6 +81,19 @@ function validarCalificacion(value) {
   const number = Number(text)
   if (!Number.isFinite(number) || number < 1 || number > 100) return 'Debe estar entre 1 y 100'
   return null
+}
+
+// Puntos que se suman a la calificación sin tocar los criterios; vacío es 0.
+function validarPuntosExtra(value) {
+  const text = String(value ?? '').trim()
+  if (text === '') return null
+  const number = Number(text)
+  if (!Number.isFinite(number) || number < 0 || number > 100) return 'Debe estar entre 0 y 100'
+  return null
+}
+
+function borradorInvalido(draft) {
+  return Boolean(validarCalificacion(draft.calificacionManual) || validarPuntosExtra(draft.puntosExtra))
 }
 
 function plural(count, singular, pluralForm) {
@@ -134,23 +143,90 @@ function nombreExportacion(reporte, materiaId) {
     .replace(/^-+|-+$/g, '')
 }
 
-function getFuenteLabel(fuente) {
-  if (fuente === 'MANUAL') return 'Manual'
-  if (fuente === 'CALCULADA') return 'Calculada'
-  return 'Pendiente'
+function StatusBadge({ row }) {
+  return <DesempenoChip estado={desempenoDe(row)} />
 }
 
-function StatusBadge({ estado }) {
-  const meta = STATUS_META[estado] ?? STATUS_META.PENDIENTE
+/**
+ * Semáforo con lo que hay en pantalla. Sin cambios es el del servidor; con un
+ * borrador se recalcula igual que en common/desempeno.util.ts.
+ */
+function desempenoConBorrador(row, final, dirty) {
+  if (!dirty) return desempenoDe(row)
+  if (final == null) return 'SIN_CALIFICAR'
+  return final >= CALIFICACION_APROBATORIA ? 'APROBADO' : 'REPROBADO'
+}
+
+/** Calificación final (con extra) en el color de su estado; el texto dice cuál. */
+function CalificacionFinal({ row, drafts }) {
+  const draft = drafts[getRowKey(row)] ?? getServerDraft(row)
+  const final = valorEfectivo(row, draft)
+  const info = infoDesempeno(desempenoConBorrador(row, final, Boolean(drafts[getRowKey(row)])))
   return (
-    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${meta.className}`}>
-      {meta.label}
-    </span>
+    <Chip tone={info.tono} className="h-auto gap-1.5 py-1 pl-2.5 pr-3">
+      <span aria-hidden="true" className={cn('size-2 rounded-full', info.punto)} />
+      <span className="text-base font-semibold tabular-nums">{final ?? '–'}</span>
+      <span>{info.label}</span>
+    </Chip>
   )
 }
 
-const FIELD_LABEL = 'text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground'
-const FIELD_INPUT = 'rounded-2xl border border-border bg-card px-4 py-3 text-sm text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40 disabled:cursor-not-allowed disabled:bg-background'
+const ESTADO_UNIDAD = {
+  ACTIVA: { label: 'Abierta', tone: 'success' },
+  FINALIZADA: { label: 'Cerrada', tone: 'muted' },
+  PENDIENTE: { label: 'Sin abrir', tone: 'muted' },
+}
+const textoGrupo = (grupo) => (grupo ? `Grupo ${grupo.nombre}` : 'Todos los grupos')
+const textoUnidad = (unidad) => unidad?.nombre ?? 'Todas las unidades'
+
+// Qué se está capturando, siempre a la vista: los selectores quedan arriba y
+// la tabla es larga. En el teléfono cabe en una línea con etiquetas cortas.
+function ContextoCaptura({ materia, grupo, unidad, listo }) {
+  const estado = ESTADO_UNIDAD[unidad?.status]
+  // La barra queda fija arriba mientras la tabla cambia: aquí se nota la unidad nueva.
+  const unidadRef = useRef(null)
+  useAnimarCambio(unidadRef, unidad ? unidadKey(unidad) : 'todas', { listo })
+  return (
+    <section
+      aria-label="Contexto de captura"
+      aria-live="polite"
+      className="sticky top-[var(--alto-topbar,0px)] z-20 flex items-center gap-x-3 gap-y-2 rounded-[var(--radius-card)] border border-l-4 border-border border-l-primary bg-[color-mix(in_oklab,var(--primary)_7%,var(--card))] px-3 py-2 md:flex-wrap md:justify-between md:gap-x-4 md:px-5 md:py-4"
+    >
+      <h2 className="min-w-0 flex-1 truncate text-sm font-semibold leading-snug text-foreground md:text-xl">
+        {materia.nombre}
+        {materia.clave && <span className="font-normal text-muted-foreground max-md:hidden"> · {materia.clave}</span>}
+      </h2>
+      {/* Grupo y unidad en texto gris, un paso por debajo de la clave. */}
+      <p className="flex shrink-0 items-baseline gap-x-1.5 text-xs leading-snug text-muted-foreground md:gap-x-2.5 md:text-base">
+        <span className="font-medium">
+          {grupo ? (
+            <><span className="max-md:sr-only">Grupo </span>{grupo.nombre}</>
+          ) : (
+            <>Todos<span className="max-md:sr-only"> los grupos</span></>
+          )}
+        </span>
+        <span aria-hidden="true">·</span>
+        <span ref={unidadRef} className="font-medium">
+          {unidad ? (
+            unidad.orden ? (
+              <><span aria-hidden="true" className="md:hidden">U{unidad.orden}</span><span className="max-md:sr-only">{unidad.nombre}</span></>
+            ) : unidad.nombre
+          ) : (
+            <>Todas<span className="max-md:sr-only"> las unidades</span></>
+          )}
+        </span>
+        {estado && (
+          <span>
+            <span aria-hidden="true">· </span>{estado.label}
+          </span>
+        )}
+      </p>
+    </section>
+  )
+}
+
+const FIELD_LABEL = 'text-sm font-medium text-foreground'
+const FIELD_INPUT = 'h-10 rounded-[10px] border border-input bg-background px-3 text-base text-foreground outline-none transition-[border-color,box-shadow] focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40 disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm'
 
 function SelectField({ label, value, onChange, children, disabled = false }) {
   return (
@@ -163,160 +239,16 @@ function SelectField({ label, value, onChange, children, disabled = false }) {
   )
 }
 
-function NumberField({ label, value, onChange, min = 0, max = 100, disabled = false }) {
-  return (
-    <label className="flex min-w-[8rem] flex-col gap-1">
-      <span className={FIELD_LABEL}>{label}</span>
-      <input
-        type="number"
-        inputMode="numeric"
-        min={min}
-        max={max}
-        value={value}
-        onChange={onChange}
-        disabled={disabled}
-        className={FIELD_INPUT}
-      />
-    </label>
-  )
-}
-
-function MetricCard({ icon, label, value, tone = 'slate', onClick, pressed = false }) {
-  const Icon = icon
-  const tones = {
-    blue: "border-border bg-accent text-primary-ink",
-    green: "border-success/30 bg-success/10 text-success-foreground",
-    amber: "border-warning/30 bg-warning/10 text-warning-foreground",
-    slate: "border-border bg-background text-foreground",
-  }
-  const content = (
-    <div className="flex items-center justify-between gap-4">
-      <div>
-        <p className="text-sm font-medium">{label}</p>
-        <p className="mt-2 text-3xl font-semibold">{value ?? '-'}</p>
-      </div>
-      <div className="rounded-2xl bg-card/80 p-3">
-        <Icon className="h-5 w-5" />
-      </div>
-    </div>
-  )
-  const className = `rounded-3xl border p-5 ${tones[tone] || tones.slate}`
-
-  if (!onClick) return <div className={className}>{content}</div>
-
-  return (
-    <button
-      type="button"
-      aria-pressed={pressed}
-      onClick={onClick}
-      className={`${className} text-left outline-none transition hover:shadow-[0_6px_20px_oklch(0.62_0.19_264/0.08)] focus-visible:ring-2 focus-visible:ring-ring/40 ${pressed ? 'ring-2 ring-ring' : ''}`}
-    >
-      {content}
-    </button>
-  )
-}
-
 function EmptyState({ children }) {
   return (
-    <div className="rounded-3xl border border-dashed border-border bg-background px-6 py-14 text-center text-sm text-muted-foreground">
+    <div className="rounded-[var(--radius-card)] border border-dashed border-border px-6 py-14 text-center text-sm text-muted-foreground">
       {children}
-    </div>
-  )
-}
-
-function CalificacionesTable({ rows, showMateria = false }) {
-  if (!rows.length) return <EmptyState>Sin calificaciones disponibles.</EmptyState>
-
-  return (
-    <div className="overflow-hidden rounded-[1.75rem] border border-border bg-card">
-      <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Tabla de calificaciones">
-        <table className="min-w-full divide-y divide-border text-sm">
-          <thead className="bg-background text-left text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-            <tr>
-              <th className="px-4 py-3">No. control</th>
-              <th className="px-4 py-3">Alumno</th>
-              {showMateria && <th className="px-4 py-3">Materia</th>}
-              <th className="px-4 py-3">Grupo</th>
-              <th className="px-4 py-3">Unidad</th>
-              <th className="px-4 py-3">Calificación</th>
-              <th className="px-4 py-3">Cálculo</th>
-              <th className="px-4 py-3">Origen</th>
-              <th className="px-4 py-3">Observación</th>
-              <th className="px-4 py-3">Estado</th>
-              <th className="px-4 py-3">Tareas</th>
-              <th className="px-4 py-3">Asistencia</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border text-foreground">
-            {rows.map((row) => (
-              <tr key={getRowKey(row)}>
-                <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">{row.alumno?.numeroControl || '-'}</td>
-                <td className="min-w-[14rem] px-4 py-3 font-medium text-foreground">
-                  <span className="flex items-center gap-2">
-                    <SexoBadge sexo={row.alumno?.sexo} />
-                    {row.alumno?.nombre}
-                  </span>
-                </td>
-                {showMateria && (
-                  <td className="min-w-[14rem] px-4 py-3">
-                    <p className="font-medium text-foreground">{row.materia?.nombre}</p>
-                    <p className="text-xs text-muted-foreground">{row.materia?.clave}</p>
-                  </td>
-                )}
-                <td className="whitespace-nowrap px-4 py-3">{row.grupo?.nombre || '-'}</td>
-                <td className="whitespace-nowrap px-4 py-3">{row.unidad?.nombre || '-'}</td>
-                <td className="whitespace-nowrap px-4 py-3">
-                  <span className="text-lg font-semibold text-foreground">{formatGrade(getCalificacionFinal(row))}</span>
-                  <span className="ml-2 text-xs text-muted-foreground">{getFuenteLabel(row.fuenteCalificacion)}</span>
-                </td>
-                <td className="whitespace-nowrap px-4 py-3">
-                  <span className="font-medium text-foreground">{formatGrade(row.calificacionCalculada)}</span>
-                  {typeof row.promedioTareas === 'number' && (
-                    <p className="text-xs text-muted-foreground">Tareas {row.promedioTareas}</p>
-                  )}
-                  {desglosePorCategoria(row) && (
-                    <p className="text-xs text-muted-foreground">{desglosePorCategoria(row)}</p>
-                  )}
-                </td>
-                <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
-                  {getFuenteLabel(row.fuenteCalificacion)}
-                </td>
-                <td className="min-w-[16rem] px-4 py-3 text-muted-foreground">
-                  {row.observacionManual || row.observaciones?.[0] || '-'}
-                </td>
-                <td className="whitespace-nowrap px-4 py-3">
-                  <StatusBadge estado={row.estado} />
-                </td>
-                <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
-                  {row.tareas?.calificadas ?? 0}/{row.tareas?.total ?? 0} calificadas
-                </td>
-                <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
-                  {row.asistencia?.porcentaje ?? 0}%
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
     </div>
   )
 }
 
 // Enter baja al siguiente alumno de la misma columna y Shift+Enter sube, como
 // en una hoja de cálculo. Funciona igual en la tabla, la matriz y las tarjetas.
-function moverFoco(event) {
-  if (event.key !== 'Enter') return
-  event.preventDefault()
-  const { columna } = event.currentTarget.dataset
-  const grupo = event.currentTarget.closest('[data-captura-grupo]')
-  const inputs = [...grupo.querySelectorAll(`input[data-captura="calificacion"][data-columna="${columna}"]:not(:disabled)`)]
-  const next = inputs[inputs.indexOf(event.currentTarget) + (event.shiftKey ? -1 : 1)]
-  if (next) {
-    next.focus()
-    next.select()
-  }
-}
-
 function unidadKey(unidad) {
   return unidad?.id ?? `orden-${unidad?.orden}`
 }
@@ -332,8 +264,10 @@ function etiquetaCelda(row, conUnidad) {
 // vacía, la calculada.
 function valorEfectivo(row, draft) {
   const manual = draft.calificacionManual.trim()
-  if (manual === '') return row.calificacionCalculada ?? null
-  return validarCalificacion(manual) ? null : Number(manual)
+  const base = manual === '' ? row.calificacionCalculada ?? null : validarCalificacion(manual) ? null : Number(manual)
+  const extra = draft.puntosExtra.trim()
+  if (base == null || extra === '' || validarPuntosExtra(extra)) return base
+  return Math.min(100, Math.round((base + Number(extra)) * 10) / 10)
 }
 
 function promedio(values) {
@@ -429,6 +363,46 @@ function CalificacionInput({ row, drafts, conUnidad, columna, compact = false, o
   )
 }
 
+function PuntosExtraInput({ row, drafts, conUnidad, onDraftChange }) {
+  const rowKey = getRowKey(row)
+  const draft = drafts[rowKey] ?? getServerDraft(row)
+  const invalid = validarPuntosExtra(draft.puntosExtra)
+  const conPuntos = draft.puntosExtra.trim() !== '' && Number(draft.puntosExtra) > 0
+  const hintId = `extra-${rowKey}`
+
+  return (
+    <div>
+      <input
+        data-captura="calificacion"
+        data-columna="extra"
+        aria-label={`Puntos extra de ${etiquetaCelda(row, conUnidad)}`}
+        aria-describedby={hintId}
+        aria-invalid={Boolean(invalid)}
+        type="number"
+        inputMode="decimal"
+        min="0"
+        max="100"
+        step="0.5"
+        value={draft.puntosExtra}
+        placeholder="+0"
+        disabled={!row.unidad?.id}
+        onChange={(event) => onDraftChange(row, 'puntosExtra', event.target.value)}
+        onKeyDown={moverFoco}
+        className="w-20 rounded-2xl border border-border bg-card px-3 py-2 text-base font-semibold text-foreground outline-none transition placeholder:font-normal placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40 aria-invalid:border-destructive disabled:cursor-not-allowed disabled:bg-background"
+      />
+      <div id={hintId} className="mt-1 text-xs">
+        {invalid ? (
+          <span className="font-medium text-destructive-foreground">{invalid}</span>
+        ) : conPuntos ? (
+          <span className="text-muted-foreground">Se suma a la final</span>
+        ) : (
+          <span className="text-muted-foreground">Sin extra</span>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function ObservacionInput({ row, drafts, conUnidad, onDraftChange }) {
   const draft = drafts[getRowKey(row)] ?? getServerDraft(row)
   return (
@@ -474,8 +448,9 @@ function CapturaTable({ rows, drafts, showGrupo, showUnidad, onDraftChange }) {
               {showGrupo && <th className="px-4 py-3">Grupo</th>}
               {showUnidad && <th className="px-4 py-3">Unidad</th>}
               <th className="px-4 py-3">Calificación</th>
+              <th className="px-4 py-3" title="Se suman a la calificación sin cambiar los criterios">Extra</th>
+              <th className="px-4 py-3">Calificación final</th>
               <th className="px-4 py-3">Observación</th>
-              <th className="px-4 py-3">Estado</th>
               <th className="px-4 py-3">Tareas</th>
               <th className="px-4 py-3">Asistencia</th>
             </tr>
@@ -497,11 +472,14 @@ function CapturaTable({ rows, drafts, showGrupo, showUnidad, onDraftChange }) {
                   <td className="min-w-[11rem] px-4 py-3 align-top">
                     <CalificacionInput row={row} drafts={drafts} conUnidad={showUnidad} columna="lista" onDraftChange={onDraftChange} />
                   </td>
-                  <td className="min-w-[12rem] px-4 py-3 align-top">
-                    <ObservacionInput row={row} drafts={drafts} conUnidad={showUnidad} onDraftChange={onDraftChange} />
+                  <td className="min-w-[7rem] px-4 py-3 align-top">
+                    <PuntosExtraInput row={row} drafts={drafts} conUnidad={showUnidad} onDraftChange={onDraftChange} />
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 align-top">
-                    <StatusBadge estado={row.estado} />
+                    <CalificacionFinal row={row} drafts={drafts} />
+                  </td>
+                  <td className="min-w-[12rem] px-4 py-3 align-top">
+                    <ObservacionInput row={row} drafts={drafts} conUnidad={showUnidad} onDraftChange={onDraftChange} />
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 align-top text-muted-foreground">
                     {row.tareas?.calificadas ?? 0}/{row.tareas?.total ?? 0} calificadas
@@ -540,10 +518,16 @@ function CapturaCards({ rows, drafts, showGrupo, showUnidad, onDraftChange }) {
                 </p>
                 {detalle && <p className="text-xs text-muted-foreground">{detalle}</p>}
               </div>
-              <StatusBadge estado={row.estado} />
             </div>
             <div className="mt-3 flex flex-col gap-3">
-              <CalificacionInput row={row} drafts={drafts} conUnidad={showUnidad} columna="lista" onDraftChange={onDraftChange} />
+              <div className="flex flex-wrap items-start gap-4">
+                <CalificacionInput row={row} drafts={drafts} conUnidad={showUnidad} columna="lista" onDraftChange={onDraftChange} />
+                <PuntosExtraInput row={row} drafts={drafts} conUnidad={showUnidad} onDraftChange={onDraftChange} />
+                <div>
+                  <p className="mb-1 text-xs text-muted-foreground">Final</p>
+                  <CalificacionFinal row={row} drafts={drafts} />
+                </div>
+              </div>
               <ObservacionInput row={row} drafts={drafts} conUnidad={showUnidad} onDraftChange={onDraftChange} />
             </div>
             <p className="mt-3 text-xs text-muted-foreground">{resumenAvance(row)}</p>
@@ -647,224 +631,6 @@ function MatrizCards({ alumnos, unidades, drafts, showGrupo, onDraftChange }) {
   )
 }
 
-let siguienteClave = 0
-const nuevaClave = () => `categoria-${(siguienteClave += 1)}`
-
-function borradorDesde(ponderacion) {
-  return {
-    pesoTareas: String(ponderacion.tareas),
-    pesoAsistencia: String(ponderacion.asistencia),
-    categorias: (ponderacion.categorias ?? []).map((item) => ({
-      key: nuevaClave(),
-      id: item.id,
-      nombre: item.nombre,
-      peso: String(item.peso),
-    })),
-  }
-}
-
-const firmaBorrador = (draft) => JSON.stringify([
-  draft.pesoTareas,
-  draft.pesoAsistencia,
-  draft.categorias.map((item) => [item.id ?? null, item.nombre.trim(), item.peso]),
-])
-
-const esPesoValido = (value) => /^\d+$/.test(String(value)) && Number(value) <= 100
-
-// Con un grupo elegido la ponderación es de ese grupo y admite categorías
-// (examen, prácticas, proyecto…); sin grupo es la de la materia.
-function PonderacionPanel({ ponderacion, materiaId, grupo, onGuardar }) {
-  const [draft, setDraft] = useState(() => borradorDesde(ponderacion))
-  const [saving, setSaving] = useState(false)
-  const [notice, setNotice] = useState('')
-  const [base, setBase] = useState(ponderacion)
-  // Tras guardar llega la ponderación nueva del servidor: se toma como base.
-  if (base !== ponderacion) {
-    setBase(ponderacion)
-    setDraft(borradorDesde(ponderacion))
-  }
-
-  const conGrupo = Boolean(grupo)
-  const sumaGeneral = Number(draft.pesoTareas || 0) + Number(draft.pesoAsistencia || 0)
-  const sumaCategorias = draft.categorias.reduce((suma, item) => suma + Number(item.peso || 0), 0)
-  const nombres = draft.categorias.map((item) => item.nombre.trim().toLowerCase())
-  const errores = [
-    sumaGeneral !== 100 && `Tareas y asistencia deben sumar 100 % (ahora suman ${sumaGeneral} %).`,
-    !esPesoValido(draft.pesoTareas) || !esPesoValido(draft.pesoAsistencia) ? 'Usa porcentajes enteros entre 0 y 100.' : null,
-    nombres.some((nombre) => !nombre) && 'Cada categoría necesita un nombre.',
-    new Set(nombres).size !== nombres.length && 'Hay categorías con el mismo nombre.',
-    draft.categorias.some((item) => !esPesoValido(item.peso) || Number(item.peso) < 1) && 'Cada categoría pesa entre 1 y 100 %.',
-    draft.categorias.length > 0 && sumaCategorias !== 100 && `Las categorías deben sumar 100 % (ahora suman ${sumaCategorias} %).`,
-  ].filter(Boolean)
-  const dirty = firmaBorrador(draft) !== firmaBorrador(borradorDesde(ponderacion))
-
-  // Al escribir un peso se completa el otro para que siempre sumen 100.
-  const handleWeightChange = (field) => (event) => {
-    const { value } = event.target
-    const other = field === 'pesoTareas' ? 'pesoAsistencia' : 'pesoTareas'
-    const complemento = esPesoValido(value) ? { [other]: String(100 - Number(value)) } : {}
-    setNotice('')
-    setDraft((prev) => ({ ...prev, [field]: value, ...complemento }))
-  }
-  const updateCategoria = (key, field, value) => {
-    setNotice('')
-    setDraft((prev) => ({
-      ...prev,
-      categorias: prev.categorias.map((item) => (item.key === key ? { ...item, [field]: value } : item)),
-    }))
-  }
-  const addCategoria = () => {
-    setNotice('')
-    setDraft((prev) => ({
-      ...prev,
-      categorias: [
-        ...prev.categorias,
-        { key: nuevaClave(), nombre: '', peso: String(Math.max(100 - sumaCategorias, 0) || '') },
-      ],
-    }))
-  }
-  const removeCategoria = (key) => {
-    setNotice('')
-    setDraft((prev) => ({ ...prev, categorias: prev.categorias.filter((item) => item.key !== key) }))
-  }
-
-  const handleSave = async () => {
-    if (!dirty || errores.length || saving) return
-    setSaving(true)
-    setNotice('')
-    try {
-      await onGuardar({
-        materiaId: Number(materiaId),
-        ...(conGrupo
-          ? {
-              grupoId: grupo.id,
-              categorias: draft.categorias.map((item) => ({
-                ...(item.id ? { id: item.id } : {}),
-                nombre: item.nombre.trim(),
-                peso: Number(item.peso),
-              })),
-            }
-          : {}),
-        pesoTareas: Number(draft.pesoTareas),
-        pesoAsistencia: Number(draft.pesoAsistencia),
-      })
-      setNotice(conGrupo
-        ? `Ponderación de ${grupo.nombre} guardada. Se aplica a reportes, exportaciones y a la vista de los alumnos del grupo.`
-        : 'Ponderación de la materia guardada. La usan los grupos que no tienen una propia.')
-    } catch {
-      // El store ya expone el mensaje en `error`.
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const resumenCategorias = (ponderacion.categorias ?? []).map((item) => `${item.nombre} ${item.peso} %`).join(' / ')
-
-  return (
-    <details className="group rounded-[2rem] border border-border bg-card p-5">
-      <summary className="flex cursor-pointer list-none flex-wrap items-center gap-2 text-foreground [&::-webkit-details-marker]:hidden">
-        <GraduationCap className="h-4 w-4" aria-hidden="true" />
-        <span className="text-sm font-semibold uppercase tracking-[0.14em]">Ponderación</span>
-        <span className="text-sm text-muted-foreground">
-          · Tareas {ponderacion.tareas} % · Asistencia {ponderacion.asistencia} %
-          {resumenCategorias && ` · ${resumenCategorias}`}
-        </span>
-        <ChevronDown className="ml-auto h-4 w-4 transition group-open:rotate-180" aria-hidden="true" />
-      </summary>
-      <p className="mt-3 text-sm text-muted-foreground">
-        {conGrupo
-          ? ponderacion.origen === 'GRUPO'
-            ? `${grupo.nombre} tiene su propia ponderación. La usan esta lista, las exportaciones y la vista de los alumnos.`
-            : `${grupo.nombre} usa la ponderación de la materia. Al guardar, ${grupo.nombre} tendrá la suya.`
-          : 'Ponderación de la materia: la usan los grupos que no tienen una propia. Para ponderar por categoría (examen, prácticas, proyecto), elige un grupo.'}
-        {' '}Al cambiarla se recalculan las calificaciones calculadas; las que capturaste a mano no cambian.
-      </p>
-      <div className="mt-4 flex flex-wrap gap-4">
-        <NumberField label="Tareas %" value={draft.pesoTareas} onChange={handleWeightChange('pesoTareas')} />
-        <NumberField label="Asistencia %" value={draft.pesoAsistencia} onChange={handleWeightChange('pesoAsistencia')} />
-      </div>
-
-      {conGrupo && (
-        <fieldset className="mt-5">
-          <legend className={FIELD_LABEL}>Categorías de tareas</legend>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {draft.categorias.length
-              ? 'Cada categoría se promedia por separado y luego se pondera. Las tareas sin categoría no cuentan.'
-              : 'Sin categorías, todas las tareas pesan lo mismo.'}
-          </p>
-          {draft.categorias.length > 0 && (
-            <ul className="mt-3 space-y-2">
-              {draft.categorias.map((item, index) => (
-                <li key={item.key} className="flex items-center gap-2 sm:gap-3">
-                  <label className="flex min-w-0 flex-1 flex-col gap-1">
-                    <span className="sr-only">Nombre de la categoría {index + 1}</span>
-                    <input
-                      type="text"
-                      value={item.nombre}
-                      maxLength={60}
-                      placeholder="Examen, Prácticas, Proyecto…"
-                      onChange={(event) => updateCategoria(item.key, 'nombre', event.target.value)}
-                      className={`${FIELD_INPUT} w-full min-w-0`}
-                    />
-                  </label>
-                  <div className="relative w-24 shrink-0 sm:w-28">
-                      <input
-                        aria-label={`Peso de ${item.nombre.trim() || `la categoría ${index + 1}`} en %`}
-                        type="number"
-                        inputMode="numeric"
-                        min={1}
-                        max={100}
-                        value={item.peso}
-                        onChange={(event) => updateCategoria(item.key, 'peso', event.target.value)}
-                        className={`${FIELD_INPUT} w-full pr-8`}
-                      />
-                      <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm text-muted-foreground" aria-hidden="true">%</span>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    type="button"
-                    aria-label={`Quitar ${item.nombre || `categoría ${index + 1}`}`}
-                    onClick={() => removeCategoria(item.key)}
-                    className="h-11 w-11 shrink-0 p-0"
-                  >
-                    <Trash2 className="h-4 w-4" aria-hidden="true" />
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          )}
-          <Button
-            variant="outline"
-            type="button"
-            onClick={addCategoria}
-            disabled={draft.categorias.length >= 12}
-            className="mt-3 inline-flex items-center gap-2 border px-4 py-2 text-sm font-semibold"
-          >
-            <Plus className="h-4 w-4" aria-hidden="true" />
-            Agregar categoría
-          </Button>
-        </fieldset>
-      )}
-
-      <div className="mt-5 flex flex-wrap items-center gap-3">
-        <Button variant="default"
-          type="button"
-          disabled={!dirty || errores.length > 0 || saving}
-          onClick={handleSave}
-          className="inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          <Save className="h-4 w-4" />
-          {saving ? 'Guardando...' : 'Guardar ponderación'}
-        </Button>
-      </div>
-      {dirty && errores.length > 0 && (
-        <p role="alert" className="mt-2 text-sm text-destructive-foreground">{errores[0]}</p>
-      )}
-      {notice && <p role="status" className="mt-2 text-sm text-muted-foreground">{notice}</p>}
-    </details>
-  )
-}
-
 function DocenteCalificaciones() {
   const {
     reporteDocente,
@@ -873,7 +639,6 @@ function DocenteCalificaciones() {
     obtenerDocente,
     exportarCaptura,
     guardarLote,
-    guardarPonderacion,
   } = useCalificacionStore()
   const [materias, setMaterias] = useState([])
   // Los filtros viven en la URL para que el docente vuelva al mismo grupo y
@@ -883,6 +648,10 @@ function DocenteCalificaciones() {
   const grupoParam = searchParams.get('grupo') ?? ''
   const unidadParam = searchParams.get('unidad') ?? ''
   const vistaParam = searchParams.get('vista') === 'matriz' ? 'matriz' : 'lista'
+  // Unidad que se ve en la lista cuando el reporte trae todas: sólo filtra en
+  // pantalla, así que cambiarla no recarga ni descarta lo capturado. Vacío es
+  // la unidad abierta; 'todas' muestra el curso completo.
+  const enUnidadParam = searchParams.get('en-unidad') ?? ''
   const isMobile = useIsMobile()
   const filters = useMemo(
     () => ({ materiaId: materiaParam, grupoId: grupoParam, unidadId: unidadParam }),
@@ -918,10 +687,13 @@ function DocenteCalificaciones() {
     obtenerDocente(reportQuery).catch(() => {})
   }, [reportQuery, obtenerDocente])
 
-  const ponderacion = filters.materiaId ? reporteDocente?.ponderacion : null
   const selectedMateria = useMemo(
     () => materias.find((materia) => materia.id === Number(filters.materiaId)),
     [materias, filters.materiaId],
+  )
+  const selectedGrupo = useMemo(
+    () => (selectedMateria?.grupos ?? []).find((grupo) => String(grupo.id) === filters.grupoId) ?? null,
+    [selectedMateria, filters.grupoId],
   )
   // Sin memoizar, el `[]` era un array nuevo en cada render y los efectos que
   // dependen de `rows` entraban en bucle.
@@ -937,13 +709,6 @@ function DocenteCalificaciones() {
     return (alumno) => !query || normalizar(`${alumno?.nombre ?? ''} ${alumno?.numeroControl ?? ''}`).includes(query)
   }, [busqueda])
 
-  const visibleRows = useMemo(
-    () => rows
-      .filter((row) => (!estadoFiltro || row.estado === estadoFiltro) && coincideBusqueda(row.alumno))
-      .sort(ORDENES[orden].compare),
-    [rows, coincideBusqueda, estadoFiltro, orden],
-  )
-
   const unidadesReporte = useMemo(() => {
     const unidades = new Map()
     for (const row of rows) if (row.unidad) unidades.set(unidadKey(row.unidad), row.unidad)
@@ -952,22 +717,61 @@ function DocenteCalificaciones() {
   // La matriz sólo tiene sentido con varias unidades a la vista.
   const puedeVerMatriz = !filters.unidadId && unidadesReporte.length > 1
   const vista = puedeVerMatriz ? vistaParam : 'lista'
+  // Con todas las unidades, la lista repetiría a cada alumno una vez por
+  // unidad; por eso arranca en la abierta, con el mismo criterio del servidor.
+  const unidadAbierta = useMemo(
+    () => unidadesReporte.find((unidad) => unidad.status === 'ACTIVA')
+      ?? [...unidadesReporte].reverse().find((unidad) => unidad.status === 'FINALIZADA')
+      ?? unidadesReporte[0]
+      ?? null,
+    [unidadesReporte],
+  )
+  const unidadLista = vista === 'lista' && puedeVerMatriz && enUnidadParam !== 'todas'
+    ? unidadesReporte.find((unidad) => String(unidadKey(unidad)) === enUnidadParam) ?? unidadAbierta
+    : null
+  const unidadPorDefecto = Boolean(unidadLista) && unidadLista === unidadAbierta && !enUnidadParam
+  // La unidad que de verdad muestra la tabla: la del filtro o, si no hay, la
+  // de la pestaña. Con la matriz o con Todas, ninguna.
+  const unidadContexto = filters.unidadId
+    ? [...unidadesReporte, ...(selectedMateria?.unidades ?? [])].find((unidad) => String(unidad.id) === filters.unidadId) ?? null
+    : unidadLista
+  const datosListos = !loading && rows.length > 0
+  // Al cambiar de unidad, grupo o vista las filas se reemplazan en el mismo
+  // lugar; sin esta señal el cambio pasa desapercibido.
+  const listaRef = useRef(null)
+  useAnimarCambio(
+    listaRef,
+    `${vista}:${filters.grupoId}:${unidadContexto ? unidadKey(unidadContexto) : 'todas'}`,
+    { selector: '[data-captura-grupo] > *', listo: datosListos },
+  )
+  const rowsLista = useMemo(
+    () => (unidadLista ? rows.filter((row) => unidadKey(row.unidad) === unidadKey(unidadLista)) : rows),
+    [rows, unidadLista],
+  )
+
+  const visibleRows = useMemo(
+    () => rowsLista
+      .filter((row) => (!estadoFiltro || desempenoDe(row) === estadoFiltro) && coincideBusqueda(row.alumno))
+      .sort(ORDENES[orden].compare),
+    [rowsLista, coincideBusqueda, estadoFiltro, orden],
+  )
   // En la matriz, un alumno aparece con el filtro de estado si alguna de sus
   // unidades está en ese estado.
   const visibleAlumnos = useMemo(
     () => agruparPorAlumno(rows)
-      .filter((item) => (!estadoFiltro || Object.values(item.celdas).some((row) => row.estado === estadoFiltro)) && coincideBusqueda(item.alumno))
+      .filter((item) => (!estadoFiltro || Object.values(item.celdas).some((row) => desempenoDe(row) === estadoFiltro)) && coincideBusqueda(item.alumno))
       .sort(ORDENES[orden].compare),
     [rows, coincideBusqueda, estadoFiltro, orden],
   )
-  const setVista = (next) => {
+  const setParam = (name, value) => {
     setSearchParams((prev) => {
       const params = new URLSearchParams(prev)
-      if (next === 'matriz') params.set('vista', 'matriz')
-      else params.delete('vista')
+      if (value) params.set(name, value)
+      else params.delete(name)
       return params
     }, { replace: true })
   }
+  const setVista = (next) => setParam('vista', next === 'matriz' ? 'matriz' : '')
 
   // `drafts` sólo guarda las filas que el docente cambió y aún no guarda. Así,
   // cuando el servidor devuelve el reporte actualizado, los cambios pendientes
@@ -978,7 +782,7 @@ function DocenteCalificaciones() {
     [rows, drafts],
   )
   const dirtyCount = dirtyRows.length
-  const invalidCount = dirtyRows.filter((row) => validarCalificacion(drafts[getRowKey(row)].calificacionManual)).length
+  const invalidCount = dirtyRows.filter((row) => borradorInvalido(drafts[getRowKey(row)])).length
   const unsavedMessage = (accion) => ({
     title: 'Cambios sin guardar',
     description: `Tienes ${plural(dirtyCount, 'calificación', 'calificaciones')} sin guardar. Si ${accion}, se perderán.`,
@@ -1030,10 +834,12 @@ function DocenteCalificaciones() {
         calificaciones: dirtyRows.map((row) => {
           const draft = snapshot[getRowKey(row)]
           const manual = draft.calificacionManual.trim()
+          const extra = draft.puntosExtra.trim()
           return {
             alumnoId: row.alumno.id,
             unidadId: row.unidad.id,
             calificacionManual: manual === '' ? null : Number(manual),
+            puntosExtra: extra === '' ? null : Number(extra),
             observacion: draft.observacion,
           }
         }),
@@ -1057,13 +863,12 @@ function DocenteCalificaciones() {
     if (confirmed) setDrafts({})
   }
 
-  const toggleEstado = (estado) => setEstadoFiltro((prev) => (prev === estado ? null : estado))
   const hayFiltrosSecundarios = Boolean(filters.grupoId || filters.unidadId)
   const listaProps = {
     rows: visibleRows,
     drafts,
     showGrupo: !filters.grupoId,
-    showUnidad: !filters.unidadId,
+    showUnidad: !filters.unidadId && !unidadLista,
     onDraftChange: handleDraftChange,
   }
   const matrizProps = {
@@ -1076,14 +881,19 @@ function DocenteCalificaciones() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-[2rem] border border-border bg-card px-6 py-7">
+      <section className="px-1 py-2">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-2xl">
             <h1 className="text-3xl font-semibold tracking-tight text-foreground">Calificaciones</h1>
-            <p className="mt-2 text-sm text-muted-foreground">Lista por unidad con avance de tareas y asistencia.</p>
+            <p className="mt-2 text-sm text-muted-foreground">Selecciona el grupo, revisa sus criterios y captura las calificaciones.</p>
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Button variant="default"
+          <div className="flex flex-wrap gap-2">
+            {/* Al final del semestre: segunda oportunidad, final y concentrado. */}
+            <Link to={`/calificaciones/cierre${filters.materiaId ? `?materia=${filters.materiaId}${filters.grupoId ? `&grupo=${filters.grupoId}` : ''}` : ''}`}
+              className="inline-flex min-h-9 items-center rounded-[10px] border border-border bg-background px-5 text-sm font-semibold text-foreground transition-colors hover:bg-muted">
+              Cierre de curso
+            </Link>
+            <Button variant="outline"
               type="button"
               disabled={!canExport || downloading !== null}
               onClick={() => handleExport('excel')}
@@ -1113,95 +923,72 @@ function DocenteCalificaciones() {
         )}
       </section>
 
-      <section className="rounded-[2rem] border border-border bg-card p-5">
-        <div className="flex items-center gap-2 text-foreground">
-          <Filter className="h-4 w-4" />
-          <h2 className="text-sm font-semibold uppercase tracking-[0.14em]">Filtros</h2>
-        </div>
-        <div className="mt-4 flex flex-col gap-4 xl:flex-row xl:flex-wrap">
-          <SelectField
-            label="Materia"
-            value={filters.materiaId}
-            onChange={(event) => changeFilters({ materiaId: event.target.value, grupoId: '', unidadId: '' })}
-          >
-            <option value="">Selecciona materia</option>
-            {materias.map((materia) => (
-              <option key={materia.id} value={materia.id}>{materia.nombre}</option>
-            ))}
-          </SelectField>
+      {selectedMateria && <ContextoCaptura materia={selectedMateria} grupo={selectedGrupo} unidad={unidadContexto} listo={datosListos} />}
 
-          <SelectField
-            label="Grupo"
-            value={filters.grupoId}
-            disabled={!selectedMateria}
-            onChange={(event) => changeFilters({ ...filters, grupoId: event.target.value })}
-          >
-            <option value="">Todos los grupos</option>
-            {(selectedMateria?.grupos ?? []).map((grupo) => (
-              <option key={grupo.id} value={grupo.id}>{grupo.nombre}</option>
-            ))}
-          </SelectField>
-
-          <SelectField
-            label="Unidad"
-            value={filters.unidadId}
-            disabled={!selectedMateria}
-            onChange={(event) => changeFilters({ ...filters, unidadId: event.target.value })}
-          >
-            <option value="">Todas las unidades</option>
-            {(selectedMateria?.unidades ?? []).map((unidad) => (
-              <option key={unidad.id} value={unidad.id}>{unidad.nombre}</option>
-            ))}
-          </SelectField>
-
-          <Button variant="outline"
-            type="button"
-            disabled={!hayFiltrosSecundarios}
-            onClick={() => changeFilters({ ...filters, grupoId: '', unidadId: '' })}
-            className="mt-auto inline-flex items-center justify-center gap-2 border px-4 py-3 text-sm font-semibold"
-          >
-            <RefreshCcw className="h-4 w-4" />
-            Limpiar grupo y unidad
-          </Button>
-        </div>
-      </section>
-
-      {ponderacion && (
-        <PonderacionPanel
-          key={`${filters.materiaId}:${filters.grupoId}`}
-          ponderacion={ponderacion}
-          materiaId={filters.materiaId}
-          grupo={(selectedMateria?.grupos ?? []).find((grupo) => String(grupo.id) === filters.grupoId)}
-          onGuardar={async (payload) => {
-            await guardarPonderacion(payload)
-            await obtenerDocente(reportQuery, { silent: true })
-          }}
-        />
-      )}
+      <div className="grid items-start gap-5 xl:grid-cols-[18rem_minmax(0,1fr)]">
+        <section aria-labelledby="contexto-calificaciones" className="min-w-0 rounded-[var(--radius-card)] border border-border bg-card p-5 sm:p-6">
+          <span className="text-xs font-semibold tabular-nums text-muted-foreground">01 · CONTEXTO ACADÉMICO</span>
+          <h2 id="contexto-calificaciones" className="mt-2 text-lg font-semibold tracking-tight">Selecciona el contexto</h2>
+          <p className="mt-2 text-sm text-muted-foreground">La materia y el grupo determinan qué criterios puedes consultar.</p>
+          <div className="mt-6 flex flex-col gap-5 [&_select]:min-w-0 [&_select]:w-full">
+            <SelectField label="Materia" value={filters.materiaId}
+              onChange={(event) => changeFilters({ materiaId: event.target.value, grupoId: '', unidadId: '' })}>
+              <option value="">Selecciona materia</option>
+              {materias.map((materia) => <option key={materia.id} value={materia.id}>{materia.nombre}</option>)}
+            </SelectField>
+            <div>
+              <SelectField label="Grupo" value={filters.grupoId} disabled={!selectedMateria}
+                onChange={(event) => changeFilters({ ...filters, grupoId: event.target.value })}>
+                <option value="">Todos los grupos</option>
+                {(selectedMateria?.grupos ?? []).map((grupo) => <option key={grupo.id} value={grupo.id}>{grupo.nombre}</option>)}
+              </SelectField>
+            </div>
+            <div>
+              <SelectField label="Unidad" value={filters.unidadId} disabled={!selectedMateria}
+                onChange={(event) => changeFilters({ ...filters, unidadId: event.target.value })}>
+                <option value="">Todas las unidades</option>
+                {(selectedMateria?.unidades ?? []).map((unidad) => <option key={unidad.id} value={unidad.id}>{unidad.nombre}</option>)}
+              </SelectField>
+            </div>
+            <Button variant="ghost" type="button" disabled={!hayFiltrosSecundarios}
+              onClick={() => changeFilters({ ...filters, grupoId: '', unidadId: '' })} className="self-start px-0">
+              <RefreshCcw aria-hidden="true" />Limpiar grupo y unidad
+            </Button>
+          </div>
+        </section>
+        <CriteriosGuiados key={`${filters.materiaId}:${filters.grupoId}`} materiaId={filters.materiaId}
+          materiaNombre={selectedMateria?.nombre} grupo={selectedGrupo} unidadId={filters.unidadId}
+          unidades={selectedMateria?.unidades ?? []}
+          onGuardado={() => obtenerDocente(reportQuery, { silent: true }).catch(() => {})} />
+      </div>
 
       {filters.materiaId && reporteDocente?.tareasSinCategoria > 0 && (
-        <div role="status" className="rounded-2xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning-foreground">
-          {plural(reporteDocente.tareasSinCategoria, 'tarea no tiene', 'tareas no tienen')} categoría y no
-          {reporteDocente.tareasSinCategoria === 1 ? ' cuenta' : ' cuentan'} en el promedio de tareas.{' '}
-          <Link to="/tareas" className="font-semibold underline underline-offset-2">Asignar categoría en Tareas</Link>
+        <div role="status" className="rounded-2xl border border-warning/45 bg-warning/18 px-4 py-3 text-sm text-warning-foreground">
+          {plural(reporteDocente.tareasSinCategoria, 'actividad no tiene', 'actividades no tienen')} un criterio de este grupo y no
+          {reporteDocente.tareasSinCategoria === 1 ? ' cuenta' : ' cuentan'} en la calificación.{' '}
+          <Link to={`/tareas?materia=${filters.materiaId}${filters.grupoId ? `&grupo=${filters.grupoId}` : ''}`} className="font-semibold underline underline-offset-2">Asignarles criterio en Tareas</Link>
         </div>
       )}
 
       {error && (
-        <div role="alert" className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground">
+        <div role="alert" className="rounded-2xl border border-destructive/45 bg-destructive/18 px-4 py-3 text-sm text-destructive-foreground">
           {Array.isArray(error) ? error.join(', ') : error}
         </div>
       )}
 
       {filters.materiaId && (
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Resumen">
-          <MetricCard icon={GraduationCap} label="Promedio" value={formatGrade(metrics.promedioGeneral)} tone="slate" />
-          <MetricCard icon={CheckCircle2} label="Aprobadas" value={metrics.aprobadas ?? 0} tone="green"
-            pressed={estadoFiltro === 'APROBADO'} onClick={() => toggleEstado('APROBADO')} />
-          <MetricCard icon={AlertTriangle} label="Requieren atención" value={metrics.requiereAtencion ?? 0} tone="amber"
-            pressed={estadoFiltro === 'REQUIERE_ATENCION'} onClick={() => toggleEstado('REQUIERE_ATENCION')} />
-          <MetricCard icon={CircleDashed} label="Sin calificar" value={metrics.pendientes ?? 0} tone="blue"
-            pressed={estadoFiltro === 'PENDIENTE'} onClick={() => toggleEstado('PENDIENTE')} />
+        <section aria-label="Resumen" className="rounded-[var(--radius-card)] border border-border bg-card p-4 sm:p-5">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+            <p className="text-sm text-muted-foreground">
+              Promedio general{' '}
+              <span className="text-lg font-semibold tabular-nums text-foreground">{formatGrade(metrics.promedioGeneral)}</span>
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Verde: aprobado, {CALIFICACION_APROBATORIA} o más · Rojo: reprobado, menos de {CALIFICACION_APROBATORIA}.
+            </p>
+          </div>
+          <FiltroDesempeno className="mt-3" resumen={resumenDesempeno(vista === 'lista' ? rowsLista : rows)} value={estadoFiltro ?? 'TODOS'}
+            onChange={(valor) => setEstadoFiltro(valor === 'TODOS' ? null : valor)} />
         </section>
       )}
 
@@ -1209,13 +996,13 @@ function DocenteCalificaciones() {
         <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
           <div>
             <h2 className="text-lg font-semibold text-foreground">Lista para captura</h2>
+            {selectedMateria && (
+              <p className="text-sm font-medium text-foreground">{textoGrupo(selectedGrupo)} · {textoUnidad(unidadContexto)}</p>
+            )}
             {filters.materiaId && typeof metrics.totalAlumnos === 'number' && (
               <p className="text-sm text-muted-foreground">{plural(metrics.totalAlumnos, 'alumno', 'alumnos')}</p>
             )}
           </div>
-          <p className="text-xs text-muted-foreground">
-            Aprobado: {CALIFICACION_APROBATORIA} o más · Requiere atención: menos de {CALIFICACION_APROBATORIA} · Pendiente: sin datos
-          </p>
         </div>
 
         {filters.materiaId && rows.length > 0 && (
@@ -1258,9 +1045,41 @@ function DocenteCalificaciones() {
                 </div>
               </div>
             )}
+            {puedeVerMatriz && vista === 'lista' && (
+              <div className="flex min-w-0 flex-col gap-1 sm:basis-full">
+                <span className={FIELD_LABEL} aria-hidden="true">Unidad</span>
+                <Segmentado
+                  label="Mostrar unidad"
+                  value={unidadLista ? String(unidadKey(unidadLista)) : 'todas'}
+                  onChange={(value) => setParam('en-unidad', value)}
+                  options={[
+                    { value: 'todas', label: 'Todas' },
+                    ...unidadesReporte.map((unidad) => ({
+                      value: String(unidadKey(unidad)),
+                      // En teléfono basta el número; el lector de pantalla oye el nombre.
+                      label: unidad.orden ? (
+                        <>
+                          <span aria-hidden="true" className="sm:hidden">U{unidad.orden}</span>
+                          <span className="max-sm:sr-only">{unidad.nombre}</span>
+                        </>
+                      ) : unidad.nombre,
+                    })),
+                  ]}
+                  className="self-start"
+                />
+                {unidadPorDefecto && (
+                  <p className="text-xs text-muted-foreground">
+                    {unidadLista.status === 'ACTIVA'
+                      ? `Se muestra la unidad abierta (${unidadLista.nombre}).`
+                      : `No hay unidad abierta; se muestra ${unidadLista.nombre}.`}{' '}
+                    Elige otra o Todas para ver el resto.
+                  </p>
+                )}
+              </div>
+            )}
             {estadoFiltro && (
               <Button variant="outline" type="button" onClick={() => setEstadoFiltro(null)} className="self-start sm:self-auto">
-                Mostrando: {ESTADO_FILTRO_LABEL[estadoFiltro]}
+                Mostrando: {DESEMPENO[estadoFiltro]?.plural ?? estadoFiltro}
                 <X aria-hidden="true" />
                 <span className="sr-only">(quitar filtro)</span>
               </Button>
@@ -1268,6 +1087,7 @@ function DocenteCalificaciones() {
           </div>
         )}
 
+        <div ref={listaRef}>
         {loading ? (
           <EmptyState>Cargando calificaciones...</EmptyState>
         ) : !filters.materiaId ? (
@@ -1288,9 +1108,10 @@ function DocenteCalificaciones() {
         ) : (
           <CapturaTable {...listaProps} />
         )}
+        </div>
 
         {dirtyCount > 0 && (
-          <div className="sticky bottom-[calc(env(safe-area-inset-bottom,0px)+1rem)] z-10 mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-3">
+          <div className="sticky bottom-[calc(var(--barra-inferior,0px)+env(safe-area-inset-bottom,0px)+1rem)] z-10 mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-3">
             <p className="text-sm font-medium text-foreground">
               {plural(dirtyCount, 'cambio', 'cambios')} sin guardar
               {invalidCount > 0 && (
@@ -1327,64 +1148,75 @@ function AlumnoCalificaciones() {
   }, [materiaId, obtenerAlumno])
 
   const rows = useMemo(() => reporteAlumno?.rows ?? [], [reporteAlumno?.rows])
+  const resumen = useMemo(() => resumenDesempeno(rows), [rows])
   const metrics = reporteAlumno?.metrics ?? {}
-  const rowsFiltradas = useMemo(
-    () => [...rows].sort(
-      (a, b) =>
-        a.materia?.nombre?.localeCompare(b.materia?.nombre ?? '', 'es') ||
-        (a.unidad?.orden ?? 0) - (b.unidad?.orden ?? 0),
-    ),
-    [rows],
-  )
+  // Agrupadas por materia y en el orden de las unidades: así lee el alumno su avance.
+  const porMateria = useMemo(() => {
+    const grupos = new Map()
+    for (const row of [...rows].sort((a, b) => (a.unidad?.orden ?? 0) - (b.unidad?.orden ?? 0))) {
+      const clave = row.materia?.id ?? 'sin-materia'
+      if (!grupos.has(clave)) grupos.set(clave, { materia: row.materia, rows: [] })
+      grupos.get(clave).rows.push(row)
+    }
+    return [...grupos.values()].sort((a, b) => (a.materia?.nombre ?? '').localeCompare(b.materia?.nombre ?? '', 'es'))
+  }, [rows])
 
   return (
-    <div className="space-y-6">
-      <section className="rounded-[2rem] border border-border bg-card px-6 py-7">
-        <span className="inline-flex rounded-full bg-accent px-4 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-primary-ink ring-1 ring-ring">
-          Alumno
-        </span>
-        <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground">Mis calificaciones</h1>
-      </section>
-
-      <section className="rounded-[2rem] border border-border bg-card p-5">
-        <SelectField
-          label="Materia"
-          value={materiaId}
-          onChange={(event) => setMateriaId(event.target.value)}
-        >
-          <option value="">Todas las materias</option>
-          {materias.map((materia) => (
-            <option key={materia.id} value={materia.id}>{materia.nombre}</option>
-          ))}
-        </SelectField>
-      </section>
+    <div className="mx-auto max-w-[76rem] space-y-6">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-[1.75rem] font-semibold leading-tight tracking-[-0.02em] text-foreground">Mis calificaciones</h1>
+          <p className="mt-1.5 text-sm text-muted-foreground">
+            {rows.length
+              ? `${plural(rows.length, 'unidad', 'unidades')} · ${plural(resumen.aprobados, 'aprobada', 'aprobadas')} · ${plural(resumen.reprobados, 'reprobada', 'reprobadas')}${metrics.promedioGeneral != null ? ` · promedio ${formatGrade(metrics.promedioGeneral)}` : ''}`
+              : 'Tu calificación de cada unidad, con tus tareas y tu asistencia.'}
+          </p>
+        </div>
+        <div className="sm:w-64 [&_label]:min-w-0">
+          <SelectField label="Materia" value={materiaId} onChange={(event) => setMateriaId(event.target.value)}>
+            <option value="">Todas las materias</option>
+            {materias.map((materia) => <option key={materia.id} value={materia.id}>{materia.nombre}</option>)}
+          </SelectField>
+        </div>
+      </header>
 
       {error && (
-        <div className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground">
+        <div role="alert" className="rounded-[var(--radius-item)] border border-destructive/45 bg-destructive/18 px-4 py-3 text-sm text-destructive-foreground">
           {Array.isArray(error) ? error.join(', ') : error}
         </div>
       )}
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard icon={ClipboardList} label="Unidades" value={metrics.totalFilas ?? 0} tone="blue" />
-        <MetricCard icon={CheckCircle2} label="Aprobadas" value={metrics.aprobadas ?? 0} tone="green" />
-        <MetricCard icon={AlertTriangle} label="Requieren atención" value={metrics.requiereAtencion ?? 0} tone="amber" />
-        <MetricCard icon={GraduationCap} label="Promedio" value={formatGrade(metrics.promedioGeneral)} tone="slate" />
-      </section>
-
-      <section className="rounded-[2rem] border border-border bg-card p-5">
-        <div className="mb-4">
-          <h2 className="text-lg font-semibold text-foreground">Avance por unidad</h2>
-        </div>
-
-        {loading ? (
-          <div className="rounded-3xl border border-dashed border-border bg-background px-6 py-14 text-center text-sm text-muted-foreground">
-            Cargando calificaciones...
-          </div>
-        ) : (
-          <CalificacionesTable rows={rowsFiltradas} showMateria />
-        )}
-      </section>
+      {loading ? (
+        <EmptyState>Cargando calificaciones…</EmptyState>
+      ) : !porMateria.length ? (
+        <EmptyState>Todavía no tienes calificaciones.</EmptyState>
+      ) : porMateria.map(({ materia, rows: unidades }) => (
+        <section key={materia?.id ?? 'sin-materia'} aria-labelledby={`materia-${materia?.id}`} className="rounded-[var(--radius-card)] border border-border bg-card p-5">
+          <h2 id={`materia-${materia?.id}`} className="text-lg font-semibold text-foreground">
+            {materia?.nombre ?? 'Materia'}
+            {materia?.clave && <span className="font-normal text-muted-foreground"> · {materia.clave}</span>}
+          </h2>
+          <ul className="mt-3 divide-y divide-border border-y border-border">
+            {unidades.map((row) => (
+              <li key={getRowKey(row)} className="grid gap-x-5 gap-y-1 py-3 sm:grid-cols-[9rem_10rem_minmax(0,1fr)] sm:items-center">
+                <span className="text-sm font-medium text-foreground">{row.unidad?.nombre}</span>
+                <span className="flex items-center gap-2">
+                  <span className="text-lg font-semibold tabular-nums text-foreground">{formatGrade(getCalificacionFinal(row))}</span>
+                  <StatusBadge row={row} />
+                </span>
+                <span className="text-sm text-muted-foreground">
+                  {row.puntosExtra > 0 && <span className="font-medium text-foreground">Incluye +{row.puntosExtra} extra · </span>}
+                  {row.tareas?.calificadas ?? 0} de {row.tareas?.total ?? 0} tareas calificadas
+                  {' · '}{row.asistencia?.registradas ? `${row.asistencia.porcentaje} % de asistencia` : 'sin asistencia registrada'}
+                  {(row.observacionManual || row.observaciones?.[0]) && (
+                    <span className="block text-foreground">Tu docente: {row.observacionManual || row.observaciones[0]}</span>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
     </div>
   )
 }

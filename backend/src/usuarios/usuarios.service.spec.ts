@@ -53,6 +53,7 @@ describe('UsuariosService', () => {
       expect.objectContaining({
         data: {
           nombre: 'Ana López',
+          alias: undefined,
           email: undefined,
           emailVerificadoAt: undefined,
           telefono: undefined,

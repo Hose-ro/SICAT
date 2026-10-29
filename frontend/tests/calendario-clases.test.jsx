@@ -1,4 +1,4 @@
-import { beforeEach, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
@@ -17,6 +17,9 @@ import api from '../src/api/axios'
 import CalendarioClases from '../src/components/CalendarioClases'
 
 beforeEach(() => {
+  // El mes inicial debe coincidir con las fechas de las fixtures.
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date('2026-09-01T12:00:00-06:00'))
   vi.clearAllMocks()
   api.get.mockResolvedValue({ data: [] })
   api.post.mockResolvedValue({ data: [
@@ -24,6 +27,8 @@ beforeEach(() => {
     { id: 2, fecha: '2026-09-18', motivo: 'Día festivo' },
   ] })
 })
+
+afterEach(() => vi.useRealTimers())
 
 test('permite marcar varios días con clases y muestra el motivo guardado', async () => {
   const user = userEvent.setup()

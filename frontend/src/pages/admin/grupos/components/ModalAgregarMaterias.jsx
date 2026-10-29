@@ -120,7 +120,7 @@ export default function ModalAgregarMaterias({ open, onClose, grupo }) {
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-medium text-foreground truncate">{m.nombre}</p>
                     {conflicto && (
-                      <span className="text-xs bg-warning/10 text-warning-foreground px-1.5 py-0.5 rounded-full shrink-0">
+                      <span className="text-xs bg-warning/18 text-warning-foreground px-1.5 py-0.5 rounded-full shrink-0">
                         Conflicto
                       </span>
                     )}

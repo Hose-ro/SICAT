@@ -32,7 +32,10 @@ import {
   sumarDias,
 } from './clases.utils';
 import { getCurrentAcademicPeriod } from '../common/periodo.util';
-import { PeriodosService } from '../periodos/periodos.service';
+import {
+  ClaseJustificadaVigente,
+  PeriodosService,
+} from '../periodos/periodos.service';
 import { modalidadDeHorario } from '../common/modalidad.util';
 
 /** Tope de seguridad hacia atrás, por si el periodo empezó hace mucho. */
@@ -76,15 +79,12 @@ export class ClasesService {
     if (!horario.grupoId) {
       throw new BadRequestException('El horario no tiene un grupo asignado');
     }
-    const suspension = await this.periodos.obtenerSuspension(
+    await this.validarClaseSinSuspension(
       docenteId,
+      horario.id,
       referencia,
+      dto.aunqueJustificada,
     );
-    if (suspension) {
-      throw new ConflictException(
-        `No hay clases el ${suspension.fecha}: ${suspension.motivo}`,
-      );
-    }
 
     const unidadActiva = horario.materia.unidades.find(
       (unidad) => unidad.status === 'ACTIVA',
@@ -351,6 +351,17 @@ export class ClasesService {
       orderBy: { horaInicio: 'asc' },
     });
 
+    // Clases sueltas que el docente justificó por una reunión de academia.
+    const hoyClave = formatearFechaClave(referencia);
+    const justificadas = new Map(
+      (
+        await this.periodos.clasesJustificadas([docenteId], {
+          gte: hoyClave,
+          lte: hoyClave,
+        })
+      ).map((item) => [item.horarioId, item]),
+    );
+
     const ahoraMinutos = convertirFechaAMinutos(referencia);
     const clasesHoy = horariosHoy.map((horario) => {
       const sesion = sesionesHoy.find(
@@ -370,8 +381,10 @@ export class ClasesService {
       const estaAhora =
         ahoraMinutos >= horaInicioMinutos && ahoraMinutos <= horaFinMinutos;
 
+      const justificada = justificadas.get(horario.id);
       let estado = 'PROXIMA';
-      if (suspension) {
+      // Si el docente dio la clase justificada de todos modos, manda la sesión.
+      if (suspension || (justificada && !sesion)) {
         estado = 'SUSPENDIDA';
       } else if (sesion?.activa) {
         estado = sesion.fueFueraDeHorario ? 'FUERA_DE_HORARIO' : 'EN_CURSO';
@@ -398,7 +411,8 @@ export class ClasesService {
         unidadActiva,
         sesion: sesion ?? null,
         estado,
-        suspensionMotivo: suspension?.motivo ?? null,
+        suspensionMotivo: suspension?.motivo ?? justificada?.motivo ?? null,
+        reunionId: suspension ? null : (justificada?.reunionId ?? null),
       };
     });
 
@@ -420,7 +434,6 @@ export class ClasesService {
       ) ?? null;
 
     // Lo que sigue en el calendario, para que el docente lo vea sin abrir Mi Horario.
-    const hoyClave = formatearFechaClave(referencia);
     const proximasSuspensiones = (
       await this.periodos.listarSuspensiones(docenteId, referencia)
     )
@@ -507,7 +520,9 @@ export class ClasesService {
    * Clases del horario del docente que ya ocurrieron en el periodo en curso y
    * siguen sin pase de lista: o nunca se abrió la sesión, o se abrió pero no se
    * guardó ningún registro. Son las fechas para las que se habilita la captura
-   * de asistencia atrasada.
+   * de asistencia atrasada. Aparte, en `opcionales`, van las clases pasadas
+   * justificadas por una reunión de academia: no se exigen, pero el docente
+   * puede pasar lista de todos modos.
    */
   async obtenerClasesAtrasadas(docenteId: number) {
     const ahora = new Date();
@@ -521,6 +536,12 @@ export class ClasesService {
       (await this.periodos.listarSuspensiones(docenteId, ahora)).map(
         (item) => item.fecha,
       ),
+    );
+    const clasesJustificadas = new Map(
+      (await this.periodos.clasesJustificadas([docenteId])).map((item) => [
+        `${item.horarioId}:${item.fecha}`,
+        item,
+      ]),
     );
 
     const horarios = await this.prisma.horarioMateria.findMany({
@@ -561,6 +582,8 @@ export class ClasesService {
       horario: (typeof horarios)[number];
       unidad: (typeof horarios)[number]['materia']['unidades'][number] | null;
       fecha: Date;
+      /** La clase se justificó por una reunión de academia. */
+      justificada: ClaseJustificadaVigente | null;
     };
 
     // Una misma materia y grupo sólo admiten una sesión por fecha, así que dos
@@ -581,7 +604,8 @@ export class ClasesService {
         dia = sumarDias(dia, 1)
       ) {
         if (!horarioAplicaEnFecha(horario.dias, dia)) continue;
-        if (fechasSuspendidas.has(formatearFechaClave(dia))) continue;
+        const fechaClave = formatearFechaClave(dia);
+        if (fechasSuspendidas.has(fechaClave)) continue;
         // La clase de hoy sólo se considera atrasada cuando ya terminó.
         if (
           dia.getTime() === hoy.getTime() &&
@@ -589,19 +613,24 @@ export class ClasesService {
         )
           continue;
 
-        const clave = `${horario.materiaId}-${horario.grupoId}-${formatearFechaClave(dia)}`;
-        if (candidatos.has(clave)) continue;
+        const justificada =
+          clasesJustificadas.get(`${horario.id}:${fechaClave}`) ?? null;
+        const clave = `${horario.materiaId}-${horario.grupoId}-${fechaClave}`;
+        const existente = candidatos.get(clave);
+        // Un horario sin justificar del mismo día pesa más que uno justificado.
+        if (existente && (!existente.justificada || justificada)) continue;
 
         candidatos.set(clave, {
           horario,
           unidad: this.resolverUnidadParaFecha(horario.materia.unidades, dia),
           fecha: dia,
+          justificada,
         });
         if (!fechaMasAntigua || dia < fechaMasAntigua) fechaMasAntigua = dia;
       }
     }
 
-    if (!fechaMasAntigua) return [];
+    if (!fechaMasAntigua) return { atrasadas: [], opcionales: [] };
 
     const sesiones = await this.prisma.claseSesion.findMany({
       where: {
@@ -619,35 +648,49 @@ export class ClasesService {
       },
     });
 
-    return Array.from(candidatos.values())
-      .map((candidato) => ({
-        ...candidato,
-        sesion: sesiones.find(
-          (item) =>
-            item.materiaId === candidato.horario.materiaId &&
-            item.grupoId === candidato.horario.grupoId &&
-            mismoDia(item.fecha, candidato.fecha),
-        ),
-      }))
-      .filter(({ sesion }) => !sesion || sesion._count.asistencias === 0)
+    const conSesion = Array.from(candidatos.values()).map((candidato) => ({
+      ...candidato,
+      sesion: sesiones.find(
+        (item) =>
+          item.materiaId === candidato.horario.materiaId &&
+          item.grupoId === candidato.horario.grupoId &&
+          mismoDia(item.fecha, candidato.fecha),
+      ),
+    }));
+    const resumirHorario = (
+      horario: Candidato['horario'],
+      fecha: Date,
+      unidad: Candidato['unidad'],
+    ) => ({
+      horarioId: horario.id,
+      materiaId: horario.materiaId,
+      grupoId: horario.grupoId,
+      aulaId: horario.aulaId,
+      materia: {
+        id: horario.materia.id,
+        nombre: horario.materia.nombre,
+        clave: horario.materia.clave,
+      },
+      grupo: horario.grupo,
+      aula: horario.aula,
+      fecha: formatearFechaClave(fecha),
+      semanaClave: obtenerClaveSemana(fecha),
+      dia: obtenerDiaCanonico(fecha),
+      horaInicio: horario.horaInicio,
+      horaFin: horario.horaFin,
+      unidad,
+    });
+
+    // Una clase justificada sólo se vuelve pendiente cuando el docente ya
+    // decidió darla (tiene sesión) y aún no guarda la lista.
+    const atrasadas = conSesion
+      .filter(({ sesion, justificada }) =>
+        justificada
+          ? sesion && sesion._count.asistencias === 0
+          : !sesion || sesion._count.asistencias === 0,
+      )
       .map(({ horario, unidad, fecha, sesion }) => ({
-        horarioId: horario.id,
-        materiaId: horario.materiaId,
-        grupoId: horario.grupoId,
-        aulaId: horario.aulaId,
-        materia: {
-          id: horario.materia.id,
-          nombre: horario.materia.nombre,
-          clave: horario.materia.clave,
-        },
-        grupo: horario.grupo,
-        aula: horario.aula,
-        fecha: formatearFechaClave(fecha),
-        semanaClave: obtenerClaveSemana(fecha),
-        dia: obtenerDiaCanonico(fecha),
-        horaInicio: horario.horaInicio,
-        horaFin: horario.horaFin,
-        unidad,
+        ...resumirHorario(horario, fecha, unidad),
         estado: sesion ? 'SIN_CAPTURA' : 'SIN_SESION',
         sesion: sesion
           ? {
@@ -658,6 +701,19 @@ export class ClasesService {
           : null,
       }))
       .sort((a, b) => b.fecha.localeCompare(a.fecha));
+
+    // Sin sesión, la clase justificada no cuenta: el docente puede pasar
+    // lista de todos modos, pero no se le exige.
+    const opcionales = conSesion
+      .filter(({ sesion, justificada }) => justificada && !sesion)
+      .map(({ horario, unidad, fecha, justificada }) => ({
+        ...resumirHorario(horario, fecha, unidad),
+        motivo: (justificada as ClaseJustificadaVigente).motivo,
+        reunionId: (justificada as ClaseJustificadaVigente).reunionId,
+      }))
+      .sort((a, b) => b.fecha.localeCompare(a.fecha));
+
+    return { atrasadas, opcionales };
   }
 
   /**
@@ -673,6 +729,7 @@ export class ClasesService {
     docenteId: number,
     horarioId: number,
     fechaClave: string,
+    aunqueJustificada = false,
   ) {
     const fecha = parsearFechaClave(fechaClave);
     if (!fecha) throw new BadRequestException('Fecha inválida');
@@ -697,12 +754,12 @@ export class ClasesService {
       throw new BadRequestException('El horario no tiene un grupo asignado');
     }
 
-    const suspension = await this.periodos.obtenerSuspension(docenteId, fecha);
-    if (suspension) {
-      throw new ConflictException(
-        `No hay clases el ${suspension.fecha}: ${suspension.motivo}`,
-      );
-    }
+    await this.validarClaseSinSuspension(
+      docenteId,
+      horarioId,
+      fecha,
+      aunqueJustificada,
+    );
 
     const ahora = new Date();
     const hoy = obtenerInicioDelDia(fecha);
@@ -759,6 +816,31 @@ export class ClasesService {
     return { horario, fecha, unidad, sesionExistente };
   }
 
+  /**
+   * Bloquea la clase si ese día no hay clases. Con `aunqueJustificada` sólo
+   * bloquea el día sin clases completo (festivo institucional o del docente):
+   * la justificación por reunión de academia la decide el propio docente.
+   */
+  private async validarClaseSinSuspension(
+    docenteId: number,
+    horarioId: number,
+    fecha: Date,
+    aunqueJustificada = false,
+  ) {
+    const suspension = aunqueJustificada
+      ? await this.periodos.obtenerSuspension(docenteId, fecha)
+      : await this.periodos.obtenerSuspensionDeClase(
+          docenteId,
+          horarioId,
+          fecha,
+        );
+    if (suspension) {
+      throw new ConflictException(
+        `No hay clases el ${suspension.fecha}: ${suspension.motivo}`,
+      );
+    }
+  }
+
   /** Crea la sesión cerrada de una clase pasada. No notifica: eso lo hace quien llama. */
   private async crearSesionAtrasada(
     docenteId: number,
@@ -812,7 +894,12 @@ export class ClasesService {
     dto: RegistrarClaseAtrasadaDto,
   ) {
     const { horario, fecha, unidad, sesionExistente } =
-      await this.resolverClaseAtrasada(docenteId, dto.horarioId, dto.fecha);
+      await this.resolverClaseAtrasada(
+        docenteId,
+        dto.horarioId,
+        dto.fecha,
+        dto.aunqueJustificada,
+      );
 
     if (sesionExistente) {
       throw new ConflictException(

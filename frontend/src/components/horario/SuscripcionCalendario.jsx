@@ -76,7 +76,7 @@ export default function SuscripcionCalendario() {
   return (
     <>
       <Button variant="outline" type="button" onClick={() => setAbierto(true)}
-        className="print-hidden inline-flex items-center gap-2 border px-4 py-2 text-sm font-medium shadow-sm">
+        className="print-hidden inline-flex items-center gap-2 border px-4 py-2 text-sm font-medium">
         <CalendarPlus className="h-4 w-4" aria-hidden="true" />
         Agregar a mi calendario
       </Button>
@@ -106,7 +106,7 @@ export default function SuscripcionCalendario() {
               ) : (
                 // Calendario de Apple convierte webcal:// en HTTPS y Google no
                 // alcanza localhost: sin HTTPS sólo funciona la descarga.
-                <div className="space-y-2 rounded-[10px] border border-warning/30 bg-warning/10 p-3 text-sm text-warning-foreground">
+                <div className="space-y-2 rounded-[10px] border border-warning/45 bg-warning/18 p-3 text-sm text-warning-foreground">
                   <p>Este servidor no usa HTTPS, así que las apps de calendario no pueden suscribirse (pasa en desarrollo; en sicatapp.com sí funciona).</p>
                   <a href={url} download="sicat.ics" className={cn(buttonVariants({ variant: 'outline' }))}>Descargar el archivo .ics</a>
                 </div>

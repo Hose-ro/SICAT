@@ -39,6 +39,10 @@ const MateriaDetalleAlumno = lazy(() => import("./pages/alumno/MateriaDetalleAlu
 const TareaDetalleAlumno = lazy(() => import("./pages/alumno/TareaDetalleAlumno"));
 const MiHorarioAlumno = lazy(() => import("./pages/alumno/MiHorarioAlumno"));
 const PasarLista = lazy(() => import("./pages/docente/PasarLista"));
+const IrAPasarLista = lazy(() => import("./pages/docente/IrAPasarLista"));
+const MiPerfil = lazy(() => import("./pages/MiPerfil"));
+const ReporteParcialSemestre = lazy(() => import("./pages/ReporteParcialSemestre"));
+const CierreCurso = lazy(() => import("./pages/docente/CierreCurso"));
 const TareaForm = lazy(() => import("./pages/docente/TareaForm"));
 const TareaDetalle = lazy(() => import("./pages/docente/TareaDetalle"));
 const MiHorario = lazy(() => import("./pages/docente/MiHorario"));
@@ -48,13 +52,18 @@ const AlumnosRiesgo = lazy(() => import("./pages/docente/AlumnosRiesgo"));
 const DashboardDocente = lazy(() => import("./pages/docente/DashboardDocente"));
 const DashboardAlumno = lazy(() => import("./pages/alumno/DashboardAlumno"));
 const SolicitudesPendientes = lazy(() => import("./pages/docente/SolicitudesPendientes"));
-const JefeDashboard = lazy(() => import("./pages/jefe-carrera/JefeDashboard"));
+const JefeInicio = lazy(() => import("./pages/jefe-carrera/JefeInicio"));
+const JefeGrupos = lazy(() => import("./pages/jefe-carrera/JefeGrupos"));
+const JefeGrupoDetalle = lazy(() => import("./pages/jefe-carrera/JefeGrupoDetalle"));
 const JefeDocentes = lazy(() => import("./pages/jefe-carrera/JefeDocentes"));
 const JefeDocenteDetalle = lazy(() => import("./pages/jefe-carrera/JefeDocenteDetalle"));
-const JefeClasesHorarios = lazy(() => import("./pages/jefe-carrera/JefeClasesHorarios"));
-const JefeSeguimiento = lazy(() => import("./pages/jefe-carrera/JefeSeguimiento"));
-const JefeAlertas = lazy(() => import("./pages/jefe-carrera/JefeAlertas"));
+const JefeMaterias = lazy(() => import("./pages/jefe-carrera/JefeMaterias"));
+const JefeMateriaDetalle = lazy(() => import("./pages/jefe-carrera/JefeMateriaDetalle"));
+const JefeHorarios = lazy(() => import("./pages/jefe-carrera/JefeHorarios"));
+const JefeSeguimientos = lazy(() => import("./pages/jefe-carrera/JefeSeguimientos"));
 const JefeReportes = lazy(() => import("./pages/jefe-carrera/JefeReportes"));
+const JefeReuniones = lazy(() => import("./pages/jefe-carrera/JefeReuniones"));
+const MisReuniones = lazy(() => import("./pages/docente/MisReuniones"));
 import PwaInstallPrompt from "@/components/PwaInstallPrompt";
 import { EMAIL_AUTH_ENABLED, REGISTRO_PUBLICO_ENABLED } from "./lib/authFeatures";
 
@@ -111,7 +120,7 @@ function RoleGate({ allowedRoles }) {
 
 function DashboardRoute() {
   const user = useAuthStore((state) => state.user);
-  if (user?.rol === "JEFE_CARRERA") return <JefeDashboard />;
+  if (user?.rol === "JEFE_CARRERA") return <JefeInicio />;
   if (user?.rol === "DOCENTE") return <DashboardDocente />;
   if (user?.rol === "ADMIN") return <Dashboard />;
   if (user?.rol === "ALUMNO") return <DashboardAlumno />;
@@ -183,6 +192,10 @@ function App() {
               path="/notificaciones"
               element={<NotificacionesHistorial />}
             />
+            <Route path="/perfil" element={<MiPerfil />} />
+            <Route element={<RoleGate allowedRoles={["DOCENTE", "JEFE_CARRERA"]} />}>
+              <Route path="/reportes/parcial-semestre" element={<ReporteParcialSemestre />} />
+            </Route>
 
             <Route
               element={
@@ -199,9 +212,11 @@ function App() {
               <Route path="/materias/:id" element={<MateriaDetalle />} />
               <Route path="/docente/tareas/crear" element={<TareaForm />} />
               <Route path="/docente/tareas/:id" element={<TareaDetalle />} />
+              <Route path="/calificaciones/cierre" element={<CierreCurso />} />
             </Route>
 
             <Route element={<RoleGate allowedRoles={["DOCENTE"]} />}>
+              <Route path="/docente/pasar-lista" element={<IrAPasarLista />} />
               <Route
                 path="/docente/pasar-lista/:sesionId"
                 element={<PasarLista />}
@@ -209,6 +224,7 @@ function App() {
               <Route path="/docente/horario" element={<MiHorario />} />
               <Route path="/docente/grupos" element={<MisGrupos />} />
               <Route path="/docente/riesgo" element={<AlumnosRiesgo />} />
+              <Route path="/docente/reuniones" element={<MisReuniones />} />
               <Route
                 path="/docente/solicitudes"
                 element={<SolicitudesPendientes />}
@@ -232,21 +248,40 @@ function App() {
             </Route>
 
             <Route element={<RoleGate allowedRoles={["JEFE_CARRERA"]} />}>
+              <Route path="/jefe-carrera/grupos" element={<JefeGrupos />} />
+              <Route
+                path="/jefe-carrera/grupos/:id"
+                element={<JefeGrupoDetalle />}
+              />
               <Route path="/jefe-carrera/docentes" element={<JefeDocentes />} />
               <Route
                 path="/jefe-carrera/docentes/:id"
                 element={<JefeDocenteDetalle />}
               />
+              <Route path="/jefe-carrera/materias" element={<JefeMaterias />} />
+              <Route
+                path="/jefe-carrera/materias/:id"
+                element={<JefeMateriaDetalle />}
+              />
+              <Route path="/jefe-carrera/horarios" element={<JefeHorarios />} />
               <Route
                 path="/jefe-carrera/clases"
-                element={<JefeClasesHorarios />}
+                element={<Navigate to="/jefe-carrera/horarios" replace />}
+              />
+              <Route
+                path="/jefe-carrera/seguimientos"
+                element={<JefeSeguimientos />}
               />
               <Route
                 path="/jefe-carrera/seguimiento"
-                element={<JefeSeguimiento />}
+                element={<Navigate to="/jefe-carrera/seguimientos" replace />}
               />
-              <Route path="/jefe-carrera/alertas" element={<JefeAlertas />} />
+              <Route
+                path="/jefe-carrera/alertas"
+                element={<Navigate to="/jefe-carrera/seguimientos" replace />}
+              />
               <Route path="/jefe-carrera/reportes" element={<JefeReportes />} />
+              <Route path="/jefe-carrera/reuniones" element={<JefeReuniones />} />
             </Route>
 
             <Route element={<RoleGate allowedRoles={["ADMIN"]} />}>

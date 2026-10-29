@@ -18,10 +18,12 @@ import { UpdateGrupoDto } from './dto/update-grupo.dto';
 import { hayConflictoHorario } from '../horarios/utils/conflicto-horario.util';
 import { HorariosService } from '../horarios/horarios.service';
 import { unidadesIniciales } from '../common/unidades.util';
+import { gruposDelDocenteWhere } from '../common/grupo-ownership';
 import {
   inscribirAlumnosDelGrupo,
   quitarInscripcionesDelGrupo,
 } from '../common/inscripciones-grupo';
+import { getCurrentAcademicPeriod } from '../common/periodo.util';
 import {
   normalizeControlNumber,
   normalizeEmail,
@@ -326,20 +328,8 @@ export class GruposService {
 
   // ─── Mis grupos (docente) ───────────────────────────────────────────────────
 
-  /**
-   * Un grupo llega a "Mis grupos" por dos caminos: porque el docente tiene un
-   * horario activo en él o porque lo agregó a mano desde el catálogo. El
-   * segundo existe para el docente que todavía no tiene horario cargado y aun
-   * así necesita ver a su grupo.
-   */
   private gruposDelDocenteWhere(docenteId: number): Prisma.GrupoWhereInput {
-    return {
-      activo: true,
-      OR: [
-        { docentes: { some: { id: docenteId } } },
-        { horarios: { some: { docenteId, activo: true } } },
-      ],
-    };
+    return gruposDelDocenteWhere(docenteId);
   }
 
   private incluirParaDocente(docenteId: number) {
@@ -453,7 +443,85 @@ export class GruposService {
       throw new NotFoundException('Grupo no encontrado entre tus grupos');
     }
     const { alumnos, ...resto } = grupo;
-    return { ...this.formatearParaDocente(resto), alumnos };
+    const formateado = this.formatearParaDocente(resto);
+    const externos = await this.alumnosExternosDelDocente(
+      id,
+      formateado.materias.map((materia) => materia.id),
+    );
+    return {
+      ...formateado,
+      alumnos: [...alumnos, ...externos].sort((a, b) =>
+        a.nombre.localeCompare(b.nombre, 'es'),
+      ),
+    };
+  }
+
+  /** Materias que el docente imparte al grupo según su horario activo. */
+  private async materiasDelDocenteEnGrupo(grupoId: number, docenteId: number) {
+    const bloques = await this.prisma.horarioMateria.findMany({
+      where: { grupoId, docenteId, activo: true },
+      select: { materiaId: true },
+    });
+    return [...new Set(bloques.map((bloque) => bloque.materiaId))];
+  }
+
+  /**
+   * Alumnos de fuera del grupo que el docente sumó a sus materias en él. No
+   * pertenecen al grupo: sólo tienen inscripción en esas materias con este
+   * grupo, así que no aparecen en las de otros docentes. `materias` dice en
+   * cuáles están.
+   */
+  private async alumnosExternosDelDocente(
+    grupoId: number,
+    materiaIds: number[],
+    alumnoIds?: number[],
+  ) {
+    if (materiaIds.length === 0) return [];
+    const inscripciones = await this.prisma.inscripcion.findMany({
+      where: {
+        grupoId,
+        materiaId: { in: materiaIds },
+        estado: 'ACEPTADA',
+        periodo: getCurrentAcademicPeriod(),
+        ...(alumnoIds ? { alumnoId: { in: alumnoIds } } : {}),
+        alumno: {
+          rol: Rol.ALUMNO,
+          activo: true,
+          OR: [{ grupoId: null }, { grupoId: { not: grupoId } }],
+        },
+      },
+      select: {
+        materia: { select: { id: true, nombre: true } },
+        alumno: {
+          select: {
+            id: true,
+            nombre: true,
+            numeroControl: true,
+            email: true,
+            telefono: true,
+            sexo: true,
+          },
+        },
+      },
+    });
+
+    const porAlumno = new Map<
+      number,
+      (typeof inscripciones)[number]['alumno'] & {
+        externo: true;
+        materias: { id: number; nombre: string }[];
+      }
+    >();
+    for (const { alumno, materia } of inscripciones) {
+      const actual = porAlumno.get(alumno.id) ?? {
+        ...alumno,
+        externo: true as const,
+        materias: [],
+      };
+      actual.materias.push(materia);
+      porAlumno.set(alumno.id, actual);
+    }
+    return [...porAlumno.values()];
   }
 
   async agregarGrupoDocente(docenteId: number, grupoId: number) {
@@ -515,8 +583,8 @@ export class GruposService {
 
   /**
    * Alumnos de la carrera del grupo que todavía no están en él. Se devuelve
-   * también el grupo actual de cada uno para que el docente vea por qué no
-   * puede agregar a los que ya tienen uno.
+   * también el grupo actual de cada uno: el docente puede sumarlo a su
+   * materia, pero el alumno sigue perteneciendo a ese grupo.
    */
   async buscarAlumnosParaGrupo(
     grupoId: number,
@@ -567,13 +635,49 @@ export class GruposService {
     });
   }
 
+  /**
+   * El docente suma alumnos de fuera del grupo (sin grupo o de otro grupo)
+   * sólo a sus materias en él. No los mete al grupo: eso los inscribiría en
+   * todas las materias y aparecerían en las listas de los demás docentes.
+   */
   async agregarAlumnosAMiGrupo(
     grupoId: number,
     docenteId: number,
     alumnoIds: number[],
+    materiaIds?: number[],
   ) {
     await this.asegurarGrupoDelDocente(grupoId, docenteId);
-    await this.asignarAlumnos(grupoId, alumnoIds);
+
+    const misMaterias = await this.materiasDelDocenteEnGrupo(
+      grupoId,
+      docenteId,
+    );
+    if (misMaterias.length === 0) {
+      throw new BadRequestException(
+        'Todavía no impartes ninguna materia en este grupo: el alumno se agrega a una materia.',
+      );
+    }
+    if (materiaIds?.some((materiaId) => !misMaterias.includes(materiaId))) {
+      throw new BadRequestException(
+        'Sólo puedes agregar alumnos a las materias que impartes en este grupo',
+      );
+    }
+
+    const ids = [...new Set(alumnoIds)];
+    const alumnos = await this.prisma.usuario.findMany({
+      where: { id: { in: ids }, rol: Rol.ALUMNO, activo: true },
+      select: { id: true },
+    });
+    if (alumnos.length !== ids.length) {
+      throw new BadRequestException(
+        'Uno o más alumnos no existen, no están activos o no tienen rol ALUMNO',
+      );
+    }
+
+    await inscribirAlumnosDelGrupo(this.prisma, grupoId, {
+      alumnoIds: ids,
+      materiaIds: materiaIds ?? misMaterias,
+    });
     return this.obtenerGrupoDocente(grupoId, docenteId);
   }
 
@@ -818,6 +922,12 @@ export class GruposService {
     const alumno = await this.prisma.usuario.findUnique({
       where: { id: alumnoId },
     });
+    if (alumno && alumno.grupoId !== grupoId) {
+      const quitados = await this.quitarExternosDelDocente(grupoId, docenteId, [
+        alumnoId,
+      ]);
+      if (quitados > 0) return { ok: true };
+    }
     if (!alumno || alumno.grupoId !== grupoId) {
       throw new NotFoundException('El alumno no pertenece a este grupo');
     }
@@ -828,6 +938,34 @@ export class GruposService {
     });
     await quitarInscripcionesDelGrupo(this.prisma, grupoId, [alumnoId]);
     return { ok: true };
+  }
+
+  /**
+   * Al alumno externo sólo se le quitan las inscripciones en las materias del
+   * docente: si otro docente también lo sumó a la suya, ahí se queda.
+   * Devuelve cuántos alumnos dejaron de estar en sus materias.
+   */
+  private async quitarExternosDelDocente(
+    grupoId: number,
+    docenteId: number,
+    alumnoIds: number[],
+  ) {
+    const materiaIds = await this.materiasDelDocenteEnGrupo(grupoId, docenteId);
+    const externos = await this.alumnosExternosDelDocente(
+      grupoId,
+      materiaIds,
+      alumnoIds,
+    );
+    if (externos.length === 0) return 0;
+    await this.prisma.inscripcion.deleteMany({
+      where: {
+        grupoId,
+        materiaId: { in: materiaIds },
+        alumnoId: { in: externos.map((alumno) => alumno.id) },
+        periodo: getCurrentAcademicPeriod(),
+      },
+    });
+    return externos.length;
   }
 
   /**
@@ -846,12 +984,26 @@ export class GruposService {
     const ids = [...new Set(alumnoIds)];
     if (ids.length === 0) return { quitados: 0 };
 
-    const { count } = await this.prisma.usuario.updateMany({
-      where: { id: { in: ids }, grupoId, rol: Rol.ALUMNO },
-      data: { grupoId: null },
-    });
-    await quitarInscripcionesDelGrupo(this.prisma, grupoId, ids);
-    return { quitados: count };
+    const miembros = (
+      await this.prisma.usuario.findMany({
+        where: { id: { in: ids }, grupoId, rol: Rol.ALUMNO },
+        select: { id: true },
+      })
+    ).map((alumno) => alumno.id);
+    const externos = await this.quitarExternosDelDocente(
+      grupoId,
+      docenteId,
+      ids.filter((id) => !miembros.includes(id)),
+    );
+
+    if (miembros.length > 0) {
+      await this.prisma.usuario.updateMany({
+        where: { id: { in: miembros } },
+        data: { grupoId: null },
+      });
+      await quitarInscripcionesDelGrupo(this.prisma, grupoId, miembros);
+    }
+    return { quitados: miembros.length + externos };
   }
 
   /**
@@ -870,7 +1022,16 @@ export class GruposService {
     const alumno = await this.prisma.usuario.findUnique({
       where: { id: alumnoId },
     });
-    if (!alumno || alumno.grupoId !== grupoId) {
+    const esExterno =
+      alumno?.grupoId !== grupoId &&
+      (
+        await this.alumnosExternosDelDocente(
+          grupoId,
+          await this.materiasDelDocenteEnGrupo(grupoId, docenteId),
+          [alumnoId],
+        )
+      ).length > 0;
+    if (!alumno || (alumno.grupoId !== grupoId && !esExterno)) {
       throw new NotFoundException('El alumno no pertenece a este grupo');
     }
 

@@ -32,11 +32,17 @@ export class MateriasController {
   constructor(private materias: MateriasService) {}
 
   @Post()
-  @Roles('ADMIN', 'DOCENTE')
+  @Roles('ADMIN', 'DOCENTE', 'JEFE_CARRERA')
   @ApiOperation({ summary: 'Crear materia (admin puede asignar docente)' })
   create(@Body() dto: CreateMateriaDto, @Req() req: AuthenticatedRequest) {
+    // La jefatura da de alta la materia en la retícula; el docente llega con
+    // los horarios, no aquí.
     const docenteId =
-      req.user.rol === 'DOCENTE' ? req.user.id : (dto.docenteId ?? null);
+      req.user.rol === 'DOCENTE'
+        ? req.user.id
+        : req.user.rol === 'JEFE_CARRERA'
+          ? null
+          : (dto.docenteId ?? null);
     return this.materias.create(dto, req.user, docenteId);
   }
 
@@ -120,7 +126,7 @@ export class MateriasController {
   }
 
   @Patch(':id')
-  @Roles('ADMIN', 'DOCENTE')
+  @Roles('ADMIN', 'DOCENTE', 'JEFE_CARRERA')
   @ApiOperation({
     summary:
       'Editar los datos generales de una materia (docente sólo las que imparte)',
@@ -134,7 +140,7 @@ export class MateriasController {
   }
 
   @Patch(':id/unidades')
-  @Roles('ADMIN', 'DOCENTE')
+  @Roles('ADMIN', 'DOCENTE', 'JEFE_CARRERA')
   @ApiOperation({ summary: 'Definir cuántas unidades tiene la materia' })
   actualizarUnidades(
     @Param('id', ParseIntPipe) id: number,
@@ -179,7 +185,7 @@ export class MateriasController {
   }
 
   @Delete(':id')
-  @Roles('ADMIN', 'DOCENTE')
+  @Roles('ADMIN', 'DOCENTE', 'JEFE_CARRERA')
   @ApiOperation({
     summary: 'Eliminar materia (docente sólo las que imparte)',
   })

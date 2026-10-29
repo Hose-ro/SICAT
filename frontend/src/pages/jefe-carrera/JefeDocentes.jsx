@@ -1,87 +1,200 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { ArrowRight, Search, UserRound } from 'lucide-react'
-import api from '@/api/axios'
-import PageHeader from '@/components/PageHeader'
-import { CarreraSelector, PageState, StatusBadge } from '@/components/jefe-carrera/JefeCarreraUI'
-import { useJefeCarreraStore } from '@/store/jefeCarreraStore'
+import { Link, useSearchParams } from 'react-router-dom'
+import { ChevronRight, Search } from 'lucide-react'
+import { AnilloProgreso } from '@/components/graficas/Anillos'
+import { Button } from '@/components/ui/button'
+import { claveFecha, haceTiempo, horaCorta, periodoTexto, plural } from './supervision/formato'
+import MapaDocentes from './graficas/MapaDocentes'
+import { JefaturaPage, Segmento, Vacio, selectClass } from './supervision/ui'
 
-export default function JefeDocentes() {
-  const carreraId = useJefeCarreraStore((state) => state.carreraId)
-  const [docentes, setDocentes] = useState([])
-  const [q, setQ] = useState('')
-  const [estado, setEstado] = useState('')
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+// «Registro de listas» (antes «Cobertura»).
+const DEFINICION_REGISTRO = 'Listas completas entre clases ya concluidas con lista esperada. No cuentan suspensiones, clases sin inscritos ni calendarios sin configurar. Es evidencia de captura en SICAT, no de asistencia del docente.'
 
-  const cargar = useCallback(async () => {
-    setLoading(true)
-    try {
-      const { data } = await api.get('/jefe-carrera/docentes', {
-        params: { carreraId: carreraId || undefined, estado: estado || undefined },
-      })
-      setDocentes(data)
-      setError('')
-    } catch (requestError) {
-      setError(requestError.response?.data?.message ?? 'No se pudo cargar el directorio')
-    } finally {
-      setLoading(false)
-    }
-  }, [carreraId, estado])
+/** Asignaciones agrupadas por materia: cada materia una vez, con sus grupos. */
+function materiasDe(asignaciones) {
+  const porMateria = new Map()
+  asignaciones.forEach((o) => {
+    const m = porMateria.get(o.materia.id) ?? { ...o.materia, grupos: [] }
+    m.grupos.push(o.grupo)
+    porMateria.set(o.materia.id, m)
+  })
+  return [...porMateria.values()]
+    .map((m) => ({ ...m, grupos: m.grupos.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')) }))
+    .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+}
 
-  useEffect(() => { cargar() }, [cargar])
+// Orden por urgencia: primero quien acumula más pendientes o lleva más tiempo sin capturar.
+const ORDENES = {
+  nombre: { label: 'Ordenar por nombre', comparar: () => 0 },
+  pendientes: { label: 'Más pendientes primero', comparar: (a, b) => (b.listasPendientes + b.calificacionesPendientes + b.entregasPendientes) - (a.listasPendientes + a.calificacionesPendientes + a.entregasPendientes) },
+  // Sin captura en el periodo va antes que una captura antigua; sin clases en el periodo, al final.
+  captura: { label: 'Captura más antigua primero', comparar: (a, b) => (b.tieneMetricas - a.tieneMetricas) || (a.ultimaCaptura ?? '').localeCompare(b.ultimaCaptura ?? '') },
+  cobertura: { label: 'Menor registro de listas primero', comparar: (a, b) => (a.clasesEsperadas ? a.cobertura : 101) - (b.clasesEsperadas ? b.cobertura : 101) },
+}
 
-  const filtrados = useMemo(() => {
-    const term = q.trim().toLocaleLowerCase('es-MX')
-    if (!term) return docentes
-    return docentes.filter((docente) =>
-      [docente.nombre, docente.email, ...docente.docenteMaterias.map((materia) => materia.nombre)]
-        .filter(Boolean).some((value) => value.toLocaleLowerCase('es-MX').includes(term)),
-    )
-  }, [docentes, q])
+/** «hoy, 10:47», «ayer», «hace 3 días»: la frescura importa más que la fecha exacta. */
+function capturaTexto(iso) {
+  const hace = haceTiempo(claveFecha(new Date(iso)))
+  return hace === 'Hoy' ? `hoy, ${horaCorta(iso)}` : hace.toLocaleLowerCase('es-MX')
+}
 
+/** Sólo lo que falta; si no falta nada, una sola marca de «Al día». */
+function Pendientes({ d }) {
+  const items = [
+    [d.listasPendientes, 'lista', 'listas'],
+    [d.calificacionesPendientes, 'calificación', 'calificaciones'],
+    [d.entregasPendientes, 'entrega', 'entregas'],
+  ].filter(([n]) => n > 0)
+  if (!items.length) {
+    return <p className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-success-foreground"><span className="size-1.5 rounded-full bg-success" aria-hidden="true" />Al día</p>
+  }
   return (
-    <div className="space-y-5">
-      <PageHeader title="Docentes" subtitle="Directorio, carga académica y estado actual" action={<CarreraSelector />} />
-      <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 sm:flex-row sm:items-end">
-        <label className="flex-1 space-y-1">
-          <span className="text-xs font-medium text-muted-foreground">Buscar docente o materia</span>
-          <span className="relative block">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input value={q} onChange={(event) => setQ(event.target.value)} className="h-10 w-full rounded-xl border border-input bg-background pl-9 pr-3 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/40" placeholder="Nombre, correo o materia" />
-          </span>
-        </label>
-        <label className="space-y-1">
-          <span className="text-xs font-medium text-muted-foreground">Estado</span>
-          <select value={estado} onChange={(event) => setEstado(event.target.value)} className="h-10 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/40 sm:w-48">
-            <option value="">Todos</option><option value="EN_CURSO">En curso</option><option value="FUERA_DE_HORARIO">Fuera de horario</option><option value="SIN_CLASE">Sin clase</option>
-          </select>
-        </label>
+    <ul className="mt-2 flex flex-wrap gap-1.5" aria-label={`Pendientes de ${d.nombre}`}>
+      {items.map(([n, uno, varios]) => (
+        <li key={uno} className="rounded-full bg-warning/15 px-2 py-0.5 text-xs tabular-nums text-warning-foreground dark:bg-warning/20">
+          <span className="font-semibold">{n}</span> {n === 1 ? uno : varios}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function TarjetaDocente({ d, j, i }) {
+  const materias = materiasDe(d.asignaciones)
+  const pct = d.tieneMetricas && d.clasesEsperadas ? d.cobertura : null
+  return (
+    <li className="docente-tarjeta relative flex flex-col rounded-[var(--radius-item)] border border-border bg-card p-5" style={{ '--i': i }}>
+      <div className="flex items-center gap-4">
+        <AnilloProgreso pct={pct} etiqueta="Registro de listas" />
+        <div className="min-w-0 flex-1">
+          {/* El nombre cubre toda la tarjeta (enlace estirado); los grupos quedan por encima. */}
+          {d.periodoReferencia
+            ? <Link className="docente-estirado block truncate text-base font-semibold tracking-tight text-foreground outline-none" to={j.to(`/jefe-carrera/docentes/${d.id}`, { periodo: d.periodoReferencia })}>{d.nombre}</Link>
+            : <span className="block truncate text-base font-semibold tracking-tight text-foreground">{d.nombre}</span>}
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {!d.tieneMetricas ? `Sin clases en ${periodoTexto(j.periodo)}` : (
+              <>
+                {d.clasesEsperadas ? `${d.listasCompletas} de ${d.clasesEsperadas} listas` : 'Sin clases concluidas'}
+                {' · '}
+                {d.ultimaCaptura ? `capturó ${capturaTexto(d.ultimaCaptura)}` : <span className="font-medium text-destructive-foreground">sin capturas aún</span>}
+              </>
+            )}
+          </p>
+          {d.tieneMetricas && <Pendientes d={d} />}
+        </div>
+        {d.periodoReferencia && <ChevronRight className="docente-flecha size-4 shrink-0 self-start text-muted-foreground" aria-hidden="true" />}
       </div>
 
-      <PageState loading={loading} error={error} empty={!filtrados.length} emptyText="No hay docentes que coincidan con los filtros." />
-      {!loading && !error && filtrados.length > 0 && (
-        <div className="overflow-hidden rounded-2xl border border-border bg-card">
-          <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Tabla de docentes">
-            <table className="w-full min-w-[820px] text-sm">
-              <thead className="bg-muted/70"><tr className="border-b border-border text-left text-xs text-muted-foreground">
-                <th className="px-4 py-3 font-medium">Docente</th><th className="px-4 py-3 font-medium">Materias</th><th className="px-4 py-3 font-medium">Carga</th><th className="px-4 py-3 font-medium">Estado</th><th className="px-4 py-3 text-right font-medium">Detalle</th>
-              </tr></thead>
-              <tbody className="divide-y divide-border">
-                {filtrados.map((docente) => (
-                  <tr key={docente.id} className="hover:bg-muted/50">
-                    <td className="px-4 py-3"><div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-muted text-muted-foreground"><UserRound className="h-4 w-4" /></span><div><p className="font-medium text-foreground">{docente.nombre}</p><p className="text-xs text-muted-foreground">{docente.email ?? 'Sin correo registrado'}</p></div></div></td>
-                    <td className="px-4 py-3 text-muted-foreground">{docente.docenteMaterias.length}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{docente.cargaSemanal} horario(s)</td>
-                    <td className="px-4 py-3"><StatusBadge value={docente.estado} /></td>
-                    <td className="px-4 py-3 text-right"><Link to={`/jefe-carrera/docentes/${docente.id}`} className="inline-flex items-center gap-1 font-medium text-primary-ink hover:underline">Consultar <ArrowRight className="h-4 w-4" /></Link></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-    </div>
+      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-border pt-3 text-[0.8125rem]">
+        <ul className="contents" aria-label={`Materias de ${d.nombre}`}>
+          {materias.map((m) => (
+            <li key={m.id} className="inline-flex min-w-0 flex-wrap items-center gap-1.5">
+              <span className="min-w-0 text-muted-foreground">{m.nombre}</span>
+              {m.grupos.map((g) => {
+                const otroPeriodo = g.periodoConsulta && g.periodoConsulta !== j.periodo
+                // Del periodo consultado, el grupo abre la materia en ese grupo; de otro periodo solo se nombra.
+                return otroPeriodo ? (
+                  <span key={g.id} title={`Grupo de ${periodoTexto(g.periodoConsulta)}`} className="rounded-md border border-dashed border-border px-1.5 py-px text-xs tabular-nums text-muted-foreground">
+                    {g.nombre}<span className="sr-only"> · {periodoTexto(g.periodoConsulta)}</span>
+                  </span>
+                ) : (
+                  <Link key={g.id} to={j.toDesde(`/jefe-carrera/materias/${m.id}`, { oferta: g.id })} aria-label={`${m.nombre}, grupo ${g.nombre}`} className="group/grupo relative z-[1] rounded-md text-xs font-medium tabular-nums text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                    {/* En táctil el enlace crece a 44 px; el chip visible sigue siendo pequeño. */}
+                    <span className="rounded-md bg-muted px-1.5 py-px transition-colors duration-150 group-hover/grupo:bg-accent group-hover/grupo:text-primary-ink">{g.nombre}</span>
+                  </Link>
+                )
+              })}
+            </li>
+          ))}
+        </ul>
+        <span className="ml-auto text-xs tabular-nums text-muted-foreground">
+          {plural(d.asignaciones.length, 'grupo', 'grupos')}{d.tieneMetricas && ` · ${d.horasSemanales} h/sem`}
+        </span>
+      </div>
+    </li>
+  )
+}
+
+export default function JefeDocentes() {
+  const [params, setParams] = useSearchParams()
+  const filtro = params.get('filtro') === 'pendientes' ? 'pendientes' : ''
+  const busqueda = params.get('q') ?? ''
+  const orden = ORDENES[params.get('orden')] ? params.get('orden') : 'nombre'
+  const vista = params.get('vista') === 'semanas' ? 'semanas' : 'tarjetas'
+  const set = (k, v) => { const n = new URLSearchParams(params); if (v) n.set(k, v); else n.delete(k); setParams(n, { replace: true }) }
+
+  return (
+    <JefaturaPage titulo="Docentes" subtitulo="Carga académica y registro de cada docente dentro de esta carrera.">
+      {({ j, resumen }) => {
+        const ofertas = new Map((resumen.catalogo?.ofertas ?? resumen.ofertas).map((o) => [o.id, o]))
+        const metricas = new Map(resumen.docentes.map((d) => [d.id, d]))
+        const docentesActivos = resumen.catalogo?.docentes ?? resumen.docentes
+        const q = busqueda.trim().toLocaleLowerCase()
+        const filas = docentesActivos
+          .map((docente) => {
+            const metrica = metricas.get(docente.id)
+            const asignaciones = docente.ofertas.map((id) => ofertas.get(id)).filter(Boolean)
+            const periodoReferencia = asignaciones.some((o) => o.grupo.periodoConsulta === j.periodo)
+              ? j.periodo
+              : asignaciones.map((o) => o.grupo.periodoConsulta).find((periodo) => j.periodos.includes(periodo))
+            return {
+              ...docente,
+              ...metrica,
+              asignaciones,
+              periodoReferencia,
+              tieneMetricas: Boolean(metrica),
+              listasPendientes: metrica?.listasPendientes ?? 0,
+              calificacionesPendientes: metrica?.calificacionesPendientes ?? 0,
+              entregasPendientes: metrica?.entregasPendientes ?? 0,
+            }
+          })
+          .filter((d) => !q || d.nombre.toLocaleLowerCase().includes(q))
+          .filter((d) => !filtro || d.listasPendientes || d.calificacionesPendientes || d.entregasPendientes)
+          .sort((a, b) => ORDENES[orden].comparar(a, b) || a.nombre.localeCompare(b.nombre, 'es'))
+
+        return (
+          <>
+            <div className="mt-6 flex flex-wrap items-center gap-3">
+              <Segmento label="Vista" value={vista} onChange={(v) => set('vista', v === 'tarjetas' ? '' : v)} options={[{ value: 'tarjetas', label: 'Tarjetas' }, { value: 'semanas', label: 'Por semana' }]} />
+              <label className="relative min-w-[220px] flex-1 sm:max-w-sm">
+                <span className="sr-only">Buscar docente</span>
+                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+                <input type="search" value={busqueda} onChange={(e) => set('q', e.target.value)} placeholder="Buscar docente" className="h-11 w-full rounded-[0.7rem] border border-border bg-card pl-9 pr-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40" />
+              </label>
+              <Segmento label="Mostrar" value={filtro} onChange={(v) => set('filtro', v)} options={[{ value: '', label: 'Todos' }, { value: 'pendientes', label: 'Con pendientes' }]} />
+              <label className="w-full sm:w-60">
+                <span className="sr-only">Ordenar docentes</span>
+                <select value={orden} onChange={(e) => set('orden', e.target.value === 'nombre' ? '' : e.target.value)} className={selectClass}>
+                  {Object.entries(ORDENES).map(([value, o]) => <option key={value} value={value}>{o.label}</option>)}
+                </select>
+              </label>
+            </div>
+            {(filtro || q) && (
+              <p role="status" className="mt-3 flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground">
+                Mostrando {filas.length} de {docentesActivos.length} docentes · {[filtro && 'con pendientes', q && `nombre con «${busqueda.trim()}»`].filter(Boolean).join(' · ')}
+                <Button variant="ghost" size="sm" className="max-md:min-h-11" onClick={() => setParams(new URLSearchParams({ carrera: j.carreraId, periodo: j.periodo, ...(vista !== 'tarjetas' ? { vista } : {}), ...(orden !== 'nombre' ? { orden } : {}) }), { replace: true })}>Quitar filtros</Button>
+              </p>
+            )}
+            <details className="mt-3 text-xs text-muted-foreground">
+              <summary className="inline-flex min-h-11 cursor-pointer list-none items-center gap-1 rounded-md hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-8">
+                Cifras de {periodoTexto(j.periodo)} · <span className="underline decoration-dotted underline-offset-4">¿qué mide el registro de listas?</span>
+              </summary>
+              <p className="max-w-2xl pb-2 leading-relaxed">{DEFINICION_REGISTRO} Los grupos con borde punteado son de otro periodo.</p>
+            </details>
+
+            {!docentesActivos.length ? (
+              <Vacio titulo="Sin docentes asignados">Ninguna materia de los grupos activos de la carrera tiene docente.</Vacio>
+            ) : !filas.length ? (
+              <Vacio titulo={filtro ? 'Sin pendientes detectados' : 'Ningún docente coincide'} accion={<Button variant="outline" onClick={() => setParams(new URLSearchParams({ carrera: j.carreraId, periodo: j.periodo }), { replace: true })}>Restablecer filtros</Button>} />
+            ) : vista === 'semanas' ? (
+              <MapaDocentes j={j} resumen={resumen} docentes={filas} />
+            ) : (
+              <ul aria-label="Docentes de la carrera" className="mt-5 grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+                {filas.map((d, i) => <TarjetaDocente key={d.id} d={d} j={j} i={i} />)}
+              </ul>
+            )}
+          </>
+        )
+      }}
+    </JefaturaPage>
   )
 }

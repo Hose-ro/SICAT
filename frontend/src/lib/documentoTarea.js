@@ -1,5 +1,6 @@
-import { parseRubrica, TASK_TYPE_LABEL } from './tareas'
+import { esEnClase, parseRubrica, TASK_TYPE_LABEL, tipoActividad } from './tareas'
 import { sanitizarNombreArchivo } from './nombreArchivo'
+import { anchosDocx, BORDES_DOCX, cargarLogos, encabezadoDocx, encabezadoPdf, MARGEN_PDF, PAGINA_CARTA_DOCX, piePdf, pieDocx } from './formatoInstitucional'
 
 /**
  * Documento con las instrucciones completas de una tarea, para mandarlo al
@@ -30,11 +31,16 @@ export function contenidoTarea(tarea, { docente } = {}) {
     ['Docente', docente ?? ''],
     ['Unidad', unidad],
     ['Publicada', tarea.fechaPublicacion ? fechaLarga(tarea.fechaPublicacion) : ''],
-    ['Fecha límite', tarea.tieneFechaLimite && tarea.fechaLimite ? fechaLarga(tarea.fechaLimite) : 'Sin fecha límite'],
-    ['Entrega', [TASK_TYPE_LABEL[tarea.tipoEntrega], tarea.permiteReenvio ? 'se puede reenviar' : ''].filter(Boolean).join(' · ')],
+    ['Tipo', tipoActividad(tarea).singular],
+    esEnClase(tarea)
+      ? ['Fecha de aplicación', tarea.tieneFechaLimite && tarea.fechaLimite ? fechaLarga(tarea.fechaLimite) : 'Por confirmar']
+      : ['Fecha límite', tarea.tieneFechaLimite && tarea.fechaLimite ? fechaLarga(tarea.fechaLimite) : 'Sin fecha límite'],
+    ['Entrega', esEnClase(tarea) ? 'En clase: no se sube nada' : [TASK_TYPE_LABEL[tarea.tipoEntrega], tarea.permiteReenvio ? 'se puede reenviar' : ''].filter(Boolean).join(' · ')],
   ].filter(([, valor]) => valor)
   return {
     titulo: tarea.titulo,
+    tipo: tipoActividad(tarea).singular,
+    materia: tarea.materia?.nombre ?? '',
     datos,
     instrucciones: String(tarea.instrucciones ?? '').replace(/\r\n/g, '\n').trim(),
     rubrica: parseRubrica(tarea.rubricJson),
@@ -43,8 +49,10 @@ export function contenidoTarea(tarea, { docente } = {}) {
 }
 
 export function nombreDocumentoTarea(tarea, formato) {
-  const partes = ['Tarea', tarea.titulo, tarea.grupo?.nombre].filter(Boolean).join(' - ')
-  return `${sanitizarNombreArchivo(partes, 'Tarea')}.${formato}`
+  // "Examen - Parcial 1 - 806A.pdf": el tipo va primero (sin criterio, "Tarea").
+  const tipo = tipoActividad(tarea).singular
+  const partes = [tipo, tarea.titulo, tarea.grupo?.nombre].filter(Boolean).join(' - ')
+  return `${sanitizarNombreArchivo(partes, tipo)}.${formato}`
 }
 
 // Las fuentes estándar de jsPDF solo traen WinAnsi: acentos, ñ, comillas y
@@ -54,48 +62,85 @@ function paraPdf(texto) {
   return Array.from(String(texto)).filter((c) => c.charCodeAt(0) <= 0xff || WINANSI_EXTRA.includes(c)).join('')
 }
 
+/** "Instrucciones de examen" en el renglón del nombre del documento. */
+function nombreFormato(c) {
+  return { titulo: `Instrucciones de ${c.tipo.toLowerCase()}`, subtitulo: c.materia || undefined }
+}
+
 async function generarPdf(c) {
-  const { jsPDF } = await import('jspdf')
-  const doc = new jsPDF({ unit: 'mm', format: 'a4' })
+  const [{ jsPDF }, logos] = await Promise.all([import('jspdf'), cargarLogos()])
+  const doc = new jsPDF({ unit: 'mm', format: 'letter', compress: true })
   const ancho = doc.internal.pageSize.getWidth()
   const alto = doc.internal.pageSize.getHeight()
-  const margen = 18
+  const margen = MARGEN_PDF
   const util = ancho - margen * 2
-  let y = margen
+  const abajo = alto - 18
+  const pt = 25.4 / 72
+  let y = encabezadoPdf(doc, nombreFormato(c), logos)
 
   const espacio = (h) => {
-    if (y + h <= alto - margen) return
+    if (y + h <= abajo) return
     doc.addPage()
     y = margen
   }
-  const parrafo = (texto, { size = 10.5, bold = false, color = [30, 30, 30], x = margen, w = util, interlineado = 1.45 } = {}) => {
+  const parrafo = (texto, { size = 10.5, bold = false, x = margen, w = util, interlineado = 1.4, align = 'left' } = {}) => {
     doc.setFont('helvetica', bold ? 'bold' : 'normal')
     doc.setFontSize(size)
-    doc.setTextColor(...color)
-    const linea = size * 0.3528 * interlineado
+    doc.setTextColor(0, 0, 0)
+    const linea = size * pt * interlineado
     for (const fila of doc.splitTextToSize(paraPdf(texto), w)) {
       espacio(linea)
-      doc.text(fila, x, y + linea * 0.75)
+      doc.text(fila, align === 'center' ? x + w / 2 : x, y + linea * 0.75, { align })
       y += linea
     }
   }
   const seccion = (titulo) => {
     y += 4
-    espacio(12)
-    parrafo(titulo.toUpperCase(), { size: 9, bold: true, color: [90, 90, 90] })
-    doc.setDrawColor(210, 210, 210)
-    doc.line(margen, y + 0.5, ancho - margen, y + 0.5)
-    y += 3
+    espacio(16)
+    parrafo(titulo.toUpperCase(), { size: 11, bold: true, align: 'center' })
+    y += 2
+  }
+  // Tabla con borde negro como las del acta; `anchos` en proporciones.
+  const tabla = ({ columnas, anchos, filas, alinear = [] }) => {
+    const total = anchos.reduce((a, b) => a + b, 0)
+    const ws = anchos.map((a) => (a / total) * util)
+    const relleno = 5 * pt
+    const fila = (celdas, cabecera) => {
+      doc.setFontSize(9.5)
+      const lineas = celdas.map((celda, i) => {
+        doc.setFont('helvetica', cabecera || celda.negrita ? 'bold' : 'normal')
+        return doc.splitTextToSize(paraPdf(celda.texto ?? celda), ws[i] - relleno * 2)
+      })
+      const altoLinea = 9.5 * pt * 1.25
+      const h = Math.max(cabecera ? 23 * pt : 20 * pt, ...lineas.map((l) => l.length * altoLinea + relleno * 2))
+      if (y + h > abajo) {
+        doc.addPage()
+        y = margen
+        if (!cabecera && columnas) fila(columnas, true)
+      }
+      let x = margen
+      doc.setDrawColor(0, 0, 0)
+      doc.setLineWidth(0.75 * pt)
+      celdas.forEach((celda, i) => {
+        doc.rect(x, y, ws[i], h)
+        doc.setFont('helvetica', cabecera || celda.negrita ? 'bold' : 'normal')
+        doc.setTextColor(0, 0, 0)
+        const alinea = cabecera ? 'center' : (alinear[i] ?? 'left')
+        const tx = alinea === 'center' ? x + ws[i] / 2 : alinea === 'right' ? x + ws[i] - relleno : x + relleno
+        const inicio = y + (h - lineas[i].length * altoLinea) / 2 + altoLinea * 0.75
+        lineas[i].forEach((texto, j) => doc.text(texto, tx, inicio + j * altoLinea, { align: alinea }))
+        x += ws[i]
+      })
+      y += h
+    }
+    if (columnas) fila(columnas, true)
+    filas.forEach((celdas) => fila(celdas, false))
+    y += 4
   }
 
-  parrafo(c.titulo, { size: 17, bold: true, interlineado: 1.25 })
+  parrafo(c.titulo, { size: 13, bold: true, interlineado: 1.25 })
   y += 3
-  for (const [etiqueta, valor] of c.datos) {
-    const antes = y
-    parrafo(`${etiqueta}:`, { size: 10, bold: true, color: [90, 90, 90], w: 34 })
-    y = antes
-    parrafo(valor, { size: 10, x: margen + 34, w: util - 34 })
-  }
+  tabla({ anchos: [28, 72], filas: c.datos.map(([etiqueta, valor]) => [{ texto: etiqueta, negrita: true }, valor]) })
 
   seccion('Instrucciones')
   for (const bloque of (c.instrucciones || 'Sin instrucciones.').split('\n')) {
@@ -105,14 +150,12 @@ async function generarPdf(c) {
 
   if (c.rubrica) {
     seccion('Rúbrica de evaluación')
-    for (const fila of c.rubrica) {
-      const antes = y
-      parrafo(fila.criterio, { w: util - 22 })
-      const despues = y
-      y = antes
-      parrafo(`${fila.peso}%`, { bold: true, x: ancho - margen - 14, w: 14 })
-      y = Math.max(despues, y) + 1
-    }
+    tabla({
+      columnas: ['Criterio', 'Peso'],
+      anchos: [82, 18],
+      alinear: ['left', 'center'],
+      filas: c.rubrica.map((fila) => [fila.criterio, `${fila.peso}%`]),
+    })
   }
 
   if (c.adjuntos.length) {
@@ -120,36 +163,47 @@ async function generarPdf(c) {
     for (const nombre of c.adjuntos) parrafo(`• ${nombre}`)
   }
 
+  piePdf(doc)
   return doc.output('blob')
 }
 
 async function generarDocx(c) {
-  const { AlignmentType, BorderStyle, Document, HeadingLevel, Packer, Paragraph, Table, TableCell, TableRow, TextRun, WidthType } = await import('docx')
-  const seccion = (texto) => new Paragraph({ text: texto, heading: HeadingLevel.HEADING_2, spacing: { before: 280, after: 120 } })
-  const sinBorde = { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }
+  const [docx, logos] = await Promise.all([import('docx'), cargarLogos()])
+  const { AlignmentType, Document, Packer, Paragraph, Table, TableCell, TableRow, TextRun, VerticalAlign, WidthType } = docx
+  const seccion = (texto) => new Paragraph({
+    alignment: AlignmentType.CENTER,
+    spacing: { before: 280, after: 140 },
+    children: [new TextRun({ text: texto.toUpperCase(), bold: true, size: 22 })],
+  })
   const celda = (texto, { bold = false, ancho, alinear } = {}) => new TableCell({
-    width: { size: ancho, type: WidthType.PERCENTAGE },
+    width: { size: anchosDocx([ancho, 100 - ancho])[0], type: WidthType.DXA },
+    verticalAlign: VerticalAlign.CENTER,
+    margins: { top: 80, bottom: 80, left: 100, right: 100 },
     children: [new Paragraph({ alignment: alinear, children: [new TextRun({ text: texto, bold })] })],
   })
 
   const hijos = [
-    new Paragraph({ text: c.titulo, heading: HeadingLevel.HEADING_1, spacing: { after: 200 } }),
-    ...c.datos.map(([etiqueta, valor]) => new Paragraph({
-      spacing: { after: 60 },
-      children: [new TextRun({ text: `${etiqueta}: `, bold: true }), new TextRun(valor)],
-    })),
+    ...encabezadoDocx(docx, nombreFormato(c), logos),
+    new Paragraph({ spacing: { after: 160 }, children: [new TextRun({ text: c.titulo, bold: true, size: 26 })] }),
+    new Table({
+      width: { size: anchosDocx([1])[0], type: WidthType.DXA },
+      columnWidths: anchosDocx([28, 72]),
+      borders: BORDES_DOCX,
+      rows: c.datos.map(([etiqueta, valor]) => new TableRow({ children: [celda(etiqueta, { bold: true, ancho: 28 }), celda(valor, { ancho: 72 })] })),
+    }),
     seccion('Instrucciones'),
     ...(c.instrucciones || 'Sin instrucciones.').split('\n').map((linea) => new Paragraph({ text: linea, spacing: { after: 80 } })),
   ]
 
   if (c.rubrica) {
     hijos.push(seccion('Rúbrica de evaluación'), new Table({
-      width: { size: 100, type: WidthType.PERCENTAGE },
+      width: { size: anchosDocx([1])[0], type: WidthType.DXA },
+      columnWidths: anchosDocx([82, 18]),
+      borders: BORDES_DOCX,
       rows: [
-        new TableRow({ tableHeader: true, children: [celda('Criterio', { bold: true, ancho: 82 }), celda('Peso', { bold: true, ancho: 18, alinear: AlignmentType.RIGHT })] }),
-        ...c.rubrica.map((fila) => new TableRow({ children: [celda(fila.criterio, { ancho: 82 }), celda(`${fila.peso}%`, { ancho: 18, alinear: AlignmentType.RIGHT })] })),
+        new TableRow({ tableHeader: true, children: [celda('Criterio', { bold: true, ancho: 82, alinear: AlignmentType.CENTER }), celda('Peso', { bold: true, ancho: 18, alinear: AlignmentType.CENTER })] }),
+        ...c.rubrica.map((fila) => new TableRow({ children: [celda(fila.criterio, { ancho: 82 }), celda(`${fila.peso}%`, { ancho: 18, alinear: AlignmentType.CENTER })] })),
       ],
-      borders: { left: sinBorde, right: sinBorde, insideVertical: sinBorde },
     }))
   }
 
@@ -160,8 +214,8 @@ async function generarDocx(c) {
   const documento = new Document({
     creator: 'SICAT',
     title: c.titulo,
-    styles: { default: { document: { run: { font: 'Calibri', size: 22 } } } },
-    sections: [{ children: hijos }],
+    styles: { default: { document: { run: { font: 'Arial', size: 21 } } } },
+    sections: [{ properties: { page: PAGINA_CARTA_DOCX }, footers: { default: pieDocx(docx) }, children: hijos }],
   })
   return Packer.toBlob(documento)
 }

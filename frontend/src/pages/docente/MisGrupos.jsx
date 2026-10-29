@@ -2,7 +2,7 @@ import useAsyncAction from '@/hooks/useAsyncAction'
 import { Button } from '@/components/ui/button'
 import { confirmAction } from '@/lib/feedback'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import {
   BookOpen,
   CalendarClock,
@@ -11,7 +11,6 @@ import {
   Search,
   Trash2,
   UserPlus,
-  UsersRound,
 } from 'lucide-react'
 import api from '../../api/axios'
 import Modal from '../../components/Modal'
@@ -41,6 +40,8 @@ export default function MisGrupos() {
   const [modalAgregar, setModalAgregar] = useState(false)
   const [grupoDetalle, setGrupoDetalle] = useState(null)
   const [grupoAlumnos, setGrupoAlumnos] = useState(null)
+  const [pestanaAlumnos, setPestanaAlumnos] = useState('existente')
+  const [searchParams, setSearchParams] = useSearchParams()
   const [grupoMaterias, setGrupoMaterias] = useState(null)
   const [aviso, setAviso] = useState('')
 
@@ -61,6 +62,23 @@ export default function MisGrupos() {
     cargar()
   }, [cargar])
 
+  // La guía de primeros pasos de Inicio llega con ?agregar=1 o con
+  // ?alumnos=<grupo>&pestana=importar: se abre el modal y se limpia la URL
+  // para que recargar no lo vuelva a abrir.
+  const agregarPedido = searchParams.get('agregar') === '1'
+  const alumnosPedido = Number(searchParams.get('alumnos')) || null
+  const pestanaPedida = searchParams.get('pestana')
+  useEffect(() => {
+    if (loading || (!agregarPedido && !alumnosPedido)) return
+    if (agregarPedido) setModalAgregar(true)
+    const grupo = alumnosPedido && grupos.find((g) => g.id === alumnosPedido)
+    if (grupo) {
+      setPestanaAlumnos(pestanaPedida ?? 'existente')
+      setGrupoAlumnos(grupo)
+    }
+    setSearchParams({}, { replace: true })
+  }, [loading, agregarPedido, alumnosPedido, pestanaPedida, grupos, setSearchParams])
+
   const alumnosAgregados = async (mensaje) => {
     setGrupoAlumnos(null)
     setAviso(mensaje)
@@ -68,6 +86,11 @@ export default function MisGrupos() {
   }
 
   const quitar = async (grupo) => {
+    if (!(await confirmAction({
+      title: `Quitar ${grupo.nombre} de tus grupos`,
+      description: 'Dejará de aparecer aquí. El grupo y sus alumnos no se borran, y puedes volver a agregarlo cuando quieras.',
+      confirmLabel: 'Quitar grupo',
+    }))) return
     setError('')
     try {
       await api.delete(`/grupos/mis-grupos/${grupo.id}`)
@@ -85,12 +108,9 @@ export default function MisGrupos() {
   return (
     <div className="space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary-ink">
-            <UsersRound className="h-5 w-5" />
-          </div>
+        <div>
           <div>
-            <h1 className="text-xl font-bold text-foreground sm:text-2xl">
+            <h1 className="text-[1.75rem] font-semibold leading-tight tracking-[-0.02em] text-foreground">
               Mis grupos
             </h1>
             <p className="text-sm text-muted-foreground">
@@ -104,7 +124,7 @@ export default function MisGrupos() {
         <Button variant="default"
           type="button"
           onClick={() => setModalAgregar(true)}
-          className="inline-flex items-center gap-2 self-start px-4 py-2 text-sm font-medium shadow-sm sm:self-auto"
+          className="inline-flex items-center gap-2 self-start px-4 py-2 text-sm font-medium sm:self-auto"
         >
           <Plus className="h-4 w-4" />
           Agregar grupo
@@ -112,13 +132,13 @@ export default function MisGrupos() {
       </div>
 
       {error && (
-        <div className="rounded-2xl border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground">
+        <div className="rounded-2xl border border-destructive/40 bg-destructive/18 px-4 py-3 text-sm text-destructive-foreground">
           {error}
         </div>
       )}
 
       {aviso && (
-        <div className="rounded-2xl border border-success/30 bg-success/10 px-4 py-3 text-sm text-foreground">
+        <div className="rounded-2xl border border-success/45 bg-success/18 px-4 py-3 text-sm text-foreground">
           {aviso}
         </div>
       )}
@@ -147,6 +167,7 @@ export default function MisGrupos() {
               onVerMaterias={() => setGrupoMaterias(grupo)}
               onAgregarAlumnos={() => {
                 setAviso('')
+                setPestanaAlumnos('existente')
                 setGrupoAlumnos(grupo)
               }}
               onQuitar={() => quitar(grupo)}
@@ -186,6 +207,7 @@ export default function MisGrupos() {
       {grupoAlumnos && (
         <AgregarAlumnosGrupoModal
           grupo={grupoAlumnos}
+          pestanaInicial={pestanaAlumnos}
           onClose={() => setGrupoAlumnos(null)}
           onListo={alumnosAgregados}
         />
@@ -202,17 +224,17 @@ function TarjetaGrupo({
   onQuitar,
 }) {
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5">
+    <div className="flex flex-col gap-3 rounded-[var(--radius-card)] border border-border bg-card p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="truncate text-2xl font-bold text-primary-ink">
+          <h2 className="truncate text-xl font-semibold text-foreground">
             {grupo.nombre}
           </h2>
           <p className="mt-0.5 truncate text-sm text-muted-foreground">
             {grupo.carrera?.nombre ?? 'Sin carrera'}
           </p>
         </div>
-        <span className="shrink-0 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary-ink">
+        <span className="shrink-0 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
           Sem. {grupo.semestre}
         </span>
       </div>
@@ -222,7 +244,7 @@ function TarjetaGrupo({
           {grupo.periodo}
         </span>
         {grupo.modalidad === 'MIXTO' && (
-          <span className="rounded-full bg-primary/10 px-2.5 py-1 font-semibold text-primary-ink">
+          <span className="rounded-full bg-accent px-2.5 py-1 font-medium text-primary-ink">
             Mixto
           </span>
         )}
@@ -233,7 +255,7 @@ function TarjetaGrupo({
           className={`rounded-full px-2.5 py-1 ${
             grupo.agregado
               ? 'bg-muted text-muted-foreground'
-              : "bg-success/15 text-success-foreground"
+              : "bg-success/22 text-success-foreground"
           }`}
         >
           {grupo.agregado ? 'Agregado por ti' : 'De tu horario'}
@@ -267,7 +289,7 @@ function TarjetaGrupo({
       )}
 
       <div className="mt-auto flex flex-wrap gap-2 pt-1">
-        <Button variant="default"
+        <Button variant="outline"
           type="button"
           onClick={onAgregarAlumnos}
           className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium"
@@ -293,10 +315,10 @@ function TarjetaGrupo({
           </Button>
         )}
         {grupo.agregado && (
-          <Button variant="destructive"
+          <Button variant="ghost"
             type="button"
             onClick={onQuitar}
-            className="inline-flex items-center gap-1.5 border px-3 py-2 text-sm font-medium"
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/18 hover:text-destructive-foreground"
           >
             <Trash2 className="h-4 w-4" />
             Quitar
@@ -369,7 +391,7 @@ function ModalMateriasGrupo({ grupo, onClose }) {
                   <span
                     className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${
                       materia.unidadActiva
-                        ? "bg-success/15 text-success-foreground"
+                        ? "bg-success/22 text-success-foreground"
                         : 'bg-muted text-muted-foreground'
                     }`}
                   >
@@ -489,7 +511,7 @@ function ModalAgregarGrupo({ open, misGrupos, onClose, onAgregado }) {
         </div>
 
         {error && (
-          <p className="rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground">
+          <p className="rounded-xl bg-destructive/18 px-3 py-2 text-sm text-destructive-foreground">
             {error}
           </p>
         )}
@@ -622,11 +644,18 @@ function ModalDetalleGrupo({ grupo, onClose }) {
   }
 
   const quitarAlumno = useAsyncAction(async (alumno) => {
-    if (!(await confirmAction(`¿Quitar a ${alumno.nombre} de este grupo?`))) return
+    const pregunta = alumno.externo
+      ? `¿Quitar a ${alumno.nombre} de ${materiasDelExterno(alumno)}? Su grupo de origen no cambia.`
+      : `¿Quitar a ${alumno.nombre} de este grupo?`
+    if (!(await confirmAction(pregunta))) return
     setError('')
     try {
       await api.delete(`/grupos/mis-grupos/${grupo.id}/alumnos/${alumno.id}`)
-      setAviso(`${alumno.nombre} salió del grupo.`)
+      setAviso(
+        alumno.externo
+          ? `${alumno.nombre} salió de ${materiasDelExterno(alumno)}.`
+          : `${alumno.nombre} salió del grupo.`,
+      )
       await cargarDetalle()
     } catch (err) {
       setError(mensajeError(err, 'No se pudo quitar al alumno'))
@@ -670,7 +699,7 @@ function ModalDetalleGrupo({ grupo, onClose }) {
           Cargando alumnos...
         </p>
       ) : error && !detalle ? (
-        <p className="rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground">
+        <p className="rounded-xl bg-destructive/18 px-3 py-2 text-sm text-destructive-foreground">
           {error}
         </p>
       ) : (
@@ -694,12 +723,12 @@ function ModalDetalleGrupo({ grupo, onClose }) {
           )}
 
           {aviso && (
-            <p className="rounded-xl border border-success/30 bg-success/10 px-3 py-2 text-sm text-foreground">
+            <p className="rounded-xl border border-success/45 bg-success/18 px-3 py-2 text-sm text-foreground">
               {aviso}
             </p>
           )}
           {error && (
-            <p className="rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground">
+            <p className="rounded-xl bg-destructive/18 px-3 py-2 text-sm text-destructive-foreground">
               {error}
             </p>
           )}
@@ -771,7 +800,7 @@ function ModalDetalleGrupo({ grupo, onClose }) {
               </div>
 
               {!modoSeleccion && !editandoLista && resumen.incompletos > 0 && (
-                <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning-foreground">
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-warning/45 bg-warning/18 px-3 py-2 text-xs text-warning-foreground">
                   <span>
                     {resumen.incompletos === 1
                       ? '1 alumno tiene datos faltantes.'
@@ -822,8 +851,16 @@ function ModalDetalleGrupo({ grupo, onClose }) {
                           <p className="flex items-center gap-2 truncate text-sm font-medium text-foreground">
                             <SexoBadge sexo={alumno.sexo} />
                             <span className="truncate">{alumno.nombre}</span>
+                            {alumno.externo && (
+                              <span
+                                title="Agregado de fuera del grupo: sólo está en esta materia"
+                                className="inline-flex shrink-0 items-center rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary-ink"
+                              >
+                                Sólo en {materiasDelExterno(alumno)}
+                              </span>
+                            )}
                             {datosIncompletos && (
-                              <span className="inline-flex shrink-0 items-center rounded-full bg-warning/15 px-2 py-0.5 text-[11px] font-medium text-warning-foreground">
+                              <span className="inline-flex shrink-0 items-center rounded-full bg-warning/22 px-2 py-0.5 text-[11px] font-medium text-warning-foreground">
                                 Datos incompletos
                               </span>
                             )}
@@ -889,6 +926,11 @@ function ModalDetalleGrupo({ grupo, onClose }) {
       )}
     </Modal>
   )
+}
+
+/** Materias del docente en las que está un alumno agregado de fuera del grupo. */
+function materiasDelExterno(alumno) {
+  return (alumno.materias ?? []).map((materia) => materia.nombre).join(', ')
 }
 
 function ModalEditarAlumnoGrupo({ grupo, alumno, onClose, onGuardado }) {
@@ -977,7 +1019,7 @@ function ModalEditarAlumnoGrupo({ grupo, alumno, onClose, onGuardado }) {
           </div>
         ))}
         {!form.numeroControl && (
-          <p className="rounded-lg bg-warning/10 px-3 py-2 text-xs text-warning-foreground">
+          <p className="rounded-lg bg-warning/18 px-3 py-2 text-xs text-warning-foreground">
             Sin número de control, correo o contraseña real el alumno no podrá iniciar sesión todavía.
           </p>
         )}

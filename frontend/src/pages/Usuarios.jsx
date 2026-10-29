@@ -48,9 +48,9 @@ const getAccountStatus = (user) => {
   if (user.rol === 'ALUMNO' && !user.registroAprobado) {
     return puedeAprobar(user)
       ? { label: 'Pendiente de aprobación', className: "bg-accent text-primary-ink" }
-      : { label: 'Pendiente de correo', className: "bg-warning/10 text-warning-foreground" }
+      : { label: 'Pendiente de correo', className: "bg-warning/18 text-warning-foreground" }
   }
-  return { label: 'Activo', className: "bg-success/10 text-success-foreground" }
+  return { label: 'Activo', className: "bg-success/18 text-success-foreground" }
 }
 
 const EMPTY_FORM = {
@@ -166,7 +166,8 @@ function UsuarioFormFields({ form, setForm, carreras, academias, mode }) {
         {form.rol === 'ALUMNO' ? (
           <input aria-label="225Q0103" required value={form.numeroControl} onChange={(e) => setForm({ ...form, numeroControl: e.target.value })}
             placeholder="225Q0103"
-            pattern="\d{3}[A-Za-z]\d{4}"
+            pattern="[A-Za-z0-9]+"
+            title="Sólo letras y números, sin espacios"
             className="w-full border border-border rounded-xl px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
         ) : (
           <input aria-label="prof.garcia" required value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })}
@@ -558,7 +559,7 @@ export default function Usuarios() {
         action={
           <Button variant="default"
             onClick={() => setModal(true)}
-            className="w-full px-4 py-2 text-sm font-medium sm:w-auto"
+            className="px-4 py-2 text-sm font-medium"
           >
             + Nuevo usuario
           </Button>
@@ -566,7 +567,7 @@ export default function Usuarios() {
       />
 
       {aviso && (
-        <div className="mb-3 flex items-start justify-between gap-3 rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm text-success-foreground">
+        <div className="mb-3 flex items-start justify-between gap-3 rounded-xl border border-success/45 bg-success/18 px-4 py-3 text-sm text-success-foreground">
           <span>{aviso}</span>
           <Button variant="ghost" onClick={() => setAviso('')} className="text-success-foreground hover:text-success-foreground" aria-label="Cerrar aviso">✕</Button>
         </div>
@@ -769,7 +770,7 @@ export default function Usuarios() {
                       {u.rol === 'JEFE_CARRERA' && (
                       <Button variant="outline"
                         onClick={() => abrirCarreras(u)}
-                        className="text-xs px-3 py-1.5 font-medium text-warning-foreground border border-warning/30"
+                        className="text-xs px-3 py-1.5 font-medium text-warning-foreground border border-warning/45"
                       >
                         Carreras
                       </Button>
@@ -780,7 +781,7 @@ export default function Usuarios() {
                           onClick={() => solicitarConfirmacion(u, 'approve')}
                           disabled={!puedeAprobar(u)}
                           title={puedeAprobar(u) ? 'Aprobar registro' : 'El correo aún no está verificado'}
-                          className="text-xs px-3 py-1.5 font-medium text-success-foreground border border-success/30 disabled:cursor-not-allowed disabled:opacity-45"
+                          className="text-xs px-3 py-1.5 font-medium text-success-foreground border border-success/45 disabled:cursor-not-allowed disabled:opacity-45"
                         >
                           Aprobar
                         </Button>
@@ -792,8 +793,8 @@ export default function Usuarios() {
                         onClick={() => solicitarConfirmacion(u, 'toggle')}
                         className={`text-xs px-3 py-1.5 rounded-lg font-medium transition ${
                           u.activo
-                            ? "text-warning-foreground hover:bg-warning/10 border border-warning/30"
-                            : "text-success-foreground hover:bg-success/10 border border-success/30"
+                            ? "text-warning-foreground hover:bg-warning/18 border border-warning/45"
+                            : "text-success-foreground hover:bg-success/18 border border-success/45"
                         }`}
                       >
                         {u.activo ? 'Desactivar' : 'Activar'}
@@ -881,7 +882,7 @@ export default function Usuarios() {
           const rows = [
             { label: 'Nombre', value: u.nombre },
             { label: 'Rol', value: <span className={`text-xs px-2 py-1 rounded-full font-medium ${ROL_COLORS[u.rol]}`}>{u.rol}</span> },
-            { label: 'Estado', value: <span className={`text-xs px-2 py-1 rounded-full font-medium ${u.activo ? "bg-success/10 text-success-foreground" : "bg-muted text-muted-foreground"}`}>{u.activo ? 'Activo' : 'Inactivo'}</span> },
+            { label: 'Estado', value: <span className={`text-xs px-2 py-1 rounded-full font-medium ${u.activo ? "bg-success/18 text-success-foreground" : "bg-muted text-muted-foreground"}`}>{u.activo ? 'Activo' : 'Inactivo'}</span> },
             { label: 'Correo', value: u.email || '—' },
             {
               label: 'Correo verificado',
@@ -1050,7 +1051,7 @@ export default function Usuarios() {
               onClick={ejecutarAccion}
               className={`rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50 ${
                 confirmation.action === 'delete'
-                  ? "bg-destructive/10 text-destructive-foreground hover:bg-destructive/20"
+                  ? "bg-destructive/18 text-destructive-foreground hover:bg-destructive/20"
                   : "bg-primary text-primary-foreground hover:bg-primary-strong"
               }`}
             >

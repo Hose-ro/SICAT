@@ -22,9 +22,9 @@ import { pedirPermisoAvisos, permisoAvisos } from '../../lib/avisosSistema'
 const CLASES_ACTIVAS_MS = 30000
 
 const MOTIVO_TAREA = {
-  corregir: { etiqueta: 'Para corregir', clase: 'bg-warning/15 text-warning-foreground' },
-  atrasada: { etiqueta: 'Atrasada', clase: 'bg-destructive/10 text-destructive-foreground' },
-  hoy: { etiqueta: 'Vence hoy', clase: 'bg-warning/15 text-warning-foreground' },
+  corregir: { etiqueta: 'Para corregir', clase: 'bg-warning/22 text-warning-foreground' },
+  atrasada: { etiqueta: 'Atrasada', clase: 'bg-destructive/18 text-destructive-foreground' },
+  hoy: { etiqueta: 'Vence hoy', clase: 'bg-warning/22 text-warning-foreground' },
   pendiente: { etiqueta: 'Por entregar', clase: 'bg-muted text-muted-foreground' },
 }
 const ORDEN_MOTIVO = { corregir: 0, atrasada: 1, hoy: 2, pendiente: 3 }
@@ -270,7 +270,7 @@ function CalificacionesRecientes({ items }) {
         <li key={tarea.id}>
           <Link to={`/alumno/tareas/${tarea.id}`} className="group flex items-start gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40">
             <span className={`flex h-10 w-12 shrink-0 items-center justify-center rounded-xl text-base font-semibold tabular-nums ${
-              miEntrega.calificacion >= 70 ? 'bg-success/10 text-success-foreground' : 'bg-warning/15 text-warning-foreground'
+              miEntrega.calificacion >= 70 ? 'bg-success/18 text-success-foreground' : 'bg-warning/22 text-warning-foreground'
             }`}>
               {miEntrega.calificacion}
             </span>

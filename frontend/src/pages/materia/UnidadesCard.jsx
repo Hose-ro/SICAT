@@ -4,7 +4,7 @@ import api from '../../api/axios'
 
 const ESTADO_UNIDAD = {
   PENDIENTE: "bg-muted text-foreground",
-  ACTIVA: "bg-success/10 text-success-foreground",
+  ACTIVA: "bg-success/18 text-success-foreground",
   FINALIZADA: "bg-accent text-primary-ink",
 }
 
@@ -113,7 +113,7 @@ function UnidadFila({ unidad, puedeEditar, onActualizado }) {
             <Button variant="ghost"
               type="button"
               onClick={() => setConfirmarCancelar(true)}
-              className="bg-destructive/10 px-3 py-1.5 text-xs font-medium text-destructive-foreground hover:bg-destructive/15"
+              className="bg-destructive/18 px-3 py-1.5 text-xs font-medium text-destructive-foreground hover:bg-destructive/22"
             >
               Cancelar inicio
             </Button>
@@ -164,7 +164,7 @@ function UnidadFila({ unidad, puedeEditar, onActualizado }) {
       )}
 
       {confirmarCancelar && (
-        <div className="mt-3 space-y-2 rounded-xl border border-warning/30 bg-warning/10 p-3">
+        <div className="mt-3 space-y-2 rounded-xl border border-warning/45 bg-warning/18 p-3">
           <p className="text-sm text-warning-foreground">
             "{unidad.nombre}" volverá a quedar pendiente y perderá su fecha de inicio.
           </p>
@@ -239,7 +239,7 @@ export default function UnidadesCard({ materia, puedeEditar, onActualizado }) {
   const sinCambios = Number(valor) === unidades.length
 
   return (
-    <article className="min-w-0 rounded-2xl border border-border bg-card p-5 shadow-sm">
+    <article className="min-w-0 rounded-[var(--radius-card)] border border-border bg-card p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-semibold text-foreground">Unidades</h2>
         {puedeEditar && (
@@ -256,7 +256,7 @@ export default function UnidadesCard({ materia, puedeEditar, onActualizado }) {
               onChange={(event) => setValor(event.target.value)}
               className="w-20 rounded-xl border border-border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
-            <Button variant="default"
+            <Button variant="outline"
               type="button"
               onClick={() => guardar(false)}
               disabled={guardando || sinCambios}
@@ -277,7 +277,7 @@ export default function UnidadesCard({ materia, puedeEditar, onActualizado }) {
       {error && <p role="alert" className="mt-3 text-sm text-destructive-foreground">{error}</p>}
 
       {confirmacion && (
-        <div className="mt-3 space-y-3 rounded-xl border border-warning/30 bg-warning/10 p-3">
+        <div className="mt-3 space-y-3 rounded-xl border border-warning/45 bg-warning/18 p-3">
           <p className="text-sm text-warning-foreground">{confirmacion.message}</p>
           <p className="text-xs text-warning-foreground">Esta acción no se puede deshacer.</p>
           <div className="flex flex-wrap gap-2">

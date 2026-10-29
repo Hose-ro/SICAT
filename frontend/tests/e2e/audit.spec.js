@@ -95,6 +95,7 @@ test('notificaciones: historial con filtro, marcar y eliminar sin controles anid
 test('pasar lista conserva el contrato y las faltas implícitas',async({page})=>{
  const requests=await mockApi(page,'DOCENTE');await page.goto('/docente/pasar-lista/10');await expect(page.getByText('Ana Prueba')).toBeVisible()
  await page.getByRole('button',{name:'Asistencia',exact:true}).first().click();await page.getByRole('button',{name:/Guardar asistencia/}).click()
+ await page.getByRole('dialog',{name:'Queda 1 alumno sin marcar'}).getByRole('button',{name:'Guardar con falta'}).click()
  await expect.poll(()=>requests.filter(r=>r.path==='/asistencias/pasar-lista').length).toBe(1)
  expect(requests.find(r=>r.path==='/asistencias/pasar-lista').data).toEqual({claseSesionId:10,registros:[{alumnoId:1,estado:'ASISTENCIA'},{alumnoId:3,estado:'FALTA'}]});await axe(page)
 })

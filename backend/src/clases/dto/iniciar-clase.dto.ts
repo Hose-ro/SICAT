@@ -10,4 +10,9 @@ export class IniciarClaseDto {
   @V.ValidateIf((_object, value: unknown) => value !== undefined)
   @IsDateString({ strict: true, strictSeparator: true })
   fecha?: string;
+
+  /** Igual que en la clase atrasada: da la clase justificada por reunión. */
+  @V.IsOptional()
+  @V.IsBoolean()
+  aunqueJustificada?: boolean;
 }

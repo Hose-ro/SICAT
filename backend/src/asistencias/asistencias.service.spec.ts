@@ -29,6 +29,7 @@ describe('AsistenciasService filtros de historial', () => {
   const notificaciones = {} as unknown as NotificacionesService;
   const periodos = {
     listarSuspensionesDeDocentes,
+    clasesJustificadas: jest.fn().mockResolvedValue([]),
   } as unknown as PeriodosService;
   const service = new AsistenciasService(prisma, notificaciones, periodos);
 
@@ -152,6 +153,7 @@ describe('AsistenciasService.obtenerAsistenciasAlumno (IDOR)', () => {
   const notificaciones = {} as unknown as NotificacionesService;
   const periodos = {
     listarSuspensionesDeDocentes,
+    clasesJustificadas: jest.fn().mockResolvedValue([]),
   } as unknown as PeriodosService;
   const service = new AsistenciasService(prisma, notificaciones, periodos);
 
@@ -280,7 +282,10 @@ describe('AsistenciasService rangos de día, semana y mes', () => {
   const service = new AsistenciasService(
     prisma,
     {} as unknown as NotificacionesService,
-    { listarSuspensionesDeDocentes } as unknown as PeriodosService,
+    {
+      listarSuspensionesDeDocentes,
+      clasesJustificadas: jest.fn().mockResolvedValue([]),
+    } as unknown as PeriodosService,
   );
   const docente = { id: 9, rol: 'DOCENTE' } as never;
 
@@ -378,6 +383,7 @@ describe('AsistenciasService días sin clases', () => {
   } as unknown as PrismaService;
   const periodos = {
     listarSuspensionesDeDocentes,
+    clasesJustificadas: jest.fn().mockResolvedValue([]),
     obtenerSuspension,
   } as unknown as PeriodosService;
   const service = new AsistenciasService(
@@ -455,5 +461,168 @@ describe('AsistenciasService días sin clases', () => {
         },
       ),
     ).rejects.toBeInstanceOf(ConflictException);
+  });
+});
+
+describe('AsistenciasService clase justificada por reunión con sesión', () => {
+  const claseSesionFindMany = jest.fn();
+  const claseSesionFindUnique = jest.fn();
+  const horarioFindMany = jest.fn();
+  const usuarioFindUnique = jest.fn();
+  const usuarioFindMany = jest.fn();
+  const inscripcionFindMany = jest.fn();
+  const asistenciaFindMany = jest.fn();
+  const asistenciaUpsert = jest.fn();
+  const obtenerSuspension = jest.fn();
+  const obtenerSuspensionDeClase = jest.fn();
+  const clasesJustificadas = jest.fn();
+  const prisma = {
+    claseSesion: {
+      findMany: claseSesionFindMany,
+      findUnique: claseSesionFindUnique,
+    },
+    horarioMateria: { findMany: horarioFindMany },
+    usuario: { findUnique: usuarioFindUnique, findMany: usuarioFindMany },
+    inscripcion: { findMany: inscripcionFindMany },
+    asistencia: { findMany: asistenciaFindMany, upsert: asistenciaUpsert },
+  } as unknown as PrismaService;
+  const periodos = {
+    listarSuspensionesDeDocentes: jest.fn().mockResolvedValue([]),
+    clasesJustificadas,
+    obtenerSuspension,
+    obtenerSuspensionDeClase,
+  } as unknown as PeriodosService;
+  const service = new AsistenciasService(
+    prisma,
+    {} as NotificacionesService,
+    periodos,
+  );
+
+  const sesion = {
+    id: 10,
+    docenteId: 9,
+    materiaId: 12,
+    grupoId: 3,
+    horarioMateriaId: 5,
+    activa: false,
+    fueFueraDeHorario: false,
+    registroAtrasado: true,
+    fecha: new Date(2026, 8, 18, 8),
+    semanaClave: '2026-09-14',
+    unidad: 1,
+    unidadId: 7,
+    grupo: { id: 3, nombre: '103A' },
+    unidadRef: { id: 7, nombre: 'Unidad 1', orden: 1 },
+    materia: { id: 12, nombre: 'Matemáticas', clave: 'MAT' },
+    docente: { id: 9, nombre: 'Docente' },
+    horarioMateria: null,
+    asistencias: [],
+  };
+  const horario = {
+    id: 5,
+    docenteId: 9,
+    materiaId: 12,
+    grupoId: 3,
+    dias: 'viernes',
+    materia: { id: 12, nombre: 'Matemáticas', clave: 'MAT' },
+    grupo: { id: 3, nombre: '103A', periodo: '2026-A' },
+    docente: { id: 9, nombre: 'Docente' },
+    aula: { id: 2, nombre: 'A1' },
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    claseSesionFindUnique.mockResolvedValue(sesion);
+    claseSesionFindMany.mockResolvedValue([sesion]);
+    horarioFindMany.mockResolvedValue([horario]);
+    usuarioFindUnique.mockResolvedValue({ grupoId: 3 });
+    usuarioFindMany.mockResolvedValue([{ id: 50 }]);
+    inscripcionFindMany.mockResolvedValue([]);
+    asistenciaFindMany.mockResolvedValue([]);
+    asistenciaUpsert.mockResolvedValue({});
+    clasesJustificadas.mockResolvedValue([
+      {
+        id: 1,
+        docenteId: 9,
+        horarioId: 5,
+        reunionId: 40,
+        fecha: '2026-09-18',
+        motivo: 'Reunión de academia',
+      },
+    ]);
+    obtenerSuspension.mockResolvedValue(null);
+    obtenerSuspensionDeClase.mockResolvedValue({
+      id: 1,
+      fecha: '2026-09-18',
+      motivo: 'Reunión de academia',
+      institucional: false,
+    });
+  });
+
+  it('permite pasar lista cuando la sesión ya existe', async () => {
+    const resultado = await service.pasarLista(
+      { id: 9, rol: 'DOCENTE' },
+      {
+        claseSesionId: 10,
+        registros: [{ alumnoId: 50, estado: 'ASISTENCIA' as never }],
+      },
+    );
+
+    expect(resultado.asistencias).toBe(1);
+    expect(asistenciaUpsert).toHaveBeenCalledTimes(1);
+  });
+
+  it('un festivo sigue bloqueando aunque la sesión exista', async () => {
+    obtenerSuspension.mockResolvedValue({
+      id: 2,
+      fecha: '2026-09-18',
+      motivo: 'Día festivo',
+      institucional: true,
+    });
+
+    await expect(
+      service.pasarLista(
+        { id: 9, rol: 'DOCENTE' },
+        { claseSesionId: 10, registros: [] },
+      ),
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('el historial muestra la sesión y no el "sin clases"', async () => {
+    const historial = await service.obtenerHistorial(
+      { id: 9, rol: 'DOCENTE' },
+      {},
+    );
+
+    expect(historial.items).toEqual([
+      expect.objectContaining({ id: 10, registroAtrasado: true }),
+    ]);
+    expect(historial.items.some((item) => item.suspendida)).toBe(false);
+  });
+
+  it('el alumno ve la sesión y no el día sin clases', async () => {
+    const items = await service.obtenerAsistenciasAlumno(50, 12, {
+      id: 50,
+      rol: 'ALUMNO',
+    });
+
+    expect(items).toEqual([expect.objectContaining({ sesionId: 10 })]);
+    expect(items.some((item) => item.suspendida)).toBe(false);
+  });
+
+  it('sin sesión, la clase justificada sigue apareciendo sin clases', async () => {
+    claseSesionFindMany.mockResolvedValue([]);
+
+    const historial = await service.obtenerHistorial(
+      { id: 9, rol: 'DOCENTE' },
+      {},
+    );
+
+    expect(historial.items).toEqual([
+      expect.objectContaining({
+        suspendida: true,
+        suspensionMotivo: 'Reunión de academia',
+      }),
+    ]);
   });
 });

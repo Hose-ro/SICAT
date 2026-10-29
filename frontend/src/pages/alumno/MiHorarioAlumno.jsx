@@ -71,8 +71,8 @@ export default function MiHorarioAlumno() {
             onClick={() =>
               generarHorarioPdf({
                 nombreArchivo: `Horario - ${alumno?.nombre ?? 'Alumno'}`,
-                titulo: 'Mi Horario',
-                subtitulo: `${grupo?.nombre ?? ''} · ${horarios.length} clase${horarios.length !== 1 ? 's' : ''} · ${horasSemanales}h semanales`,
+                titulo: 'Horario de clases',
+                subtitulo: `${alumno?.nombre ? `${alumno.nombre} · ` : ''}${grupo?.nombre ?? ''} · ${horarios.length} clase${horarios.length !== 1 ? 's' : ''} · ${horasSemanales}h semanales`,
                 horarios,
               })
             }
@@ -86,7 +86,7 @@ export default function MiHorarioAlumno() {
       </div>
 
       {error && (
-        <div className="rounded-2xl border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground">
+        <div className="rounded-2xl border border-destructive/40 bg-destructive/18 px-4 py-3 text-sm text-destructive-foreground">
           {error}
         </div>
       )}

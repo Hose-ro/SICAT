@@ -263,6 +263,7 @@ export class UsuariosService {
       select: {
         id: true,
         nombre: true,
+        alias: true,
         email: true,
         numeroControl: true,
         username: true,
@@ -314,6 +315,7 @@ export class UsuariosService {
   async updateOwnProfile(id: number, dto: UpdateOwnProfileDto) {
     const normalized: UpdateOwnProfileDto = {
       nombre: dto.nombre ? normalizeName(dto.nombre) : undefined,
+      alias: dto.alias === undefined ? undefined : dto.alias?.trim() || null,
       email: dto.email ? normalizeEmail(dto.email) : undefined,
       telefono: dto.telefono ? normalizePhone(dto.telefono) : undefined,
     };
@@ -321,9 +323,11 @@ export class UsuariosService {
     return this.prisma.$transaction(async (tx) => {
       const current = await tx.usuario.findUnique({
         where: { id },
-        select: { email: true },
+        select: { email: true, rol: true },
       });
       if (!current) throw new NotFoundException('Usuario no encontrado');
+      if (normalized.alias !== undefined && current.rol !== 'DOCENTE')
+        throw new BadRequestException('El alias está disponible para docentes');
 
       await this.ensureIdentifiersAvailable(tx, normalized, id);
       const emailChanged =
@@ -339,6 +343,7 @@ export class UsuariosService {
         where: { id },
         data: {
           nombre: normalized.nombre,
+          alias: normalized.alias,
           email: normalized.email,
           emailVerificadoAt: emailChanged ? null : undefined,
           telefono: normalized.telefono,
@@ -347,6 +352,7 @@ export class UsuariosService {
         select: {
           id: true,
           nombre: true,
+          alias: true,
           email: true,
           emailVerificadoAt: true,
           rol: true,

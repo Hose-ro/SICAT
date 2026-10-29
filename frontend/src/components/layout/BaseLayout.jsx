@@ -3,17 +3,21 @@ import { LogOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import FeedbackDialogs from '@/components/FeedbackDialogs'
 import CompartirWhatsapp from '@/components/whatsapp/CompartirWhatsapp'
-import { useState, useRef } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { Boxes as CiBoxes, Calendar as CiCalendar, CalendarDays as CiCalendarDate, Moon as CiDark, House as CiHome, LockKeyhole as CiLock, LogOut as CiLogout, Menu as CiMenuBurger, BookOpen as CiRead, Search as CiSearch, School as CiShop, Sun as CiSun, UserRound as CiUser, List as CiViewList } from 'lucide-react'
 import {
+  AlertTriangle,
   BarChart3,
-  BellRing,
-  BookOpenCheck,
+  NotebookPen,
+  ClipboardCheck,
+  MoreHorizontal,
   CalendarClock,
   DoorOpen,
+  Handshake,
   GraduationCap,
   UsersRound,
+  UserPlus,
   ScanLine,
   X,
 } from 'lucide-react'
@@ -24,6 +28,8 @@ import api from '@/api/axios'
 import NotificacionesBell from '@/components/shared/NotificacionesBell'
 import { useNotificacionesPolling } from '@/store/notificacionStore'
 import BrandMark from '@/components/branding/BrandMark'
+import CambiarPasswordForm from '@/components/CambiarPasswordForm'
+import { vigilarCola } from '@/lib/colaAsistencia'
 
 export function BaseLayout({ children }) {
   const desktop = useDesktop()
@@ -33,8 +39,11 @@ export function BaseLayout({ children }) {
   const navigate = useNavigate()
   const role = user?.rol
   const displayName = user?.nombre || user?.username || user?.email || 'Usuario'
-  const displayRole = role === 'JEFE_CARRERA' ? 'Jefe de carrera' : (role || 'Miembro')
+  const displayRole = { ADMIN: 'Administración', JEFE_CARRERA: 'Jefe de carrera', DOCENTE: 'Docente', ALUMNO: 'Alumno' }[role] ?? 'Miembro'
   const avatarText = displayName?.[0]?.toUpperCase() || '?'
+  const esDocente = role === 'DOCENTE'
+
+  useEffect(() => (esDocente ? vigilarCola() : undefined), [esDocente])
 
   const [menuQuery, setMenuQuery] = useState('')
   const [collapsed, setCollapsed] = useState(false)
@@ -42,10 +51,6 @@ export function BaseLayout({ children }) {
   const dark = useThemeStore((s) => s.isDark)
   const toggleDark = useThemeStore((s) => s.toggle)
   const [pwModal, setPwModal] = useState(false)
-  const [pwForm, setPwForm] = useState({ current: '', newPw: '', confirm: '' })
-  const [pwError, setPwError] = useState('')
-  const [pwSuccess, setPwSuccess] = useState('')
-  const [pwLoading, setPwLoading] = useState(false)
 
 
   const handleLogout = async () => {
@@ -90,7 +95,7 @@ export function BaseLayout({ children }) {
 
         {/* Nav */}
         <nav className="sidebar__nav">
-          <span className="nav__section">Principal</span>
+          <span className="nav__section">{role === 'JEFE_CARRERA' ? 'Operación' : 'Principal'}</span>
 
           <NavLink to="/dashboard" className={navClass} data-tip="Inicio" hidden={!'Inicio'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
             <CiHome className="nav__icon" />
@@ -130,6 +135,21 @@ export function BaseLayout({ children }) {
                     <CalendarClock className="nav__icon" />
                     <span className="nav__label">Horario</span>
                   </NavLink>
+
+                  {/* Antes sólo se llegaba desde Inicio, y sólo cuando había pendientes. */}
+                  <span className="nav__section">Atención</span>
+                  <NavLink to="/docente/riesgo" className={navClass} data-tip="Alumnos en riesgo" hidden={!'Alumnos en riesgo'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
+                    <AlertTriangle className="nav__icon" />
+                    <span className="nav__label">Alumnos en riesgo</span>
+                  </NavLink>
+                  <NavLink to="/docente/reuniones" className={navClass} data-tip="Reuniones de academia" hidden={!'Reuniones de academia'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
+                    <Handshake className="nav__icon" />
+                    <span className="nav__label">Reuniones</span>
+                  </NavLink>
+                  <NavLink to="/docente/solicitudes" className={navClass} data-tip="Solicitudes" hidden={!'Solicitudes de inscripción'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
+                    <UserPlus className="nav__icon" />
+                    <span className="nav__label">Solicitudes</span>
+                  </NavLink>
                 </>
               )}
 
@@ -144,26 +164,36 @@ export function BaseLayout({ children }) {
 
           {role === 'JEFE_CARRERA' && (
             <>
-              <span className="nav__section">Jefatura</span>
-              <NavLink to="/jefe-carrera/docentes" className={navClass} data-tip="Docentes" hidden={!'Docentes'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
+              {/* Operación: lo que se atiende cada día. El orden sigue el recorrido de trabajo. */}
+              <NavLink to="/jefe-carrera/seguimientos" className={navClass} data-tip="Pendientes y seguimiento" hidden={!'Pendientes y seguimiento observaciones'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
+                <NotebookPen className="nav__icon" />
+                <span className="nav__label">Pendientes y seguimiento</span>
+              </NavLink>
+              <NavLink to="/jefe-carrera/horarios" className={navClass} data-tip="Horarios" hidden={!'Horarios'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
+                <CalendarClock className="nav__icon" />
+                <span className="nav__label">Horarios</span>
+              </NavLink>
+              <span className="nav__section">Consulta académica</span>
+              <NavLink to="/jefe-carrera/grupos" className={navClass} data-tip="Grupos y alumnos" hidden={!'Grupos y alumnos'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
                 <UsersRound className="nav__icon" />
+                <span className="nav__label">Grupos y alumnos</span>
+              </NavLink>
+              <NavLink to="/jefe-carrera/docentes" className={navClass} data-tip="Docentes" hidden={!'Docentes'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
+                <CiUser className="nav__icon" />
                 <span className="nav__label">Docentes</span>
               </NavLink>
-              <NavLink to="/jefe-carrera/clases" className={navClass} data-tip="Clases y horarios" hidden={!'Clases y horarios'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
-                <CalendarClock className="nav__icon" />
-                <span className="nav__label">Clases y horarios</span>
+              <NavLink to="/jefe-carrera/materias" className={navClass} data-tip="Materias" hidden={!'Materias oferta retícula'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
+                <CiRead className="nav__icon" />
+                <span className="nav__label">Materias</span>
               </NavLink>
-              <NavLink to="/jefe-carrera/seguimiento" className={navClass} data-tip="Seguimiento" hidden={!'Seguimiento'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
-                <BookOpenCheck className="nav__icon" />
-                <span className="nav__label">Seguimiento</span>
+              <span className="nav__section">Coordinación</span>
+              <NavLink to="/jefe-carrera/reuniones" className={navClass} data-tip="Reuniones de academia" hidden={!'Reuniones de academia'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
+                <Handshake className="nav__icon" />
+                <span className="nav__label">Reuniones</span>
               </NavLink>
-              <NavLink to="/jefe-carrera/alertas" className={navClass} data-tip="Alertas" hidden={!'Alertas'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
-                <BellRing className="nav__icon" />
-                <span className="nav__label">Alertas</span>
-              </NavLink>
-              <NavLink to="/jefe-carrera/reportes" className={navClass} data-tip="Reportes" hidden={!'Reportes'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
+              <NavLink to="/jefe-carrera/reportes" className={navClass} data-tip="Informes" hidden={!'Informes informe del periodo'.toLocaleLowerCase().includes(menuQuery.toLocaleLowerCase())} onClick={() => setMobileOpen(false)}>
                 <BarChart3 className="nav__icon" />
-                <span className="nav__label">Reportes</span>
+                <span className="nav__label">Informes</span>
               </NavLink>
             </>
           )}
@@ -245,10 +275,11 @@ export function BaseLayout({ children }) {
             <div className="user__avatar">
               {avatarText}
             </div>
-            <div className="user__info">
+            <NavLink to="/perfil" className="user__info user__link" onClick={() => setMobileOpen(false)}
+              aria-label={`Mi perfil: ${displayName}, ${displayRole}`}>
               <div className="user__name">{displayName}</div>
               <div className="user__role">{displayRole}</div>
-            </div>
+            </NavLink>
             <Button variant="ghost" size="icon" aria-label="Cerrar sesión" className="sidebar-logout" onClick={handleLogout} title="Cerrar sesión"><LogOut aria-hidden="true" /></Button>
           </div>
 
@@ -296,6 +327,23 @@ export function BaseLayout({ children }) {
         <NotificacionesBell />
       </div>
 
+      {esDocente && (
+        <nav aria-label="Accesos del docente" className="barra-inferior print-hidden">
+          <NavLink to="/dashboard" className={({ isActive }) => `barra-inferior__item${isActive ? ' active' : ''}`}>
+            <CiHome aria-hidden="true" /><span>Inicio</span>
+          </NavLink>
+          <NavLink to="/docente/pasar-lista" className={({ isActive }) => `barra-inferior__item${isActive ? ' active' : ''}`}>
+            <ClipboardCheck aria-hidden="true" /><span>Pasar lista</span>
+          </NavLink>
+          <NavLink to="/tareas" className={({ isActive }) => `barra-inferior__item${isActive ? ' active' : ''}`}>
+            <CiViewList aria-hidden="true" /><span>Tareas</span>
+          </NavLink>
+          <button type="button" className="barra-inferior__item" aria-haspopup="dialog" aria-expanded={mobileOpen} onClick={() => setMobileOpen(true)}>
+            <MoreHorizontal aria-hidden="true" /><span>Más</span>
+          </button>
+        </nav>
+      )}
+
       <FeedbackDialogs />
       <CompartirWhatsapp />
       {/* ── Main content ── */}
@@ -311,20 +359,12 @@ export function BaseLayout({ children }) {
       {/* ── Change password modal ── */}
       <Dialog.Root
         open={pwModal}
-        onOpenChange={(open) => {
-          setPwModal(open)
-          if (open) {
-            setPwError('')
-            setPwSuccess('')
-            setPwForm({ current: '', newPw: '', confirm: '' })
-          }
-        }}
+        onOpenChange={setPwModal}
       >
         <Dialog.Portal>
           <Dialog.Backdrop className="fixed inset-0 z-[199] bg-overlay/40 transition-opacity duration-200 data-[ending-style]:opacity-0 data-[starting-style]:opacity-0" />
           <Dialog.Popup aria-modal="true"
             initialFocus={passwordRef}
-            aria-describedby={pwError ? 'pw-modal-error' : pwSuccess ? 'pw-modal-success' : undefined}
             className="pw-modal fixed left-1/2 top-1/2 z-[200] w-[calc(100vw-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl bg-card shadow-xl transition-[color,background-color,border-color,opacity,transform] duration-200 data-[ending-style]:scale-95 data-[ending-style]:opacity-0 data-[starting-style]:scale-95 data-[starting-style]:opacity-0"
           >
             <div className="flex items-center justify-between border-b border-border p-4 sm:p-5">
@@ -338,82 +378,9 @@ export function BaseLayout({ children }) {
                 <X className="h-5 w-5" aria-hidden="true" />
               </Dialog.Close>
             </div>
-            <form
-              className="max-h-[calc(100vh-9rem)] space-y-4 overflow-y-auto p-4 sm:p-5"
-              onSubmit={async (e) => {
-                e.preventDefault()
-                setPwError(''); setPwSuccess('')
-                if (pwForm.newPw.length < 8) { setPwError('La nueva contraseña debe tener al menos 8 caracteres'); return }
-                if (pwForm.newPw !== pwForm.confirm) { setPwError('Las contraseñas no coinciden'); return }
-                setPwLoading(true)
-                try {
-                  await api.post('/auth/change-password', {
-                    currentPassword: pwForm.current,
-                    newPassword: pwForm.newPw,
-                  })
-                  setPwSuccess('¡Contraseña actualizada!')
-                  setPwForm({ current: '', newPw: '', confirm: '' })
-                  setTimeout(() => setPwModal(false), 1500)
-                } catch (err) {
-                  setPwError(err.response?.data?.message ?? 'Error al cambiar la contraseña')
-                } finally {
-                  setPwLoading(false)
-                }
-              }}
-            >
-              <div>
-                <label htmlFor="pw-current" className="block text-xs font-medium text-foreground mb-1">Contraseña actual</label>
-                <input
-                  id="pw-current"
-                  ref={passwordRef} type="password" required maxLength={72}
-                  autoComplete="current-password"
-                  value={pwForm.current}
-                  onChange={(e) => setPwForm({ ...pwForm, current: e.target.value })}
-                  className="w-full border border-border rounded-xl px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                />
-              </div>
-              <div>
-                <label htmlFor="pw-new" className="block text-xs font-medium text-foreground mb-1">Nueva contraseña</label>
-                <input
-                  id="pw-new"
-                  type="password" required minLength={8} maxLength={72}
-                  autoComplete="new-password"
-                  value={pwForm.newPw}
-                  onChange={(e) => setPwForm({ ...pwForm, newPw: e.target.value })}
-                  className="w-full border border-border rounded-xl px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                />
-              </div>
-              <div>
-                <label htmlFor="pw-confirm" className="block text-xs font-medium text-foreground mb-1">Confirmar nueva contraseña</label>
-                <input
-                  id="pw-confirm"
-                  type="password" required minLength={8} maxLength={72}
-                  autoComplete="new-password"
-                  value={pwForm.confirm}
-                  onChange={(e) => setPwForm({ ...pwForm, confirm: e.target.value })}
-                  className="w-full border border-border rounded-xl px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                />
-              </div>
-
-              {pwError && (
-                <p id="pw-modal-error" role="alert" className="text-sm text-destructive-foreground font-medium">
-                  {pwError}
-                </p>
-              )}
-              {pwSuccess && (
-                <p id="pw-modal-success" role="status" className="text-sm text-success-foreground font-medium">
-                  {pwSuccess}
-                </p>
-              )}
-
-              <Button variant="default"
-                type="submit"
-                disabled={pwLoading}
-                className="w-full py-2.5 font-medium disabled:opacity-50"
-              >
-                {pwLoading ? 'Guardando...' : 'Actualizar contraseña'}
-              </Button>
-            </form>
+            <div className="max-h-[calc(100vh-9rem)] overflow-y-auto p-4 sm:p-5">
+              <CambiarPasswordForm inputRef={passwordRef} onListo={() => setTimeout(() => setPwModal(false), 1500)} />
+            </div>
           </Dialog.Popup>
         </Dialog.Portal>
       </Dialog.Root>

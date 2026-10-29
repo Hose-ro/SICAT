@@ -1,11 +1,20 @@
 import { Module } from '@nestjs/common';
-import { JefesCarreraController } from './jefes-carrera.controller';
-import { JefesCarreraService } from './jefes-carrera.service';
-import { PeriodosModule } from '../periodos/periodos.module';
+import { CalificacionesModule } from '../calificaciones/calificaciones.module';
+import { SupervisionController } from './supervision.controller';
+import { SupervisionService } from './supervision.service';
+import { SeguimientosService } from './seguimientos.service';
+import { InformeService } from './informe.service';
+import { ReporteParcialController } from './reporte-parcial.controller';
+import { ReporteParcialService } from './reporte-parcial.service';
 
 @Module({
-  imports: [PeriodosModule],
-  controllers: [JefesCarreraController],
-  providers: [JefesCarreraService],
+  imports: [CalificacionesModule],
+  controllers: [SupervisionController, ReporteParcialController],
+  providers: [
+    SupervisionService,
+    SeguimientosService,
+    InformeService,
+    ReporteParcialService,
+  ],
 })
 export class JefesCarreraModule {}

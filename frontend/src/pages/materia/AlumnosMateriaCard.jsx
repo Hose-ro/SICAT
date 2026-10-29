@@ -1,8 +1,10 @@
 import useAsyncAction from '@/hooks/useAsyncAction'
 import { Button } from '@/components/ui/button'
-import { confirmAction } from '@/lib/feedback'
+import { confirmAction, notify } from '@/lib/feedback'
+import { MenuAcciones } from '@/pages/docente/components/tareas/Controles'
 import { useEffect, useRef, useState } from 'react'
 import Modal from '../../components/Modal'
+import { Pencil, UserMinus } from 'lucide-react'
 import SexoBadge from '../../components/SexoBadge'
 import api from '../../api/axios'
 import {
@@ -203,7 +205,7 @@ export default function AlumnosMateriaCard({ materia, puedeEditar, onActualizado
     )
     if (conControlInvalido.length > 0) {
       setError(
-        `Revisa el número de control de ${conControlInvalido.length} alumno${conControlInvalido.length === 1 ? '' : 's'}: debe tener el formato 225Q0103 (8 caracteres). Puedes corregirlo o dejarlo en blanco.`,
+        `Revisa el número de control de ${conControlInvalido.length} alumno${conControlInvalido.length === 1 ? '' : 's'}: sólo puede tener letras y números, sin espacios. Puedes corregirlo o dejarlo en blanco.`,
       )
       return
     }
@@ -232,13 +234,17 @@ export default function AlumnosMateriaCard({ materia, puedeEditar, onActualizado
   }
 
   const darDeBaja = useAsyncAction(async (alumno) => {
-    if (!(await confirmAction(`¿Dar de baja a ${alumno.nombre} de esta materia?`))) return
+    if (!(await confirmAction({
+      title: `Dar de baja a ${alumno.nombre}`,
+      description: 'Sale de la lista de esta materia. Lo que ya se registró de su asistencia no se borra.',
+      confirmLabel: 'Dar de baja',
+    }))) return
     try {
       await api.delete(`/inscripciones/materias/${materia.id}/alumnos/${alumno.id}`)
-      setAviso(`${alumno.nombre} salió del padrón de la materia.`)
+      notify(`${alumno.nombre} salió de la lista de la materia.`, 'success')
       await onActualizado?.()
     } catch (err) {
-      setAviso(mensajeError(err, 'No se pudo dar de baja al alumno'))
+      notify(mensajeError(err, 'No se pudo dar de baja al alumno'))
     }
   })
 
@@ -292,7 +298,7 @@ export default function AlumnosMateriaCard({ materia, puedeEditar, onActualizado
   }
 
   return (
-    <article className="min-w-0 rounded-2xl border border-border bg-card p-5 shadow-sm">
+    <article className="min-w-0 rounded-[var(--radius-card)] border border-border bg-card p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold text-foreground">Alumnos inscritos</h2>
@@ -301,7 +307,7 @@ export default function AlumnosMateriaCard({ materia, puedeEditar, onActualizado
           </p>
         </div>
         {puedeEditar && (
-          <Button variant="default"
+          <Button variant="outline"
             type="button"
             onClick={abrir}
             className="px-3 py-2 text-sm font-medium"
@@ -312,71 +318,49 @@ export default function AlumnosMateriaCard({ materia, puedeEditar, onActualizado
       </div>
 
       {aviso && (
-        <p className="mt-3 rounded-xl border border-success/30 bg-success/10 px-3 py-2 text-sm text-success-foreground">
+        <p className="mt-3 rounded-xl border border-success/45 bg-success/18 px-3 py-2 text-sm text-success-foreground">
           {aviso}
         </p>
       )}
 
-      <div className="mt-4 overflow-x-auto" tabIndex={0} role="region" aria-label="Tabla de alumnos inscritos">
-        <table className="w-full min-w-[560px] text-sm">
-          <thead className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-            <tr>
-              <th className="px-2 py-3">Nombre</th>
-              <th className="px-2 py-3">Control</th>
-              <th className="px-2 py-3">Correo</th>
-              <th className="px-2 py-3">Teléfono</th>
-              {puedeEditar && <th className="px-2 py-3" />}
-            </tr>
-          </thead>
-          <tbody>
-            {inscripciones.map((inscripcion) => {
-              const alumno = inscripcion.alumno
-              const datosIncompletos = !alumno.numeroControl
-              return (
-                <tr key={inscripcion.id} className="border-b border-border">
-                  <td className="px-2 py-3 font-medium text-foreground">
-                    <span className="mr-2 inline-flex align-middle">
-                      <SexoBadge sexo={alumno.sexo} />
-                    </span>
-                    {alumno.nombre}
+      {/* Lista en vez de tabla: la tarjeta va a media columna y una tabla de
+          cinco columnas se cortaba. Las acciones por alumno van en su menú. */}
+      {inscripciones.length === 0 ? (
+        <p className="mt-4 py-6 text-center text-sm text-muted-foreground">No hay alumnos aceptados en esta materia.</p>
+      ) : (
+        <ul className="mt-4 divide-y divide-border border-y border-border" aria-label="Alumnos inscritos">
+          {inscripciones.map((inscripcion) => {
+            const alumno = inscripcion.alumno
+            const datosIncompletos = !alumno.numeroControl
+            const contacto = [alumno.numeroControl, alumno.email, alumno.telefono].filter(Boolean)
+            return (
+              <li key={inscripcion.id} className="flex items-center gap-3 py-2.5">
+                <div className="min-w-0 flex-1">
+                  <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium text-foreground">
+                    <SexoBadge sexo={alumno.sexo} />
+                    <span className="min-w-0 break-words">{alumno.nombre}</span>
                     {datosIncompletos && (
-                      <span className="ml-2 inline-flex items-center rounded-full bg-warning/10 px-2 py-0.5 text-[11px] font-medium text-warning-foreground">
+                      <span className="rounded-full bg-warning/18 px-2 py-0.5 text-[11px] font-medium text-warning-foreground">
                         Datos incompletos
                       </span>
                     )}
-                  </td>
-                  <td className="px-2 py-3 text-muted-foreground">{alumno.numeroControl ?? '—'}</td>
-                  <td className="px-2 py-3 text-muted-foreground">{alumno.email ?? '—'}</td>
-                  <td className="px-2 py-3 text-muted-foreground">{alumno.telefono ?? '—'}</td>
-                  {puedeEditar && (
-                    <td className="px-2 py-3">
-                      <div className="flex justify-end gap-2">
-                        <Button variant="outline"
-                          type="button"
-                          onClick={() => abrirCompletar(alumno)}
-                          className="border px-3 py-1.5 text-xs font-medium"
-                        >
-                          {datosIncompletos ? 'Completar datos' : 'Editar'}
-                        </Button>
-                        <Button variant="destructive"
-                          type="button"
-                          onClick={() => darDeBaja(alumno)}
-                          className="border px-3 py-1.5 text-xs font-medium"
-                        >
-                          Dar de baja
-                        </Button>
-                      </div>
-                    </td>
-                  )}
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-        {inscripciones.length === 0 && (
-          <p className="py-6 text-center text-sm text-muted-foreground">No hay alumnos aceptados en esta materia.</p>
-        )}
-      </div>
+                  </p>
+                  <p className="mt-0.5 break-words text-xs text-muted-foreground">
+                    {contacto.length ? contacto.join(' · ') : 'Sin número de control ni contacto'}
+                  </p>
+                </div>
+                {puedeEditar && (
+                  <MenuAcciones label={`Acciones para ${alumno.nombre}`} items={[
+                    { label: datosIncompletos ? 'Completar datos' : 'Editar datos', icon: Pencil, onSelect: () => abrirCompletar(alumno) },
+                    { separator: true },
+                    { label: 'Dar de baja de la materia', icon: UserMinus, variant: 'destructive', onSelect: () => darDeBaja(alumno) },
+                  ]} />
+                )}
+              </li>
+            )
+          })}
+        </ul>
+      )}
 
       <Modal open={modal} onClose={cerrar} title="Agregar alumnos a la materia" wide={pestana === 'importar'}>
         <div className="space-y-4">
@@ -505,7 +489,7 @@ export default function AlumnosMateriaCard({ materia, puedeEditar, onActualizado
           {pestana === 'importar' && (
             <div className="space-y-3">
               {resumenImportacion ? (
-                <div className="space-y-3 rounded-xl border border-success/30 bg-success/10 p-4 text-sm text-success-foreground">
+                <div className="space-y-3 rounded-xl border border-success/45 bg-success/18 p-4 text-sm text-success-foreground">
                   <p className="font-medium">Importación terminada</p>
                   <ul className="list-inside list-disc space-y-1">
                     <li>Alumnos nuevos dados de alta: {resumenImportacion.creados}</li>
@@ -591,9 +575,9 @@ export default function AlumnosMateriaCard({ materia, puedeEditar, onActualizado
                                       <input aria-label={`${campo} del alumno ${indice + 1}`}
                                         value={fila[campo]}
                                         onChange={(event) => actualizarFilaImportar(indice, campo, event.target.value)}
-                                        title={invalido ? 'Debe tener el formato 225Q0103' : undefined}
+                                        title={invalido ? 'Sólo letras y números, sin espacios' : undefined}
                                         className={`w-full rounded-lg border px-2 py-1.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                                          invalido ? "border-destructive/30" : "border-border"
+                                          invalido ? "border-destructive/45" : "border-border"
                                         }`}
                                       />
                                     </td>
@@ -678,7 +662,7 @@ export default function AlumnosMateriaCard({ materia, puedeEditar, onActualizado
             </select>
           </div>
           {!formCompletar.numeroControl && (
-            <p className="rounded-lg bg-warning/10 px-3 py-2 text-xs text-warning-foreground">
+            <p className="rounded-lg bg-warning/18 px-3 py-2 text-xs text-warning-foreground">
               Sin número de control, correo o contraseña real el alumno no podrá iniciar sesión todavía.
             </p>
           )}

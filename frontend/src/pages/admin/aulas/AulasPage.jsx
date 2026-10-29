@@ -142,7 +142,7 @@ export default function AulasPage() {
       </div>
 
       {error && (
-        <div className="flex items-center justify-between rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground">
+        <div className="flex items-center justify-between rounded-lg border border-destructive/45 bg-destructive/18 px-4 py-3 text-sm text-destructive-foreground">
           <span>{error}</span>
           <Button variant="destructive" onClick={() => setError('')} className="ml-4">
             ✕
@@ -151,7 +151,7 @@ export default function AulasPage() {
       )}
 
       {avisoLote && (
-        <div role="status" className="flex items-start justify-between gap-3 rounded-lg border border-success/30 bg-success/10 px-4 py-3 text-sm text-success-foreground">
+        <div role="status" className="flex items-start justify-between gap-3 rounded-lg border border-success/45 bg-success/18 px-4 py-3 text-sm text-success-foreground">
           <span>{avisoLote}</span>
           <Button variant="ghost" size="icon-sm" onClick={() => setAvisoLote('')} aria-label="Cerrar aviso">
             ✕
@@ -202,7 +202,7 @@ export default function AulasPage() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="flex gap-2">
           <Button variant="default"
             type="submit"
             disabled={guardando}
@@ -320,7 +320,7 @@ export default function AulasPage() {
               El aula se borrará definitivamente. Las materias y los bloques de horario que la
               tenían asignada se conservan, pero quedan sin aula.
             </p>
-            <div className="flex flex-col gap-2 sm:flex-row">
+            <div className="flex gap-2">
               <Button variant="outline"
                 onClick={() => setConfirmId(null)}
                 className="flex-1 border py-2 text-sm"
@@ -343,7 +343,7 @@ export default function AulasPage() {
           <p className="text-sm text-muted-foreground">
             Se eliminarán definitivamente {seleccionados.length} aula{seleccionados.length === 1 ? '' : 's'}. Las materias y los bloques de horario que las tenían asignadas se conservan, pero quedan sin aula.
           </p>
-          <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="flex gap-2">
             <Button variant="outline"
               onClick={() => setConfirmLote(false)}
               disabled={eliminandoLote}

@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma.service';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import { PeriodosService } from '../periodos/periodos.service';
 import {
+  formatearFechaClave,
   convertirFechaAMinutos,
   convertirHoraAMinutos,
   horarioAplicaEnFecha,
@@ -72,8 +73,20 @@ export class RecordatoriosClaseService {
       ...new Set(candidatos.map((horario) => horario.docenteId)),
     ]);
 
+    // Una clase justificada por reunión de academia tampoco se recuerda.
+    const hoyClave = formatearFechaClave(referencia);
+    const justificadas = new Set(
+      (
+        await this.periodos.clasesJustificadas(
+          [...new Set(candidatos.map((horario) => horario.docenteId))],
+          { gte: hoyClave, lte: hoyClave },
+        )
+      ).map((item) => item.horarioId),
+    );
+
     for (const horario of candidatos) {
       if (suspendidos.has(horario.docenteId)) continue;
+      if (justificadas.has(horario.id)) continue;
       const faltan =
         convertirHoraAMinutos(horario.horaInicio) - minutosActuales;
 

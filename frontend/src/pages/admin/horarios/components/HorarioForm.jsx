@@ -36,7 +36,9 @@ function crearEstadoInicial({ clase, preset, modo, docenteSeleccionado, grupoSel
   return {
     materiaId: '',
     docenteId: modo === 'docente' && docenteSeleccionado?.id ? String(docenteSeleccionado.id) : '',
-    grupoId: modo === 'grupo' && grupoSeleccionado?.id ? String(grupoSeleccionado.id) : '',
+    grupoId: preset?.grupoId
+      ? String(preset.grupoId)
+      : modo === 'grupo' && grupoSeleccionado?.id ? String(grupoSeleccionado.id) : '',
     aulaId: '',
     bloques: preset?.dia
       ? [{ dia: preset.dia, horaInicio: preset.horaInicio ?? '', horaFin: preset.horaFin ?? '' }]
@@ -252,9 +254,9 @@ function HorarioFormFields({
   const validacionLista = estaCompleto && bloquesInvalidos.length === 0 && !validating && Boolean(validation.message)
 
   const clasesEstado = {
-    green: "border-success/30 bg-success/10 text-success-foreground",
-    red: "border-destructive/30 bg-destructive/10 text-destructive-foreground",
-    amber: "border-warning/30 bg-warning/10 text-warning-foreground",
+    green: "border-success/45 bg-success/18 text-success-foreground",
+    red: "border-destructive/45 bg-destructive/18 text-destructive-foreground",
+    amber: "border-warning/45 bg-warning/18 text-warning-foreground",
     slate: "border-border bg-background text-muted-foreground",
   }[estadoValidacion.tone]
 
@@ -457,7 +459,7 @@ function HorarioFormFields({
       </div>
 
       {submitError && (
-        <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive-foreground">
+        <div className="rounded-lg border border-destructive/45 bg-destructive/18 px-3 py-2 text-sm text-destructive-foreground">
           {submitError}
         </div>
       )}
@@ -476,7 +478,7 @@ function HorarioFormFields({
 
       {clase && (
         confirmEliminar ? (
-          <div className="space-y-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3">
+          <div className="space-y-2 rounded-lg border border-destructive/45 bg-destructive/18 p-3">
             <p className="text-xs text-destructive-foreground">
               Se retirarán del horario los {clase.bloques.length} día
               {clase.bloques.length === 1 ? '' : 's'} de esta clase.

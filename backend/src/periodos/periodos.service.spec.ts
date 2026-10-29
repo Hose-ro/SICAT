@@ -35,6 +35,7 @@ describe('PeriodosService', () => {
       findMany: institucionalFindMany,
       findUnique: institucionalFindUnique,
     },
+    claseJustificada: { findMany: jest.fn().mockResolvedValue([]) },
     $transaction: jest.fn((operations) => Promise.all(operations)),
   } as unknown as PrismaService;
   const avisos = {

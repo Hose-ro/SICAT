@@ -84,7 +84,7 @@ export default function AvisosMateriaCard({ materia }) {
   }
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-5 shadow-sm" aria-labelledby="avisos-materia">
+    <section className="rounded-[var(--radius-card)] border border-border bg-card p-5" aria-labelledby="avisos-materia">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 id="avisos-materia" className="flex items-center gap-2 text-lg font-semibold text-foreground">
           <Megaphone className="size-5" aria-hidden="true" />Avisos

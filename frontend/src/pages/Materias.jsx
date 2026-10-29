@@ -294,52 +294,7 @@ export default function Materias() {
               : <Link className="hover:underline" to={esAlumno ? `/alumno/materias/${m.id}` : `/materias/${m.id}`}>{m.nombre}</Link>}
           </h2>
         </div>
-        <div className="ml-2 flex shrink-0 flex-col items-end gap-2">
-          <span className="text-xs text-muted-foreground">{m._count?.inscripciones ?? 0} alumnos</span>
-          {canManage && !modoSeleccion && (
-            <Button variant="outline"
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation()
-                abrirEdicion(m)
-              }}
-              className="inline-flex min-h-9 items-center gap-1.5 border border-input px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
-              aria-label={`Editar ${m.nombre}`}
-            >
-              <CiEdit className="h-4 w-4" aria-hidden="true" />
-              Editar
-            </Button>
-          )}
-          {canManage && !modoSeleccion && (
-            <Button variant="destructive"
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation()
-                pedirEliminar(m)
-              }}
-              className="inline-flex min-h-9 items-center gap-1.5 border px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
-              aria-label={`Eliminar ${m.nombre}`}
-            >
-              <CiTrash className="h-4 w-4" aria-hidden="true" />
-              Eliminar
-            </Button>
-          )}
-          {puedePausar && !modoSeleccion && (
-            <Button variant="outline"
-              type="button"
-              disabled={pausandoId === m.id}
-              onClick={(event) => {
-                event.stopPropagation()
-                cambiarPausa(m)
-              }}
-              className="inline-flex min-h-9 items-center gap-1.5 border border-input px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
-              aria-label={`${m.pausada ? 'Reanudar' : 'Pausar'} ${m.nombre}`}
-            >
-              {m.pausada ? <Play className="h-4 w-4" aria-hidden="true" /> : <Pause className="h-4 w-4" aria-hidden="true" />}
-              {m.pausada ? 'Reanudar' : 'Pausar'}
-            </Button>
-          )}
-        </div>
+        <span className="ml-2 shrink-0 text-xs text-muted-foreground">{m._count?.inscripciones ?? 0} alumnos</span>
       </div>
       <div className={`text-xs text-muted-foreground space-y-1 ${m.pausada ? 'opacity-60' : ''}`}>
         {m.pausada && (
@@ -364,6 +319,53 @@ export default function Materias() {
           </p>
         )}
       </div>
+      {(canManage || puedePausar) && !modoSeleccion && (
+        <div className="flex flex-wrap gap-2">
+            {canManage && !modoSeleccion && (
+              <Button variant="outline"
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  abrirEdicion(m)
+                }}
+                className="inline-flex min-h-9 items-center gap-1.5 border border-input px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
+                aria-label={`Editar ${m.nombre}`}
+              >
+                <CiEdit className="h-4 w-4" aria-hidden="true" />
+                Editar
+              </Button>
+            )}
+            {canManage && !modoSeleccion && (
+              <Button variant="destructive"
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  pedirEliminar(m)
+                }}
+                className="inline-flex min-h-9 items-center gap-1.5 border px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
+                aria-label={`Eliminar ${m.nombre}`}
+              >
+                <CiTrash className="h-4 w-4" aria-hidden="true" />
+                Eliminar
+              </Button>
+            )}
+            {puedePausar && !modoSeleccion && (
+              <Button variant="outline"
+                type="button"
+                disabled={pausandoId === m.id}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  cambiarPausa(m)
+                }}
+                className="inline-flex min-h-9 items-center gap-1.5 border border-input px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
+                aria-label={`${m.pausada ? 'Reanudar' : 'Pausar'} ${m.nombre}`}
+              >
+                {m.pausada ? <Play className="h-4 w-4" aria-hidden="true" /> : <Pause className="h-4 w-4" aria-hidden="true" />}
+                {m.pausada ? 'Reanudar' : 'Pausar'}
+              </Button>
+            )}
+        </div>
+      )}
     </Contenedor>
     )
   }
@@ -373,11 +375,11 @@ export default function Materias() {
       <PageHeader
         title="Materias"
         action={
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+          <div className="flex flex-wrap gap-2">
             {canManage && !modoSeleccion && materias.length > 0 && (
               <Button variant="outline"
                 onClick={() => setModoSeleccion(true)}
-                className="w-full gap-1.5 border px-4 py-2 text-sm font-medium sm:w-auto"
+                className="gap-1.5 border px-4 py-2 text-sm font-medium"
               >
                 <CiSelect className="h-4 w-4" aria-hidden="true" />
                 Seleccionar
@@ -386,7 +388,7 @@ export default function Materias() {
             {canManage && (
               <Button variant="default"
                 onClick={abrirCreacion}
-                className="w-full px-4 py-2 text-sm font-medium sm:w-auto"
+                className="px-4 py-2 text-sm font-medium"
               >
                 + Nueva materia
               </Button>
@@ -396,7 +398,7 @@ export default function Materias() {
       />
 
       {aviso && (
-        <div role="status" className="mb-4 flex items-start justify-between gap-3 rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm text-success-foreground">
+        <div role="status" className="mb-4 flex items-start justify-between gap-3 rounded-xl border border-success/45 bg-success/18 px-4 py-3 text-sm text-success-foreground">
           <span>{aviso}</span>
           <Button variant="ghost" onClick={() => setAviso('')} className="text-success-foreground hover:text-success-foreground" aria-label="Cerrar aviso">✕</Button>
         </div>
@@ -555,7 +557,7 @@ export default function Materias() {
             El horario, docente, aula y grupo se asignan después desde el módulo <strong>Gestión de Horarios</strong>.
           </div>
           {error && <p role="alert" className="text-destructive-foreground text-xs">{error}</p>}
-          <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="flex gap-2">
             <Button variant="default" type="submit" disabled={guardando} className="flex-1 py-2.5 font-medium disabled:cursor-not-allowed disabled:opacity-50">
               {guardando ? 'Guardando...' : editandoId ? 'Guardar cambios' : 'Crear materia'}
             </Button>
@@ -577,7 +579,7 @@ export default function Materias() {
             Se borran también sus unidades, horarios, sesiones de clase con sus asistencias, tareas con sus entregas, inscripciones y calificaciones. Los grupos y las academias se conservan, sólo dejan de tenerla asignada.
           </p>
           {confirmacion.error && <p role="alert" className="text-sm text-destructive-foreground">{confirmacion.error}</p>}
-          <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+          <div className="flex flex-wrap justify-end gap-2">
             <Button variant="outline"
               type="button"
               onClick={cerrarConfirmacion}
@@ -629,7 +631,7 @@ export default function Materias() {
             </div>
           </div>
           {lote.error && <p role="alert" className="text-destructive-foreground text-xs">{lote.error}</p>}
-          <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="flex gap-2">
             <Button variant="default" type="submit" disabled={lote.loading} className="flex-1 py-2.5 font-medium disabled:cursor-not-allowed disabled:opacity-50">
               {lote.loading ? 'Guardando...' : 'Guardar cambios'}
             </Button>
@@ -654,7 +656,7 @@ export default function Materias() {
             De cada una se borran también sus unidades, horarios, sesiones de clase con sus asistencias, tareas con sus entregas, inscripciones y calificaciones. Los grupos y las academias se conservan, sólo dejan de tenerla asignada.
           </p>
           {lote.error && <p role="alert" className="text-sm text-destructive-foreground">{lote.error}</p>}
-          <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+          <div className="flex flex-wrap justify-end gap-2">
             <Button variant="outline" type="button" onClick={cerrarLote} disabled={lote.loading} className="border px-4 py-2.5 text-sm font-medium disabled:opacity-50">
               Cancelar
             </Button>

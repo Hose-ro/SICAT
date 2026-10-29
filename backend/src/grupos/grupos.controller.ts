@@ -22,6 +22,7 @@ import { GruposService } from './grupos.service';
 import { CreateGrupoDto } from './dto/create-grupo.dto';
 import { UpdateGrupoDto } from './dto/update-grupo.dto';
 import { AsignarAlumnosDto } from './dto/asignar-alumnos.dto';
+import { AgregarAlumnosMiGrupoDto } from './dto/agregar-alumnos-mi-grupo.dto';
 import { EliminarGruposDto } from './dto/eliminar-grupos.dto';
 import { ModificarMateriasDto } from './dto/modificar-materias.dto';
 import { AsignarAulaGrupoDto } from './dto/asignar-aula-grupo.dto';
@@ -139,13 +140,20 @@ export class GruposController {
 
   @Post('mis-grupos/:id/alumnos')
   @Roles('DOCENTE')
-  @ApiOperation({ summary: 'Agregar alumnos existentes a mi grupo' })
+  @ApiOperation({
+    summary: 'Agregar alumnos de fuera del grupo a mis materias en él',
+  })
   agregarAlumnosAMiGrupo(
     @Param('id', ParseIntPipe) id: number,
-    @Body() dto: AsignarAlumnosDto,
+    @Body() dto: AgregarAlumnosMiGrupoDto,
     @Request() req: any,
   ) {
-    return this.grupos.agregarAlumnosAMiGrupo(id, req.user.id, dto.alumnoIds);
+    return this.grupos.agregarAlumnosAMiGrupo(
+      id,
+      req.user.id,
+      dto.alumnoIds,
+      dto.materiaIds,
+    );
   }
 
   @Post('mis-grupos/:id/alumnos/nuevo')

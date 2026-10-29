@@ -71,6 +71,19 @@ export type SuspensionVigente = {
   institucional: boolean;
 };
 
+/**
+ * Una clase concreta que el docente justificó porque se cruzaba con una
+ * reunión de academia. Funciona como un día sin clases, sólo para ese horario.
+ */
+export type ClaseJustificadaVigente = {
+  id: number;
+  docenteId: number;
+  horarioId: number;
+  reunionId: number;
+  fecha: string;
+  motivo: string;
+};
+
 export type SuspensionDeDocente = Omit<SuspensionVigente, 'id'> & {
   /** Prefijado por origen para que no choquen ids de tablas distintas. */
   id: string;
@@ -341,6 +354,56 @@ export class PeriodosService {
   }
 
   /**
+   * Suspensión vigente para una clase concreta: la del día completo (propia o
+   * institucional) o, si no la hay, la justificación de ese horario por una
+   * reunión de academia.
+   */
+  async obtenerSuspensionDeClase(
+    docenteId: number,
+    horarioId: number,
+    fecha: Date,
+  ): Promise<SuspensionVigente | null> {
+    const delDia = await this.obtenerSuspension(docenteId, fecha);
+    if (delDia) return delDia;
+    const justificada = await this.prisma.claseJustificada.findUnique({
+      where: {
+        horarioId_fecha: { horarioId, fecha: formatearFechaClave(fecha) },
+      },
+      select: { id: true, fecha: true, motivo: true },
+    });
+    return justificada ? { ...justificada, institucional: false } : null;
+  }
+
+  /**
+   * Clases justificadas por reunión de varios docentes, opcionalmente acotadas
+   * a un rango de claves `YYYY-MM-DD`.
+   */
+  async clasesJustificadas(
+    docenteIds: number[],
+    rango?: { gte?: string; lte?: string },
+    /** Para vistas de alumno: sólo las que el docente decidió avisar. */
+    { soloVisiblesAlumnos = false } = {},
+  ): Promise<ClaseJustificadaVigente[]> {
+    if (!docenteIds.length) return [];
+    return this.prisma.claseJustificada.findMany({
+      where: {
+        docenteId: { in: docenteIds },
+        ...(rango?.gte || rango?.lte ? { fecha: rango } : {}),
+        ...(soloVisiblesAlumnos ? { avisarAlumnos: true } : {}),
+      },
+      select: {
+        id: true,
+        docenteId: true,
+        horarioId: true,
+        reunionId: true,
+        fecha: true,
+        motivo: true,
+      },
+      orderBy: { fecha: 'asc' },
+    });
+  }
+
+  /**
    * Qué docentes de la lista no tienen clases en la fecha. Con suspensión
    * institucional son todos; si no, sólo los que marcaron ese día.
    */
@@ -505,13 +568,14 @@ export class PeriodosService {
       ? await this.prisma.horarioMateria.findMany({
           where: { grupoId: alumno.grupoId, activo: true },
           select: {
+            id: true,
             docenteId: true,
             dias: true,
             materia: { select: { nombre: true } },
           },
         })
       : [];
-    const [institucionales, propias] = await Promise.all([
+    const [institucionales, propias, justificadas] = await Promise.all([
       this.prisma.suspensionInstitucional.findMany({
         where: { fecha: rango },
         select: { fecha: true, motivo: true },
@@ -523,6 +587,16 @@ export class PeriodosService {
               docenteId: { in: [...new Set(horarios.map((h) => h.docenteId))] },
             },
             select: { docenteId: true, fecha: true, motivo: true },
+          })
+        : Promise.resolve([]),
+      horarios.length
+        ? this.prisma.claseJustificada.findMany({
+            where: {
+              fecha: rango,
+              horarioId: { in: horarios.map((h) => h.id) },
+              avisarAlumnos: true,
+            },
+            select: { horarioId: true, fecha: true, motivo: true },
           })
         : Promise.resolve([]),
     ]);
@@ -557,6 +631,20 @@ export class PeriodosService {
         motivo: actual?.motivo ?? item.motivo,
         institucional: false,
         materias: [...new Set([...(actual?.materias ?? []), ...materias])],
+      });
+    }
+    // Una clase suelta que el docente no dará por una reunión de academia.
+    for (const item of justificadas) {
+      const actual = porFecha.get(item.fecha);
+      if (actual?.institucional) continue;
+      const materia = horarios.find((h) => h.id === item.horarioId)?.materia
+        .nombre;
+      if (!materia) continue;
+      porFecha.set(item.fecha, {
+        fecha: item.fecha,
+        motivo: actual?.motivo ?? item.motivo,
+        institucional: false,
+        materias: [...new Set([...(actual?.materias ?? []), materia])],
       });
     }
     return [...porFecha.values()].sort((a, b) =>
