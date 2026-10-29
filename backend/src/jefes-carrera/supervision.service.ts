@@ -108,6 +108,27 @@ export class SupervisionService {
       throw new ForbiddenException('Carrera fuera de tu alcance');
   }
 
+  async agregarTelefonoDocente(usuarioId: number, consulta: Consulta, docenteId: number, telefono: string) {
+    await this.alcance(usuarioId, consulta.carreraId);
+    const periodo = periodoSupervision(consulta.periodo);
+    if (periodo !== getCurrentAcademicPeriod())
+      throw new ForbiddenException('El periodo anterior es de solo consulta');
+    if (!/^\+52[0-9]{10}$/.test(telefono))
+      throw new BadRequestException('Escribe +52 seguido de los 10 dígitos del número.');
+    const grupos = await this.gruposDelPeriodo(consulta.carreraId, periodo);
+    const ofertas = await this.ofertas(consulta.carreraId, grupos.map((g) => g.id));
+    if (!ofertas.some((o) => o.docentes.some((d) => d.id === docenteId)))
+      throw new ForbiddenException('Docente fuera de tu alcance');
+    // Solo completa un dato ausente, sin sobrescribir un teléfono registrado.
+    const actualizado = await this.prisma.usuario.updateMany({
+      where: { id: docenteId, activo: true, OR: [{ telefono: null }, { telefono: '' }] },
+      data: { telefono },
+    });
+    if (!actualizado.count)
+      throw new ConflictException('El docente ya tiene un teléfono registrado. Actualiza la página para consultarlo.');
+    return { id: docenteId, telefono };
+  }
+
   async contexto(usuarioId: number) {
     const carreras = await this.prisma.carrera.findMany({
       where: { jefes: { some: { usuarioId, activa: true } } },

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { BookOpen, CalendarClock, ChevronDown, NotebookPen, UsersRound } from 'lucide-react'
+import { BookOpen, CalendarClock, ChevronDown, Clock3, NotebookPen, Phone, UsersRound } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { buttonVariants } from '@/components/ui/buttonVariants'
 import SexoBadge from '@/components/SexoBadge'
@@ -17,9 +17,10 @@ import TendenciaCobertura from './graficas/TendenciaCobertura'
 import BienvenidaJefatura from './components/BienvenidaJefatura'
 import PrimerosPasosJefatura from './components/PrimerosPasosJefatura'
 import HoyEnLaCarrera from './components/HoyEnLaCarrera'
+import ContactoDocente from './components/ContactoDocente'
 import './inicio.css'
 
-const DOCENTES_VISIBLES = 4
+const DOCENTES_VISIBLES = 3
 const ALUMNOS_VISIBLES = 4
 
 function fechaBreve(clave) {
@@ -179,17 +180,19 @@ function ContenidoCarrera({ j, resumen, guia, ventana }) {
         <SeccionTitulo
           id="pendientes-docentes"
           titulo="Pendientes por docente"
-          descripcion="Primero quien tiene la lista pendiente más antigua. Registra aquí lo que acuerdes con cada docente."
+          descripcion="Revisa los pendientes y registra lo que acuerdes con cada docente."
           accion={grupos.length > 0 && <Link className={cn(linkClass, 'inline-flex min-h-11 items-center text-[0.8125rem]')} to={j.toDesde('/jefe-carrera/seguimientos', { seccion: 'pendientes' })}>Abrir todos en Pendientes y seguimiento</Link>}
         />
         {grupos.length ? (
           <>
-            <ul className="divide-y divide-border border-y border-border">
+            <p className="docentes-orden">Primero, el pendiente más antiguo</p>
+            <ul id="docentes-pendientes-lista" className="docentes-fichas">
               {(todosDocentes ? grupos : grupos.slice(0, DOCENTES_VISIBLES)).map((g) => <GrupoDocente key={g.key} g={g} j={j} seguimientos={seguimientos} />)}
             </ul>
             {grupos.length > DOCENTES_VISIBLES && (
-              <Button variant="ghost" className="mt-2 min-h-11" onClick={() => setTodosDocentes((v) => !v)}>
-                {todosDocentes ? 'Mostrar menos' : `Ver los ${grupos.length} docentes con pendientes`}
+              <Button variant="secondary" className="docentes-expandir" aria-expanded={todosDocentes} aria-controls="docentes-pendientes-lista" onClick={() => setTodosDocentes((v) => !v)}>
+                {todosDocentes ? 'Mostrar solo los primeros 3 docentes' : `Ver los ${grupos.length} docentes con pendientes`}
+                <ChevronDown aria-hidden="true" className={cn('docentes-flecha', todosDocentes && 'docentes-flecha-abierta')} />
               </Button>
             )}
           </>
@@ -381,37 +384,48 @@ function AlumnosRiesgo({ j, riesgos, seguimientos }) {
 
 function GrupoDocente({ g, j, seguimientos }) {
   const [abierto, setAbierto] = useState(false)
+  const [contacto, setContacto] = useState(false)
   const detalleId = `detalle-${g.key}`
+  const contactoId = `contacto-docente-${g.key}`
   const nombre = g.docente?.nombre ?? 'Sin docente asignado'
+  const iniciales = nombre.split(/\s+/).slice(0, 2).map((p) => p[0]).join('')
   return (
-    <li className="py-4">
-      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_9rem_auto] md:items-start md:gap-6">
-        <div className="min-w-0">
+    <li className="docentes-ficha">
+      <div className="docentes-ficha-cuerpo">
+        <div className="docentes-cabecera">
+          <div className="docentes-identidad">
+            <span className="docentes-iniciales" aria-hidden="true">{iniciales}</span>
+            <div className="min-w-0">
           {g.docente
-            ? <Link className={cn(linkClass, 'text-[0.9375rem] text-foreground')} to={j.toDesde(`/jefe-carrera/docentes/${g.docente.id}`)}>{nombre}</Link>
+            ? <Link className={cn(linkClass, 'docentes-nombre')} to={j.toDesde(`/jefe-carrera/docentes/${g.docente.id}`)}>{nombre}</Link>
             : <span className="text-[0.9375rem] font-medium text-warning-foreground">{nombre}</span>}
-          <p className="mt-0.5 text-[0.8125rem] text-foreground">{resumenGrupo(g).join(' · ')}</p>
+              <p className="docentes-fecha">{g.desde ? `Pendiente más antiguo: ${fechaCorta(g.desde)}` : 'Sin listas pendientes'}</p>
+            </div>
+          </div>
+          {g.desde && <span className="docentes-antiguedad"><Clock3 aria-hidden="true" />{haceTiempo(g.desde)}</span>}
         </div>
-        <p className="text-[0.8125rem] text-muted-foreground">
-          {g.desde ? <>Desde el {fechaCorta(g.desde)}<span className="block text-xs">{haceTiempo(g.desde)}</span></> : <span className="text-xs">Sin listas pendientes</span>}
-        </p>
-        <div className="flex flex-wrap items-center gap-2 md:justify-end">
+        <ul className="docentes-cantidades" aria-label={`Pendientes de ${nombre}`}>
+          {resumenGrupo(g).map((texto) => { const espacio = texto.indexOf(' '); return <li key={texto}><strong>{texto.slice(0, espacio)}</strong> {texto.slice(espacio + 1)}</li> })}
+        </ul>
+      </div>
+        <div className="docentes-acciones">
           {g.docente && (
             <BotonSeguimiento
               j={j}
               caso={{ tipo: 'SEGUIMIENTO_DOCENTE', docenteId: g.docente.id }}
               titulo={`Observación con ${nombre}`}
               contexto={resumenGrupo(g).join(' · ')}
+              className="docentes-observar"
             />
           )}
-          <Button variant="ghost" size="sm" aria-expanded={abierto} aria-controls={detalleId} onClick={() => setAbierto((v) => !v)}>
-            {abierto ? 'Ocultar detalle' : 'Ver detalle'}
-            <ChevronDown aria-hidden="true" className={cn('transition-transform duration-150 ease-out', abierto && 'rotate-180')} />
+          {g.docente && <Button variant="outline" size="sm" className="docentes-contacto" aria-expanded={contacto} aria-controls={contactoId} onClick={() => setContacto((v) => !v)}><Phone aria-hidden="true" />Contacto</Button>}
+          <Button variant="ghost" size="sm" className="docentes-detalle-boton" aria-expanded={abierto} aria-controls={detalleId} onClick={() => setAbierto((v) => !v)}>
+            {abierto ? 'Ocultar pendientes' : 'Ver pendientes'}
+            <ChevronDown aria-hidden="true" className={cn('docentes-flecha', abierto && 'docentes-flecha-abierta')} />
           </Button>
         </div>
-      </div>
-      {abierto && (
-        <ul id={detalleId} className="mt-3 divide-y divide-border rounded-[var(--radius-item)] border border-border bg-card text-[0.8125rem]">
+      {g.docente && <div id={contactoId} hidden={!contacto} className="docentes-contacto-contenedor"><ContactoDocente key={g.docente.id} docente={g.docente} j={j} /></div>}
+        <ul id={detalleId} hidden={!abierto} className="docentes-detalle divide-y divide-border text-[0.8125rem]">
           {g.listas.map((c) => (
             <Detalle
               key={c.id}
@@ -447,7 +461,6 @@ function GrupoDocente({ g, j, seguimientos }) {
             />
           ))}
         </ul>
-      )}
     </li>
   )
 }

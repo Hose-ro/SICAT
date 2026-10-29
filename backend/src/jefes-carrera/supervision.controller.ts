@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  Patch,
   ParseIntPipe,
   Post,
   Query,
@@ -22,6 +23,7 @@ import {
   SupervisionQueryDto,
 } from './dto/supervision-query.dto';
 import { IncorporarAlumnoDto } from './dto/incorporar-alumno.dto';
+import { TelefonoDocenteDto } from './dto/telefono-docente.dto';
 import {
   ExportarInformeQueryDto,
   InformeQueryDto,
@@ -47,6 +49,14 @@ export class SupervisionController {
     @Query() query: SupervisionQueryDto,
   ) {
     return this.service.resumen(req.user.id, query);
+  }
+  @Patch('docentes/:docenteId/telefono') telefonoDocente(
+    @Req() req: Autenticado,
+    @Query() query: SupervisionQueryDto,
+    @Param('docenteId', ParseIntPipe) docenteId: number,
+    @Body() dto: TelefonoDocenteDto,
+  ) {
+    return this.service.agregarTelefonoDocente(req.user.id, query, docenteId, dto.telefono);
   }
   @Get('calendario') calendario(
     @Req() req: Autenticado,

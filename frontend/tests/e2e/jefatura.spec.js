@@ -190,7 +190,7 @@ test.describe('jefatura de carrera', () => {
     await page.goto('/dashboard')
     const pendientes = page.getByRole('region', { name: 'Pendientes por docente' })
     const laura = pendientes.getByRole('listitem').filter({ has: page.getByRole('link', { name: 'Laura Méndez' }) }).first()
-    await laura.getByRole('button', { name: 'Ver detalle' }).click()
+    await laura.getByRole('button', { name: 'Ver pendientes' }).click()
     await expect(laura.getByRole('link', { name: 'Ver clase' }).first()).toBeVisible()
     await laura.getByRole('button', { name: 'Registrar observación' }).click()
     const dialog = page.getByRole('dialog', { name: 'Observación con Laura Méndez' })

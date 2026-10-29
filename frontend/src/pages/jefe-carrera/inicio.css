@@ -16,6 +16,56 @@
 
 .inicio-indicador { display: flex; flex-direction: column; }
 
+.docentes-orden { margin: 20px 0 12px; font-size: .75rem; color: var(--muted-foreground); }
+.docentes-fichas { display: grid; gap: 12px; }
+.docentes-ficha { min-width: 0; overflow: hidden; border: 1px solid var(--border); border-radius: 14px; background: var(--card); transition: border-color 180ms ease-out, box-shadow 180ms ease-out; }
+.docentes-ficha:focus-within { border-color: var(--primary-ink); }
+.docentes-ficha-cuerpo { padding: 18px 20px 16px; }
+.docentes-cabecera { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.docentes-identidad { display: flex; align-items: flex-start; gap: 11px; min-width: 0; }
+.docentes-iniciales { display: grid; place-items: center; width: 34px; height: 34px; flex-shrink: 0; border-radius: 10px; background: var(--muted); color: var(--muted-foreground); font-size: .6875rem; font-weight: 600; }
+.docentes-nombre { color: var(--foreground); font-size: .9375rem; font-weight: 600; letter-spacing: -.015em; overflow-wrap: anywhere; }
+.docentes-fecha { margin-top: 3px; font-size: .75rem; color: var(--muted-foreground); }
+.docentes-antiguedad { display: inline-flex; flex-shrink: 0; align-items: center; gap: 5px; padding: 4px 7px; border-radius: 6px; background: color-mix(in oklab, var(--warning) 12%, var(--card)); color: var(--warning-foreground); font-size: .6875rem; }
+.docentes-antiguedad svg { width: 12px; height: 12px; }
+.docentes-cantidades { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 14px 0 0 45px; font-size: .8125rem; color: var(--muted-foreground); }
+.docentes-cantidades strong { margin-right: 3px; color: var(--foreground); font-weight: 600; font-variant-numeric: tabular-nums; }
+.docentes-acciones { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 10px 14px; border-top: 1px solid var(--border); background: color-mix(in oklab, var(--muted) 35%, var(--card)); }
+.docentes-acciones .sicat-button { min-height: 42px; height: auto; padding: 9px 12px; font-size: .8125rem; }
+.docentes-observar > button { border-color: color-mix(in oklab, var(--primary) 35%, var(--border)); background: var(--accent); color: var(--primary-ink); font-weight: 600; }
+.docentes-observar > button:hover { border-color: var(--primary-ink); background: color-mix(in oklab, var(--primary) 15%, var(--card)); color: var(--primary-ink); }
+.docentes-detalle-boton { margin-left: auto; color: var(--primary-ink); }
+.docentes-flecha { transition: transform 200ms cubic-bezier(.22, 1, .36, 1); }
+.docentes-flecha-abierta { transform: rotate(180deg); }
+.docentes-expandir { width: 100%; min-height: 49px; height: auto; margin-top: 16px; padding: 10px 12px; background: var(--accent); color: var(--primary-ink); font-size: .875rem; white-space: normal; }
+.docentes-detalle, .docentes-contacto-contenedor { border-top: 1px solid var(--border); }
+.docentes-detalle:not([hidden]), .docentes-contacto-contenedor:not([hidden]) { animation: docentes-revelar 200ms cubic-bezier(.22, 1, .36, 1); }
+.docentes-detalle[hidden], .docentes-contacto-contenedor[hidden] { display: none; }
+.docentes-contacto-panel { padding: 18px 20px; }
+.docentes-telefono-label { display: block; margin-bottom: 8px; font-size: .8125rem; font-weight: 500; }
+.docentes-telefono-fila, .docentes-telefono-registrado { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 16px; }
+.docentes-telefono-registrado { justify-content: space-between; }
+.docentes-telefono { font-size: .9375rem; font-weight: 500; font-variant-numeric: tabular-nums; }
+.docentes-telefono-campo { display: flex; flex: 1 1 210px; align-items: center; min-width: 0; overflow: hidden; border: 1px solid var(--input); border-radius: 8px; background: var(--background); }
+.docentes-telefono-campo > span { padding: 10px 12px; border-right: 1px solid var(--border); font-size: .875rem; }
+.docentes-telefono-campo > input { width: 0; min-width: 0; flex: 1; min-height: 44px; padding: 10px 12px; background: transparent; font-size: 1rem; }
+.docentes-telefono-campo:focus-within { outline: 2px solid var(--ring); outline-offset: 2px; }
+.docentes-telefono-campo > input:focus-visible { outline-offset: -3px; }
+.docentes-whatsapp { min-height: 44px; background: color-mix(in oklab, var(--success) 10%, var(--card)); color: var(--success-foreground); border-color: color-mix(in oklab, var(--success) 30%, var(--border)); }
+.docentes-whatsapp:hover { background: color-mix(in oklab, var(--success) 16%, var(--card)); color: var(--success-foreground); }
+@keyframes docentes-revelar { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+@media (hover: hover) { .docentes-ficha:hover { box-shadow: 0 6px 18px color-mix(in oklab, var(--primary) 6%, transparent); } }
+@media (max-width: 639px) {
+  .docentes-ficha-cuerpo, .docentes-contacto-panel { padding: 16px; }
+  .docentes-cabecera { flex-wrap: wrap; gap: 8px; }
+  .docentes-antiguedad { margin-left: 45px; }
+  .docentes-acciones { padding: 8px; gap: 8px; }
+  .docentes-acciones .sicat-button { min-height: 44px; font-size: .75rem; }
+  .docentes-observar { flex: 1 1 100%; }
+  .docentes-observar > button { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) { .docentes-detalle, .docentes-contacto-contenedor { animation: none !important; } .docentes-flecha-abierta { transform: none; } }
+
 /* Inicio conserva una sola clase visible; el resto se consulta a petición. */
 .hoy-tarjeta {
   min-width: 0;
