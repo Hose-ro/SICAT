@@ -128,7 +128,7 @@ function useVista(resumen, fijo) {
  * clases simultáneas. Semana: filas por grupo y columnas por día. Los filtros
  * viven en la URL y responden sin animación.
  */
-export default function HorarioCarrera({ j, resumen, fijo = {}, titulo = 'Horario de la carrera', descripcion = 'Compara grupos y abre una clase para consultar su registro.', headingId = 'horario-carrera' }) {
+export default function HorarioCarrera({ j, resumen, fijo = {}, titulo = 'Horario de la carrera', descripcion = 'Compara grupos y abre una clase para consultar su registro.', headingId = 'horario-carrera', ocultarTitulo = false }) {
   const v = useVista(resumen, fijo)
   const movil = useMovil()
   const [limite, setLimite] = useState(GRUPOS_POR_PAGINA)
@@ -194,11 +194,11 @@ export default function HorarioCarrera({ j, resumen, fijo = {}, titulo = 'Horari
   const hoy = hoyClave()
 
   return (
-    <section aria-labelledby={headingId} className="mt-7">
+    <section aria-labelledby={headingId} className={ocultarTitulo ? 'mt-4' : 'mt-7'}>
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 id={headingId} className="text-[1.1875rem] font-semibold tracking-[-0.015em] text-foreground">{titulo}</h2>
-          {descripcion && <p className="mt-1 text-xs text-muted-foreground max-md:hidden">{descripcion}</p>}
+          <h2 id={headingId} className={ocultarTitulo ? 'sr-only' : 'text-[1.1875rem] font-semibold tracking-[-0.015em] text-foreground'}>{titulo}</h2>
+          {!ocultarTitulo && descripcion && <p className="mt-1 text-xs text-muted-foreground max-md:hidden">{descripcion}</p>}
         </div>
         {/* En Mixto el día y la semana son el mismo sábado: el selector no aporta nada. */}
         {v.modalidad !== 'MIXTO' && (
@@ -274,7 +274,6 @@ export default function HorarioCarrera({ j, resumen, fijo = {}, titulo = 'Horari
           <Leyenda tono="bg-warning-foreground" label="Captura pendiente o tardía" />
           <Leyenda tono="bg-muted-foreground" label="Programada / suspendida" />
         </div>
-        <p className="px-3 pb-3.5 text-xs text-muted-foreground sm:px-[18px]">El registro en SICAT es evidencia de captura; no confirma presencia física del docente.</p>
       </div>
       {clases !== null && (
         <p className="mt-2.5 text-xs text-muted-foreground">
@@ -359,7 +358,7 @@ function Filtro({ label, value, onChange, children }) {
 }
 
 function Leyenda({ tono, label }) {
-  return <span className="flex items-center gap-1.5"><i aria-hidden="true" className={cn('size-2 rounded-full', tono)} />{label}</span>
+  return <span className="flex items-center gap-2"><i aria-hidden="true" className={cn('size-5 shrink-0 rounded-full', tono)} />{label}</span>
 }
 
 function BloqueClase({ clase, abrir, fijo, style, className }) {
