@@ -18,26 +18,34 @@ const SIGUIENTES = 3
 const sinClase = (r) => r.choques?.filter((c) => c.justificacion?.reunionId === r.id && !c.sinClases && !c.listaCapturada) ?? []
 
 /** Panel de Inicio, gemelo de "Clases de hoy": la siguiente reunión destacada y las que vienen después. */
-export default function ProximasReuniones() {
+export default function ProximasReuniones({
+  reuniones,
+  enlaceTodas = '/docente/reuniones',
+  enlaceReunion = (reunion) => `/docente/reuniones?reunion=${reunion.id}`,
+  tituloVacio = 'No tienes reuniones de academia próximas',
+  descripcionVacio = 'Cuando tu jefe de carrera convoque una, aparecerá aquí.',
+}) {
   // null mientras carga: así no parpadea el estado vacío.
   const [proximas, setProximas] = useState(null)
 
   useEffect(() => {
+    if (reuniones !== undefined) return
     let vivo = true
     api.get('/reuniones/mias')
       .then(({ data }) => { if (vivo) setProximas(separarReuniones(data).proximas) })
       .catch(() => { if (vivo) setProximas([]) })
     return () => { vivo = false }
-  }, [])
+  }, [reuniones])
 
-  if (!proximas) return null
-  const [siguiente, ...despues] = proximas
+  const lista = reuniones === undefined ? proximas : reuniones === null ? null : separarReuniones(reuniones).proximas
+  if (!lista) return null
+  const [siguiente, ...despues] = lista
 
   return (
     <article className="rounded-[var(--radius-card)] border border-border bg-card p-5">
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-xl font-semibold tracking-tight text-foreground">Reuniones de academia</h2>
-        <Link to="/docente/reuniones" className="inline-flex items-center gap-2 text-xs font-medium text-primary-ink">
+        <Link to={enlaceTodas} className="inline-flex items-center gap-2 text-xs font-medium text-primary-ink">
           Ver todas <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </Link>
       </div>
@@ -46,12 +54,12 @@ export default function ProximasReuniones() {
         {siguiente ? (
           <div className="agenda-timeline">
             <div className="agenda-horas"><strong>{siguiente.horaInicio}</strong>{siguiente.horaFin && <span>{siguiente.horaFin}</span>}</div>
-            <ReunionDestacada reunion={siguiente} />
+            <ReunionDestacada reunion={siguiente} enlace={enlaceReunion(siguiente)} />
           </div>
         ) : (
           <section className="rounded-2xl border border-border bg-card px-5 py-6 text-center">
-            <p className="text-sm font-medium text-foreground">No tienes reuniones de academia próximas</p>
-            <p className="mt-1 text-sm text-muted-foreground">Cuando tu jefe de carrera convoque una, aparecerá aquí.</p>
+            <p className="text-sm font-medium text-foreground">{tituloVacio}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{descripcionVacio}</p>
           </section>
         )}
       </div>
@@ -65,7 +73,7 @@ export default function ProximasReuniones() {
             const { dia, mes } = diaMes(r.fecha)
             return (
               <li key={r.id}>
-                <Link to={`/docente/reuniones?reunion=${r.id}`} className="flex flex-wrap items-center gap-3 py-3 hover:bg-muted/40">
+                <Link to={enlaceReunion(r)} className="flex flex-wrap items-center gap-3 py-3 hover:bg-muted/40">
                   <span className="w-11 shrink-0 text-xs tabular-nums text-muted-foreground">{dia} {mes}</span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm text-foreground">{r.titulo}</span>
@@ -84,7 +92,7 @@ export default function ProximasReuniones() {
   )
 }
 
-function ReunionDestacada({ reunion }) {
+function ReunionDestacada({ reunion, enlace }) {
   const esHoy = reunion.fecha === hoyClaveLocal()
   const detalle = [lugarReunion(reunion), TIPO_REUNION[reunion.tipo], reunion.carrera?.nombre].filter(Boolean).join(' · ')
 
@@ -106,7 +114,7 @@ function ReunionDestacada({ reunion }) {
           )}
         </div>
         <Link
-          to={`/docente/reuniones?reunion=${reunion.id}`}
+          to={enlace}
           className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-strong"
         >
           Ver reunión <ArrowRight className="h-4 w-4" aria-hidden="true" />

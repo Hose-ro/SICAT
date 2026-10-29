@@ -18,6 +18,8 @@ import BienvenidaJefatura from './components/BienvenidaJefatura'
 import PrimerosPasosJefatura from './components/PrimerosPasosJefatura'
 import HoyEnLaCarrera from './components/HoyEnLaCarrera'
 import ContactoDocente from './components/ContactoDocente'
+import ProximasReuniones from '../docente/components/ProximasReuniones'
+import '../docente/dashboard-agenda.css'
 import './inicio.css'
 
 const DOCENTES_VISIBLES = 3
@@ -144,10 +146,10 @@ function Contenido({ j, resumen }) {
     )
   }
 
-  return <ContenidoCarrera j={j} resumen={resumen} guia={guia} ventana={ventana} />
+  return <ContenidoCarrera j={j} resumen={resumen} reuniones={reuniones} guia={guia} ventana={ventana} />
 }
 
-function ContenidoCarrera({ j, resumen, guia, ventana }) {
+function ContenidoCarrera({ j, resumen, reuniones, guia, ventana }) {
   const [todosDocentes, setTodosDocentes] = useState(false)
   const seguimientos = useSeguimientos({ carreraId: j.carreraId, periodo: j.periodo })
   const grupos = pendientesPorDocente(resumen)
@@ -174,6 +176,15 @@ function ContenidoCarrera({ j, resumen, guia, ventana }) {
       )}
 
       <HoyEnLaCarrera j={j} />
+      <div className="mt-10">
+        <ProximasReuniones
+          reuniones={reuniones}
+          enlaceTodas={j.toDesde('/jefe-carrera/reuniones')}
+          enlaceReunion={() => j.toDesde('/jefe-carrera/reuniones')}
+          tituloVacio="No hay reuniones de academia próximas"
+          descripcionVacio="Programa una reunión desde Reuniones para convocar a los docentes de tu carrera."
+        />
+      </div>
       <AlumnosRiesgo j={j} riesgos={riesgos} seguimientos={seguimientos} />
 
       <section aria-labelledby="pendientes-docentes" className="mt-10 scroll-mt-6">
