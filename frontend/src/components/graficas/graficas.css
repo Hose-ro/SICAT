@@ -82,3 +82,30 @@
   .viz-riesgo:active { transform: none; }
 }
 
+
+/* Anillos (Anillos.jsx): el progreso se dibuja desde vacío y los tramos, uno tras
+   otro. `--i` en un ancestro escalona la entrada dentro de una lista. */
+@keyframes anillo-trazar { from { stroke-dashoffset: var(--vacio); } }
+@keyframes anillo-tramo { from { stroke-dasharray: 0 1000; } }
+.anillo-trazo {
+  animation: anillo-trazar 1000ms cubic-bezier(.16, 1, .3, 1) backwards;
+  animation-delay: calc(min(var(--i, 0), 8) * 45ms + 180ms);
+}
+.anillo-tramo {
+  animation: anillo-tramo 700ms cubic-bezier(.16, 1, .3, 1) backwards;
+  animation-delay: calc(var(--orden, 0) * 140ms + 180ms);
+}
+.anillo-success { stroke: var(--success); }
+.anillo-success-suave { stroke: color-mix(in srgb, var(--success) 45%, var(--card)); }
+.anillo-warning { stroke: var(--warning); }
+.anillo-destructive { stroke: var(--destructive); }
+.anillo-punto-success { background: var(--success); }
+.anillo-punto-success-suave { background: color-mix(in srgb, var(--success) 45%, var(--card)); }
+.anillo-punto-warning { background: var(--warning); }
+.anillo-punto-destructive { background: var(--destructive); }
+.anillo-texto-success { color: var(--success-foreground); }
+.anillo-texto-warning { color: var(--warning-foreground); }
+.anillo-texto-destructive { color: var(--destructive-foreground); }
+@media (prefers-reduced-motion: reduce) {
+  .anillo-trazo, .anillo-tramo { animation: none; }
+}

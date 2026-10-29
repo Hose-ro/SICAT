@@ -1,11 +1,12 @@
 import { Link, useSearchParams } from 'react-router-dom'
 import { ChevronRight, Search } from 'lucide-react'
+import { AnilloProgreso } from '@/components/graficas/Anillos'
 import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
 import { claveFecha, haceTiempo, horaCorta, periodoTexto, plural } from './supervision/formato'
 import MapaDocentes from './graficas/MapaDocentes'
 import { JefaturaPage, Segmento, Vacio, selectClass } from './supervision/ui'
 
+// «Registro de listas» (antes «Cobertura»).
 const DEFINICION_REGISTRO = 'Listas completas entre clases ya concluidas con lista esperada. No cuentan suspensiones, clases sin inscritos ni calendarios sin configurar. Es evidencia de captura en SICAT, no de asistencia del docente.'
 
 /** Asignaciones agrupadas por materia: cada materia una vez, con sus grupos. */
@@ -30,39 +31,10 @@ const ORDENES = {
   cobertura: { label: 'Menor registro de listas primero', comparar: (a, b) => (a.clasesEsperadas ? a.cobertura : 101) - (b.clasesEsperadas ? b.cobertura : 101) },
 }
 
-// «Registro de listas»: listas completas entre clases concluidas con lista esperada (antes «Cobertura»).
-const R = 24
-const CIRCUNFERENCIA = 2 * Math.PI * R
-
-// Semáforo del registro: al día ≥ 90 %, rezagado ≥ 50 %, crítico debajo.
-const tonoRegistro = (pct) => (pct == null ? null : pct >= 90 ? 'success' : pct >= 50 ? 'warning' : 'destructive')
-
 /** «hoy, 10:47», «ayer», «hace 3 días»: la frescura importa más que la fecha exacta. */
 function capturaTexto(iso) {
   const hace = haceTiempo(claveFecha(new Date(iso)))
   return hace === 'Hoy' ? `hoy, ${horaCorta(iso)}` : hace.toLocaleLowerCase('es-MX')
-}
-
-/** Anillo de registro: el trazo se dibuja al entrar y el porcentaje queda al centro. */
-function AnilloRegistro({ pct }) {
-  const tono = tonoRegistro(pct)
-  return (
-    <div className="relative size-16 shrink-0">
-      <svg viewBox="0 0 56 56" className="size-full -rotate-90" aria-hidden="true">
-        <circle cx="28" cy="28" r={R} fill="none" strokeWidth="5" className="stroke-muted" />
-        {pct > 0 && (
-          <circle
-            cx="28" cy="28" r={R} fill="none" strokeWidth="5" strokeLinecap="round"
-            className={cn('docente-anillo', `docente-trazo-${tono}`)}
-            style={{ '--vacio': CIRCUNFERENCIA, strokeDasharray: CIRCUNFERENCIA, strokeDashoffset: CIRCUNFERENCIA * (1 - Math.min(pct, 100) / 100) }}
-          />
-        )}
-      </svg>
-      <span className={cn('absolute inset-0 grid place-items-center text-[0.8125rem] font-semibold tabular-nums', tono ? `docente-tono-${tono}` : 'text-muted-foreground')}>
-        <span className="sr-only">Registro de listas: </span>{pct == null ? '—' : `${pct}%`}
-      </span>
-    </div>
-  )
 }
 
 /** Sólo lo que falta; si no falta nada, una sola marca de «Al día». */
@@ -92,7 +64,7 @@ function TarjetaDocente({ d, j, i }) {
   return (
     <li className="docente-tarjeta relative flex flex-col rounded-[var(--radius-item)] border border-border bg-card p-5" style={{ '--i': i }}>
       <div className="flex items-center gap-4">
-        <AnilloRegistro pct={pct} />
+        <AnilloProgreso pct={pct} etiqueta="Registro de listas" />
         <div className="min-w-0 flex-1">
           {/* El nombre cubre toda la tarjeta (enlace estirado); los grupos quedan por encima. */}
           {d.periodoReferencia

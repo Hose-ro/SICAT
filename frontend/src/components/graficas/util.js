@@ -19,3 +19,6 @@ export function posicionTooltip(x, ancho, anchoTooltip = 220) {
   const izquierda = x + 14 + anchoTooltip > ancho ? x - 14 - anchoTooltip : x + 14
   return Math.max(0, izquierda)
 }
+
+// Semáforo del registro de listas: al día ≥ 90 %, rezagado ≥ 50 %, crítico debajo.
+export const tonoRegistro = (pct) => (pct == null ? null : pct >= 90 ? 'success' : pct >= 50 ? 'warning' : 'destructive')

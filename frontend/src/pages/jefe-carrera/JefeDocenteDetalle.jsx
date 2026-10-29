@@ -1,11 +1,14 @@
 import { Link, useParams } from 'react-router-dom'
+import { ChevronDown } from 'lucide-react'
+import { AnilloProgreso, AnilloSegmentos } from '@/components/graficas/Anillos'
+import { tonoRegistro } from '@/components/graficas/util'
 import { Chip } from '@/components/Chip'
 import { cn } from '@/lib/utils'
 import HorarioCarrera from './supervision/HorarioCarrera'
 import { ESTADO_UNIDAD, ESTADOS_PENDIENTES, estadoClase, senalUnidad, textoCierre } from './supervision/estados'
 import { fechaCorta, fechaHoraCorta, haceTiempo, hoyClave, minutos, modalidadTexto, parseClave, diasTexto } from './supervision/formato'
 import { useClases } from './supervision/useClasesSemana'
-import { Aviso, Cifra, Contacto, JefaturaPage, SeccionTitulo, Vacio, linkClass } from './supervision/ui'
+import { Aviso, Contacto, JefaturaPage, SeccionTitulo, Vacio, linkClass } from './supervision/ui'
 import { BotonSeguimiento } from './supervision/Seguimiento'
 
 const fechaBreve = (clave) => parseClave(clave).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
@@ -111,6 +114,15 @@ function Registro({ docente, clases, error, reintentar, intervalo, j }) {
   const completas = cuenta('LISTA_COMPLETA') + cuenta('REGISTRO_TARDIO')
   const sinEvidencia = elegibles.filter((c) => ESTADOS_PENDIENTES.has(c.estado)).sort((a, b) => b.fecha.localeCompare(a.fecha) || b.horaInicio.localeCompare(a.horaInicio))
   const suspendidas = (clases ?? []).filter((c) => c.estado === 'SUSPENDIDA' && c.fecha <= hoy).length
+  const pct = elegibles.length ? Math.round((completas / elegibles.length) * 100) : null
+  const tonoPct = tonoRegistro(pct)
+  // Tramos del segundo anillo, en el orden en que se dibujan.
+  const estados = [
+    { label: 'Lista completa a tiempo', valor: cuenta('LISTA_COMPLETA'), tono: 'success' },
+    { label: 'Registro tardío', valor: cuenta('REGISTRO_TARDIO'), tono: 'success-suave' },
+    { label: 'Captura parcial', valor: cuenta('CAPTURA_PARCIAL'), tono: 'warning' },
+    { label: 'Sin evidencia de registro', valor: cuenta('SIN_CAPTURA'), tono: 'destructive' },
+  ]
 
   return (
     <section className="mt-10" aria-labelledby="registro-docente">
@@ -123,36 +135,82 @@ function Registro({ docente, clases, error, reintentar, intervalo, j }) {
         <div className="h-24 animate-pulse rounded-[var(--radius-item)] bg-muted" aria-busy="true" />
       ) : (
         <>
-          <dl className="grid grid-cols-2 gap-x-8 gap-y-4 sm:grid-cols-3 lg:grid-cols-6">
-            <Cifra label="Registro de listas" value={elegibles.length ? `${Math.round((completas / elegibles.length) * 100)} %` : 'No aplica'} />
-            <Cifra label="Clases elegibles" value={elegibles.length} />
-            <Cifra label="Lista completa" value={completas} tono="text-success-foreground" />
-            <Cifra label="Captura parcial" value={cuenta('CAPTURA_PARCIAL')} tono={cuenta('CAPTURA_PARCIAL') ? 'text-warning-foreground' : undefined} />
-            <Cifra label="Sin evidencia de registro" value={cuenta('SIN_CAPTURA')} tono={cuenta('SIN_CAPTURA') ? 'text-warning-foreground' : undefined} />
-            <Cifra label="Registro tardío" value={cuenta('REGISTRO_TARDIO')} />
-          </dl>
-          <p className="mt-3 text-xs text-muted-foreground">
-            Registro de listas = clases con lista completa ({completas}) ÷ clases elegibles ya concluidas ({elegibles.length}).
-            {suspendidas > 0 && ` ${suspendidas} ${suspendidas === 1 ? 'clase suspendida no cuenta' : 'clases suspendidas no cuentan'}.`}
-            {' '}La falta de captura no prueba ausencia del docente; confírmala en una observación.
-          </p>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="flex items-center gap-5 rounded-[var(--radius-item)] border border-border bg-card p-5">
+              <AnilloProgreso pct={pct} grosor={6} className="size-24 sm:size-28">
+                <span>
+                  <span className={cn('block text-[1.375rem] font-semibold leading-none tracking-tight tabular-nums', tonoPct ? `anillo-texto-${tonoPct}` : 'text-muted-foreground')}>{pct == null ? '—' : `${pct}%`}</span>
+                  <span className="mt-1 block text-[0.6875rem] text-muted-foreground">registro</span>
+                </span>
+              </AnilloProgreso>
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold text-foreground">Registro de listas</h3>
+                <p className="mt-1 text-[0.8125rem] text-muted-foreground">
+                  {elegibles.length ? <><span className="font-semibold tabular-nums text-foreground">{completas} de {elegibles.length}</span> clases elegibles con lista completa.</> : 'Todavía no hay clases elegibles en el intervalo.'}
+                </p>
+                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                  Registro de listas = clases con lista completa ÷ clases elegibles ya concluidas.
+                  {suspendidas > 0 && ` ${suspendidas} ${suspendidas === 1 ? 'clase suspendida no cuenta' : 'clases suspendidas no cuentan'}.`}
+                </p>
+              </div>
+            </div>
 
-          <h3 className="mt-6 text-sm font-semibold text-foreground">Clases sin evidencia de registro</h3>
+            <div className="flex items-center gap-5 rounded-[var(--radius-item)] border border-border bg-card p-5">
+              <AnilloSegmentos segmentos={estados.map((e) => ({ valor: e.valor, tono: e.tono }))} grosor={6} className="size-24 sm:size-28">
+                <span>
+                  <span className="block text-[1.375rem] font-semibold leading-none tracking-tight tabular-nums text-foreground">{elegibles.length}</span>
+                  <span className="mt-1 block text-[0.6875rem] text-muted-foreground">{elegibles.length === 1 ? 'clase' : 'clases'}</span>
+                </span>
+              </AnilloSegmentos>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-sm font-semibold text-foreground">Estado de las clases elegibles</h3>
+                <dl className="mt-2 space-y-1.5 text-[0.8125rem]">
+                  {estados.map((e) => (
+                    <div key={e.tono} className="flex items-center gap-2">
+                      <span className={cn('size-2.5 shrink-0 rounded-full', `anillo-punto-${e.tono}`)} aria-hidden="true" />
+                      <dt className={cn('min-w-0 flex-1', e.valor ? 'text-foreground' : 'text-muted-foreground')}>{e.label}</dt>
+                      <dd className={cn('font-semibold tabular-nums', e.valor ? 'text-foreground' : 'text-muted-foreground')}>{e.valor}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            </div>
+          </div>
+          <p className="mt-3 text-xs text-muted-foreground">La falta de captura no prueba ausencia del docente; confírmala en una observación.</p>
+
           {sinEvidencia.length ? (
-            <ul className="mt-2 divide-y divide-border border-y border-border text-[0.8125rem]">
-              {sinEvidencia.slice(0, 15).map((c) => (
-                <li key={c.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
-                  <span className="min-w-0">
-                    <span className="text-foreground first-letter:uppercase">{fechaCorta(c.fecha)}, {c.horaInicio}</span>
-                    <span className="text-muted-foreground"> · {c.materia.nombre} · {c.grupo.nombre}</span>
-                    <span className={cn('block text-xs', estadoClase(c.estado).texto)}>{estadoClase(c.estado).label}{c.estado === 'CAPTURA_PARCIAL' ? ` (${c.registros} de ${c.alumnos})` : ''} · {haceTiempo(c.fecha)}</span>
-                  </span>
-                  <Link className={`${linkClass} text-xs`} to={j.to(`/jefe-carrera/docentes/${docente.id}`, { fecha: c.fecha, clase: c.id, vista: 'dia', modalidad: c.grupo.modalidad === 'MIXTO' ? 'MIXTO' : undefined })}>Ver clase</Link>
-                </li>
-              ))}
-            </ul>
-          ) : <p className="mt-2 border-t border-border py-4 text-sm text-muted-foreground">Sin pendientes detectados en el intervalo.</p>}
-          {sinEvidencia.length > 15 && <p className="mt-2 text-xs text-muted-foreground">Se muestran las 15 más recientes de {sinEvidencia.length}.</p>}
+            <details className="plegable group mt-6" open={sinEvidencia.length <= 5}>
+              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-md border-b border-border pb-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+                <span className="flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-foreground">Clases sin evidencia de registro</h3>
+                  <span className="rounded-full bg-warning/15 px-2 py-0.5 text-xs font-semibold tabular-nums text-warning-foreground dark:bg-warning/20">{sinEvidencia.length}</span>
+                </span>
+                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <span className="group-open:hidden">Mostrar</span>
+                  <span className="hidden group-open:inline">Ocultar</span>
+                  <ChevronDown className="size-4 transition-transform duration-200 ease-[var(--ease)] group-open:rotate-180 motion-reduce:transition-none" aria-hidden="true" />
+                </span>
+              </summary>
+              <ul className="divide-y divide-border border-b border-border text-[0.8125rem]">
+                {sinEvidencia.slice(0, 15).map((c) => (
+                  <li key={c.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                    <span className="min-w-0">
+                      <span className="text-foreground first-letter:uppercase">{fechaCorta(c.fecha)}, {c.horaInicio}</span>
+                      <span className="text-muted-foreground"> · {c.materia.nombre} · {c.grupo.nombre}</span>
+                      <span className={cn('block text-xs', estadoClase(c.estado).texto)}>{estadoClase(c.estado).label}{c.estado === 'CAPTURA_PARCIAL' ? ` (${c.registros} de ${c.alumnos})` : ''} · {haceTiempo(c.fecha)}</span>
+                    </span>
+                    <Link className={`${linkClass} text-xs`} to={j.to(`/jefe-carrera/docentes/${docente.id}`, { fecha: c.fecha, clase: c.id, vista: 'dia', modalidad: c.grupo.modalidad === 'MIXTO' ? 'MIXTO' : undefined })}>Ver clase</Link>
+                  </li>
+                ))}
+              </ul>
+              {sinEvidencia.length > 15 && <p className="mt-2 text-xs text-muted-foreground">Se muestran las 15 más recientes de {sinEvidencia.length}.</p>}
+            </details>
+          ) : (
+            <>
+              <h3 className="mt-6 text-sm font-semibold text-foreground">Clases sin evidencia de registro</h3>
+              <p className="mt-2 border-t border-border py-4 text-sm text-muted-foreground">Sin pendientes detectados en el intervalo.</p>
+            </>
+          )}
           <p className="mt-3 text-xs text-muted-foreground">Última captura: {fechaHoraCorta(docente.ultimaCaptura)}</p>
         </>
       )}
