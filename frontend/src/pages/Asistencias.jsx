@@ -227,9 +227,6 @@ function ReporteAcumuladoCard({ materias = [], materiaSugeridaId, grupoSugeridoI
             <h3 id="reporte-acumulado-titulo" className="text-sm font-semibold text-foreground">
               Reporte acumulado hasta hoy
             </h3>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Todo lo registrado en la materia hasta el momento.
-            </p>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
@@ -1108,7 +1105,7 @@ function AlumnoMateriaCard({ item }) {
           to={`/alumno/materias/${materia.id}`}
           className="shrink-0 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition hover:bg-primary"
         >
-          Ver detalle →
+          Ver detalles
         </Link>
       </div>
     </article>
@@ -1386,9 +1383,6 @@ function ClasesAtrasadasSection({
               </span>
             )}
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Clases de tu horario que ya ocurrieron en este periodo y quedaron sin lista.
-          </p>
         </div>
 
         {items.length > 0 && (
@@ -2217,9 +2211,6 @@ function AdminAsistenciasView() {
     <div className="space-y-6">
       <header className="space-y-2">
         <h1 className="text-3xl font-semibold tracking-tight text-foreground">Administración de asistencias</h1>
-        <p className="max-w-3xl text-sm text-muted-foreground">
-          Consulta el historial completo, filtra por docente, materia, grupo, unidad, día, semana o mes, y exporta reportes reales en PDF o Excel.
-        </p>
       </header>
 
       {estadisticas && (

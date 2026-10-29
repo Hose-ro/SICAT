@@ -41,7 +41,6 @@ export default function AcademiasPage() {
     <>
       <PageHeader
         title="Academias"
-        subtitle="Grupos de docentes por área de conocimiento"
         action={
           <Button variant="default"
             onClick={() => { setModal(true); setFormError(''); setForm({ nombre: '', descripcion: '' }) }}

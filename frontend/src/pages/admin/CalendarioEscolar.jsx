@@ -16,7 +16,6 @@ export default function CalendarioEscolar() {
         <div>
           <h1 className="text-xl font-bold text-foreground sm:text-2xl">Calendario escolar</h1>
           <p className="text-sm text-muted-foreground">
-            Fechas del periodo y días sin clases para toda la institución.
           </p>
         </div>
       </div>

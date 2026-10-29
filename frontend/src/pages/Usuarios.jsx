@@ -555,7 +555,6 @@ export default function Usuarios() {
     <>
       <PageHeader
         title="Usuarios"
-        subtitle="Gestión de administradores, jefaturas, docentes y alumnos"
         action={
           <Button variant="default"
             onClick={() => setModal(true)}

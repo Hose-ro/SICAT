@@ -74,7 +74,7 @@ export default function HorariosPage({ soloPropias = false }) {
         <p className="text-sm text-muted-foreground">
           {soloPropias
             ? 'Elige la materia y el grupo que vas a impartir. Si otro docente ya tiene esa materia en ese grupo, el sistema te avisa.'
-            : 'Programa materias por docente y grupo con bloques por día y validación de conflictos'}
+            : undefined}
         </p>
       </div>
 

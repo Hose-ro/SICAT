@@ -57,7 +57,6 @@ export default function GruposPage() {
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Grupos</h1>
-          <p className="text-sm text-muted-foreground">Gestiona los grupos de alumnos por carrera y semestre</p>
         </div>
         <Button variant="default"
           onClick={() => setModalCrear(true)}

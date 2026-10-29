@@ -1344,7 +1344,6 @@ function AlumnoCalificaciones() {
           Alumno
         </span>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground">Mis calificaciones</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Consulta por unidad con resumen de asistencia y tareas.</p>
       </section>
 
       <section className="rounded-[2rem] border border-border bg-card p-5">

@@ -243,6 +243,8 @@ model Usuario {
   asistenciasEditadas   Asistencia[]               @relation("AsistenciaEditor")
   tareasDocente         Tarea[]                    @relation("TareaDocente")
   entregasAlumno        EntregaTarea[]             @relation("EntregaAlumno")
+  equiposCreados        EquipoTarea[]              @relation("EquipoCreador")
+  equiposTarea          EquipoTareaMiembro[]
   calificacionesAlumno  CalificacionUnidad[]       @relation("CalificacionAlumno")
   calificacionesDocente CalificacionUnidad[]       @relation("CalificacionDocente")
   notificaciones        Notificacion[]
@@ -783,6 +785,9 @@ model Tarea {
   rubricJson       String?
   archivosAdjuntos String?
   activa           Boolean              @default(true)
+  esGrupal         Boolean              @default(false)
+  tipoTrabajo      String?
+  equiposEditablesPorAlumnos Boolean    @default(true)
   createdAt        DateTime             @default(now())
   updatedAt        DateTime             @updatedAt
   materia          Materia              @relation(fields: [materiaId], references: [id])
@@ -793,6 +798,7 @@ model Tarea {
   categoria        CategoriaEvaluacion? @relation(fields: [categoriaId], references: [id], onDelete: SetNull)
   entregas         EntregaTarea[]
   archivos         TareaArchivo[]
+  equipos          EquipoTarea[]
 
   @@index([docenteId, estado])
   @@index([materiaId, grupoId, unidadId])
@@ -802,6 +808,7 @@ model EntregaTarea {
   id                Int               @id @default(autoincrement())
   tareaId           Int
   alumnoId          Int
+  equipoId          Int?
   archivoUrl        String?
   firmaUrl          String?
   comentarioAlumno  String?
@@ -818,11 +825,39 @@ model EntregaTarea {
   updatedAt         DateTime          @updatedAt
   tarea             Tarea             @relation(fields: [tareaId], references: [id])
   alumno            Usuario           @relation("EntregaAlumno", fields: [alumnoId], references: [id])
+  equipo            EquipoTarea?      @relation(fields: [equipoId], references: [id], onDelete: SetNull)
   archivos          EntregaArchivo[]
 
   @@unique([tareaId, alumnoId])
   @@index([tareaId, estadoRevision])
   @@index([alumnoId, estadoRevision])
+  @@unique([tareaId, equipoId])
+}
+
+model EquipoTarea {
+  id          Int                   @id @default(autoincrement())
+  tareaId     Int
+  nombre      String
+  creadoPorId Int
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  tarea       Tarea                 @relation(fields: [tareaId], references: [id], onDelete: Cascade)
+  creadoPor   Usuario               @relation("EquipoCreador", fields: [creadoPorId], references: [id])
+  integrantes EquipoTareaMiembro[]
+  entregas    EntregaTarea[]
+
+  @@unique([tareaId, nombre])
+  @@index([tareaId])
+}
+
+model EquipoTareaMiembro {
+  equipoId Int
+  alumnoId Int
+  equipo   EquipoTarea @relation(fields: [equipoId], references: [id], onDelete: Cascade)
+  alumno   Usuario     @relation(fields: [alumnoId], references: [id], onDelete: Cascade)
+
+  @@id([equipoId, alumnoId])
+  @@index([alumnoId])
 }
 
 model TareaArchivo {

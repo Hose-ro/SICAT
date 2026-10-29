@@ -102,7 +102,6 @@ export default function Carreras() {
     <div className="space-y-5">
       <PageHeader
         title="Carreras"
-        subtitle="Gestiona carreras y sus retículas académicas"
         action={
           <Button variant="default"
             type="button"

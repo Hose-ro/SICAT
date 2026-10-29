@@ -23,6 +23,9 @@ const DEFAULT_FORM = {
   fechaLimite: '',
   horaLimite: '',
   rubricJson: '',
+  esGrupal: false,
+  tipoTrabajo: 'PROYECTO',
+  equiposEditablesPorAlumnos: true,
 }
 
 function formatDateInput(date) {
@@ -94,6 +97,9 @@ export default function TareaForm() {
           fechaLimite: formatDateInput(task.fechaLimite),
           horaLimite: formatTimeInput(task.fechaLimite, task.horaLimite),
           rubricJson: task.rubricJson || '',
+          esGrupal: Boolean(task.esGrupal),
+          tipoTrabajo: task.tipoTrabajo || 'PROYECTO',
+          equiposEditablesPorAlumnos: task.equiposEditablesPorAlumnos !== false,
         })
         setExistingFiles(task.archivos || [])
       })
@@ -358,6 +364,31 @@ export default function TareaForm() {
             </div>
 
             <p className="text-sm text-muted-foreground">{TASK_TYPE_HELP[form.tipoEntrega]}</p>
+            <div className="rounded-3xl border border-border bg-muted/40 p-5">
+              <label className="flex items-center gap-3 text-sm font-semibold text-foreground">
+                <input type="checkbox" name="esGrupal" checked={form.esGrupal} onChange={handleChange} />
+                Es un trabajo en equipo
+              </label>
+              {form.esGrupal && (
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  <label className="flex flex-col gap-2">
+                    <span className="text-sm font-semibold text-foreground">Tipo de actividad</span>
+                    <select name="tipoTrabajo" value={form.tipoTrabajo} onChange={handleChange} className="rounded-2xl border border-border bg-card px-4 py-3 text-sm text-foreground">
+                      <option value="PROYECTO">Proyecto</option>
+                      <option value="EXPOSICION">Exposición</option>
+                      <option value="TRABAJO">Trabajo</option>
+                      <option value="TAREA">Tarea</option>
+                      <option value="OTRO">Otro</option>
+                    </select>
+                  </label>
+                  <label className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 text-sm text-foreground">
+                    <input type="checkbox" name="equiposEditablesPorAlumnos" checked={form.equiposEditablesPorAlumnos} onChange={handleChange} />
+                    Los alumnos pueden formar sus equipos
+                  </label>
+                  <p className="text-sm text-muted-foreground md:col-span-2">Una sola entrega contará para todos los integrantes. El docente siempre podrá crear o ajustar equipos.</p>
+                </div>
+              )}
+            </div>
             <div className="rounded-3xl border border-border bg-muted/40 p-5">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>

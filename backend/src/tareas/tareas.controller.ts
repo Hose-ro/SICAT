@@ -41,6 +41,7 @@ import { RevisarEntregaDto } from './dto/revisar-entrega.dto';
 import { CalificarEntregaDto } from './dto/calificar-entrega.dto';
 import { DevolverEntregaDto } from './dto/devolver-entrega.dto';
 import { BulkRevisarEntregasDto } from './dto/bulk-revisar-entregas.dto';
+import { GuardarEquipoTareaDto } from './dto/equipo-tarea.dto';
 import { buildZipArchive } from './tareas.archive';
 import {
   collectUploadedFiles,
@@ -484,6 +485,18 @@ export class TareasController {
     @Req() req,
   ) {
     return this.tareasService.obtenerEntregas(tareaId, req.user);
+  }
+
+  @Get(':id/equipos')
+  @Roles('ALUMNO', 'DOCENTE', 'ADMIN')
+  equipos(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) {
+    return this.tareasService.obtenerEquipos(id, req.user);
+  }
+
+  @Post(':id/equipos')
+  @Roles('ALUMNO', 'DOCENTE', 'ADMIN')
+  guardarEquipo(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest, @Body() dto: GuardarEquipoTareaDto) {
+    return this.tareasService.guardarEquipo(id, req.user, dto);
   }
 
   @Patch(':id/publicar')

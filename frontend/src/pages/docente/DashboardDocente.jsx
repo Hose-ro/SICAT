@@ -206,11 +206,11 @@ function Encabezado({ nombre, fecha, resumen, urgentes }) {
       <div className="min-w-0">
         <p className="agenda-eyebrow">{fechaLarga(fecha)}</p>
         <h1 className="agenda-heading">Tu día de clases,<br />en orden.</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
+        {clases > 0 && <p className="mt-1 text-sm text-muted-foreground">
           Hola, {nombre}. Tienes {clases} clase{clases === 1 ? '' : 's'} programada{clases === 1 ? '' : 's'} hoy.
           {listas > 0 &&
             ` · ${listas} lista${listas === 1 ? '' : 's'} sin pasar`}
-        </p>
+        </p>}
       </div>
       <div className="flex flex-wrap gap-2">
         {urgentes > 0 && (
@@ -423,9 +423,9 @@ function AgendaHoy({ clases, proximasSuspensiones, iniciando, onPasarLista, dest
           </div>
         ) : <ClaseDestacada clase={null} />}
       </div>
-      {otrasClases.length === 0 ? (
+      {otrasClases.length === 0 && clases.length > 0 ? (
         <p className="mt-4 text-sm text-muted-foreground">
-          {clases.length === 0 ? 'Hoy no tienes clases programadas.' : 'No hay más clases en la agenda de hoy.'}
+          No hay más clases en la agenda de hoy.
         </p>
       ) : (
         <ul className="mt-2 divide-y divide-border">

@@ -332,12 +332,12 @@ export default function TareasDocente() {
       <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
         <div>
           <h1 className="text-[1.75rem] font-semibold leading-tight tracking-[-0.02em] text-foreground">Tareas</h1>
-          <p className="mt-1.5 text-sm text-muted-foreground">
+          {(cargando || totalPendientes || presencialesHoy.length > 0) && <p className="mt-1.5 text-sm text-muted-foreground">
             {cargando ? 'Revisando tus entregas…' : totalPendientes
               ? <><span className="font-medium text-foreground tabular-nums">{totalPendientes}</span> {totalPendientes === 1 ? 'entrega por calificar' : 'entregas por calificar'}</>
-              : 'Nada por calificar por ahora'}
-            {!cargando && presencialesHoy.length > 0 && <> · {presencialesHoy.length} {presencialesHoy.length === 1 ? 'entrega presencial' : 'entregas presenciales'} hoy</>}
-          </p>
+              : null}
+            {!cargando && presencialesHoy.length > 0 && <>{totalPendientes > 0 && ' · '}{presencialesHoy.length} {presencialesHoy.length === 1 ? 'entrega presencial' : 'entregas presenciales'} hoy</>}
+          </p>}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {materia && (

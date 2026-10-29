@@ -138,7 +138,6 @@ export default function AulasPage() {
       <div>
         <h1 className="text-2xl font-bold text-primary-ink sm:text-3xl">Aulas</h1>
         <p className="text-sm text-muted-foreground">
-          Catálogo de aulas disponibles para asignar a los horarios de cada grupo.
         </p>
       </div>
 

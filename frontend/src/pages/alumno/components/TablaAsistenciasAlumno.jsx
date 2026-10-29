@@ -71,6 +71,8 @@ export default function TablaAsistenciasAlumno({ materiaId }) {
 
   const hoy = new Date().toDateString()
   const asistenciaDeHoy = filtradas.find((a) => new Date(a.fecha).toDateString() === hoy)
+  const faltas = filtradas.filter((a) => a.estado === 'FALTA')
+  const retardos = filtradas.filter((a) => a.estado === 'RETARDO')
 
   const handleJustificar = async () => {
     if (!justText.trim()) return
@@ -150,14 +152,58 @@ export default function TablaAsistenciasAlumno({ materiaId }) {
           <p className="mt-1 text-xs text-muted-foreground">No hay sesiones registradas para esta selección.</p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-border bg-card">
-          <div className="grid grid-cols-[1fr_80px_140px_100px] gap-2 border-b border-border bg-background px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <div className="space-y-3">
+          {(faltas.length > 0 || retardos.length > 0) && (
+            <section className="grid gap-3 lg:grid-cols-2" aria-label="Fechas de faltas y retardos">
+              <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4">
+                <div className="flex items-baseline justify-between gap-3">
+                  <h2 className="text-sm font-semibold text-foreground">Faltas</h2>
+                  <span className="text-xs font-medium text-destructive-foreground">{faltas.length}</span>
+                </div>
+                {faltas.length === 0 ? (
+                  <p className="mt-2 text-sm text-muted-foreground">Sin faltas registradas.</p>
+                ) : (
+                  <ul className="mt-3 space-y-2">
+                    {faltas.map((falta, index) => (
+                      <li key={falta.id ?? `${falta.fecha}-${index}`} className="flex items-center justify-between gap-3 rounded-xl bg-card px-3 py-2">
+                        <span className="text-sm font-medium text-foreground">{formatDateShort(falta.fecha)}</span>
+                        <Button variant="ghost" onClick={() => setJustModal(falta.id)} className="bg-accent px-3 py-1.5 text-xs font-medium text-primary-ink ring-1 ring-ring hover:bg-accent">
+                          Justificar falta
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <div className="rounded-2xl border border-warning/30 bg-warning/5 p-4">
+                <div className="flex items-baseline justify-between gap-3">
+                  <h2 className="text-sm font-semibold text-foreground">Retardos</h2>
+                  <span className="text-xs font-medium text-warning-foreground">{retardos.length}</span>
+                </div>
+                {retardos.length === 0 ? (
+                  <p className="mt-2 text-sm text-muted-foreground">Sin retardos registrados.</p>
+                ) : (
+                  <ul className="mt-3 space-y-2">
+                    {retardos.map((retardo, index) => (
+                      <li key={retardo.id ?? `${retardo.fecha}-${index}`} className="rounded-xl bg-card px-3 py-2 text-sm font-medium text-foreground">
+                        {formatDateShort(retardo.fecha)}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </section>
+          )}
+
+          <div className="overflow-hidden rounded-2xl border border-border bg-card">
+            <div className="grid grid-cols-[1fr_80px_140px_100px] gap-2 border-b border-border bg-background px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             <span>Fecha</span>
             <span className="text-center">Unidad</span>
             <span className="text-center">Estado</span>
             <span className="text-center">Acción</span>
-          </div>
-          <div className="divide-y divide-border">
+            </div>
+            <div className="divide-y divide-border">
             {filtradas.map((a, i) => (
               <div
                 key={i}
@@ -182,6 +228,7 @@ export default function TablaAsistenciasAlumno({ materiaId }) {
                 </div>
               </div>
             ))}
+            </div>
           </div>
         </div>
       )}

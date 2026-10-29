@@ -372,7 +372,6 @@ export default function Materias() {
     <>
       <PageHeader
         title="Materias"
-        subtitle={esAlumno ? 'Materias disponibles para tu grupo, carrera o semestre' : 'Materias disponibles este semestre'}
         action={
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
             {canManage && !modoSeleccion && materias.length > 0 && (
