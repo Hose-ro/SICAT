@@ -91,6 +91,10 @@ export function resolveNotificationRoute(notificacion, rol) {
   if (referenciaTipo === 'ReunionAcademica') {
     return `/docente/reuniones${referenciaId ? `?reunion=${referenciaId}` : ''}`
   }
+  // "Acta disponible" / "Acta firmada": abre el acta sin pasar por la lista.
+  if (referenciaTipo === 'ReunionActa') {
+    return `/docente/reuniones${referenciaId ? `?reunion=${referenciaId}&acta=${referenciaId}` : ''}`
+  }
   switch (referenciaTipo) {
     case 'Tarea':
       if (!referenciaId) return '/tareas'

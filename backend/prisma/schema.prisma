@@ -102,6 +102,11 @@ enum EstadoReunion {
   CANCELADA
 }
 
+enum FormatoDocumentoReunion {
+  PDF
+  DOCX
+}
+
 enum ModalidadGrupo {
   ESCOLARIZADO
   MIXTO
@@ -283,6 +288,9 @@ model Usuario {
   reunionesCreadas      ReunionAcademica[]         @relation("ReunionCreador")
   reunionesConvocado    ReunionConvocado[]
   clasesJustificadas    ClaseJustificada[]
+  reunionesPresidente   ReunionAcademica[]         @relation("ReunionPresidente")
+  reunionesSecretario   ReunionAcademica[]         @relation("ReunionSecretario")
+  documentosReunion     ReunionDocumento[]
 }
 
 model AuthToken {
@@ -1064,28 +1072,39 @@ model IncorporacionJefatura {
 /// convocados con su asistencia y acuerdos del acta. `fecha` es AAAA-MM-DD y
 /// las horas HH:MM, en hora local del plantel, igual que los horarios.
 model ReunionAcademica {
-  id                 Int                @id @default(autoincrement())
+  id                 Int                  @id @default(autoincrement())
   carreraId          Int
   creadaPorId        Int?
-  titulo             String             @db.VarChar(200)
-  asunto             String?            @db.VarChar(2000)
-  tipo               TipoReunion        @default(ORDINARIA)
-  numeroActa         String?            @db.VarChar(50)
-  fecha              String             @db.VarChar(10)
-  horaInicio         String             @db.VarChar(5)
-  horaFin            String?            @db.VarChar(5)
-  modalidad          ModalidadReunion   @default(PRESENCIAL)
-  lugar              String?            @db.VarChar(255)
-  enlace             String?            @db.VarChar(255)
-  estado             EstadoReunion      @default(PROGRAMADA)
-  observaciones      String?            @db.VarChar(5000)
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
-  carrera            Carrera            @relation(fields: [carreraId], references: [id], onDelete: Cascade)
-  creadaPor          Usuario?           @relation("ReunionCreador", fields: [creadaPorId], references: [id], onDelete: SetNull)
+  titulo             String               @db.VarChar(200)
+  asunto             String?              @db.VarChar(2000)
+  tipo               TipoReunion          @default(ORDINARIA)
+  numeroActa         String?              @db.VarChar(50)
+  fecha              String               @db.VarChar(10)
+  horaInicio         String               @db.VarChar(5)
+  horaFin            String?              @db.VarChar(5)
+  modalidad          ModalidadReunion     @default(PRESENCIAL)
+  lugar              String?              @db.VarChar(255)
+  enlace             String?              @db.VarChar(255)
+  estado             EstadoReunion        @default(PROGRAMADA)
+  observaciones      String?              @db.VarChar(5000)
+  /// Datos del acta F01PSA01.02: nombre de la academia, párrafo de apertura,
+  /// presidente y secretario (convocados) y hora en que se cerró la reunión.
+  academia           String?              @db.VarChar(150)
+  apertura           String?              @db.VarChar(3000)
+  presidenteId       Int?
+  secretarioId       Int?
+  horaCierre         String?              @db.VarChar(5)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  carrera            Carrera              @relation(fields: [carreraId], references: [id], onDelete: Cascade)
+  creadaPor          Usuario?             @relation("ReunionCreador", fields: [creadaPorId], references: [id], onDelete: SetNull)
+  presidente         Usuario?             @relation("ReunionPresidente", fields: [presidenteId], references: [id], onDelete: SetNull)
+  secretario         Usuario?             @relation("ReunionSecretario", fields: [secretarioId], references: [id], onDelete: SetNull)
   puntos             ReunionPunto[]
   convocados         ReunionConvocado[]
   acuerdos           ReunionAcuerdo[]
+  seguimiento        ReunionSeguimiento[]
+  documentos         ReunionDocumento[]
   clasesJustificadas ClaseJustificada[]
 
   @@index([carreraId, fecha])
@@ -1118,18 +1137,22 @@ model ReunionConvocado {
 /// cruzaba con una reunión de academia a la que estaba convocado. Cuenta como
 /// un día sin clases, pero sólo para ese horario: el resto del día sigue igual.
 model ClaseJustificada {
-  id           Int              @id @default(autoincrement())
-  periodoClave String
-  docenteId    Int
-  horarioId    Int
-  reunionId    Int
-  fecha        String           @db.VarChar(10)
-  motivo       String           @db.VarChar(500)
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
-  docente      Usuario          @relation(fields: [docenteId], references: [id], onDelete: Cascade)
-  horario      HorarioMateria   @relation(fields: [horarioId], references: [id], onDelete: Cascade)
-  reunion      ReunionAcademica @relation(fields: [reunionId], references: [id], onDelete: Cascade)
+  id            Int              @id @default(autoincrement())
+  periodoClave  String
+  docenteId     Int
+  horarioId     Int
+  reunionId     Int
+  fecha         String           @db.VarChar(10)
+  motivo        String           @db.VarChar(500)
+  /// El docente decide, clase por clase, si sus alumnos ven el aviso.
+  avisarAlumnos Boolean          @default(true)
+  /// Creada por el sistema al convocar (no a mano por el docente).
+  automatica    Boolean          @default(false)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  docente       Usuario          @relation(fields: [docenteId], references: [id], onDelete: Cascade)
+  horario       HorarioMateria   @relation(fields: [horarioId], references: [id], onDelete: Cascade)
+  reunion       ReunionAcademica @relation(fields: [reunionId], references: [id], onDelete: Cascade)
 
   @@unique([horarioId, fecha])
   @@index([docenteId, fecha])
@@ -1138,13 +1161,49 @@ model ClaseJustificada {
 
 /// Acuerdo del acta, con su responsable y fecha límite.
 model ReunionAcuerdo {
-  id          Int              @id @default(autoincrement())
-  reunionId   Int
-  orden       Int
-  descripcion String           @db.VarChar(2000)
-  responsable String?          @db.VarChar(150)
-  fechaLimite String?          @db.VarChar(10)
-  reunion     ReunionAcademica @relation(fields: [reunionId], references: [id], onDelete: Cascade)
+  id           Int                  @id @default(autoincrement())
+  reunionId    Int
+  orden        Int
+  descripcion  String               @db.VarChar(2000)
+  responsable  String?              @db.VarChar(150)
+  fechaLimite  String?              @db.VarChar(10)
+  reunion      ReunionAcademica     @relation(fields: [reunionId], references: [id], onDelete: Cascade)
+  seguimientos ReunionSeguimiento[]
 
   @@index([reunionId, orden])
+}
+
+/// Seguimiento de acuerdos anteriores dentro del acta: el acuerdo (copiado de
+/// una reunión previa o escrito a mano) y su avance.
+model ReunionSeguimiento {
+  id              Int              @id @default(autoincrement())
+  reunionId       Int
+  orden           Int
+  acuerdoOrigenId Int?
+  descripcion     String           @db.VarChar(2000)
+  responsable     String?          @db.VarChar(150)
+  fechaLimite     String?          @db.VarChar(10)
+  avance          String?          @db.VarChar(500)
+  reunion         ReunionAcademica @relation(fields: [reunionId], references: [id], onDelete: Cascade)
+  acuerdoOrigen   ReunionAcuerdo?  @relation(fields: [acuerdoOrigenId], references: [id], onDelete: SetNull)
+
+  @@index([reunionId, orden])
+}
+
+/// Acta actualizada (firmada o corregida) que la jefatura sube al finalizar.
+/// Se guarda en la base porque el disco del servidor no es persistente.
+model ReunionDocumento {
+  id          Int                     @id @default(autoincrement())
+  reunionId   Int
+  formato     FormatoDocumentoReunion
+  nombre      String                  @db.VarChar(255)
+  mime        String                  @db.VarChar(120)
+  tamano      Int
+  contenido   Bytes
+  subidoPorId Int?
+  createdAt   DateTime                @default(now())
+  reunion     ReunionAcademica        @relation(fields: [reunionId], references: [id], onDelete: Cascade)
+  subidoPor   Usuario?                @relation(fields: [subidoPorId], references: [id], onDelete: SetNull)
+
+  @@unique([reunionId, formato])
 }

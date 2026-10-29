@@ -17,6 +17,7 @@ import {
   UserPlus,
 } from 'lucide-react'
 import api from '../../api/axios'
+import { confirmAction } from '@/lib/feedback'
 import { useAuthStore } from '../../store/authStore'
 import PeriodoEscolarCard from '../../components/PeriodoEscolarCard'
 import DesempenoUnidad from './components/DesempenoUnidad'
@@ -25,7 +26,7 @@ import ProximasReuniones from './components/ProximasReuniones'
 import BienvenidaDocente from './components/BienvenidaDocente'
 import PrimerosPasos from './components/PrimerosPasos'
 import { pasosDelDocente } from './primerosPasos'
-import { fechaDeClave } from '../../lib/periodo'
+import { claveDeFecha, fechaDeClave } from '../../lib/periodo'
 import './dashboard-agenda.css'
 
 const DIAS_LARGOS = [
@@ -151,6 +152,40 @@ export default function DashboardDocente() {
     [navigate],
   )
 
+  /**
+   * La clase se justificó por una reunión de academia, pero el docente la dio
+   * de todos modos: se abre como clase atrasada de hoy y cuenta normal.
+   */
+  const fechaHoy = panel?.fecha
+  const pasarListaPorReunion = useCallback(
+    async (clase) => {
+      if (!clase) return
+      setErrorClase('')
+      if (!(await confirmAction({
+        title: 'Pasar lista de todos modos',
+        description: 'Esta clase está justificada por una reunión de academia. Esta asistencia contará en la calificación.',
+        confirmLabel: 'Pasar lista',
+      }))) return
+
+      setIniciando(true)
+      try {
+        const { data } = await api.post('/clases/atrasada', {
+          horarioId: clase.horarioId,
+          fecha: fechaHoy ?? claveDeFecha(new Date()),
+          aunqueJustificada: true,
+        })
+        navigate(`/docente/pasar-lista/${data.id}`)
+      } catch (err) {
+        setErrorClase(
+          err.response?.data?.message ?? 'No se pudo abrir la clase',
+        )
+      } finally {
+        setIniciando(false)
+      }
+    },
+    [navigate, fechaHoy],
+  )
+
   const claseDestacada = panel?.claseActual ?? panel?.proximaClase ?? null
 
   const materiasFiltradas = useMemo(() => {
@@ -240,6 +275,7 @@ export default function DashboardDocente() {
             proximasSuspensiones={panel?.proximasSuspensiones ?? []}
             iniciando={iniciando}
             onPasarLista={pasarLista}
+            onPasarListaReunion={pasarListaPorReunion}
             destacada={claseDestacada}
             suspension={panel?.suspensionHoy}
             ahora={ahora}
@@ -472,7 +508,7 @@ function AccesosRapidos({ claseActual, onPasarLista, iniciando }) {
   )
 }
 
-function AgendaHoy({ clases, proximasSuspensiones, iniciando, onPasarLista, destacada, suspension, ahora }) {
+function AgendaHoy({ clases, proximasSuspensiones, iniciando, onPasarLista, onPasarListaReunion, destacada, suspension, ahora }) {
   const otrasClases = suspension ? clases : clases.filter(clase => clase.horarioId !== destacada?.horarioId)
   return (
     <article className="rounded-[var(--radius-card)] border border-border bg-card p-5">
@@ -518,6 +554,8 @@ function AgendaHoy({ clases, proximasSuspensiones, iniciando, onPasarLista, dest
                 clase={clase}
                 iniciando={iniciando}
                 onPasarLista={onPasarLista}
+                onPasarListaReunion={onPasarListaReunion}
+                ahora={ahora}
               />
             </li>
           ))}
@@ -556,14 +594,33 @@ function fechaLocalCorta(clave) {
   })
 }
 
-function EstadoClase({ clase, iniciando, onPasarLista }) {
+function EstadoClase({ clase, iniciando, onPasarLista, onPasarListaReunion, ahora }) {
   if (clase.estado === 'SUSPENDIDA') {
-    return (
+    const etiqueta = (
       <span
         className="shrink-0 rounded-full bg-destructive/18 px-2.5 py-1 text-xs font-medium text-destructive-foreground"
         title={clase.suspensionMotivo ?? undefined}
       >
         {clase.reunionId ? 'Reunión de academia' : 'Sin clases'}
+      </span>
+    )
+    // Justificada por reunión y ya pasada su hora: el docente puede haberla
+    // dado de todos modos.
+    const minutosAhora = ahora ? ahora.getHours() * 60 + ahora.getMinutes() : 0
+    if (!clase.reunionId || !onPasarListaReunion || minutosAhora <= minutosDeHora(clase.horaFin)) {
+      return etiqueta
+    }
+    return (
+      <span className="inline-flex shrink-0 flex-wrap items-center justify-end gap-2">
+        {etiqueta}
+        <Button variant="ghost"
+          type="button"
+          onClick={() => onPasarListaReunion(clase)}
+          disabled={iniciando}
+          className="shrink-0 rounded-lg bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary-ink transition hover:bg-primary/20 disabled:opacity-60"
+        >
+          Pasar lista de todos modos
+        </Button>
       </span>
     )
   }

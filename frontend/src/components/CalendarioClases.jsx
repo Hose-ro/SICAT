@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
+import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, UsersRound } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import api from '../api/axios'
 import { usePeriodoStore } from '../store/periodoStore'
@@ -59,6 +59,8 @@ export default function CalendarioClases({ horarios = [], modo = 'docente' }) {
   const [abierto, setAbierto] = useState(false)
   const [mes, setMes] = useState(null)
   const [suspensiones, setSuspensiones] = useState([])
+  // Docente: reuniones de academia y las clases que quedan sin clase por ellas.
+  const [reuniones, setReuniones] = useState([])
   const [seleccion, setSeleccion] = useState([])
   const [motivo, setMotivo] = useState('')
   const [guardando, setGuardando] = useState(false)
@@ -87,10 +89,23 @@ export default function CalendarioClases({ horarios = [], modo = 'docente' }) {
       .then(({ data }) => { if (vigente) setSuspensiones(data) })
       .catch((err) => { if (vigente) setError(err.response?.data?.message ?? 'No se pudo cargar el calendario.') })
       .finally(() => { if (vigente) setCargando(false) })
+    if (!institucional) {
+      api.get('/reuniones/mias')
+        .then(({ data }) => { if (vigente) setReuniones(data.filter((r) => r.estado !== 'CANCELADA')) })
+        .catch(() => {})
+    }
     return () => { vigente = false }
-  }, [abierto, config.endpoint])
+  }, [abierto, config.endpoint, institucional])
 
   const porFecha = useMemo(() => new Map(suspensiones.map((item) => [item.fecha, item])), [suspensiones])
+  const reunionesPorFecha = useMemo(() => {
+    const mapa = new Map()
+    for (const r of reuniones) {
+      const sinClase = (r.choques ?? []).filter((c) => c.justificacion?.reunionId === r.id && !c.sinClases)
+      mapa.set(r.fecha, [...(mapa.get(r.fecha) ?? []), { ...r, sinClase }])
+    }
+    return mapa
+  }, [reuniones])
   const celdas = useMemo(() => {
     if (!mes || !rango) return []
     const primero = new Date(mes.getFullYear(), mes.getMonth(), 1)
@@ -216,7 +231,10 @@ export default function CalendarioClases({ horarios = [], modo = 'docente' }) {
                       aria-label={`${fechaLocal(celda.clave).toLocaleDateString('es-MX', { dateStyle: 'full' })}: ${porFecha.has(celda.clave) ? `sin clases${porFecha.get(celda.clave).institucional ? ' (institucional)' : ''}, ${porFecha.get(celda.clave).motivo}` : institucional ? (celda.enPeriodo ? 'día del periodo' : 'fuera del periodo') : `${celda.clases.length} ${celda.clases.length === 1 ? 'clase' : 'clases'}`}`}
                       className={`min-h-16 rounded-xl border p-1.5 text-left transition-colors sm:min-h-20 sm:p-2 ${seleccion.includes(celda.clave) ? 'ring-2 ring-primary' : ''} ${porFecha.has(celda.clave) ? 'border-destructive/40 bg-destructive/18 text-destructive-foreground hover:bg-destructive/22' : (institucional ? celda.enPeriodo : celda.clases.length) ? 'border-primary/25 bg-primary/10 text-foreground hover:bg-primary/15' : 'border-transparent text-muted-foreground/50'} disabled:cursor-default`}
                     >
-                      <span className="block text-sm font-semibold">{celda.dia}</span>
+                      <span className="flex items-center justify-between gap-1 text-sm font-semibold">
+                        {celda.dia}
+                        {reunionesPorFecha.has(celda.clave) && <UsersRound className="size-3.5 shrink-0 text-warning-foreground" aria-label="Reunión de academia" />}
+                      </span>
                       {porFecha.has(celda.clave)
                         ? <span className="mt-1 block truncate text-[10px] font-semibold sm:text-xs">{!institucional && porFecha.get(celda.clave).institucional ? 'Festivo' : 'Sin clases'}</span>
                         : !institucional && celda.clases.length > 0 && <span className="mt-1 block text-[10px] sm:text-xs">{celda.clases.length} {celda.clases.length === 1 ? 'clase' : 'clases'}</span>}
@@ -226,6 +244,7 @@ export default function CalendarioClases({ horarios = [], modo = 'docente' }) {
                 <div className="mt-3 flex flex-wrap gap-4 text-xs text-muted-foreground">
                   <span><span className="mr-1 inline-block h-3 w-3 rounded bg-primary/25 align-middle" />{institucional ? 'Día del periodo' : 'Día con clases'}</span>
                   <span><span className="mr-1 inline-block h-3 w-3 rounded bg-destructive/30 align-middle" />{institucional ? 'Sin clases para todos' : 'Sin clases'}</span>
+                  {!institucional && <span className="inline-flex items-center gap-1"><UsersRound className="size-3.5 text-warning-foreground" aria-hidden="true" />Reunión de academia</span>}
                 </div>
               </div>
 
@@ -236,13 +255,28 @@ export default function CalendarioClases({ horarios = [], modo = 'docente' }) {
                 {seleccion.length > 0 && <p className="mt-3 text-xs font-medium text-foreground">{seleccion.map((clave) => fechaLocal(clave).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })).join(' · ')}</p>}
                 {seleccion.length === 1 && Boolean(celdas.find((celda) => celda?.clave === seleccion[0])?.clases.length) && (
                   <ul className="mt-3 space-y-1 border-l-2 border-primary/30 pl-3 text-xs text-muted-foreground">
-                    {celdas.find((celda) => celda?.clave === seleccion[0]).clases.map((clase) => (
-                      <li key={clase.id ?? `${clase.materiaId}-${clase.horaInicio}`}>
-                        <span className="font-medium text-foreground">{clase.materia?.nombre ?? 'Clase'}</span> · {clase.horaInicio}–{clase.horaFin}
-                      </li>
-                    ))}
+                    {celdas.find((celda) => celda?.clave === seleccion[0]).clases.map((clase) => {
+                      const reunion = reunionesPorFecha.get(seleccion[0])?.find((r) => r.sinClase.some((c) => c.horarioId === clase.id))
+                      return (
+                        <li key={clase.id ?? `${clase.materiaId}-${clase.horaInicio}`}>
+                          <span className={`font-medium text-foreground ${reunion ? 'line-through decoration-muted-foreground' : ''}`}>{clase.materia?.nombre ?? 'Clase'}</span> · {clase.horaInicio}–{clase.horaFin}
+                          {reunion && <span className="text-warning-foreground"> · sin clase por la reunión</span>}
+                        </li>
+                      )
+                    })}
                   </ul>
                 )}
+                {seleccion.length === 1 && reunionesPorFecha.get(seleccion[0])?.map((r) => (
+                  <div key={r.id} className="mt-3 rounded-lg bg-warning/14 px-3 py-2 text-xs text-foreground">
+                    <p className="font-medium">Reunión de academia: {r.titulo}</p>
+                    <p className="text-muted-foreground">{r.horaFin ? `${r.horaInicio}–${r.horaFin}` : `Desde las ${r.horaInicio}`}</p>
+                    {r.sinClase.length > 0 && (
+                      <p className="mt-1">
+                        Sin clase: {r.sinClase.map((c) => `${c.materia.nombre}${c.grupo ? ` · ${c.grupo.nombre}` : ''}${c.justificacion.avisarAlumnos ? '' : ' (sin aviso a alumnos)'}`).join('; ')}. No se pasa lista.
+                      </p>
+                    )}
+                  </div>
+                ))}
                 {seleccion.length === 1 && porFecha.has(seleccion[0]) && <p className="mt-3 rounded-lg bg-destructive/18 px-3 py-2 text-xs text-destructive-foreground">Motivo actual: {porFecha.get(seleccion[0]).motivo}</p>}
                 {!institucional && celdas.some((celda) => celda && bloqueada(celda.clave)) && (
                   <ul className="mt-3 space-y-1 text-xs text-muted-foreground">

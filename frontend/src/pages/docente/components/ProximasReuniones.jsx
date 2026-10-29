@@ -14,7 +14,8 @@ import {
 
 const SIGUIENTES = 3
 
-const cruzaConClase = (r) => r.choques?.some((c) => !c.justificacion && !c.sinClases && !c.listaCapturada)
+/** Clases que quedan sin clase por la reunión (se justifican solas al convocar). */
+const sinClase = (r) => r.choques?.filter((c) => c.justificacion?.reunionId === r.id && !c.sinClases && !c.listaCapturada) ?? []
 
 /** Panel de Inicio, gemelo de "Clases de hoy": la siguiente reunión destacada y las que vienen después. */
 export default function ProximasReuniones() {
@@ -70,8 +71,8 @@ export default function ProximasReuniones() {
                     <span className="block text-sm text-foreground">{r.titulo}</span>
                     <span className="block truncate text-xs text-muted-foreground">{horarioReunion(r)} · {lugarReunion(r)}</span>
                   </span>
-                  {cruzaConClase(r) && (
-                    <span className="shrink-0 rounded-full bg-warning/22 px-2.5 py-1 text-xs font-medium text-warning-foreground">Se cruza con tu clase</span>
+                  {sinClase(r).length > 0 && (
+                    <span className="shrink-0 rounded-full bg-card px-2.5 py-1 text-xs font-medium text-muted-foreground">{sinClase(r).length === 1 ? '1 clase sin clase' : `${sinClase(r).length} clases sin clase`}</span>
                   )}
                 </Link>
               </li>
@@ -100,8 +101,8 @@ function ReunionDestacada({ reunion }) {
         <div className="min-w-0">
           <h3 className="text-xl leading-snug font-semibold tracking-tight text-foreground">{reunion.titulo}</h3>
           <p className="mt-1 text-sm text-muted-foreground">{detalle}</p>
-          {cruzaConClase(reunion) && (
-            <p className="mt-1 text-sm font-medium text-warning-foreground">Se cruza con tu clase · justifícala</p>
+          {sinClase(reunion).length > 0 && (
+            <p className="mt-1 text-sm text-muted-foreground">Sin clase: {sinClase(reunion).map((c) => `${c.materia.nombre}${c.grupo ? ` (${c.grupo.nombre})` : ''}`).join(', ')}</p>
           )}
         </div>
         <Link

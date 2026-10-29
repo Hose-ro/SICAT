@@ -1,5 +1,5 @@
-import { beforeEach, expect, test, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import userEvent from '@testing-library/user-event'
 
@@ -9,6 +9,7 @@ vi.mock('../src/components/PeriodoEscolarCard', () => ({ default: () => null }))
 import api from '../src/api/axios'
 import DashboardDocente from '../src/pages/docente/DashboardDocente'
 import { useAuthStore } from '../src/store/authStore'
+import { resolveConfirmation, useFeedbackStore } from '../src/lib/feedback'
 
 const clase = {
   horarioId: 5,
@@ -24,6 +25,10 @@ const clase = {
 beforeEach(() => {
   vi.clearAllMocks()
   useAuthStore.setState({ user: { nombre: 'Laura Pérez', rol: 'DOCENTE' } })
+})
+
+afterEach(() => {
+  vi.useRealTimers()
 })
 
 test('un festivo institucional se anuncia arriba y deja la agenda sin pase de lista', async () => {
@@ -71,4 +76,32 @@ test('iniciar desde la agenda conserva la petición y muestra el error de captur
   await userEvent.click(await screen.findByRole('button', { name: 'Iniciar y pasar lista' }))
   expect(api.post).toHaveBeenCalledWith('/clases/iniciar', { horarioId: 5 })
   expect((await screen.findByRole('alert')).textContent).toContain('No se pudo abrir la sesión')
+})
+
+test('una clase justificada por reunión ya pasada ofrece pasar lista de todos modos', async () => {
+  // Sólo se finge el reloj: userEvent sigue con sus temporizadores reales.
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date(2026, 9, 29, 11, 0))
+  const justificada = { ...clase, estado: 'SUSPENDIDA', reunionId: 40, suspensionMotivo: 'Reunión de academia' }
+  const futura = { ...justificada, horarioId: 6, materia: { nombre: 'Redes' }, horaInicio: '12:00', horaFin: '14:00' }
+  api.get.mockResolvedValue({ data: {
+    fecha: '2026-10-29',
+    clasesHoy: [justificada, futura],
+    resumen: { clasesHoy: 0 }, pendientes: {}, materias: [],
+  } })
+  api.post.mockResolvedValue({ data: { id: 91 } })
+  render(<MemoryRouter><DashboardDocente /></MemoryRouter>)
+
+  // Sólo la que ya terminó: la de las 12:00 todavía no se ha dado.
+  const botones = await screen.findAllByRole('button', { name: 'Pasar lista de todos modos' })
+  expect(botones).toHaveLength(1)
+  await userEvent.click(botones[0])
+  expect(useFeedbackStore.getState().confirmation.description).toContain('Esta asistencia contará en la calificación.')
+  expect(api.post).not.toHaveBeenCalled()
+  resolveConfirmation(true)
+  await waitFor(() => expect(api.post).toHaveBeenCalledWith('/clases/atrasada', {
+    horarioId: 5,
+    fecha: '2026-10-29',
+    aunqueJustificada: true,
+  }))
 })

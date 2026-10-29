@@ -381,12 +381,15 @@ export class PeriodosService {
   async clasesJustificadas(
     docenteIds: number[],
     rango?: { gte?: string; lte?: string },
+    /** Para vistas de alumno: sólo las que el docente decidió avisar. */
+    { soloVisiblesAlumnos = false } = {},
   ): Promise<ClaseJustificadaVigente[]> {
     if (!docenteIds.length) return [];
     return this.prisma.claseJustificada.findMany({
       where: {
         docenteId: { in: docenteIds },
         ...(rango?.gte || rango?.lte ? { fecha: rango } : {}),
+        ...(soloVisiblesAlumnos ? { avisarAlumnos: true } : {}),
       },
       select: {
         id: true,
@@ -591,6 +594,7 @@ export class PeriodosService {
             where: {
               fecha: rango,
               horarioId: { in: horarios.map((h) => h.id) },
+              avisarAlumnos: true,
             },
             select: { horarioId: true, fecha: true, motivo: true },
           })

@@ -105,7 +105,7 @@ describe('ClasesService asistencias atrasadas', () => {
   });
 
   it('lista las clases del horario del periodo que no tienen sesión', async () => {
-    const pendientes = await service.obtenerClasesAtrasadas(9);
+    const { atrasadas: pendientes } = await service.obtenerClasesAtrasadas(9);
     const fechas = pendientes.map((item) => item.fecha);
 
     // El periodo arranca el sábado 29 de agosto, así que el pendiente más
@@ -147,7 +147,8 @@ describe('ClasesService asistencias atrasadas', () => {
       notificaciones,
       fakePeriodos,
     );
-    const pendientes = await conSuspension.obtenerClasesAtrasadas(9);
+    const { atrasadas: pendientes } =
+      await conSuspension.obtenerClasesAtrasadas(9);
     expect(pendientes.map((item) => item.fecha)).not.toContain('2026-09-07');
     expect(pendientes.map((item) => item.fecha)).toContain('2026-09-08');
   });
@@ -160,7 +161,7 @@ describe('ClasesService asistencias atrasadas', () => {
       periodosFalsos(new Date(2026, 8, 7), new Date(2026, 11, 18)),
     );
 
-    const fechas = (await acotado.obtenerClasesAtrasadas(9)).map(
+    const fechas = (await acotado.obtenerClasesAtrasadas(9)).atrasadas.map(
       (item) => item.fecha,
     );
 
@@ -175,7 +176,7 @@ describe('ClasesService asistencias atrasadas', () => {
       periodosFalsos(new Date(2026, 7, 29), new Date(2026, 8, 2)),
     );
 
-    const fechas = (await cerrado.obtenerClasesAtrasadas(9)).map(
+    const fechas = (await cerrado.obtenerClasesAtrasadas(9)).atrasadas.map(
       (item) => item.fecha,
     );
 
@@ -222,7 +223,7 @@ describe('ClasesService asistencias atrasadas', () => {
     ]);
     const mixto = new ClasesService(prisma, notificaciones, porModalidad);
 
-    const pendientes = await mixto.obtenerClasesAtrasadas(9);
+    const { atrasadas: pendientes } = await mixto.obtenerClasesAtrasadas(9);
     const mixtas = pendientes
       .filter((item) => item.horarioId === 8)
       .map((item) => item.fecha);
@@ -254,7 +255,7 @@ describe('ClasesService asistencias atrasadas', () => {
       { ...horarioBase, horaInicio: '16:00', horaFin: '18:00' },
     ]);
 
-    const pendientes = await service.obtenerClasesAtrasadas(9);
+    const { atrasadas: pendientes } = await service.obtenerClasesAtrasadas(9);
 
     expect(pendientes.map((item) => item.fecha).slice(0, 2)).toEqual([
       '2026-09-07',
@@ -280,7 +281,7 @@ describe('ClasesService asistencias atrasadas', () => {
       },
     ]);
 
-    const pendientes = await service.obtenerClasesAtrasadas(9);
+    const { atrasadas: pendientes } = await service.obtenerClasesAtrasadas(9);
 
     expect(pendientes[0]).toMatchObject({
       fecha: '2026-09-08',
@@ -311,7 +312,7 @@ describe('ClasesService asistencias atrasadas', () => {
       },
     ]);
 
-    const pendientes = await service.obtenerClasesAtrasadas(9);
+    const { atrasadas: pendientes } = await service.obtenerClasesAtrasadas(9);
 
     expect(
       pendientes.map((item) => [item.fecha, item.estado]).slice(0, 2),
@@ -632,5 +633,199 @@ describe('ClasesService.obtenerHistorial (IDOR)', () => {
     )[0][0];
     expect(llamada.where.docenteId).toBe(docenteId);
     expect(llamada.where.docenteId).not.toBe(99);
+  });
+});
+
+describe('ClasesService clases justificadas por reunión de academia', () => {
+  const horarioFindMany = jest.fn();
+  const horarioFindUnique = jest.fn();
+  const claseSesionFindMany = jest.fn();
+  const claseSesionFindFirst = jest.fn();
+  const claseSesionCreate = jest.fn();
+  const inscripcionFindMany = jest.fn();
+  const crearParaAdmins = jest.fn();
+  const crearParaVarios = jest.fn();
+  const prisma = {
+    horarioMateria: {
+      findMany: horarioFindMany,
+      findUnique: horarioFindUnique,
+    },
+    claseSesion: {
+      findMany: claseSesionFindMany,
+      findFirst: claseSesionFindFirst,
+      create: claseSesionCreate,
+    },
+    inscripcion: { findMany: inscripcionFindMany },
+  } as unknown as PrismaService;
+  const periodos = periodosFalsos(
+    new Date(2026, 7, 29),
+    new Date(2026, 11, 18),
+  );
+  const service = new ClasesService(
+    prisma,
+    { crearParaAdmins, crearParaVarios } as unknown as NotificacionesService,
+    periodos,
+  );
+
+  // Martes 8 de septiembre de 2026, 15:00.
+  const AHORA = new Date(2026, 8, 8, 15, 0);
+  const unidadActiva = {
+    id: 5,
+    nombre: 'Unidad 1',
+    orden: 1,
+    status: 'ACTIVA',
+    fechaInicio: new Date(2026, 8, 1, 9, 0),
+    fechaFin: null,
+  };
+  const horario = {
+    id: 3,
+    materiaId: 12,
+    docenteId: 9,
+    grupoId: 4,
+    aulaId: 2,
+    activo: true,
+    dias: 'lunes,martes',
+    horaInicio: '12:00',
+    horaFin: '14:00',
+    materia: {
+      id: 12,
+      nombre: 'Programación Web',
+      clave: 'SCC-1010',
+      unidades: [unidadActiva],
+    },
+    grupo: { id: 4, nombre: 'ISC-3A', periodo: '2026-B', semestre: 3 },
+    aula: { id: 2, nombre: 'A-101', edificio: 'A' },
+  };
+  const justificada = {
+    id: 1,
+    docenteId: 9,
+    horarioId: 3,
+    reunionId: 40,
+    fecha: '2026-09-07',
+    motivo: 'Reunión de academia: Revisión de programas',
+  };
+  const suspensionPorReunion = {
+    id: 1,
+    fecha: '2026-09-07',
+    motivo: justificada.motivo,
+    institucional: false,
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.useFakeTimers().setSystemTime(AHORA);
+    horarioFindMany.mockResolvedValue([horario]);
+    horarioFindUnique.mockResolvedValue(horario);
+    claseSesionFindMany.mockResolvedValue([]);
+    claseSesionFindFirst.mockResolvedValue(null);
+    claseSesionCreate.mockResolvedValue({ id: 90 });
+    inscripcionFindMany.mockResolvedValue([{ alumnoId: 101 }]);
+    jest.spyOn(periodos, 'clasesJustificadas').mockResolvedValue([justificada]);
+    // La justificación sólo aparece al consultar la clase concreta; el día
+    // completo tiene clases.
+    jest.spyOn(periodos, 'obtenerSuspension').mockResolvedValue(null);
+    jest
+      .spyOn(periodos, 'obtenerSuspensionDeClase')
+      .mockResolvedValue(suspensionPorReunion);
+  });
+
+  afterAll(() => {
+    jest.useRealTimers();
+  });
+
+  it('ofrece la clase justificada como opcional sin contarla como pendiente', async () => {
+    const { atrasadas, opcionales } = await service.obtenerClasesAtrasadas(9);
+
+    expect(atrasadas.map((item) => item.fecha)).not.toContain('2026-09-07');
+    expect(atrasadas.map((item) => item.fecha)).toContain('2026-09-08');
+    expect(opcionales).toEqual([
+      expect.objectContaining({
+        horarioId: 3,
+        fecha: '2026-09-07',
+        materia: expect.objectContaining({ nombre: 'Programación Web' }),
+        grupo: expect.objectContaining({ id: 4 }),
+        horaInicio: '12:00',
+        horaFin: '14:00',
+        motivo: justificada.motivo,
+        reunionId: 40,
+      }),
+    ]);
+  });
+
+  it('deja de ser opcional cuando ya tiene sesión: si no hay lista, es pendiente', async () => {
+    claseSesionFindMany.mockResolvedValue([
+      {
+        id: 71,
+        materiaId: 12,
+        grupoId: 4,
+        fecha: new Date(2026, 8, 7, 12, 0),
+        activa: false,
+        registroAtrasado: true,
+        _count: { asistencias: 0 },
+      },
+    ]);
+
+    const { atrasadas, opcionales } = await service.obtenerClasesAtrasadas(9);
+
+    expect(opcionales).toEqual([]);
+    expect(atrasadas.find((item) => item.fecha === '2026-09-07')).toMatchObject(
+      { estado: 'SIN_CAPTURA', sesion: { id: 71 } },
+    );
+  });
+
+  it('sin la bandera sigue bloqueando la clase justificada', async () => {
+    await expect(
+      service.registrarClaseAtrasada(9, { horarioId: 3, fecha: '2026-09-07' }),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(claseSesionCreate).not.toHaveBeenCalled();
+  });
+
+  it('con la bandera abre la sesión atrasada de la clase justificada', async () => {
+    await service.registrarClaseAtrasada(9, {
+      horarioId: 3,
+      fecha: '2026-09-07',
+      aunqueJustificada: true,
+    });
+
+    const [argumento] = claseSesionCreate.mock.calls[0] as [
+      { data: Record<string, unknown> },
+    ];
+    expect(argumento.data).toMatchObject({
+      horarioMateriaId: 3,
+      registroAtrasado: true,
+      activa: false,
+      fecha: new Date(2026, 8, 7, 12, 0),
+    });
+  });
+
+  it('un festivo bloquea aunque venga la bandera', async () => {
+    jest.spyOn(periodos, 'obtenerSuspension').mockResolvedValue({
+      id: 2,
+      fecha: '2026-09-07',
+      motivo: 'Día festivo',
+      institucional: true,
+    });
+
+    await expect(
+      service.registrarClaseAtrasada(9, {
+        horarioId: 3,
+        fecha: '2026-09-07',
+        aunqueJustificada: true,
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(claseSesionCreate).not.toHaveBeenCalled();
+  });
+
+  it('el mismo día, iniciar respeta la bandera', async () => {
+    // Lunes 7 a las 13:00, en plena clase justificada.
+    jest.setSystemTime(new Date(2026, 8, 7, 13, 0));
+
+    await expect(service.iniciar(9, { horarioId: 3 })).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+    expect(claseSesionCreate).not.toHaveBeenCalled();
+
+    await service.iniciar(9, { horarioId: 3, aunqueJustificada: true });
+    expect(claseSesionCreate).toHaveBeenCalledTimes(1);
   });
 });

@@ -16,6 +16,11 @@ describe('ClasesJustificadasService', () => {
   const horarioFindMany = jest.fn();
   const justificadaFindMany = jest.fn();
   const justificadaUpsert = jest.fn();
+  const justificadaCreateMany = jest.fn();
+  const justificadaFindFirst = jest.fn();
+  const justificadaUpdate = jest.fn();
+  const retirarAvisosDeSuspension = jest.fn();
+  const obtenerSuspension = jest.fn();
   const sesionFindMany = jest.fn();
   const suspensionesDelDia = jest.fn();
   const avisarSuspensiones = jest.fn();
@@ -25,14 +30,20 @@ describe('ClasesJustificadasService', () => {
     claseJustificada: {
       findMany: justificadaFindMany,
       upsert: justificadaUpsert,
+      createMany: justificadaCreateMany,
+      findFirst: justificadaFindFirst,
+      update: justificadaUpdate,
     },
     claseSesion: { findMany: sesionFindMany },
     $transaction: (ops: unknown[]) => Promise.all(ops),
   } as unknown as PrismaService;
   const service = new ClasesJustificadasService(
     prisma,
-    { suspensionesDelDia } as unknown as PeriodosService,
-    { avisarSuspensiones } as unknown as AvisosService,
+    { suspensionesDelDia, obtenerSuspension } as unknown as PeriodosService,
+    {
+      avisarSuspensiones,
+      retirarAvisosDeSuspension,
+    } as unknown as AvisosService,
   );
 
   const horario = (id: number, horaInicio: string, horaFin: string) => ({
@@ -65,6 +76,84 @@ describe('ClasesJustificadasService', () => {
     suspensionesDelDia.mockResolvedValue(new Map());
     justificadaUpsert.mockImplementation((args: unknown) =>
       Promise.resolve(args),
+    );
+  });
+
+  it('al convocar deja sin clase sólo las clases pendientes y avisa', async () => {
+    horarioFindMany.mockResolvedValue([
+      horario(2, '11:00', '13:00'),
+      horario(4, '10:00', '11:00'),
+    ]);
+    // La 4 ya tiene lista: esa clase sí se dio.
+    sesionFindMany.mockResolvedValue([
+      { horarioMateriaId: 4, activa: false, _count: { asistencias: 3 } },
+    ]);
+    await service.justificarAutomatico(
+      {
+        id: 5,
+        titulo: 'Academia',
+        fecha: FECHA,
+        horaInicio: '10:00',
+        horaFin: '12:00',
+        estado: 'PROGRAMADA',
+      },
+      [31],
+    );
+    const [{ data }] = justificadaCreateMany.mock.calls[0] as [
+      { data: { horarioId: number; automatica: boolean; motivo: string }[] },
+    ];
+    expect(data).toEqual([
+      expect.objectContaining({
+        horarioId: 2,
+        automatica: true,
+        motivo: 'Reunión de academia: Academia (10:00–12:00)',
+      }),
+    ]);
+    expect(avisarSuspensiones).toHaveBeenCalledWith(
+      31,
+      [FECHA],
+      'Reunión de academia: Academia (10:00–12:00)',
+      [2],
+    );
+  });
+
+  it('no justifica nada si ese día ya no hay clases', async () => {
+    suspensionesDelDia.mockResolvedValue(
+      new Map([[31, { motivo: 'Festivo' }]]),
+    );
+    await service.justificarAutomatico(
+      {
+        id: 5,
+        titulo: 'Academia',
+        fecha: FECHA,
+        horaInicio: '10:00',
+        horaFin: '12:00',
+        estado: 'PROGRAMADA',
+      },
+      [31],
+    );
+    expect(justificadaCreateMany).not.toHaveBeenCalled();
+    expect(avisarSuspensiones).not.toHaveBeenCalled();
+  });
+
+  it('apagar el aviso retira el aviso a los alumnos sin decir que sí hay clase', async () => {
+    justificadaFindFirst.mockResolvedValue({
+      id: 9,
+      motivo: 'Reunión',
+      avisarAlumnos: true,
+      horario: { materiaId: 20, grupoId: 2 },
+    });
+    obtenerSuspension.mockResolvedValue(null);
+    await service.cambiarAviso(31, 5, 2, false);
+    expect(justificadaUpdate).toHaveBeenCalledWith({
+      where: { id: 9 },
+      data: { avisarAlumnos: false },
+    });
+    expect(retirarAvisosDeSuspension).toHaveBeenCalledWith(
+      31,
+      FECHA,
+      { materiaId: 20, grupoId: 2 },
+      { notificar: false },
     );
   });
 

@@ -179,6 +179,8 @@ export class CalendarioService {
         where: {
           horarioId: { in: horarios.map((h) => h.id) },
           periodoClave: { in: claves },
+          // El docente decide si sus alumnos se enteran de la clase sin dar.
+          ...(esDocente ? {} : { avisarAlumnos: true }),
         },
         select: { horarioId: true, fecha: true },
       }),

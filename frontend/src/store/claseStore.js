@@ -6,6 +6,8 @@ export const useClaseStore = create((set) => ({
   historial: [],
   panelDocente: null,
   clasesAtrasadas: [],
+  // Clases pasadas justificadas por reunión de academia: no se exigen.
+  clasesOpcionales: [],
   misClasesActivas: [],
   loading: false,
   error: null,
@@ -56,16 +58,27 @@ export const useClaseStore = create((set) => ({
   cargarClasesAtrasadas: async () => {
     try {
       const response = await api.get('/clases/docente/atrasadas')
-      set({ clasesAtrasadas: response.data })
-      return response.data
+      // Un backend anterior devolvía sólo el arreglo de pendientes.
+      const data = Array.isArray(response.data)
+        ? { atrasadas: response.data, opcionales: [] }
+        : response.data
+      set({
+        clasesAtrasadas: data.atrasadas ?? [],
+        clasesOpcionales: data.opcionales ?? [],
+      })
+      return data
     } catch (error) {
-      set({ clasesAtrasadas: [] })
+      set({ clasesAtrasadas: [], clasesOpcionales: [] })
       throw error
     }
   },
 
-  registrarClaseAtrasada: async ({ horarioId, fecha }) => {
-    const response = await api.post('/clases/atrasada', { horarioId, fecha })
+  registrarClaseAtrasada: async ({ horarioId, fecha, aunqueJustificada }) => {
+    const response = await api.post('/clases/atrasada', {
+      horarioId,
+      fecha,
+      ...(aunqueJustificada ? { aunqueJustificada: true } : {}),
+    })
     return response.data
   },
 

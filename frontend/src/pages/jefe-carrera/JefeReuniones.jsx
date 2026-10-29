@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { CalendarPlus, ClipboardList, Pencil, Plus, Trash2, XCircle } from 'lucide-react'
+import { CalendarPlus, ClipboardList, FileText, Pencil, Plus, Trash2, XCircle } from 'lucide-react'
 import api from '@/api/axios'
 import { Button } from '@/components/ui/button'
 import ReunionTarjeta from '@/components/reuniones/ReunionTarjeta'
+import VisorActa from '@/components/reuniones/VisorActa'
 import { confirmAction, notify } from '@/lib/feedback'
 import { descargarIcs, fechaReunion, hoyClaveLocal, separarReuniones } from '@/lib/reuniones'
 import ActaDialog from './reuniones/ActaDialog'
@@ -50,8 +51,11 @@ function Contenido({ j, dialogo, setDialogo }) {
   }, [j.carreraId])
   useEffect(() => cargar(), [cargar])
 
-  const reemplazar = (reunion, mensaje) => {
+  const reemplazarSinCerrar = (reunion) => {
     setEstado((s) => ({ ...s, lista: [reunion, ...(s.lista ?? []).filter((r) => r.id !== reunion.id)] }))
+  }
+  const reemplazar = (reunion, mensaje) => {
+    reemplazarSinCerrar(reunion)
     setDialogo(null)
     if (mensaje) notify(mensaje, 'success')
   }
@@ -90,8 +94,9 @@ function Contenido({ j, dialogo, setDialogo }) {
 
   const dialogos = (
     <>
-      {dialogo?.tipo === 'form' && <ReunionForm j={j} reunion={dialogo.reunion} onClose={() => setDialogo(null)} onGuardada={reemplazar} />}
-      {dialogo?.tipo === 'acta' && <ActaDialog reunion={dialogo.reunion} onClose={() => setDialogo(null)} onGuardada={reemplazar} />}
+      {dialogo?.tipo === 'form' && <ReunionForm j={j} reunion={dialogo.reunion} academia={estado.lista?.find((r) => r.academia)?.academia} onClose={() => setDialogo(null)} onGuardada={reemplazar} />}
+      {dialogo?.tipo === 'acta' && <ActaDialog reunion={dialogo.reunion} onClose={() => setDialogo(null)} onGuardada={reemplazar} onDocumentos={(data) => reemplazarSinCerrar(data)} />}
+      {dialogo?.tipo === 'ver' && <VisorActa reunion={dialogo.reunion} onClose={() => setDialogo(null)} />}
     </>
   )
 
@@ -130,6 +135,11 @@ function Contenido({ j, dialogo, setDialogo }) {
       <Button variant="ghost" size="sm" className="text-destructive-foreground" onClick={() => cancelar(r)}><XCircle aria-hidden="true" /> Cancelar reunión</Button>
     </div>
   )
+  const verActa = (r) => r.estado !== 'CANCELADA' && (
+    <Button variant="ghost" size="sm" onClick={() => setDialogo({ tipo: 'ver', reunion: r })}>
+      <FileText aria-hidden="true" /> Ver acta{r.documentos?.length ? ' firmada' : ''}
+    </Button>
+  )
 
   return (
     <>
@@ -160,6 +170,7 @@ function Contenido({ j, dialogo, setDialogo }) {
               mostrarConvocados
               acciones={acciones(r)}
               pie={pie(r)}
+              barra={verActa(r)}
               extra={<span>{r.asistencia.registrada ? `Asistieron ${r.asistencia.asistieron} de ${r.asistencia.convocados}` : `${r.convocados.length} convocados`}</span>}
             />
           ))}

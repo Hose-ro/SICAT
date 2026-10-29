@@ -17,10 +17,11 @@ const reunion = (choques) => ({
   totalConvocados: 4, miAsistencia: null, choques,
 })
 
-test('el docente justifica la clase que choca con la reunión de academia', async ({ page }) => {
+test('las clases que chocan quedan sin clase y el docente puede darla de todos modos', async ({ page }) => {
   await mockApi(page, 'DOCENTE')
+  const sinClase = { motivo: 'Reunión de academia: Reunión ordinaria de academia (12:30–13:30)', reunionId: 5, creadaEn: new Date().toISOString(), avisarAlumnos: true, automatica: true }
   let choques = [
-    choque(36, 'Programación Móvil', '12:00', '13:00'),
+    choque(36, 'Programación Móvil', '12:00', '13:00', { justificacion: sinClase }),
     choque(32, 'Programación Lógica y Funcional', '13:00', '14:00', { listaCapturada: true }),
   ]
   let enviado
@@ -28,7 +29,7 @@ test('el docente justifica la clase que choca con la reunión de academia', asyn
   await page.route('**/api/reuniones/5/justificaciones**', async (route) => {
     if (route.request().method() === 'POST') {
       enviado = route.request().postDataJSON()
-      choques = choques.map((c) => (enviado.horarioIds.includes(c.horarioId) ? { ...c, justificacion: { motivo: enviado.motivo, reunionId: 5, creadaEn: new Date().toISOString() } } : c))
+      choques = choques.map((c) => (enviado.horarioIds.includes(c.horarioId) ? { ...c, justificacion: { ...sinClase, motivo: enviado.motivo, automatica: false } } : c))
     } else {
       choques = choques.map((c) => (c.horarioId === 36 ? { ...c, justificacion: null } : c))
     }
@@ -36,25 +37,25 @@ test('el docente justifica la clase que choca con la reunión de academia', asyn
   })
 
   await page.goto('/docente/reuniones')
-  await expect(page.getByText('Se cruza con 2 de tus clases')).toBeVisible()
+  await expect(page.getByText('Una de tus clases queda sin clase por la reunión')).toBeVisible()
   await expect(page.getByText('Ya pasaste lista')).toBeVisible()
-  await expect(page.getByLabel('Por qué no darás la clase')).toHaveValue('Reunión de academia: Reunión ordinaria de academia')
+  await expect(page.getByText(/No hace falta pasar lista y no cuenta para la calificación/)).toBeVisible()
   await page.screenshot({ path: 'audit/docente-reunion-choque.png', fullPage: true })
 
-  await page.getByRole('button', { name: 'Justificar clase' }).click()
-  expect(enviado).toEqual({ horarioIds: [36], motivo: 'Reunión de academia: Reunión ordinaria de academia' })
-  await expect(page.getByText('Justificada', { exact: true })).toBeVisible()
-  await expect(page.getByLabel('Por qué no darás la clase')).toBeHidden()
-  await page.screenshot({ path: 'audit/docente-reunion-justificada.png', fullPage: true })
+  await page.getByRole('button', { name: 'Sí daré Programación Móvil · 806A' }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Sí daré la clase' }).click()
+  await expect(page.getByText('Se imparte normalmente', { exact: true })).toBeVisible()
 
-  await page.getByRole('button', { name: 'Quitar la justificación de Programación Móvil · 806A' }).click()
-  await expect(page.getByText('Sin justificar')).toBeVisible()
+  await page.getByRole('button', { name: 'Dejar sin clase' }).click()
+  expect(enviado).toEqual({ horarioIds: [36], motivo: 'Reunión de academia: Reunión ordinaria de academia' })
+  await expect(page.getByText('Sin clase por la reunión', { exact: true })).toBeVisible()
+  await page.screenshot({ path: 'audit/docente-reunion-justificada.png', fullPage: true })
 })
 
 test('el Inicio del docente muestra las reuniones de academia bajo las clases de hoy', async ({ page }) => {
   await mockApi(page, 'DOCENTE')
   await page.route('**/api/reuniones/mias', (route) => route.fulfill({ json: [
-    reunion([choque(36, 'Programación Móvil', '12:00', '13:00')]),
+    reunion([choque(36, 'Programación Móvil', '12:00', '13:00', { justificacion: { motivo: 'Reunión', reunionId: 5, creadaEn: new Date().toISOString(), avisarAlumnos: true, automatica: true } })]),
     { ...reunion([]), id: 6, titulo: 'Revisión de instrumentación', fecha: enDias(13), horaInicio: '10:00', horaFin: '11:00', modalidad: 'VIRTUAL', lugar: null },
   ] }))
   await page.setViewportSize({ width: 1280, height: 900 })
@@ -63,7 +64,7 @@ test('el Inicio del docente muestra las reuniones de academia bajo las clases de
   const panel = page.locator('article', { has: page.getByRole('heading', { name: 'Reuniones de academia' }) })
   await expect(panel.getByRole('heading', { name: 'Reunión ordinaria de academia' })).toBeVisible()
   await expect(panel.getByText('Próxima reunión')).toBeVisible()
-  await expect(panel.getByText('Se cruza con tu clase · justifícala')).toBeVisible()
+  await expect(panel.getByText('Sin clase: Programación Móvil (806A)')).toBeVisible()
   await expect(panel.getByText('Revisión de instrumentación')).toBeVisible()
   await expect(panel.getByRole('link', { name: 'Ver reunión' })).toHaveAttribute('href', '/docente/reuniones?reunion=5')
   const clases = await page.getByRole('heading', { name: 'Clases de hoy' }).boundingBox()

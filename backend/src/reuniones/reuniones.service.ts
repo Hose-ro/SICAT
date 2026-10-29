@@ -5,7 +5,12 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { ModalidadReunion, Prisma, TipoNotificacion } from '@prisma/client';
+import {
+  FormatoDocumentoReunion,
+  ModalidadReunion,
+  Prisma,
+  TipoNotificacion,
+} from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import { asegurarCarreraDeJefe } from '../common/materia-ownership';
@@ -26,8 +31,22 @@ const docenteCampos = { id: true, nombre: true, email: true } as const;
 const reunionInclude = {
   carrera: { select: { id: true, nombre: true, codigo: true } },
   creadaPor: { select: { id: true, nombre: true } },
+  presidente: { select: { id: true, nombre: true } },
+  secretario: { select: { id: true, nombre: true } },
   puntos: { orderBy: { orden: 'asc' } },
   acuerdos: { orderBy: { orden: 'asc' } },
+  seguimiento: { orderBy: { orden: 'asc' } },
+  // Sin el contenido: los archivos se piden aparte.
+  documentos: {
+    select: {
+      formato: true,
+      nombre: true,
+      mime: true,
+      tamano: true,
+      createdAt: true,
+    },
+    orderBy: { formato: 'asc' },
+  },
   convocados: {
     include: { docente: { select: docenteCampos } },
     orderBy: { docente: { nombre: 'asc' } },
@@ -36,6 +55,7 @@ const reunionInclude = {
     select: {
       docenteId: true,
       motivo: true,
+      avisarAlumnos: true,
       horario: {
         select: {
           id: true,
@@ -54,6 +74,17 @@ type ReunionCompleta = Prisma.ReunionAcademicaGetPayload<{
 }>;
 
 const DURACION_DEFAULT_MIN = DURACION_REUNION_DEFAULT_MIN;
+
+/** Acta firmada o corregida que sube la jefatura: PDF y/o Word. */
+export const MAX_DOCUMENTO_ACTA = 10 * 1024 * 1024;
+export const FORMATOS_DOCUMENTO: Record<string, FormatoDocumentoReunion> = {
+  '.pdf': 'PDF',
+  '.docx': 'DOCX',
+};
+const MIME_DOCUMENTO: Record<FormatoDocumentoReunion, string> = {
+  PDF: 'application/pdf',
+  DOCX: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+};
 
 function instante(fecha: string, hora: string) {
   const [year, month, day] = fecha.split('-').map(Number);
@@ -98,13 +129,13 @@ function dondeTexto(r: {
 
 const limpio = (texto: string | null | undefined) => texto?.trim() || null;
 
-/** "Se cruza con tu clase de Cálculo (3A, 10:00–11:00)…" para la notificación. */
+/** "Tu clase de Cálculo (3A, 10:00–11:00) queda sin clase…" para la notificación. */
 function textoChoques(choques: ChoqueReunion[]) {
   const clase = (c: ChoqueReunion) =>
     `${c.materia.nombre} (${c.grupo ? `${c.grupo.nombre}, ` : ''}${c.horaInicio}–${c.horaFin})`;
   return choques.length === 1
-    ? `Se cruza con tu clase de ${clase(choques[0])}: puedes justificarla desde Reuniones.`
-    : `Se cruza con ${choques.length} de tus clases (${choques.map(clase).join('; ')}): puedes justificarlas desde Reuniones.`;
+    ? `Tu clase de ${clase(choques[0])} queda sin clase por la reunión; si la das, puedes pasar lista después.`
+    : `Tus clases de ${choques.map(clase).join('; ')} quedan sin clase por la reunión; si las das, puedes pasar lista después.`;
 }
 
 @Injectable()
@@ -145,6 +176,68 @@ export class ReunionesService {
     return this.docentesDeCarrera(carreraId);
   }
 
+  /** Docentes de cualquier carrera, para invitarlos a la reunión. */
+  async buscarDocentes(q?: string) {
+    const texto = q?.trim();
+    const docentes = await this.prisma.usuario.findMany({
+      where: {
+        rol: 'DOCENTE',
+        activo: true,
+        ...(texto
+          ? {
+              OR: [
+                { nombre: { contains: texto, mode: 'insensitive' } },
+                { email: { contains: texto, mode: 'insensitive' } },
+              ],
+            }
+          : {}),
+      },
+      select: {
+        ...docenteCampos,
+        horariosDocente: {
+          where: { activo: true, grupo: { activo: true } },
+          select: {
+            grupo: { select: { carrera: { select: { nombre: true } } } },
+          },
+        },
+      },
+      orderBy: { nombre: 'asc' },
+      take: 20,
+    });
+    return docentes.map(({ horariosDocente, ...d }) => ({
+      ...d,
+      carreras: [
+        ...new Set(
+          horariosDocente
+            .map((h) => h.grupo?.carrera?.nombre)
+            .filter((n): n is string => !!n),
+        ),
+      ],
+    }));
+  }
+
+  /** Materias que imparte cada docente en grupos activos (constancia del acta). */
+  private async materiasDeDocentes(docenteIds: number[]) {
+    const resultado = new Map<number, string[]>();
+    if (!docenteIds.length) return resultado;
+    const horarios = await this.prisma.horarioMateria.findMany({
+      where: {
+        docenteId: { in: docenteIds },
+        activo: true,
+        grupo: { activo: true },
+      },
+      select: { docenteId: true, materia: { select: { nombre: true } } },
+    });
+    for (const h of horarios) {
+      const lista = resultado.get(h.docenteId) ?? [];
+      if (!lista.includes(h.materia.nombre)) lista.push(h.materia.nombre);
+      resultado.set(h.docenteId, lista);
+    }
+    for (const lista of resultado.values())
+      lista.sort((a, b) => a.localeCompare(b));
+    return resultado;
+  }
+
   async listarJefe(usuarioId: number, carreraId: number) {
     await asegurarCarreraDeJefe(this.prisma, usuarioId, carreraId);
     const reuniones = await this.prisma.reunionAcademica.findMany({
@@ -152,12 +245,78 @@ export class ReunionesService {
       include: reunionInclude,
       orderBy: [{ fecha: 'desc' }, { horaInicio: 'desc' }],
     });
-    return reuniones.map((r) => this.serializar(r));
+    const materias = await this.materiasDeDocentes([
+      ...new Set(
+        reuniones.flatMap((r) => r.convocados.map((c) => c.docenteId)),
+      ),
+    ]);
+    return reuniones.map((r) => this.serializar(r, materias));
   }
 
   async detalleJefe(usuarioId: number, id: number) {
     const reunion = await this.reunionDelJefe(usuarioId, id);
-    return this.serializar(reunion);
+    return this.serializarConMaterias(reunion);
+  }
+
+  /**
+   * El acta completa para un docente convocado (orden del día, seguimiento,
+   * acuerdos, constancia). No incluye las clases justificadas de los demás.
+   */
+  async detalleDocente(docenteId: number, id: number) {
+    const reunion = await this.prisma.reunionAcademica.findUnique({
+      where: { id },
+      include: reunionInclude,
+    });
+    if (!reunion) throw new NotFoundException('Reunión no encontrada');
+    const propia = reunion.convocados.find((c) => c.docenteId === docenteId);
+    if (!propia)
+      throw new ForbiddenException('No estás convocado a esta reunión');
+    const { clasesJustificadas, ...resto } =
+      await this.serializarConMaterias(reunion);
+    void clasesJustificadas;
+    return { ...resto, miAsistencia: propia.asistio };
+  }
+
+  /**
+   * Acuerdos de la última reunión finalizada anterior de la carrera, para
+   * prellenar el seguimiento de acuerdos del acta.
+   */
+  async seguimientoSugerido(usuarioId: number, id: number) {
+    const actual = await this.reunionDelJefe(usuarioId, id);
+    const anterior = await this.prisma.reunionAcademica.findFirst({
+      where: {
+        carreraId: actual.carreraId,
+        estado: 'FINALIZADA',
+        id: { not: id },
+        OR: [
+          { fecha: { lt: actual.fecha } },
+          { fecha: actual.fecha, horaInicio: { lt: actual.horaInicio } },
+        ],
+        acuerdos: { some: {} },
+      },
+      orderBy: [{ fecha: 'desc' }, { horaInicio: 'desc' }],
+      select: {
+        id: true,
+        titulo: true,
+        fecha: true,
+        acuerdos: { orderBy: { orden: 'asc' } },
+      },
+    });
+    if (!anterior) return { reunion: null, acuerdos: [] };
+    return {
+      reunion: {
+        id: anterior.id,
+        titulo: anterior.titulo,
+        fecha: anterior.fecha,
+      },
+      acuerdos: anterior.acuerdos.map((a) => ({
+        acuerdoOrigenId: a.id,
+        descripcion: a.descripcion,
+        responsable: a.responsable,
+        fechaLimite: a.fechaLimite,
+        avance: null,
+      })),
+    };
   }
 
   /** Reuniones a las que está convocado el docente, de todas sus carreras. */
@@ -201,6 +360,20 @@ export class ReunionesService {
     return this.justificadas.quitar(docenteId, id, horarioId);
   }
 
+  avisoAlumnos(
+    docenteId: number,
+    id: number,
+    horarioId: number,
+    avisarAlumnos: boolean,
+  ) {
+    return this.justificadas.cambiarAviso(
+      docenteId,
+      id,
+      horarioId,
+      avisarAlumnos,
+    );
+  }
+
   async crear(usuarioId: number, dto: CrearReunionDto) {
     await asegurarCarreraDeJefe(this.prisma, usuarioId, dto.carreraId);
     const datos = this.validarConvocatoria({
@@ -215,6 +388,14 @@ export class ReunionesService {
       dto.carreraId,
       dto.convocados,
     );
+    const mesa = this.validarMesa(
+      {
+        presidenteId: dto.presidenteId ?? null,
+        secretarioId: dto.secretarioId ?? null,
+      },
+      convocados,
+      usuarioId,
+    );
 
     const reunion = await this.prisma.reunionAcademica.create({
       data: {
@@ -224,6 +405,9 @@ export class ReunionesService {
         asunto: limpio(dto.asunto),
         tipo: dto.tipo ?? 'ORDINARIA',
         numeroActa: limpio(dto.numeroActa),
+        academia: limpio(dto.academia),
+        apertura: limpio(dto.apertura),
+        ...mesa,
         ...datos,
         puntos: {
           create: (dto.puntos ?? []).map((descripcion, i) => ({
@@ -238,13 +422,16 @@ export class ReunionesService {
       include: reunionInclude,
     });
 
+    // Las clases que se cruzan quedan sin clase solas; el docente decide si
+    // avisa a sus alumnos y si pasa lista de todos modos.
+    await this.justificadas.justificarAutomatico(reunion, convocados);
     await this.convocar(
       convocados,
       reunion,
       `Reunión de academia: ${reunion.titulo}`,
       `Se te convoca el ${fechaTexto(reunion.fecha)} a las ${reunion.horaInicio}, ${dondeTexto(reunion)}.`,
     );
-    return this.serializar(reunion);
+    return this.detalleJefe(usuarioId, reunion.id);
   }
 
   async editar(usuarioId: number, id: number, dto: EditarReunionDto) {
@@ -284,6 +471,20 @@ export class ReunionesService {
         : await this.resolverConvocados(actual.carreraId, dto.convocados);
     const nuevos = convocados.filter((d) => !previos.includes(d));
     const quitados = previos.filter((d) => !convocados.includes(d));
+    const mesa = this.validarMesa(
+      {
+        presidenteId:
+          dto.presidenteId === undefined
+            ? actual.presidenteId
+            : dto.presidenteId,
+        secretarioId:
+          dto.secretarioId === undefined
+            ? actual.secretarioId
+            : dto.secretarioId,
+      },
+      convocados,
+      usuarioId,
+    );
 
     const reunion = await this.prisma.$transaction(async (tx) => {
       if (dto.puntos !== undefined) {
@@ -314,6 +515,11 @@ export class ReunionesService {
           tipo: dto.tipo,
           numeroActa:
             dto.numeroActa === undefined ? undefined : limpio(dto.numeroActa),
+          academia:
+            dto.academia === undefined ? undefined : limpio(dto.academia),
+          apertura:
+            dto.apertura === undefined ? undefined : limpio(dto.apertura),
+          ...mesa,
           ...datos,
         },
         include: reunionInclude,
@@ -324,6 +530,12 @@ export class ReunionesService {
     const retiradas = await this.justificadas.retirarInvalidas(
       reunion,
       convocados,
+    );
+    // Si cambió el horario, todos tienen choques nuevos; si no, sólo los
+    // recién convocados (no se rehace lo que un docente decidió dar).
+    await this.justificadas.justificarAutomatico(
+      reunion,
+      cambioAgenda || datos.horaFin !== actual.horaFin ? convocados : nuevos,
     );
     const cuando = `el ${fechaTexto(reunion.fecha)} a las ${reunion.horaInicio}, ${dondeTexto(reunion)}`;
     await this.convocar(
@@ -349,7 +561,7 @@ export class ReunionesService {
       retiradas,
       { sinChoques: true },
     );
-    return this.serializar(reunion);
+    return this.detalleJefe(usuarioId, id);
   }
 
   async cancelar(usuarioId: number, id: number) {
@@ -402,6 +614,20 @@ export class ReunionesService {
       );
     }
     const convocados = new Set(actual.convocados.map((c) => c.docenteId));
+    const mesa = this.validarMesa(
+      {
+        presidenteId:
+          dto.presidenteId === undefined
+            ? actual.presidenteId
+            : dto.presidenteId,
+        secretarioId:
+          dto.secretarioId === undefined
+            ? actual.secretarioId
+            : dto.secretarioId,
+      },
+      [...convocados],
+      actual.creadaPorId,
+    );
     const ajenos = (dto.asistencia ?? []).filter(
       (a) => !convocados.has(a.docenteId),
     );
@@ -448,6 +674,20 @@ export class ReunionesService {
           })),
         });
       }
+      if (dto.seguimiento !== undefined) {
+        await tx.reunionSeguimiento.deleteMany({ where: { reunionId: id } });
+        await tx.reunionSeguimiento.createMany({
+          data: dto.seguimiento.map((a, i) => ({
+            reunionId: id,
+            orden: i + 1,
+            acuerdoOrigenId: a.acuerdoOrigenId ?? null,
+            descripcion: a.descripcion.trim(),
+            responsable: limpio(a.responsable),
+            fechaLimite: a.fechaLimite || null,
+            avance: limpio(a.avance),
+          })),
+        });
+      }
       return tx.reunionAcademica.update({
         where: { id },
         data: {
@@ -455,6 +695,10 @@ export class ReunionesService {
             dto.observaciones === undefined
               ? undefined
               : limpio(dto.observaciones),
+          apertura:
+            dto.apertura === undefined ? undefined : limpio(dto.apertura),
+          horaCierre: dto.horaCierre === undefined ? undefined : dto.horaCierre,
+          ...mesa,
           estado: dto.finalizar ? 'FINALIZADA' : undefined,
         },
         include: reunionInclude,
@@ -473,7 +717,82 @@ export class ReunionesService {
         `Se registraron ${reunion.acuerdos.length} ${reunion.acuerdos.length === 1 ? 'acuerdo' : 'acuerdos'} de la reunión del ${fechaTexto(reunion.fecha)}.`,
       );
     }
-    return this.serializar(reunion);
+    return this.serializarConMaterias(reunion);
+  }
+
+  /**
+   * Sube el acta actualizada (firmada o corregida) de una reunión finalizada.
+   * Hay a lo más un PDF y un Word; subir otro del mismo formato lo reemplaza.
+   */
+  async subirDocumento(
+    usuarioId: number,
+    id: number,
+    archivo:
+      { originalname: string; buffer?: Buffer; size?: number } | undefined,
+  ) {
+    const actual = await this.reunionDelJefe(usuarioId, id);
+    if (actual.estado !== 'FINALIZADA') {
+      throw new ConflictException('Finaliza la reunión antes de subir el acta');
+    }
+    if (!archivo?.buffer) throw new BadRequestException('Elige un archivo');
+    const extension = /\.[^.]+$/.exec(archivo.originalname.toLowerCase())?.[0];
+    const formato = extension ? FORMATOS_DOCUMENTO[extension] : undefined;
+    if (!formato) {
+      throw new BadRequestException('El acta debe ser PDF o Word (.docx)');
+    }
+    const datos = {
+      nombre: archivo.originalname.slice(0, 255),
+      mime: MIME_DOCUMENTO[formato],
+      tamano: archivo.buffer.length,
+      contenido: new Uint8Array(archivo.buffer),
+      subidoPorId: usuarioId,
+    };
+    const yaHabia = actual.documentos.length > 0;
+    await this.prisma.reunionDocumento.upsert({
+      where: { reunionId_formato: { reunionId: id, formato } },
+      create: { reunionId: id, formato, ...datos },
+      update: { ...datos, createdAt: new Date() },
+    });
+    await this.notificar(
+      actual.convocados.map((c) => c.docenteId),
+      actual,
+      `${yaHabia ? 'Acta actualizada' : 'Acta firmada disponible'}: ${actual.titulo}`,
+      `Ya puedes ver y descargar el acta de la reunión del ${fechaTexto(actual.fecha)}.`,
+    );
+    return this.detalleJefe(usuarioId, id);
+  }
+
+  async quitarDocumento(
+    usuarioId: number,
+    id: number,
+    formato: FormatoDocumentoReunion,
+  ) {
+    await this.reunionDelJefe(usuarioId, id);
+    const { count } = await this.prisma.reunionDocumento.deleteMany({
+      where: { reunionId: id, formato },
+    });
+    if (!count) throw new NotFoundException('No hay acta en ese formato');
+    return this.detalleJefe(usuarioId, id);
+  }
+
+  /** El archivo del acta subida: la jefatura de la carrera o un convocado. */
+  async documento(
+    usuario: { id: number; rol: string },
+    id: number,
+    formato: FormatoDocumentoReunion,
+  ) {
+    const reunion = await this.prisma.reunionAcademica.findUnique({
+      where: { id },
+      select: { carreraId: true },
+    });
+    if (!reunion) throw new NotFoundException('Reunión no encontrada');
+    await this.asegurarAcceso(usuario, id, reunion.carreraId);
+    const documento = await this.prisma.reunionDocumento.findUnique({
+      where: { reunionId_formato: { reunionId: id, formato } },
+      select: { nombre: true, mime: true, contenido: true },
+    });
+    if (!documento) throw new NotFoundException('No hay acta en ese formato');
+    return { ...documento, contenido: Buffer.from(documento.contenido) };
   }
 
   /** Archivo .ics: lo pide la jefatura de la carrera o un docente convocado. */
@@ -486,15 +805,7 @@ export class ReunionesService {
       },
     });
     if (!reunion) throw new NotFoundException('Reunión no encontrada');
-    if (usuario.rol === 'JEFE_CARRERA') {
-      await asegurarCarreraDeJefe(this.prisma, usuario.id, reunion.carreraId);
-    } else {
-      const convocado = await this.prisma.reunionConvocado.count({
-        where: { reunionId: id, docenteId: usuario.id },
-      });
-      if (!convocado)
-        throw new ForbiddenException('No estás convocado a esta reunión');
-    }
+    await this.asegurarAcceso(usuario, id, reunion.carreraId);
     const inicio = instante(reunion.fecha, reunion.horaInicio);
     const fin = reunion.horaFin
       ? instante(reunion.fecha, reunion.horaFin)
@@ -525,6 +836,44 @@ export class ReunionesService {
         cancelado: reunion.estado === 'CANCELADA',
       }),
     };
+  }
+
+  /** La jefatura de la carrera o un docente convocado. */
+  private async asegurarAcceso(
+    usuario: { id: number; rol: string },
+    id: number,
+    carreraId: number,
+  ) {
+    if (usuario.rol === 'JEFE_CARRERA') {
+      await asegurarCarreraDeJefe(this.prisma, usuario.id, carreraId);
+      return;
+    }
+    const convocado = await this.prisma.reunionConvocado.count({
+      where: { reunionId: id, docenteId: usuario.id },
+    });
+    if (!convocado)
+      throw new ForbiddenException('No estás convocado a esta reunión');
+  }
+
+  /** Presidente(a) y secretario(a): un convocado o la jefatura que la creó. */
+  private validarMesa(
+    mesa: { presidenteId: number | null; secretarioId: number | null },
+    convocados: number[],
+    jefeId: number | null,
+  ) {
+    const validos = new Set(convocados);
+    if (jefeId) validos.add(jefeId);
+    for (const [cargo, valor] of [
+      ['presidente(a)', mesa.presidenteId],
+      ['secretario(a)', mesa.secretarioId],
+    ] as const) {
+      if (valor != null && !validos.has(valor)) {
+        throw new BadRequestException(
+          `El ${cargo} debe ser uno de los convocados`,
+        );
+      }
+    }
+    return mesa;
   }
 
   private async reunionDelJefe(usuarioId: number, id: number) {
@@ -573,15 +922,21 @@ export class ReunionesService {
     return d;
   }
 
-  /** Sin lista explícita se convoca a todos; con lista, solo a docentes de la carrera. */
+  /**
+   * Sin lista explícita se convoca a todos los de la carrera; con lista, a
+   * cualquier docente activo del sistema (invitados de otras carreras).
+   */
   private async resolverConvocados(carreraId: number, ids?: number[]) {
-    const docentes = (await this.docentesDeCarrera(carreraId)).map((d) => d.id);
-    if (ids === undefined) return docentes;
-    const validos = new Set(docentes);
-    const ajenos = ids.filter((id) => !validos.has(id));
-    if (ajenos.length) {
+    if (ids === undefined) {
+      return (await this.docentesDeCarrera(carreraId)).map((d) => d.id);
+    }
+    if (!ids.length) return ids;
+    const validos = await this.prisma.usuario.count({
+      where: { id: { in: ids }, rol: 'DOCENTE', activo: true },
+    });
+    if (validos !== new Set(ids).size) {
       throw new BadRequestException(
-        'Solo se puede convocar a docentes que imparten en la carrera',
+        'Solo se puede convocar a docentes activos del sistema',
       );
     }
     return ids;
@@ -612,8 +967,11 @@ export class ReunionesService {
       : await this.justificadas.choques(ids, reunion);
     await this.notificaciones.crearVarias(
       ids.map((docenteId) => {
-        const pendientes = (choques.get(docenteId) ?? []).filter(
-          (c) => !c.justificacion && !c.sinClases && !c.listaCapturada,
+        const sinClase = (choques.get(docenteId) ?? []).filter(
+          (c) =>
+            c.justificacion?.reunionId === reunion.id &&
+            !c.sinClases &&
+            !c.listaCapturada,
         );
         const caidas = retiradas.get(docenteId) ?? [];
         return {
@@ -622,7 +980,7 @@ export class ReunionesService {
           titulo: titulo.slice(0, 200),
           mensaje: [
             mensaje,
-            pendientes.length ? textoChoques(pendientes) : null,
+            sinClase.length ? textoChoques(sinClase) : null,
             caidas.length
               ? `Se retiró la justificación de ${caidas.join(', ')}: ${caidas.length === 1 ? 'esa clase se imparte' : 'esas clases se imparten'} normalmente.`
               : null,
@@ -636,6 +994,7 @@ export class ReunionesService {
     );
   }
 
+  /** Avisos del acta: `ReunionActa` hace que la notificación abra el acta. */
   private async notificar(
     docenteIds: number[],
     reunion: { id: number },
@@ -647,11 +1006,21 @@ export class ReunionesService {
       titulo: titulo.slice(0, 200),
       mensaje,
       referenciaId: reunion.id,
-      referenciaTipo: 'ReunionAcademica',
+      referenciaTipo: 'ReunionActa',
     });
   }
 
-  private serializar(r: ReunionCompleta) {
+  private async serializarConMaterias(r: ReunionCompleta) {
+    return this.serializar(
+      r,
+      await this.materiasDeDocentes(r.convocados.map((c) => c.docenteId)),
+    );
+  }
+
+  private serializar(
+    r: ReunionCompleta,
+    materias = new Map<number, string[]>(),
+  ) {
     const asistieron = r.convocados.filter((c) => c.asistio === true).length;
     return {
       id: r.id,
@@ -669,6 +1038,21 @@ export class ReunionesService {
       enlace: r.enlace,
       estado: r.estado,
       observaciones: r.observaciones,
+      academia: r.academia,
+      apertura: r.apertura,
+      horaCierre: r.horaCierre,
+      presidente: r.presidente,
+      secretario: r.secretario,
+      seguimiento: r.seguimiento.map((a) => ({
+        id: a.id,
+        orden: a.orden,
+        acuerdoOrigenId: a.acuerdoOrigenId,
+        descripcion: a.descripcion,
+        responsable: a.responsable,
+        fechaLimite: a.fechaLimite,
+        avance: a.avance,
+      })),
+      documentos: r.documentos,
       puntos: r.puntos.map((p) => ({
         id: p.id,
         orden: p.orden,
@@ -684,6 +1068,7 @@ export class ReunionesService {
       convocados: r.convocados.map((c) => ({
         ...c.docente,
         asistio: c.asistio,
+        materias: materias.get(c.docenteId) ?? [],
       })),
       // Clases que los convocados justificaron por esta reunión.
       clasesJustificadas: (r.clasesJustificadas ?? []).map((j) => ({
@@ -692,6 +1077,7 @@ export class ReunionesService {
           r.convocados.find((c) => c.docenteId === j.docenteId)?.docente
             .nombre ?? null,
         motivo: j.motivo,
+        avisarAlumnos: j.avisarAlumnos,
         horarioId: j.horario.id,
         materia: j.horario.materia.nombre,
         grupo: j.horario.grupo?.nombre ?? null,

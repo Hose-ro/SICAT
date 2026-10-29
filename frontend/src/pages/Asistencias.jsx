@@ -1168,10 +1168,12 @@ function claveAtrasada(item) {
  */
 function ClasesAtrasadasSection({
   items,
+  opcionales = [],
   loading,
   error,
   procesando,
   onCapturar,
+  onPasarListaOpcional,
   onMarcarTodas,
   marcandoLote,
 }) {
@@ -1394,7 +1396,72 @@ function ClasesAtrasadasSection({
           </>
         )
       )}
+
+      {opcionales.length > 0 && (
+        <ClasesOpcionalesReunion
+          items={opcionales}
+          procesando={procesando}
+          deshabilitado={marcandoLote}
+          onPasarLista={onPasarListaOpcional}
+        />
+      )}
     </section>
+  )
+}
+
+/**
+ * Clases que el docente justificó por una reunión de academia. No son
+ * pendientes, pero si de todos modos dio la clase puede pasar lista y esa
+ * asistencia cuenta como cualquier otra.
+ */
+function ClasesOpcionalesReunion({ items, procesando, deshabilitado, onPasarLista }) {
+  return (
+    <div className="rounded-[var(--radius-card)] border border-border bg-card p-5">
+      <h3 className="text-base font-semibold text-foreground">Sin clase por reunión (opcional)</h3>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Las justificaste por una reunión de academia y no cuentan como pendientes. Si diste la clase, puedes pasar lista.
+      </p>
+      <ul className="mt-4 space-y-2">
+        {items.map((item) => {
+          const clave = claveAtrasada(item)
+          const enProceso = procesando === clave
+          const sinUnidad = !item.unidad
+          const ayudaId = sinUnidad ? `opcional-${clave}-ayuda` : undefined
+          return (
+            <li
+              key={clave}
+              className="flex flex-col gap-3 rounded-2xl bg-muted/40 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-foreground">
+                  <span className="capitalize">{formatFechaClave(item.fecha)}</span>
+                  {' · '}
+                  {item.materia?.nombre}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {formatTime(item.horaInicio)} - {formatTime(item.horaFin)} · {item.grupo?.nombre ?? 'Sin grupo'}
+                  {item.motivo ? ` · ${item.motivo}` : ''}
+                </p>
+                {sinUnidad && (
+                  <p id={ayudaId} className="mt-1 text-xs leading-relaxed text-warning-foreground">
+                    Inicia una unidad de la materia para poder capturar esta lista.
+                  </p>
+                )}
+              </div>
+              <Button variant="outline"
+                type="button"
+                onClick={() => onPasarLista(item)}
+                disabled={enProceso || sinUnidad || deshabilitado}
+                aria-describedby={ayudaId}
+                className="shrink-0 border px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {enProceso ? 'Abriendo...' : 'Pasar lista de todos modos'}
+              </Button>
+            </li>
+          )
+        })}
+      </ul>
+    </div>
   )
 }
 
@@ -1408,6 +1475,7 @@ function DocenteAsistenciasView() {
     panelDocente,
     cargarPanelDocente,
     clasesAtrasadas,
+    clasesOpcionales,
     cargarClasesAtrasadas,
     registrarClaseAtrasada,
     marcarAsistenciaAtrasadas,
@@ -1624,7 +1692,7 @@ function DocenteAsistenciasView() {
     }
   })
 
-  const handleCapturarAtrasada = async (item) => {
+  const handleCapturarAtrasada = async (item, { aunqueJustificada = false } = {}) => {
     const clave = claveAtrasada(item)
     setMensaje('')
     setAtrasadaProcesando(clave)
@@ -1635,6 +1703,7 @@ function DocenteAsistenciasView() {
         const sesion = await registrarClaseAtrasada({
           horarioId: item.horarioId,
           fecha: item.fecha,
+          aunqueJustificada,
         })
         sesionId = sesion.id
       }
@@ -1645,6 +1714,15 @@ function DocenteAsistenciasView() {
     } finally {
       setAtrasadaProcesando('')
     }
+  }
+
+  const handlePasarListaOpcional = async (item) => {
+    if (!(await confirmAction({
+      title: 'Pasar lista de todos modos',
+      description: `La clase del ${formatFechaClave(item.fecha)} está justificada por una reunión de academia. Esta asistencia contará en la calificación.`,
+      confirmLabel: 'Pasar lista',
+    }))) return
+    await handleCapturarAtrasada(item, { aunqueJustificada: true })
   }
 
   const handleMarcarAtrasadas = async (elegidas) => {
@@ -1797,10 +1875,12 @@ function DocenteAsistenciasView() {
 
       <ClasesAtrasadasSection
         items={clasesAtrasadas ?? []}
+        opcionales={clasesOpcionales ?? []}
         loading={atrasadasLoading}
         error={atrasadasError}
         procesando={atrasadaProcesando}
         onCapturar={handleCapturarAtrasada}
+        onPasarListaOpcional={handlePasarListaOpcional}
         onMarcarTodas={handleMarcarAtrasadas}
         marcandoLote={marcandoLote}
       />

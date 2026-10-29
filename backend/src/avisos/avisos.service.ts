@@ -310,13 +310,18 @@ export class AvisosService {
     fecha: string,
     /** Sólo el aviso de esa clase; sin ella, los de todo el día. */
     clase?: { materiaId: number; grupoId: number },
+    /**
+     * `notificar: false` sólo retira el aviso (el docente ya no quiere que sus
+     * alumnos lo vean), sin decirles que sí hay clase.
+     */
+    { notificar = true } = {},
   ) {
     try {
       const avisos = await this.prisma.aviso.findMany({
         where: { docenteId, suspensionFecha: fecha, ...(clase ?? {}) },
         include: { materia: { select: { nombre: true } } },
       });
-      for (const aviso of avisos) {
+      for (const aviso of notificar ? avisos : []) {
         const alumnos = await alumnosDeClase(
           this.prisma,
           aviso.materiaId,

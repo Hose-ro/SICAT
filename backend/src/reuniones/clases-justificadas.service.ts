@@ -27,6 +27,14 @@ type ReunionAgenda = {
   horaFin: string | null;
 };
 
+/** "Reunión de academia: Revisión de planes (10:00–12:00)". */
+export function motivoReunion(reunion: ReunionAgenda & { titulo: string }) {
+  const horas = reunion.horaFin
+    ? `${reunion.horaInicio}–${reunion.horaFin}`
+    : `desde las ${reunion.horaInicio}`;
+  return `Reunión de academia: ${reunion.titulo} (${horas})`.slice(0, 500);
+}
+
 /** Una clase del docente que se cruza con la reunión. */
 export type ChoqueReunion = {
   horarioId: number;
@@ -35,7 +43,13 @@ export type ChoqueReunion = {
   horaInicio: string;
   horaFin: string;
   /** Ya justificada (por esta u otra reunión a la misma hora). */
-  justificacion: { motivo: string; reunionId: number; creadaEn: Date } | null;
+  justificacion: {
+    motivo: string;
+    reunionId: number;
+    creadaEn: Date;
+    avisarAlumnos: boolean;
+    automatica: boolean;
+  } | null;
   /** Ese día ya no hay clases (festivo o día marcado): nada que justificar. */
   sinClases: string | null;
   /** Ya hay lista pasada o una sesión abierta: la clase sí se dio. */
@@ -54,9 +68,10 @@ const minutosDeReunion = (r: ReunionAgenda) => {
 
 /**
  * Clases que el docente no imparte porque se cruzan con una reunión de
- * academia a la que fue convocado. Justificar una clase la deja como un día
- * sin clases, pero sólo para ese horario: no se cuenta como pendiente, no se
- * recuerda y los alumnos reciben el aviso, igual que con un festivo.
+ * academia a la que fue convocado. Al convocar se justifican solas: quedan
+ * como un día sin clases, pero sólo para ese horario (no se cuentan como
+ * pendientes ni se recuerdan). El docente decide clase por clase si sus
+ * alumnos reciben el aviso, y puede pasar lista después si la da.
  */
 @Injectable()
 export class ClasesJustificadasService {
@@ -114,6 +129,8 @@ export class ClasesJustificadasService {
           motivo: true,
           reunionId: true,
           createdAt: true,
+          avisarAlumnos: true,
+          automatica: true,
         },
       }),
       this.prisma.claseSesion.findMany({
@@ -146,6 +163,8 @@ export class ClasesJustificadasService {
               motivo: justificada.motivo,
               reunionId: justificada.reunionId,
               creadaEn: justificada.createdAt,
+              avisarAlumnos: justificada.avisarAlumnos,
+              automatica: justificada.automatica,
             }
           : null,
         sinClases: suspendidos.get(h.docenteId)?.motivo ?? null,
@@ -216,6 +235,103 @@ export class ClasesJustificadasService {
       motivo,
       elegidas.map((c) => c.horarioId),
     );
+    return (await this.choques([docenteId], reunion)).get(docenteId) ?? [];
+  }
+
+  /**
+   * Al convocar (o al mover la reunión) deja sin clase cada clase de los
+   * docentes que se cruza con ella, salvo que ese día ya no haya clases, ya
+   * se haya pasado lista o ya esté justificada. Avisa a los alumnos.
+   */
+  async justificarAutomatico(
+    reunion: ReunionAgenda & { titulo: string; estado: string },
+    docenteIds: number[],
+  ) {
+    if (reunion.estado !== 'PROGRAMADA' || !docenteIds.length) return;
+    const fecha = parsearFechaClave(reunion.fecha);
+    if (!fecha) return;
+    const choques = await this.choques(docenteIds, reunion);
+    const periodoClave = getCurrentAcademicPeriod(fecha);
+    const motivo = motivoReunion(reunion);
+    for (const [docenteId, lista] of choques) {
+      const nuevas = lista.filter(
+        (c) => !c.justificacion && !c.sinClases && !c.listaCapturada,
+      );
+      if (!nuevas.length) continue;
+      await this.prisma.claseJustificada.createMany({
+        data: nuevas.map((c) => ({
+          periodoClave,
+          docenteId,
+          horarioId: c.horarioId,
+          reunionId: reunion.id,
+          fecha: reunion.fecha,
+          motivo,
+          automatica: true,
+        })),
+        skipDuplicates: true,
+      });
+      await this.avisos.avisarSuspensiones(
+        docenteId,
+        [reunion.fecha],
+        motivo,
+        nuevas.map((c) => c.horarioId),
+      );
+    }
+  }
+
+  /**
+   * El docente decide si sus alumnos ven que no habrá esa clase. Apagarlo
+   * retira el aviso sin decirles que sí hay clase.
+   */
+  async cambiarAviso(
+    docenteId: number,
+    reunionId: number,
+    horarioId: number,
+    avisarAlumnos: boolean,
+  ) {
+    const reunion = await this.reunionDelConvocado(docenteId, reunionId);
+    const justificada = await this.prisma.claseJustificada.findFirst({
+      where: { docenteId, horarioId, fecha: reunion.fecha },
+      select: {
+        id: true,
+        motivo: true,
+        avisarAlumnos: true,
+        horario: { select: { materiaId: true, grupoId: true } },
+      },
+    });
+    if (!justificada) {
+      throw new NotFoundException('Esa clase no está justificada');
+    }
+    if (justificada.avisarAlumnos !== avisarAlumnos) {
+      await this.prisma.claseJustificada.update({
+        where: { id: justificada.id },
+        data: { avisarAlumnos },
+      });
+      if (avisarAlumnos) {
+        await this.avisos.avisarSuspensiones(
+          docenteId,
+          [reunion.fecha],
+          justificada.motivo,
+          [horarioId],
+        );
+      } else if (
+        justificada.horario.grupoId &&
+        !(await this.periodos.obtenerSuspension(
+          docenteId,
+          parsearFechaClave(reunion.fecha) as Date,
+        ))
+      ) {
+        await this.avisos.retirarAvisosDeSuspension(
+          docenteId,
+          reunion.fecha,
+          {
+            materiaId: justificada.horario.materiaId,
+            grupoId: justificada.horario.grupoId,
+          },
+          { notificar: false },
+        );
+      }
+    }
     return (await this.choques([docenteId], reunion)).get(docenteId) ?? [];
   }
 
@@ -294,6 +410,7 @@ export class ClasesJustificadasService {
       select: {
         docenteId: true,
         fecha: true,
+        avisarAlumnos: true,
         horario: { select: { materiaId: true, grupoId: true } },
       },
     });
@@ -318,10 +435,13 @@ export class ClasesJustificadasService {
         },
       });
       if (otra) continue;
-      await this.avisos.retirarAvisosDeSuspension(fila.docenteId, fila.fecha, {
-        materiaId: fila.horario.materiaId,
-        grupoId: fila.horario.grupoId,
-      });
+      // Si los alumnos nunca se enteraron, no hay "sí hay clase" que decirles.
+      await this.avisos.retirarAvisosDeSuspension(
+        fila.docenteId,
+        fila.fecha,
+        { materiaId: fila.horario.materiaId, grupoId: fila.horario.grupoId },
+        { notificar: fila.avisarAlumnos },
+      );
     }
   }
 

@@ -1,5 +1,5 @@
 import { useId, useState } from 'react'
-import { ChevronDown, Clock, ExternalLink, MapPin, Video } from 'lucide-react'
+import { ChevronDown, Clock, ExternalLink, FileCheck2, MapPin, Video } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { ESTADO_REUNION, TIPO_REUNION, diaMes, horarioReunion, lugarReunion } from '@/lib/reuniones'
@@ -12,10 +12,10 @@ const fechaCorta = (clave) => {
 /**
  * Una reunión en lista: fecha, título, hora y lugar a la vista; orden del día,
  * acuerdos y (para la jefatura) convocados al desplegar. `acciones` va a la
- * derecha del encabezado, `aviso` siempre visible bajo él y `pie` debajo del
- * detalle.
+ * derecha del encabezado, `aviso` siempre visible bajo él, `barra` junto a
+ * "Ver detalle" (p. ej. "Ver acta") y `pie` debajo del detalle.
  */
-export default function ReunionTarjeta({ reunion: r, acciones, aviso, pie, abiertaInicial = false, mostrarConvocados = false, extra }) {
+export default function ReunionTarjeta({ reunion: r, acciones, aviso, barra, pie, abiertaInicial = false, mostrarConvocados = false, extra }) {
   const id = useId()
   const [abierta, setAbierta] = useState(abiertaInicial)
   const { dia, mes, semana } = diaMes(r.fecha)
@@ -43,6 +43,12 @@ export default function ReunionTarjeta({ reunion: r, acciones, aviso, pie, abier
               <span className="truncate">{lugarReunion(r)}</span>
             </span>
             {extra}
+            {r.documentos?.length > 0 && (
+              <span className="inline-flex items-center gap-1.5 text-success-foreground">
+                <FileCheck2 className="size-3.5" aria-hidden="true" />
+                Acta firmada: {r.documentos.map((d) => (d.formato === 'DOCX' ? 'Word' : 'PDF')).join(' · ')}
+              </span>
+            )}
           </p>
           {r.asunto && <p className="mt-1.5 line-clamp-2 text-[0.8125rem] text-foreground">{r.asunto}</p>}
         </div>
@@ -55,6 +61,7 @@ export default function ReunionTarjeta({ reunion: r, acciones, aviso, pie, abier
           {abierta ? 'Ocultar detalle' : 'Ver detalle'}
           <ChevronDown aria-hidden="true" className={cn('transition-transform duration-150 ease-out', abierta && 'rotate-180')} />
         </Button>
+        {barra}
         {acciones && <div className="ml-auto flex flex-wrap gap-2 sm:hidden">{acciones}</div>}
       </div>
 
@@ -117,11 +124,12 @@ export default function ReunionTarjeta({ reunion: r, acciones, aviso, pie, abier
               </ul>
               {r.clasesJustificadas?.length > 0 && (
                 <>
-                  <h4 className="mt-4 text-xs font-medium text-muted-foreground">Clases justificadas por esta reunión</h4>
+                  <h4 className="mt-4 text-xs font-medium text-muted-foreground">Clases sin clase por esta reunión</h4>
                   <ul className="mt-1.5 space-y-1">
                     {r.clasesJustificadas.map((j) => (
                       <li key={j.horarioId} className="text-foreground">
                         {j.docente ?? 'Docente'} · {j.materia}{j.grupo && ` · ${j.grupo}`} <span className="tabular-nums text-muted-foreground">{j.horaInicio}–{j.horaFin}</span>
+                        {j.avisarAlumnos === false && <span className="text-xs text-muted-foreground"> · sin aviso a alumnos</span>}
                       </li>
                     ))}
                   </ul>

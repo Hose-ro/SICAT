@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { CalendarPlus, LoaderCircle } from 'lucide-react'
+import { CalendarPlus, FileText, LoaderCircle } from 'lucide-react'
 import api from '@/api/axios'
 import PageHeader from '@/components/PageHeader'
 import { Button } from '@/components/ui/button'
 import ReunionTarjeta from '@/components/reuniones/ReunionTarjeta'
+import VisorActa from '@/components/reuniones/VisorActa'
 import ChoquesReunion from '@/pages/docente/components/ChoquesReunion'
 import { notify } from '@/lib/feedback'
 import { descargarIcs, separarReuniones } from '@/lib/reuniones'
@@ -17,6 +18,8 @@ export default function MisReuniones() {
   const destacada = Number(params.get('reunion')) || null
   const [estado, setEstado] = useState({ lista: null, error: '' })
   const [intento, setIntento] = useState(0)
+  // ?acta=ID (desde la notificación "Acta disponible") abre el acta directamente.
+  const [viendo, setViendo] = useState(() => Number(params.get('acta')) || null)
 
   useEffect(() => {
     let vivo = true
@@ -35,6 +38,7 @@ export default function MisReuniones() {
     setEstado((actual) => ({ ...actual, lista: actual.lista.map((r) => (r.id === id ? { ...r, choques } : r)) }))
 
   const { proximas, pasadas } = separarReuniones(estado.lista ?? [])
+  const reunionVista = viendo && estado.lista?.find((r) => r.id === viendo)
   const tarjeta = (r) => (
     <ReunionTarjeta
       key={r.id}
@@ -43,12 +47,18 @@ export default function MisReuniones() {
       extra={<span>{r.carrera.nombre}{r.miAsistencia !== null && ` · ${ASISTENCIA[r.miAsistencia]}`}</span>}
       aviso={r.choques?.length > 0 && <ChoquesReunion reunion={r} onCambio={(choques) => actualizarChoques(r.id, choques)} />}
       acciones={r.estado === 'PROGRAMADA' && <Button variant="outline" size="sm" onClick={() => ics(r)}><CalendarPlus aria-hidden="true" /> Agregar a mi calendario</Button>}
+      barra={r.estado !== 'CANCELADA' && (
+        <Button variant="ghost" size="sm" onClick={() => setViendo(r.id)}>
+          <FileText aria-hidden="true" /> Ver acta{r.documentos?.length ? ' firmada' : ''}
+        </Button>
+      )}
     />
   )
 
   return (
     <div className="mx-auto max-w-4xl">
-      <PageHeader title="Reuniones de academia" subtitle="Juntas a las que te convocó la jefatura de carrera, con su orden del día y los acuerdos. Si una se cruza con tu clase, justifícala aquí." />
+      <PageHeader title="Reuniones de academia" subtitle="Juntas a las que te convocaron, con su acta. Las clases que se cruzan quedan sin clase solas; aquí decides si avisas a tus alumnos." />
+      {reunionVista && <VisorActa reunion={reunionVista} detalle={`/reuniones/${reunionVista.id}`} onClose={() => setViendo(null)} />}
       {estado.error ? (
         <div role="alert" className="rounded-[var(--radius-item)] border border-destructive/40 bg-destructive/5 p-5 text-sm">
           <p className="font-semibold text-destructive-foreground">{estado.error}</p>

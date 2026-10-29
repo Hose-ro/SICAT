@@ -207,14 +207,17 @@ function resumen() {
 
 // Reuniones de academia: una próxima y una pasada ya finalizada con su acta.
 const diasDesdeHoy = (n) => clave(new Date(Date.now() + n * 86400000))
-const convocado = (d, asistio = null) => ({ id: d.id, nombre: d.nombre, email: d.email, asistio })
+const convocado = (d, asistio = null) => ({ id: d.id, nombre: d.nombre, email: d.email, asistio, materias: d.materias ?? ['Cálculo diferencial'] })
+// Docente de otra carrera que se puede invitar.
+export const docenteExterno = { id: 70, nombre: 'Rosa Externa', email: 'rosa@sicat.test', carreras: ['Ingeniería Industrial'], materias: ['Estadística'] }
+const datosActa = { academia: null, apertura: null, horaCierre: null, presidente: null, secretario: null, seguimiento: [], documentos: [], clasesJustificadas: [] }
 export function reunionesIniciales() {
   return [
     {
       id: 1, carrera, creadaPor: { id: 1, nombre: 'Persona de prueba' }, titulo: 'Reunión ordinaria de academia', asunto: 'Revisión del avance programático del primer parcial.',
       tipo: 'ORDINARIA', numeroActa: null, fecha: diasDesdeHoy(6), horaInicio: '12:00', horaFin: '13:30', modalidad: 'PRESENCIAL', lugar: 'Sala de juntas, edificio K', enlace: null,
       estado: 'PROGRAMADA', observaciones: null, puntos: [{ id: 1, orden: 1, descripcion: 'Pase de lista' }, { id: 2, orden: 2, descripcion: 'Avance programático por materia' }], acuerdos: [],
-      convocados: docentes.slice(0, 5).map((d) => convocado(d)), asistencia: { convocados: 5, asistieron: 0, registrada: false },
+      convocados: docentes.slice(0, 5).map((d) => convocado(d)), asistencia: { convocados: 5, asistieron: 0, registrada: false }, ...datosActa,
     },
     {
       id: 2, carrera, creadaPor: { id: 1, nombre: 'Persona de prueba' }, titulo: 'Reunión de inicio de semestre', asunto: null,
@@ -222,6 +225,7 @@ export function reunionesIniciales() {
       estado: 'FINALIZADA', observaciones: 'Sin observaciones.', puntos: [{ id: 3, orden: 1, descripcion: 'Asignación de materias' }],
       acuerdos: [{ id: 1, orden: 1, descripcion: 'Entregar planeación didáctica', responsable: 'Todos los docentes', fechaLimite: '2026-09-04' }],
       convocados: docentes.slice(0, 3).map((d, i) => convocado(d, i !== 2)), asistencia: { convocados: 3, asistieron: 2, registrada: true },
+      ...datosActa, academia: 'Academia de Sistemas', horaCierre: '11:30',
     },
   ]
 }
@@ -249,19 +253,31 @@ export async function mockJefatura(page, { seguimientos = [], ajustarResumen = (
     const url = new URL(req.url())
     const p = url.pathname.replace(/^\/api\/jefe-carrera/, '')
     const q = Object.fromEntries(url.searchParams)
-    requests.push({ path: p, method: req.method(), query: q, body: req.postDataJSON?.() })
+    let body
+    try { body = req.postDataJSON?.() } catch { body = req.postData() }
+    requests.push({ path: p, method: req.method(), query: q, body })
     let data = []
     let status = 200
     if (p === '/reuniones/docentes') data = docentes.map(({ id, nombre, email }) => ({ id, nombre, email }))
+    else if (p === '/reuniones/docentes/buscar') data = [docenteExterno, ...docentes.slice(0, 1).map(({ id, nombre, email }) => ({ id, nombre, email, carreras: [carrera.nombre] }))].filter((d) => d.nombre.toLowerCase().includes((q.q ?? '').toLowerCase()))
+    else if (/^\/reuniones\/\d+\/seguimiento-sugerido$/.test(p)) {
+      const previa = reuniones.find((x) => x.id === 2)
+      data = Number(p.split('/')[2]) === 2 ? { reunion: null, acuerdos: [] } : { reunion: { id: 2, titulo: previa.titulo, fecha: previa.fecha }, acuerdos: previa.acuerdos.map((a) => ({ acuerdoOrigenId: a.id, descripcion: a.descripcion, responsable: a.responsable, fechaLimite: a.fechaLimite, avance: null })) }
+    } else if (/^\/reuniones\/\d+\/documento$/.test(p)) {
+      const r = reuniones.find((x) => x.id === Number(p.split('/')[2]))
+      const formato = /filename="[^"]+\.docx"/.test(req.postData() ?? '') ? 'DOCX' : 'PDF'
+      r.documentos = [...r.documentos.filter((d) => d.formato !== formato), { formato, nombre: formato === 'PDF' ? 'acta-firmada.pdf' : 'acta-firmada.docx', mime: 'application/pdf', tamano: 120000, createdAt: new Date().toISOString() }]
+      data = r
+    }
     else if (p === '/reuniones' && req.method() === 'GET') data = reuniones
     else if (p === '/reuniones' && req.method() === 'POST') {
       const body = req.postDataJSON()
-      data = { ...body, id: 99, carrera, creadaPor: null, estado: 'PROGRAMADA', observaciones: null, puntos: body.puntos.map((descripcion, i) => ({ id: 900 + i, orden: i + 1, descripcion })), acuerdos: [], convocados: docentes.filter((d) => body.convocados.includes(d.id)).map((d) => convocado(d)), asistencia: { convocados: body.convocados.length, asistieron: 0, registrada: false } }
+      data = { ...datosActa, ...body, id: 99, carrera, creadaPor: null, estado: 'PROGRAMADA', observaciones: null, puntos: body.puntos.map((descripcion, i) => ({ id: 900 + i, orden: i + 1, descripcion })), acuerdos: [], convocados: [...docentes, docenteExterno].filter((d) => body.convocados.includes(d.id)).map((d) => convocado(d)), asistencia: { convocados: body.convocados.length, asistieron: 0, registrada: false } }
       reuniones.unshift(data)
     } else if (/^\/reuniones\/\d+\/acta$/.test(p)) {
       const body = req.postDataJSON()
       const r = reuniones.find((x) => x.id === Number(p.split('/')[2]))
-      Object.assign(r, { estado: body.finalizar ? 'FINALIZADA' : r.estado, observaciones: body.observaciones, acuerdos: body.acuerdos.map((a, i) => ({ id: 500 + i, orden: i + 1, ...a })) })
+      Object.assign(r, { estado: body.finalizar ? 'FINALIZADA' : r.estado, observaciones: body.observaciones, horaCierre: body.horaCierre, apertura: body.apertura, acuerdos: body.acuerdos.map((a, i) => ({ id: 500 + i, orden: i + 1, ...a })), seguimiento: (body.seguimiento ?? []).map((a, i) => ({ id: 600 + i, orden: i + 1, ...a })) })
       r.convocados = r.convocados.map((c) => ({ ...c, asistio: body.asistencia.find((a) => a.docenteId === c.id)?.asistio ?? c.asistio }))
       data = r
     } else if (p === '/contexto') data = { carreras: [carrera], periodoActual: '2026-B', periodos: ['2026-B', '2026-A'] }
