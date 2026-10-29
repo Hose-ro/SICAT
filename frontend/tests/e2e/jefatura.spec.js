@@ -20,7 +20,7 @@ test.describe('jefatura de carrera', () => {
     await page.goto('/dashboard')
     await expect(page.getByRole('heading', { level: 1, name: 'Inicio' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Clases de hoy' })).toBeVisible()
-    await expect(page.getByText('Clases hoy')).toBeVisible()
+    await expect(page.locator('.inicio-hoy .hoy-nota')).toContainText(/clases programadas/)
     await expect(page.getByRole('link', { name: 'Ver horario completo' })).toHaveAttribute('href', /\/jefe-carrera\/horarios/)
     // El horario completo ya no se repite en Inicio.
     await expect(page.getByRole('region', { name: 'Horario del día por grupo y hora' })).toHaveCount(0)

@@ -1,15 +1,14 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { BookOpen, CalendarClock, ChevronDown, LoaderCircle, NotebookPen, UsersRound } from 'lucide-react'
+import { BookOpen, CalendarClock, ChevronDown, NotebookPen, UsersRound } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { buttonVariants } from '@/components/ui/buttonVariants'
 import SexoBadge from '@/components/SexoBadge'
 import { cn } from '@/lib/utils'
 import api from '@/api/axios'
 import { useAuthStore } from '@/store/authStore'
-import { CRITERIO_RIESGO, ESTADOS_PENDIENTES, MOTIVOS_RIESGO, esIncidencia, estadoClase, senalUnidad } from './supervision/estados'
+import { CRITERIO_RIESGO, MOTIVOS_RIESGO, estadoClase, senalUnidad } from './supervision/estados'
 import { fechaCorta, haceTiempo, hoyClave, modalidadTexto, parseClave, plural } from './supervision/formato'
-import { useClases } from './supervision/useClasesSemana'
 import { Aviso, JefaturaPage, SeccionTitulo, linkClass } from './supervision/ui'
 import { BotonSeguimiento, EstadoSeguimiento } from './supervision/Seguimiento'
 import { esParaHoy, useSeguimientos } from './supervision/useSeguimientos'
@@ -17,11 +16,11 @@ import { calendariosFaltantes } from './supervision/pendientes'
 import TendenciaCobertura from './graficas/TendenciaCobertura'
 import BienvenidaJefatura from './components/BienvenidaJefatura'
 import PrimerosPasosJefatura from './components/PrimerosPasosJefatura'
+import HoyEnLaCarrera from './components/HoyEnLaCarrera'
 import './inicio.css'
 
 const DOCENTES_VISIBLES = 4
 const ALUMNOS_VISIBLES = 4
-const PROXIMAS_VISIBLES = 3
 
 function fechaBreve(clave) {
   return parseClave(clave).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
@@ -317,79 +316,6 @@ function RequiereAtencion({ j, grupos, riesgos, seguimientos, ofertaIncompleta }
  * Resumen del día: cuántas clases hay, cuántas ya tienen registro y cuáles
  * siguen. El horario completo vive en Horarios.
  */
-function HoyEnLaCarrera({ j }) {
-  const hoy = hoyClave()
-  const { clases, error, cargando, reintentar } = useClases({ carreraId: j.carreraId, periodo: j.historico ? null : j.periodo, desde: hoy, hasta: hoy })
-  const verHorario = <Link className={`${linkClass} inline-flex min-h-11 items-center text-[0.8125rem]`} to={j.to('/jefe-carrera/horarios')}>Ver horario completo</Link>
-
-  if (j.historico) return null
-
-  const delDia = (clases ?? []).filter((c) => c.fecha === hoy)
-  const activas = delDia.filter((c) => c.estado !== 'SUSPENDIDA')
-  const conRegistro = activas.filter((c) => ['LISTA_COMPLETA', 'REGISTRO_TARDIO', 'REGISTRO_EN_CURSO'].includes(c.estado)).length
-  const sinRegistro = activas.filter((c) => c.elegible && ESTADOS_PENDIENTES.has(c.estado)).length
-  const incidencias = activas.filter(esIncidencia).length
-  const suspendidas = delDia.length - activas.length
-  const proximas = activas
-    .filter((c) => c.estado === 'PROGRAMADA' || c.estado === 'REGISTRO_EN_CURSO')
-    .sort((a, b) => Number(b.estado === 'REGISTRO_EN_CURSO') - Number(a.estado === 'REGISTRO_EN_CURSO') || a.horaInicio.localeCompare(b.horaInicio))
-    .slice(0, PROXIMAS_VISIBLES)
-
-  return (
-    <section aria-labelledby="hoy-carrera" className="inicio-hoy mt-6">
-      <SeccionTitulo id="hoy-carrera" titulo="Clases de hoy" descripcion={fechaCorta(hoy)} accion={verHorario} />
-      {error ? (
-        <p role="alert" className="flex flex-wrap items-center gap-3 border-y border-border py-4 text-[0.8125rem] text-warning-foreground">
-          {error}
-          <Button variant="outline" size="sm" onClick={reintentar}>Reintentar</Button>
-        </p>
-      ) : cargando || clases === null ? (
-        <p className="flex items-center gap-2 border-y border-border py-4 text-[0.8125rem] text-muted-foreground"><LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> Consultando las clases de hoy…</p>
-      ) : !activas.length ? (
-        <p className="border-y border-border py-4 text-[0.8125rem] text-muted-foreground">
-          {suspendidas ? `Hoy no hay clases: ${plural(suspendidas, 'clase suspendida', 'clases suspendidas')}.` : 'Hoy no hay clases programadas en la carrera.'}
-        </p>
-      ) : (
-        <div className="grid gap-6 border-y border-border py-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
-          <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-[0.8125rem] sm:grid-cols-4 md:grid-cols-2">
-            {[
-              ['Clases hoy', activas.length],
-              ['Con registro', conRegistro],
-              ['Sin registro', sinRegistro, sinRegistro > 0],
-              ['Con incidencia', incidencias, incidencias > 0],
-            ].map(([label, value, alerta]) => (
-              <div key={label}>
-                <dt className="text-xs text-muted-foreground">{label}</dt>
-                <dd className={cn('mt-0.5 text-[1.0625rem] font-semibold tabular-nums', alerta ? 'text-warning-foreground' : 'text-foreground')}>{value}</dd>
-              </div>
-            ))}
-            {suspendidas > 0 && <p className="col-span-full text-xs text-muted-foreground">{plural(suspendidas, 'clase suspendida', 'clases suspendidas')} hoy.</p>}
-          </dl>
-          <div className="min-w-0">
-            <h3 className="text-xs font-medium text-muted-foreground">En curso y próximas</h3>
-            {proximas.length ? (
-              <ul className="mt-1.5 divide-y divide-border text-[0.8125rem]">
-                {proximas.map((c) => (
-                  <li key={c.id} className="flex items-baseline gap-3 py-2">
-                    <span className="w-24 shrink-0 tabular-nums text-muted-foreground">{c.horaInicio}–{c.horaFin}</span>
-                    <Link className={cn(linkClass, 'min-w-0 truncate text-foreground')} to={j.toDesde('/jefe-carrera/horarios', { fecha: hoy, clase: c.id, modalidad: c.grupo.modalidad === 'MIXTO' ? 'MIXTO' : undefined })}>
-                      {c.materia.nombre}
-                      {c.estado === 'REGISTRO_EN_CURSO' && <span className="ml-2 text-xs text-primary-ink">Registro en curso</span>}
-                    </Link>
-                    <span className="ml-auto shrink-0 text-xs text-muted-foreground">{c.grupo.nombre}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="mt-1.5 text-[0.8125rem] text-muted-foreground">Ya no quedan clases por empezar hoy.</p>
-            )}
-          </div>
-        </div>
-      )}
-    </section>
-  )
-}
-
 /** Los primeros casos quedan visibles; la lista completa se consulta por grupo. */
 function AlumnosRiesgo({ j, riesgos, seguimientos }) {
   const [abierto, setAbierto] = useState(true)
