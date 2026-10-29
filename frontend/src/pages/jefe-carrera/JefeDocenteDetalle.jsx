@@ -8,8 +8,8 @@ import HorarioCarrera from './supervision/HorarioCarrera'
 import { ESTADO_UNIDAD, ESTADOS_PENDIENTES, estadoClase, senalUnidad, textoCierre } from './supervision/estados'
 import { fechaCorta, fechaHoraCorta, haceTiempo, hoyClave, minutos, modalidadTexto, parseClave, diasTexto } from './supervision/formato'
 import { useClases } from './supervision/useClasesSemana'
-import { Aviso, Contacto, JefaturaPage, SeccionTitulo, Vacio, linkClass } from './supervision/ui'
-import { BotonSeguimiento } from './supervision/Seguimiento'
+import { Aviso, JefaturaPage, SeccionTitulo, Vacio, linkClass } from './supervision/ui'
+import EncabezadoDocente from './components/EncabezadoDocente'
 
 const fechaBreve = (clave) => parseClave(clave).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
 const fechaUnidad = (iso) => new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', timeZone: 'UTC' })
@@ -17,7 +17,7 @@ const fechaUnidad = (iso) => new Date(iso).toLocaleDateString('es-MX', { day: 'n
 export default function JefeDocenteDetalle() {
   const { id } = useParams()
   return (
-    <JefaturaPage titulo={(r) => r.docentes.find((d) => d.id === Number(id))?.nombre} volver={{ to: '/jefe-carrera/docentes', label: 'Docentes' }}>
+    <JefaturaPage titulo={(r) => r.docentes.find((d) => d.id === Number(id))?.nombre} encabezadoEnContenido volver={{ to: '/jefe-carrera/docentes', label: 'Docentes' }}>
       {({ j, resumen }) => <Contenido j={j} resumen={resumen} docenteId={Number(id)} />}
     </JefaturaPage>
   )
@@ -29,28 +29,13 @@ function Contenido({ j, resumen, docenteId }) {
     carreraId: j.carreraId, periodo: j.periodo, desde: resumen.intervalo?.desde, hasta: resumen.intervalo?.hasta, docenteId,
   })
   if (!docente) {
-    return <Aviso titulo="Sin asignación en esta carrera">Este docente no imparte clases de la carrera en {j.periodo}. <Link className={linkClass} to={j.to('/jefe-carrera/docentes')}>Volver a Docentes</Link></Aviso>
+    return <><h1 className="mt-4 text-2xl font-semibold">Docente</h1><Aviso titulo="Sin asignación en esta carrera">Este docente no imparte clases de la carrera en {j.periodo}. <Link className={linkClass} to={j.to('/jefe-carrera/docentes')}>Volver a Docentes</Link></Aviso></>
   }
   const ofertas = resumen.ofertas.filter((o) => docente.ofertas.includes(o.id))
 
   return (
     <>
-      <header className="mt-4 flex flex-col gap-4 border-b border-border pb-6 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <p className="text-[0.8125rem] text-muted-foreground">{docente.pertenencia} · {[docente.email, docente.telefono].filter(Boolean).join(' · ') || 'Sin contacto registrado'}</p>
-        </div>
-        <div className="flex flex-col items-start gap-2 sm:items-end">
-          <Contacto persona={docente} compacto />
-          <Link className={linkClass} to={`/reportes/parcial-semestre?carreraId=${j.carreraId}&docenteId=${docente.id}`}>Ver reporte parcial</Link>
-          <BotonSeguimiento
-            j={j}
-            caso={{ tipo: 'SEGUIMIENTO_DOCENTE', docenteId: docente.id }}
-            titulo={`Observación con ${docente.nombre}`}
-            contexto="Acuerdos y revisiones con el docente. Cada nota queda con tu nombre y la fecha."
-            className="sm:justify-end"
-          />
-        </div>
-      </header>
+      <EncabezadoDocente docente={docente} j={j} />
 
       <Carga ofertas={ofertas} docente={docente} j={j} />
       <Registro docente={docente} clases={clases} error={error} reintentar={reintentar} intervalo={resumen.intervalo} j={j} />

@@ -230,6 +230,7 @@ model Usuario {
   id                  Int       @id @default(autoincrement())
   avatar              String?
   nombre              String
+  alias               String?   @db.VarChar(60)
   email               String?   @unique
   emailVerificadoAt   DateTime?
   numeroControl       String?   @unique

@@ -1,0 +1,30 @@
+.docente-perfil { min-width: 0; padding-top: 24px; }
+.docente-perfil-identidad { display: flex; align-items: center; gap: 20px; }
+.docente-perfil-avatar { display: grid; place-items: center; width: 74px; height: 74px; flex-shrink: 0; border-radius: 50%; background: var(--accent); color: var(--primary-ink); font-size: 1.5rem; font-weight: 600; letter-spacing: -.04em; }
+.docente-perfil-alias { margin-bottom: 7px; color: var(--primary-ink); font-size: .8125rem; font-weight: 600; letter-spacing: .025em; overflow-wrap: anywhere; }
+.docente-perfil h1 { color: var(--foreground); font-size: 2.125rem; line-height: 1.15; font-weight: 600; letter-spacing: -.035em; overflow-wrap: anywhere; }
+.docente-perfil-pertenencia { margin-top: 9px; color: var(--muted-foreground); font-size: .8125rem; }
+.docente-perfil-contacto { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 20px; margin: 24px 0 24px 94px; }
+.docente-perfil-contacto > a { display: inline-flex; align-items: center; gap: 7px; min-height: 44px; color: var(--foreground); font-size: .8125rem; overflow-wrap: anywhere; }
+.docente-perfil-contacto > a svg { width: 15px; height: 15px; flex-shrink: 0; color: var(--muted-foreground); }
+.docente-perfil-contacto > a:hover { color: var(--primary-ink); }
+.docente-perfil-copiar { margin-left: auto; min-height: 44px; color: var(--muted-foreground); font-size: .75rem; }
+.docente-perfil-acciones { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding-block: 18px; border-block: 1px solid var(--border); }
+.docente-perfil-observar > button { min-height: 44px; padding: 10px 15px; background: var(--primary); color: var(--primary-foreground); border-color: var(--primary); font-size: .8125rem; }
+.docente-perfil-observar > button:hover { background: var(--primary-strong); color: var(--primary-foreground); border-color: var(--primary-strong); }
+.docente-perfil-reporte { min-height: 44px; padding: 10px 15px; font-size: .8125rem; }
+.docente-perfil-seguimiento { display: inline-flex; align-items: center; gap: 7px; margin-left: auto; color: var(--muted-foreground); font-size: .75rem; }
+.docente-perfil-seguimiento svg { width: 14px; height: 14px; }
+.docente-perfil-copia-manual { display: block; margin-bottom: 18px; font-size: .8125rem; color: var(--muted-foreground); }
+.docente-perfil-copia-manual input { display: block; width: 100%; min-height: 44px; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-top: 6px; color: var(--foreground); }
+@media (max-width: 639px) {
+  .docente-perfil-identidad { align-items: flex-start; gap: 13px; }
+  .docente-perfil-avatar { width: 52px; height: 52px; font-size: 1.125rem; }
+  .docente-perfil h1 { font-size: 1.6875rem; letter-spacing: -.025em; }
+  .docente-perfil-contacto { margin: 20px 0; gap: 5px 18px; }
+  .docente-perfil-contacto > a:first-child { flex-basis: 100%; }
+  .docente-perfil-copiar { margin-left: 0; }
+  .docente-perfil-observar, .docente-perfil-reporte { flex: 1 1 auto; }
+  .docente-perfil-observar > button { width: 100%; }
+  .docente-perfil-seguimiento { flex-basis: 100%; margin-left: 0; margin-top: 5px; }
+}

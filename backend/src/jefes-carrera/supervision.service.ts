@@ -35,6 +35,7 @@ import {
 const persona = {
   id: true,
   nombre: true,
+  alias: true,
   email: true,
   telefono: true,
   numeroControl: true,

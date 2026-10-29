@@ -31,7 +31,7 @@ function destinoVolver(j, path) {
   return j.to(path)
 }
 
-export function JefaturaPage({ titulo, subtitulo, accion, volver, children, sinResumen = false, alcance = 'periodo' }) {
+export function JefaturaPage({ titulo, subtitulo, accion, volver, children, sinResumen = false, alcance = 'periodo', encabezadoEnContenido = false }) {
   const j = useJefatura()
   const location = useLocation()
   const [params] = useSearchParams()
@@ -68,13 +68,13 @@ export function JefaturaPage({ titulo, subtitulo, accion, volver, children, sinR
           )}
         </nav>
       )}
-      <div className={cn('flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between', origen || volver ? 'pt-1' : 'pt-7')}>
+      {!(encabezadoEnContenido && resumen.data && !resumen.denegado) && <div className={cn('flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between', origen || volver ? 'pt-1' : 'pt-7')}>
         <div className="min-w-0">
           {encabezado}
           {sub && <p className="mt-1.5 text-sm text-muted-foreground">{sub}</p>}
         </div>
         {accion && <div className="shrink-0">{accion}</div>}
-      </div>
+      </div>}
       {resumen.denegado ? (
         <Aviso tono="error" titulo="Fuera de tu alcance">Esta carrera no está asignada a tu jefatura.</Aviso>
       ) : !sinResumen && resumen.cargando ? (

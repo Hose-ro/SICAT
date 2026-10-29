@@ -13,10 +13,17 @@ const CAMPO = 'w-full rounded-xl border border-border bg-background px-3 py-2 te
 const TARJETA = 'rounded-[var(--radius-card)] border border-border bg-card p-5 sm:p-6'
 
 const limpiar = (valor) => String(valor ?? '').trim()
+const telefonoNacional = (valor) => {
+  const digits = String(valor ?? '').replace(/\D/g, '')
+  if (digits.length === 12 && digits.startsWith('52')) return digits.slice(2)
+  if (digits.length === 13 && digits.startsWith('521')) return digits.slice(3)
+  return valor ?? ''
+}
 
 function validar(form) {
   const errores = {}
   if (!limpiar(form.nombre)) errores.nombre = 'Escribe tu nombre.'
+  if (limpiar(form.alias).length > 60) errores.alias = 'El alias puede tener hasta 60 caracteres.'
   if (limpiar(form.email) && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(limpiar(form.email))) errores.email = 'Revisa el correo: falta algo como nombre@escuela.edu.mx.'
   if (limpiar(form.telefono) && !/^\d{10}$/.test(limpiar(form.telefono))) errores.telefono = 'El teléfono lleva 10 dígitos, sin espacios.'
   return errores
@@ -32,18 +39,17 @@ export default function MiPerfil() {
   const [perfil, setPerfil] = useState(null)
   const [error, setError] = useState('')
   const [intento, setIntento] = useState(0)
-  const [form, setForm] = useState({ nombre: '', email: '', telefono: '' })
+  const [form, setForm] = useState({ nombre: '', alias: '', email: '', telefono: '' })
   const [errores, setErrores] = useState({})
   const [guardando, setGuardando] = useState(false)
 
   useEffect(() => {
     let activo = true
-    setError('')
     api.get('/usuarios/perfil')
       .then(({ data }) => {
         if (!activo) return
-        setPerfil(data)
-        setForm({ nombre: data.nombre ?? '', email: data.email ?? '', telefono: data.telefono ?? '' })
+        setPerfil({ ...data, telefono: telefonoNacional(data.telefono) })
+        setForm({ nombre: data.nombre ?? '', alias: data.alias ?? '', email: data.email ?? '', telefono: telefonoNacional(data.telefono) })
       })
       .catch((err) => { if (activo) setError(err.response?.data?.message ?? 'No se pudo cargar tu perfil.') })
     return () => { activo = false }
@@ -53,6 +59,7 @@ export default function MiPerfil() {
   const cambios = perfil ? Object.fromEntries(['nombre', 'email', 'telefono']
     .filter((clave) => limpiar(form[clave]) && limpiar(form[clave]) !== limpiar(perfil[clave]))
     .map((clave) => [clave, limpiar(form[clave])])) : {}
+  if (perfil?.rol === 'DOCENTE' && limpiar(form.alias) !== limpiar(perfil.alias)) cambios.alias = limpiar(form.alias) || null
   const hayCambios = Object.keys(cambios).length > 0
   const vaciaCampoGuardado = perfil && ['email', 'telefono'].some((clave) => perfil[clave] && !limpiar(form[clave]))
 
@@ -75,8 +82,8 @@ export default function MiPerfil() {
         navigate('/login', { replace: true })
         return
       }
-      setPerfil((prev) => ({ ...prev, ...data }))
-      setUser({ ...user, nombre: data.nombre })
+      setPerfil((prev) => ({ ...prev, ...data, telefono: telefonoNacional(data.telefono) }))
+      setUser({ ...user, nombre: data.nombre, alias: data.alias })
       notify('Guardaste tus datos.', 'success')
     } catch (err) {
       const mensaje = err.response?.data?.message
@@ -99,7 +106,7 @@ export default function MiPerfil() {
     </div>
   )
 
-  if (error) return <div className="mx-auto max-w-[48rem]"><TaskNotice error={error} onRetry={() => setIntento((n) => n + 1)} /></div>
+  if (error) return <div className="mx-auto max-w-[48rem]"><TaskNotice error={error} onRetry={() => { setError(''); setIntento((n) => n + 1) }} /></div>
 
   if (!perfil) {
     return (
@@ -130,6 +137,7 @@ export default function MiPerfil() {
         </p>
         <form className="mt-5 space-y-4" onSubmit={guardar} noValidate>
           {campo('nombre', 'Nombre completo', { autoComplete: 'name', maxLength: 120, required: true })}
+          {perfil.rol === 'DOCENTE' && campo('alias', 'Alias (opcional)', { autoComplete: 'nickname', maxLength: 60 }, 'Aparece encima de tu nombre en tu perfil de docente. Puedes dejarlo vacío.')}
           {campo('email', 'Correo', { type: 'email', autoComplete: 'email', maxLength: 254 }, 'Si lo cambias, se cerrará tu sesión y entrarás de nuevo.')}
           {campo('telefono', 'Teléfono', { type: 'tel', inputMode: 'numeric', autoComplete: 'tel-national', maxLength: 10 }, '10 dígitos, sin espacios.')}
           {vaciaCampoGuardado && (
