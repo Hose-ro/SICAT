@@ -283,6 +283,43 @@
 @keyframes tarea-aparecer { from { opacity: 0; transform: translateY(6px); } }
 .tarea-aparecer { animation: tarea-aparecer 260ms var(--ease) backwards; }
 
+/* Tarjetas de docentes (jefatura): entran escalonadas, el anillo de registro se
+   dibuja desde vacío y, con puntero real, la tarjeta se eleva apenas. */
+@keyframes docente-entrar { from { opacity: 0; transform: translateY(10px); } }
+@keyframes docente-trazar { from { stroke-dashoffset: var(--vacio); } }
+.docente-tarjeta {
+  animation: docente-entrar 420ms var(--ease) backwards;
+  animation-delay: calc(min(var(--i, 0), 8) * 45ms);
+  transition: border-color var(--t) var(--ease), box-shadow var(--t) var(--ease), transform var(--t) var(--ease);
+}
+.docente-anillo {
+  animation: docente-trazar 1000ms cubic-bezier(.16, 1, .3, 1) backwards;
+  animation-delay: calc(min(var(--i, 0), 8) * 45ms + 180ms);
+}
+.docente-estirado::after { content: ''; position: absolute; inset: 0; border-radius: inherit; }
+.docente-tarjeta:has(.docente-estirado:focus-visible) { outline: 3px solid color-mix(in oklch, var(--ring) 45%, transparent); outline-offset: 2px; }
+.docente-flecha { transition: transform var(--t) var(--ease), color var(--t) var(--ease); }
+@media (hover: hover) and (pointer: fine) {
+  .docente-tarjeta:has(.docente-estirado:hover) {
+    border-color: color-mix(in oklch, var(--primary) 35%, var(--border));
+    box-shadow: 0 1px 2px oklch(0.2 0.03 264 / 0.04), 0 8px 24px -8px oklch(0.2 0.03 264 / 0.12);
+    transform: translateY(-2px);
+  }
+  .docente-tarjeta:has(.docente-estirado:hover) .docente-flecha { color: var(--primary-ink); transform: translateX(3px); }
+}
+.docente-tarjeta:has(.docente-estirado:active) { transform: scale(0.995); }
+.docente-tono-success { color: var(--success-foreground); }
+.docente-tono-warning { color: var(--warning-foreground); }
+.docente-tono-destructive { color: var(--destructive-foreground); }
+.docente-trazo-success { stroke: var(--success); }
+.docente-trazo-warning { stroke: var(--warning); }
+.docente-trazo-destructive { stroke: var(--destructive); }
+@media (prefers-reduced-motion: reduce) {
+  .docente-tarjeta, .docente-anillo { animation: none; }
+  .docente-tarjeta, .docente-flecha { transition: none; }
+  .docente-tarjeta:has(.docente-estirado:hover) { transform: none; }
+}
+
 .sidebar { position: fixed; top: 16px; left: 16px; bottom: 16px; width: var(--sidebar-w); display: flex; flex-direction: column; gap: 8px; padding: 18px 12px; border-radius: var(--radius-card); z-index: 100; overflow: hidden; background: var(--card); border: 1px solid var(--border); }
 /* Desktop changes density immediately; only the mobile drawer translates. */
 .sidebar.collapsed { width: var(--sidebar-collapsed); }
