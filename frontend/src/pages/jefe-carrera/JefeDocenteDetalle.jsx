@@ -2,17 +2,16 @@ import { Link, useParams } from 'react-router-dom'
 import { ChevronDown } from 'lucide-react'
 import { AnilloProgreso, AnilloSegmentos } from '@/components/graficas/Anillos'
 import { tonoRegistro } from '@/components/graficas/util'
-import { Chip } from '@/components/Chip'
 import { cn } from '@/lib/utils'
 import HorarioCarrera from './supervision/HorarioCarrera'
-import { ESTADO_UNIDAD, ESTADOS_PENDIENTES, estadoClase, senalUnidad, textoCierre } from './supervision/estados'
-import { fechaCorta, fechaHoraCorta, haceTiempo, hoyClave, minutos, modalidadTexto, parseClave, diasTexto } from './supervision/formato'
+import { ESTADOS_PENDIENTES, estadoClase } from './supervision/estados'
+import { fechaCorta, fechaHoraCorta, haceTiempo, minutos, modalidadTexto, parseClave, diasTexto } from './supervision/formato'
 import { useClases } from './supervision/useClasesSemana'
 import { Aviso, JefaturaPage, SeccionTitulo, Vacio, linkClass } from './supervision/ui'
 import EncabezadoDocente from './components/EncabezadoDocente'
+import AvanceDocente from './components/AvanceDocente'
 
 const fechaBreve = (clave) => parseClave(clave).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
-const fechaUnidad = (iso) => new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', timeZone: 'UTC' })
 
 export default function JefeDocenteDetalle() {
   const { id } = useParams()
@@ -39,7 +38,7 @@ function Contenido({ j, resumen, docenteId }) {
 
       <Carga ofertas={ofertas} docente={docente} j={j} />
       <Registro docente={docente} clases={clases} error={error} reintentar={reintentar} intervalo={resumen.intervalo} j={j} />
-      <Avance ofertas={ofertas} j={j} />
+      <AvanceDocente key={`${j.carreraId}:${j.periodo}:${docenteId}`} ofertas={ofertas} j={j} />
       <HorarioCarrera j={j} resumen={resumen} fijo={{ docenteId }} titulo="Horario semanal" descripcion="Solo las clases de este docente en la carrera." headingId="horario-docente" />
     </>
   )
@@ -93,12 +92,10 @@ function Carga({ ofertas, docente, j }) {
 }
 
 function Registro({ docente, clases, error, reintentar, intervalo, j }) {
-  const hoy = hoyClave()
   const elegibles = (clases ?? []).filter((c) => c.elegible)
   const cuenta = (estado) => elegibles.filter((c) => c.estado === estado).length
   const completas = cuenta('LISTA_COMPLETA') + cuenta('REGISTRO_TARDIO')
   const sinEvidencia = elegibles.filter((c) => ESTADOS_PENDIENTES.has(c.estado)).sort((a, b) => b.fecha.localeCompare(a.fecha) || b.horaInicio.localeCompare(a.horaInicio))
-  const suspendidas = (clases ?? []).filter((c) => c.estado === 'SUSPENDIDA' && c.fecha <= hoy).length
   const pct = elegibles.length ? Math.round((completas / elegibles.length) * 100) : null
   const tonoPct = tonoRegistro(pct)
   // Tramos del segundo anillo, en el orden en que se dibujan.
@@ -129,13 +126,9 @@ function Registro({ docente, clases, error, reintentar, intervalo, j }) {
                 </span>
               </AnilloProgreso>
               <div className="min-w-0">
-                <h3 className="text-sm font-semibold text-foreground">Registro de listas</h3>
+                <h3 className="text-sm font-semibold text-foreground">Registro de listas de asistencia</h3>
                 <p className="mt-1 text-[0.8125rem] text-muted-foreground">
                   {elegibles.length ? <><span className="font-semibold tabular-nums text-foreground">{completas} de {elegibles.length}</span> clases elegibles con lista completa.</> : 'Todavía no hay clases elegibles en el intervalo.'}
-                </p>
-                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                  Registro de listas = clases con lista completa ÷ clases elegibles ya concluidas.
-                  {suspendidas > 0 && ` ${suspendidas} ${suspendidas === 1 ? 'clase suspendida no cuenta' : 'clases suspendidas no cuentan'}.`}
                 </p>
               </div>
             </div>
@@ -199,47 +192,6 @@ function Registro({ docente, clases, error, reintentar, intervalo, j }) {
           <p className="mt-3 text-xs text-muted-foreground">Última captura: {fechaHoraCorta(docente.ultimaCaptura)}</p>
         </>
       )}
-    </section>
-  )
-}
-
-
-function Avance({ ofertas, j }) {
-  return (
-    <section className="mt-10" aria-labelledby="avance-docente">
-      <SeccionTitulo id="avance-docente" titulo="Calificaciones, actividades y unidades" descripcion="Por materia y grupo. «Sin entrega» describe al alumno, no un atraso del docente." />
-      {ofertas.length ? (
-        <ul className="divide-y divide-border border-y border-border">
-          {ofertas.map((o) => (
-            <li key={o.id} className="py-4">
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <Link className={cn(linkClass, 'text-sm text-foreground')} to={j.toDesde(`/jefe-carrera/materias/${o.materia.id}`, { oferta: o.grupo.id, tab: 'unidades' })}>{o.materia.nombre} · {o.grupo.nombre}</Link>
-                {o.docentes.length > 1 && <span className="text-xs text-muted-foreground">Avance compartido por {o.docentes.length} docentes</span>}
-              </div>
-              {o.cierre && <p className="mt-1 text-xs font-medium text-foreground">{textoCierre(o.cierre)}</p>}
-              <ul className="mt-2.5 flex flex-wrap gap-2" aria-label="Unidades">
-                {o.unidades.map((u) => {
-                  const info = ESTADO_UNIDAD[u.status] ?? ESTADO_UNIDAD.PENDIENTE
-                  const senal = senalUnidad(u)
-                  return (
-                    <li key={u.id}>
-                      <Chip tone={senal ? 'warning' : info.tono}>
-                        {u.nombre} · {info.label}{u.status !== 'FINALIZADA' && (u.fechaFin ? ` · cierre ${fechaUnidad(u.fechaFin)}` : ' · sin plazo definido')}
-                      </Chip>
-                      {senal && <span className="mt-1 block text-xs text-warning-foreground">{senal}</span>}
-                    </li>
-                  )
-                })}
-              </ul>
-              <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-xs">
-                <div className="flex gap-1.5"><dt className="text-muted-foreground">Calificaciones de unidad pendientes</dt><dd className="font-medium tabular-nums text-foreground">{o.resumen.calificacionesPendientes}</dd></div>
-                <div className="flex gap-1.5"><dt className="text-muted-foreground">Entregas recibidas por revisar</dt><dd className="font-medium tabular-nums text-foreground">{o.resumen.entregasPendientes}</dd></div>
-                <div className="flex gap-1.5"><dt className="text-muted-foreground">Actividades sin entrega de alumnos</dt><dd className="font-medium tabular-nums text-foreground">{o.resumen.sinEntrega}</dd></div>
-              </dl>
-            </li>
-          ))}
-        </ul>
-      ) : <Vacio titulo="Sin materias asignadas" />}
     </section>
   )
 }
