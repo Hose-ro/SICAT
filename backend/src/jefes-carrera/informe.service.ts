@@ -248,7 +248,25 @@ export class InformeService {
     usuarioId: number,
     consulta: ConsultaInforme,
     formato: 'excel' | 'pdf' = 'excel',
+    secciones?: string,
   ) {
+    const permitidas = [
+      'cobertura',
+      'listas',
+      'avance',
+      'riesgo',
+      'seguimientos',
+    ];
+    const seleccion =
+      secciones === undefined
+        ? permitidas
+        : typeof secciones === 'string'
+          ? secciones.split(',')
+          : [];
+    if (!seleccion.length || seleccion.some((id) => !permitidas.includes(id)))
+      throw new BadRequestException(
+        'Selecciona secciones válidas para el informe',
+      );
     const informe = await this.informe(usuarioId, consulta);
     const base = [
       'SICAT',
@@ -265,13 +283,13 @@ export class InformeService {
         select: { nombre: true },
       });
       return {
-        buffer: await this.pdf(informe, jefe?.nombre ?? null),
+        buffer: await this.pdf(informe, jefe?.nombre ?? null, seleccion),
         contentType: 'application/pdf',
         filename: `${base}.pdf`,
       };
     }
     return {
-      buffer: await this.excel(informe),
+      buffer: await this.excel(informe, seleccion),
       contentType:
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       filename: `${base}.xlsx`,
@@ -315,6 +333,7 @@ export class InformeService {
   private secciones(informe: Informe) {
     return [
       {
+        id: 'cobertura',
         titulo: 'Cobertura de captura por docente',
         columnas: [
           'Docente',
@@ -340,6 +359,7 @@ export class InformeService {
         vacio: 'Sin docentes con clases en la carrera.',
       },
       {
+        id: 'listas',
         titulo: 'Listas de asistencia sin captura o parciales',
         columnas: ['Fecha', 'Horario', 'Materia', 'Grupo', 'Docente', 'Estado'],
         anchos: [16, 14, 32, 10, 28, 22],
@@ -356,6 +376,7 @@ export class InformeService {
         vacio: 'Todas las listas de asistencia del intervalo están completas.',
       },
       {
+        id: 'avance',
         titulo: 'Avance de unidades por materia y grupo',
         columnas: [
           'Materia',
@@ -383,6 +404,7 @@ export class InformeService {
         vacio: 'Sin materias ofertadas en el periodo.',
       },
       {
+        id: 'riesgo',
         titulo: 'Alumnos en riesgo (al corte)',
         columnas: ['Alumno', 'Control', 'Sexo', 'Grupo', 'Materias', 'Motivos'],
         anchos: [28, 12, 7, 10, 34, 38],
@@ -397,6 +419,7 @@ export class InformeService {
         vacio: 'Sin alumnos en riesgo con el criterio vigente.',
       },
       {
+        id: 'seguimientos',
         titulo: 'Observaciones registradas en el intervalo',
         columnas: ['Fecha', 'Caso', 'Nota', 'Estado', 'Registró'],
         anchos: [16, 36, 48, 11, 22],
@@ -415,7 +438,7 @@ export class InformeService {
     ];
   }
 
-  private async excel(informe: Informe) {
+  private async excel(informe: Informe, seleccion: string[]) {
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'SICAT';
     const resumen = workbook.addWorksheet('Resumen');
@@ -431,7 +454,9 @@ export class InformeService {
     resumen.addRow([]);
     resumen.addRow([NOTA_EVIDENCIA]).font = { italic: true };
 
-    for (const seccion of this.secciones(informe)) {
+    for (const seccion of this.secciones(informe).filter((s) =>
+      seleccion.includes(s.id),
+    )) {
       const hoja = workbook.addWorksheet(seccion.titulo.slice(0, 31));
       hoja.addRow(seccion.columnas).font = { bold: true };
       hoja.views = [{ state: 'frozen', ySplit: 1 }];
@@ -454,7 +479,11 @@ export class InformeService {
     };
   }
 
-  private pdf(informe: Informe, jefe: string | null): Promise<Buffer> {
+  private pdf(
+    informe: Informe,
+    jefe: string | null,
+    seleccion: string[],
+  ): Promise<Buffer> {
     const { doc, terminar } = crearPdfInstitucional(this.formato(informe), {
       layout: 'landscape',
     });
@@ -468,7 +497,9 @@ export class InformeService {
       filas: this.filasTotales(informe),
     });
 
-    for (const seccion of this.secciones(informe)) {
+    for (const seccion of this.secciones(informe).filter((s) =>
+      seleccion.includes(s.id),
+    )) {
       tituloSeccion(doc, seccion.titulo);
       tabla(doc, {
         columnas: seccion.columnas,

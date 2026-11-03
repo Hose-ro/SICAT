@@ -1,17 +1,26 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { ChevronDown, FileSpreadsheet, FileText, LoaderCircle, Printer } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, FileSpreadsheet, FileText, LoaderCircle, Printer } from 'lucide-react'
 import api from '@/api/axios'
 import { Button } from '@/components/ui/button'
 import SexoBadge from '@/components/SexoBadge'
 import { descargarArchivo, mensajeDeBlob } from '@/lib/descargas'
-import { claveFecha, esClaveValida, fechaCorta, fechaHoraCorta, hoyClave, parseClave, periodoTexto } from './supervision/formato'
+import {
+  claveFecha,
+  esClaveValida,
+  fechaCorta,
+  fechaHoraCorta,
+  hoyClave,
+  parseClave,
+  periodoTexto,
+} from './supervision/formato'
 import { ESTADO_UNIDAD } from './supervision/estados'
 import { cn } from '@/lib/utils'
 import { Aviso, Esqueleto, JefaturaPage, SeccionTitulo, Vacio, selectClass } from './supervision/ui'
 import { mensajeError } from './supervision/useJefatura'
 
-const campoFecha = 'h-11 rounded-[0.7rem] border border-border bg-card px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40'
+const campoFecha =
+  'h-11 rounded-[0.7rem] border border-border bg-card px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40'
 
 /** Límites del periodo: del primer inicio al último fin de sus calendarios. */
 function limitesPeriodo(calendarios) {
@@ -37,189 +46,629 @@ function mesesDe({ inicio, fin }) {
   return meses
 }
 
-const fechaSinDia = (clave) => parseClave(clave).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })
+const fechaSinDia = (clave) =>
+  parseClave(clave).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })
 const porcentaje = (v) => (v == null ? 'Sin clases' : `${v} %`)
 
 export default function JefeReportes() {
   return (
-    <JefaturaPage titulo="Informe del periodo" subtitulo="Para juntas académicas y evidencia institucional. Usa el mismo cálculo que la supervisión en pantalla.">
+    <JefaturaPage titulo="Informes" subtitulo="Prepara un informe de tu carrera para consultar o compartir.">
       {/* Cambiar de carrera o periodo empieza un informe nuevo: nada del anterior se conserva. */}
       {({ j, resumen }) => <Informe key={`${j.carreraId}|${j.periodo}`} j={j} resumen={resumen} />}
     </JefaturaPage>
   )
 }
 
-function Informe({ j, resumen }) {
+const SECCIONES = [
+  {
+    id: 'cobertura',
+    titulo: 'Registro de listas por docente',
+    descripcion: 'Listas completas, parciales, sin captura y tardías.',
+    tiempo: 'intervalo',
+  },
+  {
+    id: 'listas',
+    titulo: 'Listas pendientes de captura',
+    descripcion: 'Clases con listas incompletas o sin registro.',
+    tiempo: 'intervalo',
+  },
+  {
+    id: 'avance',
+    titulo: 'Avance académico por materia y grupo',
+    descripcion: 'Unidades, calificaciones pendientes y cierre del curso.',
+    tiempo: 'corte',
+  },
+  {
+    id: 'riesgo',
+    titulo: 'Alumnos en riesgo',
+    descripcion: 'Alumnos, materias y motivos del riesgo actual.',
+    tiempo: 'corte',
+  },
+  {
+    id: 'seguimientos',
+    titulo: 'Observaciones de seguimiento',
+    descripcion: 'Notas y estado de los casos documentados.',
+    tiempo: 'intervalo',
+  },
+]
+
+export function Informe({ j, resumen }) {
   const limites = useMemo(() => limitesPeriodo(resumen.calendarios), [resumen.calendarios])
   const meses = useMemo(() => mesesDe(limites), [limites])
   const inicial = meses.at(-1) ?? { desde: limites.inicio, hasta: limites.fin }
-  // El intervalo se refleja en la URL: un enlace o una recarga abren el mismo informe.
-  // En pantalla manda el estado local, para que dos cambios seguidos no se pisen.
   const [params, setParams] = useSearchParams()
-  const enPeriodo = (clave) => esClaveValida(clave) && clave >= limites.inicio && clave <= limites.fin
-  const [visible, setVisible] = useState(() => (enPeriodo(params.get('desde')) && enPeriodo(params.get('hasta'))
-    ? { desde: params.get('desde'), hasta: params.get('hasta') }
-    : { desde: inicial.desde, hasta: inicial.hasta }))
-  const cambiarRango = (siguiente) => {
-    setVisible(siguiente)
-    if (!enPeriodo(siguiente.desde) || !enPeriodo(siguiente.hasta)) return
-    setParams((actual) => {
-      const n = new URLSearchParams(actual)
-      n.set('desde', siguiente.desde)
-      n.set('hasta', siguiente.hasta)
-      return n
-    }, { replace: true })
-  }
-  const cambiarFecha = (campo, valor) => cambiarRango({ ...visible, [campo]: valor })
-  // Lo escrito a mano puede salir del periodo; se conserva solo para explicar el error.
-  const fueraDelPeriodo = !enPeriodo(visible.desde) || !enPeriodo(visible.hasta)
-  const rango = visible
-  // La respuesta guarda la consulta que la produjo: mientras no coincide con la actual, se está cargando.
+  const enPeriodo = (fecha) => esClaveValida(fecha) && fecha >= limites.inicio && fecha <= limites.fin
+  const [visible, setVisible] = useState(() =>
+    enPeriodo(params.get('desde')) && enPeriodo(params.get('hasta'))
+      ? { desde: params.get('desde'), hasta: params.get('hasta') }
+      : { desde: inicial.desde, hasta: inicial.hasta },
+  )
+  const paso = ['0', '1', '2'].includes(params.get('paso'))
+    ? Number(params.get('paso')) : params.has('seccion') ? 1 : 0
+  const [seleccion, setSeleccion] = useState(() =>
+    params.has('secciones')
+      ? SECCIONES.filter((s) => params.get('secciones').split(',').includes(s.id)).map((s) => s.id)
+      : SECCIONES.map((s) => s.id),
+  )
   const [respuesta, setRespuesta] = useState({ clave: '', data: null, error: '' })
   const [descarga, setDescarga] = useState({ formato: '', error: '' })
-  // Una lista a la vez: la sección abierta vive en la URL para sobrevivir a recargas.
-  const abierta = params.get('seccion') ?? ''
-  const alternar = (clave) => setParams((actual) => {
-    const n = new URLSearchParams(actual)
-    if (n.get('seccion') === clave) n.delete('seccion'); else n.set('seccion', clave)
-    return n
-  }, { replace: true })
-  const seccion = (clave) => ({ clave, abierta: abierta === clave, onAlternar: () => alternar(clave) })
-  const mes = meses.find((m) => m.desde === rango.desde && m.hasta === rango.hasta)?.value ?? ''
+  const [intento, setIntento] = useState(0)
+  const titulo = useRef(null)
+  const exportacion = useRef(null)
+  useEffect(() => () => exportacion.current?.abort(), [])
+  const elegidas = SECCIONES.filter((s) => seleccion.includes(s.id))
+  const seccionSolicitada = params.get('seccion') ?? 'resumen'
+  const activa = elegidas.some((s) => s.id === seccionSolicitada) ? seccionSolicitada : 'resumen'
+  const mes = meses.find((m) => m.desde === visible.desde && m.hasta === visible.hasta)?.value ?? ''
   const invertido = Boolean(visible.desde && visible.hasta && visible.desde > visible.hasta)
-  const valido = !fueraDelPeriodo && !invertido
-  const clave = `${j.carreraId}|${j.periodo}|${rango.desde}|${rango.hasta}`
-
-  useEffect(() => {
-    if (!valido) return undefined
-    let activo = true
-    api.get('/jefe-carrera/informe', { params: { carreraId: j.carreraId, periodo: j.periodo, desde: rango.desde, hasta: rango.hasta } })
-      .then(({ data }) => { if (activo) setRespuesta({ clave, data, error: '' }) })
-      .catch((error) => { if (activo) setRespuesta((r) => ({ clave, data: r.data, error: mensajeError(error, 'No se pudo generar el informe') })) })
-    return () => { activo = false }
-  }, [clave, valido, j.carreraId, j.periodo, rango.desde, rango.hasta])
-
-  const estado = {
-    data: respuesta.data,
-    cargando: valido && respuesta.clave !== clave,
-    error: respuesta.clave === clave ? respuesta.error : '',
-  }
-  // Solo se descarga o imprime el informe que corresponde al intervalo elegido, ya cargado y sin error.
+  const errorRango = invertido
+    ? 'La fecha final debe ser igual o posterior a la inicial.'
+    : !enPeriodo(visible.desde) || !enPeriodo(visible.hasta)
+      ? `Elige fechas dentro del periodo: del ${fechaSinDia(limites.inicio)} al ${fechaSinDia(limites.fin)}.`
+      : ''
+  const valido = !errorRango && elegidas.length > 0
+  const clave = `${j.carreraId}|${j.periodo}|${visible.desde}|${visible.hasta}|${intento}`
   const vigente = valido && respuesta.clave === clave && !respuesta.error && Boolean(respuesta.data)
-  const anterior = Boolean(respuesta.data) && !vigente
-
-  const descargar = async (formato) => {
+  const cargando = paso > 0 && valido && respuesta.clave !== clave
+  const error = respuesta.clave === clave ? respuesta.error : ''
+  const data = vigente ? respuesta.data : null
+  const intervalo = errorRango ? 'Revisa las fechas' : `${fechaCorta(visible.desde)} al ${fechaCorta(visible.hasta)}`
+  const guardarURL = (cambios) =>
+    setParams(
+      (actual) => {
+        const n = new URLSearchParams(actual)
+        Object.entries(cambios).forEach(([campo, valor]) => n.set(campo, String(valor)))
+        return n
+      },
+      { replace: true },
+    )
+  const cambiarRango = (rango) => {
+    setVisible(rango)
+    if (enPeriodo(rango.desde) && enPeriodo(rango.hasta)) guardarURL(rango)
+  }
+  const cambiarPaso = (n) => {
+    guardarURL({
+      paso: n,
+      ...visible,
+      secciones: elegidas.map((s) => s.id).join(','),
+      ...(n === 1 ? { seccion: 'resumen' } : {}),
+    })
+    requestAnimationFrame(() => titulo.current?.focus())
+  }
+  const alternar = (id) => {
+    const siguiente = SECCIONES.filter((s) => (s.id === id ? !seleccion.includes(id) : seleccion.includes(s.id))).map(
+      (s) => s.id,
+    )
+    setSeleccion(siguiente)
+    guardarURL({ secciones: siguiente.join(',') })
+  }
+  const consultar = paso > 0
+  useEffect(() => {
+    if (!valido || !consultar) return undefined
+    const controller = new AbortController()
+    api
+      .get('/jefe-carrera/informe', {
+        params: { carreraId: j.carreraId, periodo: j.periodo, desde: visible.desde, hasta: visible.hasta },
+        signal: controller.signal,
+      })
+      .then(({ data }) => {
+        if (!controller.signal.aborted) setRespuesta({ clave, data, error: '' })
+      })
+      .catch((e) => {
+        if (!controller.signal.aborted)
+          setRespuesta({ clave, data: null, error: mensajeError(e, 'No se pudo generar el informe') })
+      })
+    return () => controller.abort()
+  }, [clave, valido, consultar, j.carreraId, j.periodo, visible.desde, visible.hasta])
+  const descargar = async (formato, abrir = false) => {
+    if (!vigente || descarga.formato) return
+    // Se abre dentro del clic para que el navegador permita ver/imprimir el PDF.
+    const ventana = abrir ? window.open('about:blank', '_blank') : null
+    if (abrir && !ventana) {
+      setDescarga({ formato: '', error: 'Permite abrir una pestaña o usa Descargar PDF para imprimirlo.' })
+      return
+    }
+    const controller = new AbortController()
+    exportacion.current = controller
     setDescarga({ formato, error: '' })
     try {
-      const respuesta = await api.get('/jefe-carrera/informe/exportar', { params: { carreraId: j.carreraId, periodo: j.periodo, ...rango, formato }, responseType: 'blob' })
-      const nombre = respuesta.headers?.['content-disposition']?.match(/filename="?([^";]+)"?/)?.[1]
-        ?? `SICAT_${j.carrera?.codigo ?? 'carrera'}_${j.periodo}_${rango.desde}_${rango.hasta}.${formato === 'pdf' ? 'pdf' : 'xlsx'}`
-      descargarArchivo(respuesta.data, nombre)
+      const archivo = await api.get('/jefe-carrera/informe/exportar', {
+        params: {
+          carreraId: j.carreraId,
+          periodo: j.periodo,
+          ...visible,
+          formato,
+          secciones: elegidas.map((s) => s.id).join(','),
+        },
+        responseType: 'blob',
+        signal: controller.signal,
+      })
+      if (controller.signal.aborted) return
+      if (ventana) {
+        const url = URL.createObjectURL(archivo.data)
+        ventana.location.replace(url)
+        setTimeout(() => URL.revokeObjectURL(url), 60000)
+      } else {
+        const nombre =
+          archivo.headers?.['content-disposition']?.match(/filename="?([^";]+)"?/)?.[1] ??
+          `SICAT_${j.carrera?.codigo ?? 'carrera'}_${j.periodo}_${visible.desde}_${visible.hasta}.${formato === 'pdf' ? 'pdf' : 'xlsx'}`
+        descargarArchivo(archivo.data, nombre)
+      }
       setDescarga({ formato: '', error: '' })
-    } catch (error) {
-      setDescarga({ formato: '', error: (await mensajeDeBlob(error.response?.data)) ?? 'No se pudo descargar el informe. Intenta de nuevo.' })
+    } catch (e) {
+      ventana?.close()
+      if (!controller.signal.aborted)
+        setDescarga({
+          formato: '',
+          error: (await mensajeDeBlob(e.response?.data)) ?? 'No se pudo descargar el informe. Intenta de nuevo.',
+        })
     }
   }
-
-  const { data } = estado
+  const seccion = (clave) => ({ clave, activa })
   return (
     <>
-      <section aria-label="Intervalo y descarga" className="print-hidden mt-6 flex flex-col gap-4 border-b border-border pb-5 lg:flex-row lg:items-end lg:justify-between">
-        <div className="flex flex-wrap items-end gap-3">
-          <label className="w-full sm:w-52">
-            <span className="text-xs font-medium text-muted-foreground">Mes</span>
-            <select
-              value={mes}
-              onChange={(e) => { const m = meses.find((x) => x.value === e.target.value); if (m) cambiarRango({ desde: m.desde, hasta: m.hasta }) }}
-              className={`${selectClass} mt-1.5 first-letter:uppercase`}
+      <ol aria-label="Progreso del informe" className="mt-7 flex flex-wrap gap-x-7 gap-y-3 text-sm">
+        {['Preparar', 'Revisar', 'Descargar'].map((texto, i) => (
+          <li
+            key={texto}
+            aria-current={paso === i ? 'step' : undefined}
+            className={cn(
+              'flex items-center gap-2',
+              paso === i ? 'font-semibold text-foreground' : 'text-muted-foreground',
+            )}
+          >
+            <span
+              className={cn(
+                'grid size-7 place-items-center rounded-full border border-border text-xs',
+                paso === i && 'border-primary bg-primary text-primary-foreground',
+                paso > i && 'bg-accent text-foreground',
+              )}
             >
-              {!mes && <option value="">Intervalo personalizado</option>}
-              {meses.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
-            </select>
-          </label>
-          <label>
-            <span className="text-xs font-medium text-muted-foreground">Desde</span>
-            <input type="date" className={`${campoFecha} mt-1.5 block`} value={visible.desde} min={limites.inicio} max={limites.fin} onChange={(e) => cambiarFecha('desde', e.target.value)} />
-          </label>
-          <label>
-            <span className="text-xs font-medium text-muted-foreground">Hasta</span>
-            <input type="date" className={`${campoFecha} mt-1.5 block`} value={visible.hasta} min={limites.inicio} max={limites.fin} onChange={(e) => cambiarFecha('hasta', e.target.value)} />
-          </label>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button onClick={() => descargar('excel')} disabled={!vigente || Boolean(descarga.formato)}>
-            {descarga.formato === 'excel' ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <FileSpreadsheet aria-hidden="true" />}
-            {descarga.formato === 'excel' ? 'Generando…' : 'Descargar Excel'}
-          </Button>
-          <Button variant="outline" onClick={() => descargar('pdf')} disabled={!vigente || Boolean(descarga.formato)}>
-            {descarga.formato === 'pdf' ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <FileText aria-hidden="true" />}
-            {descarga.formato === 'pdf' ? 'Generando…' : 'Descargar PDF'}
-          </Button>
-          <Button variant="ghost" onClick={() => window.print()} disabled={!vigente}><Printer aria-hidden="true" /> Imprimir</Button>
-        </div>
-      </section>
-      {invertido && <p role="alert" className="print-hidden mt-3 text-[0.8125rem] text-destructive-foreground">La fecha final debe ser igual o posterior a la inicial. Descargas e impresión quedan en pausa hasta corregirla.</p>}
-      {fueraDelPeriodo && !invertido && <p role="alert" className="print-hidden mt-3 text-[0.8125rem] text-destructive-foreground">Elige fechas dentro de {periodoTexto(j.periodo)}: del {fechaSinDia(limites.inicio)} al {fechaSinDia(limites.fin)}.</p>}
-      {!vigente && valido && !estado.error && <p role="status" className="print-hidden mt-3 text-xs text-muted-foreground">Las descargas se habilitan cuando termina de generarse el informe del intervalo elegido.</p>}
-      {descarga.error && <p role="alert" className="print-hidden mt-3 text-[0.8125rem] text-destructive-foreground">{descarga.error}</p>}
-
-      {anterior && <p className="hidden print:block">Este informe no está vigente para el intervalo elegido; vuelve a generarlo en SICAT antes de imprimir.</p>}
-      {estado.cargando && !data ? (
-        <Esqueleto compacto />
-      ) : estado.error && !data ? (
-        <Aviso tono="error" titulo="No se pudo generar el informe">{estado.error}</Aviso>
-      ) : data && (
-        <div aria-busy={estado.cargando || undefined} className={cn(anterior && 'opacity-60 print:hidden')}>
-          {anterior && (
-            <p role={estado.error ? 'alert' : 'status'} className="mt-4 rounded-[var(--radius-item)] border border-warning/35 bg-warning/18 px-4 py-3 text-[0.8125rem] text-foreground">
-              <b className="font-medium">Informe anterior: {fechaSinDia(data.intervalo.desde)} al {fechaSinDia(data.intervalo.hasta)}.</b>{' '}
-              {estado.error ? `${estado.error}. No corresponde al intervalo elegido.` : estado.cargando ? 'Generando el informe del intervalo elegido…' : 'No corresponde al intervalo elegido.'}
+              {paso > i ? <Check aria-hidden="true" className="size-4" /> : i + 1}
+            </span>
+            {texto}
+          </li>
+        ))}
+      </ol>
+      <div className="mt-8 grid min-w-0 items-start gap-8 xl:grid-cols-[minmax(0,1fr)_17rem]">
+        <section className="min-w-0" aria-labelledby="informe-paso">
+          <h2
+            id="informe-paso"
+            tabIndex={-1}
+            ref={titulo}
+            className="text-xl font-semibold tracking-tight outline-none"
+          >
+            {['¿Qué incluirá tu informe?', 'Revisa el contenido', 'Tu informe está listo'][paso]}
+          </h2>
+          {paso === 0 ? (
+            <>
+              <fieldset className="mt-6 min-w-0">
+                <legend className="text-sm font-medium">Fechas del informe</legend>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {meses.slice(-2).map((m) => (
+                    <Button
+                      key={m.value}
+                      variant={mes === m.value ? 'secondary' : 'outline'}
+                      className={cn('min-h-11 first-letter:uppercase', mes === m.value && 'border border-ring')}
+                      aria-pressed={mes === m.value}
+                      onClick={() => cambiarRango({ desde: m.desde, hasta: m.hasta })}
+                    >
+                      {m.label}
+                    </Button>
+                  ))}
+                  <Button
+                    variant="outline"
+                    className="min-h-11"
+                    onClick={() => cambiarRango({ desde: limites.inicio, hasta: limites.fin })}
+                  >
+                    Todo el periodo
+                  </Button>
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-3 sm:max-w-md">
+                  <label className="min-w-0 text-xs text-muted-foreground">
+                    Desde
+                    <input
+                      type="date"
+                      className={`${campoFecha} mt-1.5 block w-full min-w-0`}
+                      value={visible.desde}
+                      min={limites.inicio}
+                      max={limites.fin}
+                      onChange={(e) => cambiarRango({ ...visible, desde: e.target.value })}
+                      onInput={(e) => cambiarRango({ ...visible, desde: e.currentTarget.value })}
+                    />
+                  </label>
+                  <label className="min-w-0 text-xs text-muted-foreground">
+                    Hasta
+                    <input
+                      type="date"
+                      className={`${campoFecha} mt-1.5 block w-full min-w-0`}
+                      value={visible.hasta}
+                      min={limites.inicio}
+                      max={limites.fin}
+                      onChange={(e) => cambiarRango({ ...visible, hasta: e.target.value })}
+                      onInput={(e) => cambiarRango({ ...visible, hasta: e.currentTarget.value })}
+                    />
+                  </label>
+                </div>
+                {errorRango && (
+                  <p role="alert" className="mt-3 text-sm text-destructive-foreground">
+                    {errorRango}
+                  </p>
+                )}
+              </fieldset>
+              <fieldset className="mt-8 min-w-0">
+                <legend className="text-sm font-medium">Contenido del informe</legend>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  El resumen se incluye siempre. Elige el detalle que necesitas.
+                </p>
+                <div className="mt-3 divide-y divide-border border-y border-border">
+                  {SECCIONES.map((s) => (
+                    <label
+                      key={s.id}
+                      className="flex min-h-20 cursor-pointer items-center gap-3 py-3 hover:bg-muted/40"
+                    >
+                      <input
+                        type="checkbox"
+                        className="size-4 shrink-0 accent-primary"
+                        checked={seleccion.includes(s.id)}
+                        onChange={() => alternar(s.id)}
+                      />
+                      <span className="min-w-0 flex-1">
+                        <strong className="block text-sm font-medium">{s.titulo}</strong>
+                        <span className="mt-1 block text-xs text-muted-foreground">{s.descripcion}</span>
+                      </span>
+                      <span className="w-20 shrink-0 text-right text-xs text-muted-foreground">
+                        {s.tiempo === 'corte' ? 'Al corte actual' : 'Del intervalo'}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+              {!elegidas.length && (
+                <p role="status" className="mt-3 text-sm text-muted-foreground">
+                  Selecciona al menos una sección para continuar.
+                </p>
+              )}
+            </>
+          ) : (
+            <>
+              {cargando && (
+                <div role="status" aria-label="Generando informe" className="mt-6">
+                  <Esqueleto compacto />
+                </div>
+              )}
+              {error && (
+                <Aviso
+                  tono="error"
+                  titulo="No se pudo generar el informe"
+                  accion={
+                    <Button variant="outline" onClick={() => setIntento((v) => v + 1)}>
+                      Reintentar
+                    </Button>
+                  }
+                >
+                  {error}
+                </Aviso>
+              )}
+              {!valido && (
+                <Aviso tono="error" titulo="Revisa el contenido del informe">
+                  {errorRango || 'Selecciona al menos una sección antes de continuar.'}
+                </Aviso>
+              )}
+              {data && paso === 1 && (
+                <>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Consulta una sección a la vez. La descarga incluirá el resumen y las {elegidas.length} secciones
+                    elegidas.
+                  </p>
+                  <label className="mt-6 block max-w-lg text-xs font-medium">
+                    Sección que estás revisando
+                    <select
+                      className={`${selectClass} mt-2 w-full max-w-full`}
+                      value={activa}
+                      onChange={(e) => guardarURL({ seccion: e.target.value })}
+                    >
+                      <option value="resumen">Resumen general</option>
+                      {elegidas.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.titulo}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  {activa === 'resumen' ? (
+                    <>
+                      <Encabezado data={data} />
+                      <Totales data={data} />
+                    </>
+                  ) : (
+                    <div className="mt-7">
+                      {' '}
+                      <Seccion
+                        {...seccion('cobertura')}
+                        conteo={data.docentes.length}
+                        titulo="Registro de listas por docente"
+                        descripcion="Clases concluidas con lista esperada en el intervalo. El registro en SICAT es evidencia de captura; no confirma presencia física del docente."
+                      >
+                        <Tabla
+                          columnas={[
+                            'Docente',
+                            'Horas/semana',
+                            'Esperadas',
+                            'Completas',
+                            'Parciales',
+                            'Sin captura',
+                            'Tardías',
+                            'Registro',
+                          ]}
+                          numericas={[1, 2, 3, 4, 5, 6, 7]}
+                          filas={data.docentes.map((d) => [
+                            d.nombre,
+                            d.horasSemanales,
+                            d.esperadas,
+                            d.completas,
+                            d.parciales,
+                            d.sinCaptura,
+                            d.tardias,
+                            porcentaje(d.cobertura),
+                          ])}
+                          vacio="Sin docentes con clases en la carrera."
+                        />
+                      </Seccion>
+                      <Seccion
+                        {...seccion('listas')}
+                        conteo={data.listasPendientes.length}
+                        titulo="Listas de asistencia sin captura o parciales"
+                      >
+                        <Tabla
+                          columnas={['Fecha', 'Horario', 'Materia', 'Grupo', 'Docente', 'Estado']}
+                          filas={data.listasPendientes.map((l) => [
+                            fechaCorta(l.fecha),
+                            `${l.horaInicio}–${l.horaFin}`,
+                            l.materia,
+                            l.grupo,
+                            l.docente,
+                            l.estado === 'CAPTURA_PARCIAL'
+                              ? `Captura parcial (${l.registros} de ${l.alumnos})`
+                              : 'Sin captura',
+                          ])}
+                          vacio="Todas las listas de asistencia del intervalo están completas."
+                        />
+                      </Seccion>
+                      <Seccion
+                        {...seccion('avance')}
+                        conteo={data.avance.length}
+                        titulo="Avance de unidades por materia y grupo"
+                        descripcion="Estado al día de hoy; las unidades son de la materia y se comparten entre grupos."
+                      >
+                        <Tabla
+                          columnas={[
+                            'Materia',
+                            'Grupo',
+                            'Docente',
+                            'Unidades',
+                            'Calificaciones pendientes',
+                            'Entregas sin revisar',
+                            'Cierre',
+                          ]}
+                          numericas={[4, 5]}
+                          filas={data.avance.map((o) => [
+                            o.materia,
+                            o.grupo,
+                            o.docentes.join(', ') || 'Sin docente asignado',
+                            o.unidades
+                              .map((u) => `U${u.orden} ${ESTADO_UNIDAD[u.status]?.label.toLowerCase() ?? u.status}`)
+                              .join(' · ') || 'Sin unidades',
+                            o.calificacionesPendientes,
+                            o.entregasPendientes,
+                            o.cierre
+                              ? `Cerrado el ${new Date(o.cierre.cerradoEn).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })} · ${o.cierre.acreditados} de ${o.cierre.total} acreditados`
+                              : 'Sin cerrar',
+                          ])}
+                          vacio="Sin materias ofertadas en el periodo."
+                        />
+                      </Seccion>
+                      <Seccion
+                        {...seccion('riesgo')}
+                        conteo={data.riesgos.length}
+                        titulo="Alumnos en riesgo"
+                        descripcion="Al corte de hoy, con el mismo criterio de Inicio y Grupos."
+                      >
+                        <Tabla
+                          columnas={['Alumno', 'Número de control', 'Grupo', 'Materias', 'Motivos']}
+                          filas={data.riesgos.map((a) => [
+                            <span key="n" className="flex items-center gap-2">
+                              <span className="inline-flex w-5 shrink-0">
+                                <SexoBadge sexo={a.sexo} />
+                              </span>
+                              {a.nombre}
+                            </span>,
+                            a.numeroControl ?? '—',
+                            a.grupos.join(', '),
+                            a.materias.join(', '),
+                            a.motivos.join(' · '),
+                          ])}
+                          vacio="Sin alumnos en riesgo con el criterio vigente."
+                        />
+                      </Seccion>
+                      <Seccion
+                        {...seccion('seguimientos')}
+                        conteo={data.seguimientos.length}
+                        titulo="Observaciones registradas en el intervalo"
+                      >
+                        <Tabla
+                          columnas={['Fecha', 'Caso', 'Nota', 'Estado', 'Registró']}
+                          filas={data.seguimientos.map((n) => [
+                            fechaHoraCorta(n.fecha),
+                            n.caso,
+                            n.texto,
+                            n.estado === 'CERRADA' ? 'Cerrado' : 'Abierto',
+                            n.autor,
+                          ])}
+                          vacio="Sin observaciones en el intervalo."
+                        />
+                      </Seccion>
+                    </div>
+                  )}
+                </>
+              )}
+              {data && paso === 2 && (
+                <>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Elige el formato para compartirlo o vuelve a revisar el contenido.
+                  </p>
+                  <div className="mt-6 flex gap-3 rounded-[var(--radius-item)] bg-muted p-5">
+                    <Check aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
+                    <div>
+                      <h3 className="font-semibold">Informe de jefatura de carrera</h3>
+                      <p className="mt-1 text-sm">{intervalo}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Resumen y {elegidas.length} secciones · Generado {fechaHoraCorta(data.generadoEn)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-6 flex flex-wrap gap-3">
+                    <Button
+                      className="min-h-11"
+                      onClick={() => descargar('excel')}
+                      disabled={!vigente || Boolean(descarga.formato)}
+                    >
+                      {descarga.formato === 'excel' ? (
+                        <LoaderCircle className="animate-spin" aria-hidden="true" />
+                      ) : (
+                        <FileSpreadsheet aria-hidden="true" />
+                      )}
+                      Descargar Excel
+                    </Button>
+                    <Button
+                      className="min-h-11"
+                      variant="outline"
+                      onClick={() => descargar('pdf')}
+                      disabled={!vigente || Boolean(descarga.formato)}
+                    >
+                      {descarga.formato === 'pdf' ? (
+                        <LoaderCircle className="animate-spin" aria-hidden="true" />
+                      ) : (
+                        <FileText aria-hidden="true" />
+                      )}
+                      Descargar PDF
+                    </Button>
+                    <Button
+                      className="min-h-11"
+                      variant="ghost"
+                      onClick={() => descargar('pdf', true)}
+                      disabled={!vigente || Boolean(descarga.formato)}
+                    >
+                      <Printer aria-hidden="true" />
+                      Abrir PDF para imprimir
+                    </Button>
+                  </div>
+                  <p className="mt-4 text-xs text-muted-foreground">
+                    Los archivos usan el formato institucional de SICAT. Excel permite trabajar con las tablas; PDF
+                    conserva la presentación y la firma de jefatura.
+                  </p>
+                  {descarga.formato && (
+                    <p role="status" className="mt-3 text-sm text-muted-foreground">
+                      Generando archivo institucional…
+                    </p>
+                  )}
+                </>
+              )}
+            </>
+          )}
+          {descarga.error && (
+            <p role="alert" className="mt-4 text-sm text-destructive-foreground">
+              {descarga.error}
             </p>
           )}
-          <Encabezado data={data} />
-          <Totales data={data} />
-          <p className="print-hidden mt-10 text-xs text-muted-foreground">Abre la lista que necesites; al imprimir se incluyen todas.</p>
-          <div className="mt-3 border-t border-border print:border-0">
-          <Seccion {...seccion('cobertura')} conteo={data.docentes.length} titulo="Cobertura de captura por docente" descripcion="Clases concluidas con lista esperada en el intervalo. El registro en SICAT es evidencia de captura; no confirma presencia física del docente.">
-            <Tabla
-              columnas={['Docente', 'Horas/semana', 'Esperadas', 'Completas', 'Parciales', 'Sin captura', 'Tardías', 'Cobertura']}
-              numericas={[1, 2, 3, 4, 5, 6, 7]}
-              filas={data.docentes.map((d) => [d.nombre, d.horasSemanales, d.esperadas, d.completas, d.parciales, d.sinCaptura, d.tardias, porcentaje(d.cobertura)])}
-              vacio="Sin docentes con clases en la carrera."
-            />
-          </Seccion>
-          <Seccion {...seccion('listas')} conteo={data.listasPendientes.length} titulo="Listas de asistencia sin captura o parciales">
-            <Tabla
-              columnas={['Fecha', 'Horario', 'Materia', 'Grupo', 'Docente', 'Estado']}
-              filas={data.listasPendientes.map((l) => [fechaCorta(l.fecha), `${l.horaInicio}–${l.horaFin}`, l.materia, l.grupo, l.docente, l.estado === 'CAPTURA_PARCIAL' ? `Captura parcial (${l.registros} de ${l.alumnos})` : 'Sin captura'])}
-              vacio="Todas las listas de asistencia del intervalo están completas."
-            />
-          </Seccion>
-          <Seccion {...seccion('avance')} conteo={data.avance.length} titulo="Avance de unidades por materia y grupo" descripcion="Estado al día de hoy; las unidades son de la materia y se comparten entre grupos.">
-            <Tabla
-              columnas={['Materia', 'Grupo', 'Docente', 'Unidades', 'Calificaciones pendientes', 'Entregas sin revisar', 'Cierre']}
-              numericas={[4, 5]}
-              filas={data.avance.map((o) => [o.materia, o.grupo, o.docentes.join(', ') || 'Sin docente asignado', o.unidades.map((u) => `U${u.orden} ${ESTADO_UNIDAD[u.status]?.label.toLowerCase() ?? u.status}`).join(' · ') || 'Sin unidades', o.calificacionesPendientes, o.entregasPendientes, o.cierre ? `Cerrado el ${new Date(o.cierre.cerradoEn).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })} · ${o.cierre.acreditados} de ${o.cierre.total} acreditados` : 'Sin cerrar'])}
-              vacio="Sin materias ofertadas en el periodo."
-            />
-          </Seccion>
-          <Seccion {...seccion('riesgo')} conteo={data.riesgos.length} titulo="Alumnos en riesgo" descripcion="Al corte de hoy, con el mismo criterio de Inicio y Grupos.">
-            <Tabla
-              columnas={['Alumno', 'Número de control', 'Grupo', 'Materias', 'Motivos']}
-              filas={data.riesgos.map((a) => [<span key="n" className="flex items-center gap-2"><span className="inline-flex w-5 shrink-0"><SexoBadge sexo={a.sexo} /></span>{a.nombre}</span>, a.numeroControl ?? '—', a.grupos.join(', '), a.materias.join(', '), a.motivos.join(' · ')])}
-              vacio="Sin alumnos en riesgo con el criterio vigente."
-            />
-          </Seccion>
-          <Seccion {...seccion('seguimientos')} conteo={data.seguimientos.length} titulo="Observaciones registradas en el intervalo">
-            <Tabla
-              columnas={['Fecha', 'Caso', 'Nota', 'Estado', 'Registró']}
-              filas={data.seguimientos.map((n) => [fechaHoraCorta(n.fecha), n.caso, n.texto, n.estado === 'CERRADA' ? 'Cerrado' : 'Abierto', n.autor])}
-              vacio="Sin observaciones en el intervalo."
-            />
-          </Seccion>
+          <footer className="mt-7 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-5">
+            {paso > 0 ? (
+              <Button
+                variant="outline"
+                className="min-h-11"
+                disabled={Boolean(descarga.formato)}
+                onClick={() => cambiarPaso(paso - 1)}
+              >
+                <ArrowLeft aria-hidden="true" />
+                {paso === 1 ? 'Editar contenido' : 'Volver a revisar'}
+              </Button>
+            ) : (
+              <span className="text-xs text-muted-foreground">{elegidas.length} de 5 secciones incluidas</span>
+            )}
+            {paso < 2 && (
+              <Button
+                className="min-h-11"
+                disabled={paso === 0 ? !valido : !vigente}
+                onClick={() => cambiarPaso(paso + 1)}
+              >
+                {paso === 0 ? 'Revisar informe' : 'Elegir descarga'}
+                <ArrowRight aria-hidden="true" />
+              </Button>
+            )}
+          </footer>
+        </section>
+        <aside className="min-w-0 rounded-[var(--radius-item)] bg-muted p-5" aria-label="Resumen del informe">
+          <h2 className="flex items-center gap-2 text-sm font-semibold">
+            <FileText aria-hidden="true" className="size-4" />
+            Tu informe
+          </h2>
+          <dl className="mt-5 space-y-4 text-xs">
+            <div>
+              <dt className="text-muted-foreground">Carrera</dt>
+              <dd className="mt-1 font-medium">{j.carrera?.nombre ?? resumen.carrera?.nombre}</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">Periodo</dt>
+              <dd className="mt-1 font-medium">{periodoTexto(j.periodo)}</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">Intervalo elegido</dt>
+              <dd className="mt-1 font-medium">{intervalo}</dd>
+            </div>
+          </dl>
+          <div className="mt-5 border-t border-border pt-4">
+            <h3 className="text-xs font-semibold">Contenido incluido</h3>
+            <ul className="mt-3 space-y-2 text-xs">
+              {['Resumen general', ...elegidas.map((s) => s.titulo)].map((texto) => (
+                <li key={texto} className="flex gap-2">
+                  <Check aria-hidden="true" className="size-3.5 shrink-0" />
+                  {texto}
+                </li>
+              ))}
+            </ul>
           </div>
-        </div>
-      )}
+          <div className="mt-5 border-t border-border pt-4 text-xs text-muted-foreground">
+            <h3 className="font-semibold text-foreground">Dos referencias de tiempo</h3>
+            <p className="mt-2">
+              <b>Del intervalo:</b> listas y observaciones de las fechas elegidas.
+            </p>
+            <p className="mt-2">
+              <b>Al corte:</b> avance académico y alumnos en riesgo al generar el informe.
+              {data && ` Corte: ${fechaHoraCorta(data.generadoEn)}.`}
+            </p>
+          </div>
+        </aside>
+      </div>
     </>
   )
 }
@@ -290,30 +739,17 @@ function Totales({ data }) {
   )
 }
 
-/** Título como botón: la lista se despliega solo cuando el jefe la pide. Al imprimir, todas abiertas. */
-function Seccion({ clave, titulo, descripcion, conteo, abierta, onAlternar, children }) {
-  const id = `informe-${clave}`
+/** Una tabla a la vez; el documento institucional se genera en el servidor. */
+function Seccion({ clave, activa, titulo, descripcion, conteo, children }) {
+  if (activa !== clave) return null
   return (
-    <section aria-labelledby={`${id}-titulo`} className="break-inside-avoid-page border-b border-border print:mt-8 print:border-0">
-      <h2 id={`${id}-titulo`} className="m-0">
-        <button
-          type="button"
-          aria-expanded={abierta}
-          aria-controls={`${id}-lista`}
-          onClick={onAlternar}
-          className="group flex min-h-14 w-full items-center gap-3 py-3 text-left focus-visible:rounded-md focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
-        >
-          <span className="min-w-0 flex-1">
-            <span className="text-[1.0625rem] font-semibold tracking-[-0.015em] text-foreground group-hover:text-primary-ink">{titulo}</span>
-            <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs font-medium tabular-nums text-muted-foreground">{conteo}</span>
-            {descripcion && <span className="mt-0.5 block text-xs font-normal text-muted-foreground">{descripcion}</span>}
-          </span>
-          <ChevronDown aria-hidden="true" className={cn('size-5 shrink-0 text-muted-foreground transition-transform duration-150 ease-out print:hidden', abierta && 'rotate-180')} />
-        </button>
-      </h2>
-      <div id={`${id}-lista`} className={cn('pb-5', !abierta && 'hidden print:block')}>
-        {children}
-      </div>
+    <section aria-labelledby={`informe-${clave}-titulo`}>
+      <h3 id={`informe-${clave}-titulo`} className="text-base font-semibold">
+        {titulo}
+        <span className="ml-2 text-sm font-normal tabular-nums text-muted-foreground">{conteo}</span>
+      </h3>
+      {descripcion && <p className="mt-2 text-xs text-muted-foreground">{descripcion}</p>}
+      <div className="mt-4">{children}</div>
     </section>
   )
 }
@@ -325,14 +761,27 @@ function Tabla({ columnas, filas, numericas = [], vacio }) {
       <table className="w-full min-w-[640px] border-collapse text-[0.8125rem]">
         <thead>
           <tr className="text-left text-xs text-muted-foreground">
-            {columnas.map((c, i) => <th key={c} scope="col" className={`py-2.5 pr-4 font-medium ${numericas.includes(i) ? 'text-right' : ''}`}>{c}</th>)}
+            {columnas.map((c, i) => (
+              <th
+                key={c}
+                scope="col"
+                className={`py-2.5 pr-4 font-medium ${numericas.includes(i) ? 'text-right' : ''}`}
+              >
+                {c}
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
           {filas.map((fila, f) => (
             <tr key={f} className="border-t border-border align-top">
               {fila.map((celda, i) => (
-                <td key={i} className={`py-2.5 pr-4 ${i === 0 ? 'font-medium text-foreground' : 'text-muted-foreground'} ${numericas.includes(i) ? 'text-right tabular-nums' : ''}`}>{celda}</td>
+                <td
+                  key={i}
+                  className={`py-2.5 pr-4 ${i === 0 ? 'font-medium text-foreground' : 'text-muted-foreground'} ${numericas.includes(i) ? 'text-right tabular-nums' : ''}`}
+                >
+                  {celda}
+                </td>
               ))}
             </tr>
           ))}

@@ -40,4 +40,7 @@ export class InformeQueryDto extends SupervisionQueryDto {
 
 export class ExportarInformeQueryDto extends InformeQueryDto {
   @IsOptional() @IsIn(['excel', 'pdf']) formato?: 'excel' | 'pdf';
+  @IsOptional() @IsString() @MaxLength(100)
+  @Matches(/^(cobertura|listas|avance|riesgo|seguimientos)(,(cobertura|listas|avance|riesgo|seguimientos))*$/)
+  secciones?: string;
 }

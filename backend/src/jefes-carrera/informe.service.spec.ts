@@ -2,6 +2,8 @@ import { PrismaService } from '../prisma.service';
 import { InformeService } from './informe.service';
 import { SupervisionService } from './supervision.service';
 import { SeguimientosService } from './seguimientos.service';
+import * as ExcelJS from 'exceljs';
+import * as institucional from '../reportes/formato-institucional';
 
 const calendarios = [
   {
@@ -142,4 +144,54 @@ describe('InformeService', () => {
     expect(pdf.filename).toBe('SICAT_ISC_2026-B_2026-10-01_2026-10-15.pdf');
     expect(pdf.buffer.subarray(0, 4).toString()).toBe('%PDF');
   });
+
+  it('incluye resumen y solo las hojas elegidas, con el encabezado institucional', async () => {
+    const { service } = crear();
+    const archivo = await service.exportar(
+      9,
+      consulta,
+      'excel',
+      'riesgo,seguimientos',
+    );
+    const libro = new ExcelJS.Workbook();
+    await libro.xlsx.load(archivo.buffer as unknown as ExcelJS.Buffer);
+    expect(libro.worksheets.map((hoja) => hoja.name)).toEqual([
+      'Resumen',
+      'Alumnos en riesgo (al corte)',
+      'Observaciones registradas en el',
+    ]);
+    expect(JSON.stringify(libro.getWorksheet('Resumen')?.model)).toContain(
+      'INSTITUTO TECNOLÓGICO SUPERIOR DE COSAMALOAPAN',
+    );
+    expect(libro.model.media?.length).toBeGreaterThan(0);
+    const riesgo = libro.worksheets[1];
+    expect(riesgo.getRow(1).values).toContain('Sexo');
+    expect(riesgo.getRow(2).values).toContain('M');
+  });
+
+  it('mantiene el formato institucional y excluye las secciones no elegidas en PDF', async () => {
+    const { service } = crear();
+    const titulos = jest.spyOn(institucional, 'tituloSeccion');
+    try {
+      const archivo = await service.exportar(9, consulta, 'pdf', 'riesgo');
+      expect(archivo.buffer.subarray(0, 4).toString()).toBe('%PDF');
+      expect(titulos.mock.calls.map(([, titulo]) => titulo)).toEqual([
+        'Resumen',
+        'Alumnos en riesgo (al corte)',
+      ]);
+    } finally {
+      titulos.mockRestore();
+    }
+  });
+
+  it.each(['', 'riesgo,desconocida', 'riesgo,,listas'])(
+    'rechaza selección inválida %s antes de consultar',
+    async (seleccion) => {
+      const { service, supervision } = crear();
+      await expect(
+        service.exportar(9, consulta, 'excel', seleccion),
+      ).rejects.toThrow('Selecciona secciones válidas');
+      expect(supervision.resumen).not.toHaveBeenCalled();
+    },
+  );
 });

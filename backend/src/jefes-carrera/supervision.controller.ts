@@ -137,6 +137,7 @@ export class SupervisionController {
       req.user.id,
       query,
       query.formato,
+      query.secciones,
     );
     res.setHeader('Content-Type', archivo.contentType);
     res.setHeader(
