@@ -367,7 +367,7 @@ export default function DashboardAlumno() {
         [venceHoy && `${venceHoy} vence${venceHoy === 1 ? '' : 'n'} hoy`,
           atrasadas && plural(atrasadas, 'atrasada', 'atrasadas'),
           corregir && `${corregir} para corregir`].filter(Boolean).map((t) => `, ${t}`).join('')}.`
-      : 'No tienes tareas pendientes.'
+      : null
 
   const siguienteTarea = tareas[0]
   const acciones = [
@@ -394,14 +394,14 @@ export default function DashboardAlumno() {
         <h1 className="mt-1 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
           Hola, {user?.nombre?.split(' ')[0] ?? 'alumno'}
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
+        {(cargando || resumen || enRiesgo > 0) && <p className="mt-1 text-sm text-muted-foreground">
           {cargando ? 'Cargando tu resumen...' : resumen}
           {enRiesgo > 0 && (
             <span className="font-medium text-destructive-foreground">
               {' '}Cuidado: vas en riesgo por faltas en {plural(enRiesgo, 'materia', 'materias')}.
             </span>
           )}
-        </p>
+        </p>}
       </header>
 
       <ClasesEnCurso clases={clasesActivas} />

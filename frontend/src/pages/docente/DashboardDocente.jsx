@@ -527,9 +527,9 @@ function AgendaHoy({ clases, proximasSuspensiones, iniciando, onPasarLista, onPa
           </div>
         ) : <ClaseDestacada clase={null} />}
       </div>
-      {otrasClases.length === 0 ? (
+      {otrasClases.length === 0 && clases.length > 0 ? (
         <p className="mt-4 text-sm text-muted-foreground">
-          {clases.length === 0 ? 'Hoy no tienes clases programadas.' : 'No hay más clases en la agenda de hoy.'}
+          No hay más clases en la agenda de hoy.
         </p>
       ) : (
         <ul className="mt-2 divide-y divide-border">

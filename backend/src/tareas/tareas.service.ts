@@ -23,6 +23,7 @@ import { RevisarEntregaDto } from './dto/revisar-entrega.dto';
 import { CalificarEntregaDto } from './dto/calificar-entrega.dto';
 import { DevolverEntregaDto } from './dto/devolver-entrega.dto';
 import { BulkRevisarEntregasDto } from './dto/bulk-revisar-entregas.dto';
+import { GuardarEquipoTareaDto } from './dto/equipo-tarea.dto';
 import {
   buildUploadUrl,
   fileTypeFromName,
@@ -169,8 +170,16 @@ export class TareasService {
       rubricJson: dto.rubricJson ?? tarea.rubricJson ?? undefined,
       categoriaId:
         dto.categoriaId !== undefined ? dto.categoriaId : tarea.categoriaId,
+      esGrupal: dto.esGrupal ?? tarea.esGrupal,
+      tipoTrabajo: dto.tipoTrabajo ?? tarea.tipoTrabajo ?? undefined,
+      equiposEditablesPorAlumnos:
+        dto.equiposEditablesPorAlumnos ?? tarea.equiposEditablesPorAlumnos,
       removerArchivoIds: dto.removerArchivoIds,
     } satisfies Partial<CrearTareaDto>;
+
+    if (tarea.equipos?.length && (mergedInput.esGrupal === false || mergedInput.grupoId !== tarea.grupoId)) {
+      throw new ConflictException('No puedes quitar el modo grupal ni cambiar de grupo después de formar equipos');
+    }
 
     const contexto = await this.validarContextoTarea(
       actor,
@@ -574,21 +583,22 @@ export class TareasService {
     const enriched = await this.enrichTask(tarea);
     if (actor.rol !== 'ALUMNO') return enriched;
 
-    const miEntrega = await this.prisma.entregaTarea.findUnique({
-      where: {
-        tareaId_alumnoId: {
-          tareaId,
-          alumnoId: actor.id,
-        },
-      },
+    const miEquipo = tarea.esGrupal ? await this.prisma.equipoTarea.findFirst({
+      where: { tareaId, integrantes: { some: { alumnoId: actor.id } } },
+      include: { integrantes: { include: { alumno: { select: { id: true, nombre: true, numeroControl: true } } } } },
+    }) : null;
+    const miEntrega = await this.prisma.entregaTarea.findFirst({
+      where: tarea.esGrupal ? { tareaId, equipoId: miEquipo?.id ?? -1 } : { tareaId, alumnoId: actor.id },
       include: {
         archivos: true,
+        equipo: { include: { integrantes: { include: { alumno: { select: { id: true, nombre: true, numeroControl: true } } } } } },
       },
     });
 
     return {
       ...enriched,
       miEntrega,
+      miEquipo,
       estadoAlumno:
         miEntrega?.estadoRevision ?? this.obtenerEstadoSinEntrega(tarea),
       puedeEditarEntrega: this.puedeEditarEntrega(tarea, miEntrega),
@@ -644,6 +654,7 @@ export class TareasService {
         entrega: {
           select: {
             alumnoId: true,
+            equipoId: true,
             tarea: {
               select: { materiaId: true, grupoId: true, docenteId: true },
             },
@@ -653,7 +664,10 @@ export class TareasService {
     });
     if (!evidencia) throw new NotFoundException('Archivo no encontrado');
     if (actor.rol === 'ALUMNO') {
-      if (evidencia.entrega.alumnoId !== actor.id) {
+      const perteneceAlEquipo = evidencia.entrega.equipoId
+        ? await this.prisma.equipoTareaMiembro.count({ where: { equipoId: evidencia.entrega.equipoId, alumnoId: actor.id } })
+        : 0;
+      if (evidencia.entrega.alumnoId !== actor.id && !perteneceAlEquipo) {
         throw new ForbiddenException('No tienes acceso a este archivo');
       }
     } else {
@@ -678,6 +692,45 @@ export class TareasService {
     archivos: Express.Multer.File[] = [],
   ) {
     return this.guardarEntrega(tareaId, alumnoId, dto, archivos);
+  }
+
+  async obtenerEquipos(tareaId: number, actor: Actor) {
+    const tarea = await this.prisma.tarea.findUnique({ where: { id: tareaId }, include: this.taskInclude() });
+    if (!tarea) throw new NotFoundException('Tarea no encontrada');
+    if (actor.rol === 'ALUMNO') await this.validarAccesoAlumno(actor.id, tarea);
+    else await this.asegurarAccesoTarea(actor, tarea);
+    if (!tarea.esGrupal) return { tareaId, esGrupal: false, alumnos: [], equipos: [] };
+    const alumnos = await this.obtenerAlumnosDeTarea(tarea);
+    const equipos = await this.prisma.equipoTarea.findMany({
+      where: { tareaId },
+      include: { integrantes: { include: { alumno: { select: { id: true, nombre: true, numeroControl: true } } } } },
+      orderBy: { nombre: 'asc' },
+    });
+    return { tareaId, esGrupal: true, tipoTrabajo: tarea.tipoTrabajo, equiposEditablesPorAlumnos: tarea.equiposEditablesPorAlumnos, alumnos, equipos };
+  }
+
+  async guardarEquipo(tareaId: number, actor: Actor, dto: GuardarEquipoTareaDto) {
+    const tarea = await this.prisma.tarea.findUnique({ where: { id: tareaId }, include: this.taskInclude() });
+    if (!tarea) throw new NotFoundException('Tarea no encontrada');
+    if (!tarea.esGrupal) throw new ConflictException('La tarea no es grupal');
+    if (actor.rol === 'ALUMNO') {
+      await this.validarAccesoAlumno(actor.id, tarea);
+      if (!tarea.equiposEditablesPorAlumnos) throw new ForbiddenException('El docente administra los equipos');
+      if (!dto.integranteIds.includes(actor.id)) throw new BadRequestException('Debes incluirte en tu equipo');
+    } else await this.asegurarAccesoTarea(actor, tarea);
+    const alumnos = await this.obtenerAlumnosDeTarea(tarea);
+    const validos = new Set(alumnos.map((item) => item.id));
+    if (dto.integranteIds.some((id) => !validos.has(id))) throw new BadRequestException('Hay integrantes que no pertenecen al grupo');
+    const ocupados = await this.prisma.equipoTareaMiembro.findMany({ where: { alumnoId: { in: dto.integranteIds }, equipo: { tareaId, ...(dto.equipoId ? { id: { not: dto.equipoId } } : {}) } }, select: { alumnoId: true } });
+    if (ocupados.length) throw new ConflictException('Uno o más alumnos ya pertenecen a otro equipo');
+    if (dto.equipoId) {
+      const actual = await this.prisma.equipoTarea.findFirst({ where: { id: dto.equipoId, tareaId }, include: { entregas: true } });
+      if (!actual) throw new NotFoundException('Equipo no encontrado');
+      if (actor.rol === 'ALUMNO' && actual.creadoPorId !== actor.id) throw new ForbiddenException('No puedes editar este equipo');
+      if (actual.entregas.length) throw new ConflictException('No se puede cambiar un equipo que ya entregó');
+      return this.prisma.equipoTarea.update({ where: { id: actual.id }, data: { nombre: dto.nombre.trim(), integrantes: { deleteMany: {}, create: dto.integranteIds.map((alumnoId) => ({ alumnoId })) } }, include: { integrantes: { include: { alumno: { select: { id: true, nombre: true, numeroControl: true } } } } } });
+    }
+    return this.prisma.equipoTarea.create({ data: { tareaId, nombre: dto.nombre.trim(), creadoPorId: actor.id, integrantes: { create: dto.integranteIds.map((alumnoId) => ({ alumnoId })) } }, include: { integrantes: { include: { alumno: { select: { id: true, nombre: true, numeroControl: true } } } } } });
   }
 
   async marcarEntregaPresencial(
@@ -715,6 +768,7 @@ export class TareasService {
           select: { id: true, nombre: true, numeroControl: true, sexo: true },
         },
         archivos: true,
+        equipo: { include: { integrantes: { include: { alumno: { select: { id: true, nombre: true, numeroControl: true } } } } } },
       },
     });
 
@@ -818,11 +872,16 @@ export class TareasService {
           select: { id: true, nombre: true, numeroControl: true, sexo: true },
         },
         archivos: true,
+        equipo: { include: { integrantes: { include: { alumno: { select: { id: true, nombre: true, numeroControl: true } } } } } },
       },
       orderBy: [{ fechaEntrega: 'desc' }, { id: 'desc' }],
     });
 
-    const entregaMap = new Map(entregas.map((item) => [item.alumnoId, item]));
+    const entregaMap = new Map<number, any>();
+    for (const item of entregas) {
+      entregaMap.set(item.alumnoId, item);
+      item.equipo?.integrantes?.forEach((miembro: any) => entregaMap.set(miembro.alumnoId, item));
+    }
     const cards = alumnos.map((alumno) => {
       const entrega = entregaMap.get(alumno.id);
       if (!entrega) {
@@ -844,6 +903,8 @@ export class TareasService {
       }
       return {
         ...entrega,
+        entregaCompartida: entrega.equipoId ? entrega.alumnoId !== alumno.id : false,
+        equipo: entrega.equipo ?? null,
         esSintetica: false,
       };
     });
@@ -1131,14 +1192,17 @@ export class TareasService {
       })
     ).filter((item) => !item.grupoId || item.grupoId === alumno?.grupoId);
 
+    const tareaIds = tareas.map((item) => item.id);
+    const equiposAlumno = await this.prisma.equipoTarea.findMany({
+      where: { tareaId: { in: tareaIds }, integrantes: { some: { alumnoId } } },
+      select: { id: true, tareaId: true },
+    });
     const entregas = await this.prisma.entregaTarea.findMany({
-      where: {
-        alumnoId,
-        tareaId: { in: tareas.map((item) => item.id) },
-      },
+      where: { tareaId: { in: tareaIds }, OR: [{ alumnoId }, { equipoId: { in: equiposAlumno.map((item) => item.id) } }] },
       include: { archivos: true },
     });
     const entregaMap = new Map(entregas.map((item) => [item.tareaId, item]));
+    const equipoMap = new Map(equiposAlumno.map((item) => [item.tareaId, item]));
     const enriched = await this.enrichTasks(tareas);
     const enrichedMap = new Map(enriched.map((item) => [item.id, item]));
 
@@ -1147,6 +1211,7 @@ export class TareasService {
       return {
         tarea: enrichedMap.get(tarea.id) ?? tarea,
         miEntrega,
+        miEquipo: equipoMap.get(tarea.id) ?? null,
         estadoAlumno:
           miEntrega?.estadoRevision ?? this.obtenerEstadoSinEntrega(tarea),
         puedeEditarEntrega: this.puedeEditarEntrega(tarea, miEntrega),
@@ -1436,10 +1501,12 @@ export class TareasService {
       );
     }
 
-    const entregaActual = await this.prisma.entregaTarea.findUnique({
-      where: {
-        tareaId_alumnoId: { tareaId, alumnoId },
-      },
+    const equipo = tarea.esGrupal ? await this.prisma.equipoTarea.findFirst({
+      where: { tareaId, integrantes: { some: { alumnoId } } },
+    }) : null;
+    if (tarea.esGrupal && !equipo) throw new ConflictException('Primero debes pertenecer a un equipo');
+    const entregaActual = await this.prisma.entregaTarea.findFirst({
+      where: tarea.esGrupal ? { tareaId, equipoId: equipo!.id } : { tareaId, alumnoId },
       include: { archivos: true },
     });
     if (!this.puedeEditarEntrega(tarea, entregaActual)) {
@@ -1495,13 +1562,10 @@ export class TareasService {
         }
       }
 
-      const persisted = await tx.entregaTarea.upsert({
-        where: {
-          tareaId_alumnoId: { tareaId, alumnoId },
-        },
-        create: {
-          tareaId,
-          alumnoId,
+      const createData: Prisma.EntregaTareaCreateInput = {
+          tarea: { connect: { id: tareaId } },
+          alumno: { connect: { id: alumnoId } },
+          ...(equipo ? { equipo: { connect: { id: equipo.id } } } : {}),
           archivoUrl,
           firmaUrl,
           comentarioAlumno: dto.comentario,
@@ -1513,8 +1577,8 @@ export class TareasService {
           archivos: {
             create: uploaded,
           },
-        },
-        update: {
+        };
+      const updateData: Prisma.EntregaTareaUpdateInput = {
           archivoUrl,
           firmaUrl,
           comentarioAlumno: dto.comentario,
@@ -1531,15 +1595,19 @@ export class TareasService {
                 create: uploaded,
               }
             : undefined,
-        },
+        };
+      const persisted = entregaActual ? await tx.entregaTarea.update({ where: { id: entregaActual.id }, data: updateData,
         include: {
           tarea: true,
           alumno: {
             select: { id: true, nombre: true, numeroControl: true, sexo: true },
           },
           archivos: true,
-        },
-      });
+        } }) : await tx.entregaTarea.create({ data: createData, include: {
+          tarea: true,
+          alumno: { select: { id: true, nombre: true, numeroControl: true, sexo: true } },
+          archivos: true,
+        } });
 
       return persisted;
     });
@@ -1670,6 +1738,9 @@ export class TareasService {
       estado,
       rubricJson: this.normalizarRubrica(dto.rubricJson),
       categoriaId: dto.categoriaId ?? null,
+      esGrupal: dto.esGrupal === true,
+      tipoTrabajo: dto.esGrupal ? (dto.tipoTrabajo?.trim() || 'Trabajo en equipo') : null,
+      equiposEditablesPorAlumnos: dto.esGrupal ? dto.equiposEditablesPorAlumnos !== false : false,
       activa: estado !== EstadoTarea.CERRADA,
     };
   }
@@ -1685,6 +1756,11 @@ export class TareasService {
       },
       categoria: { select: { id: true, nombre: true, tipo: true } },
       archivos: true,
+      equipos: {
+        include: {
+          integrantes: { include: { alumno: { select: { id: true, nombre: true, numeroControl: true } } } },
+        },
+      },
     };
   }
 

@@ -255,7 +255,6 @@ export default function PeriodoEscolarCard({ editable = false, compacto = false 
           <h2 className="text-base font-semibold text-foreground">Periodo escolar</h2>
           {conEtiqueta && (
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Los grupos mixtos (sábados) tienen su propio calendario de inicio y fin de semestre.
             </p>
           )}
         </div>

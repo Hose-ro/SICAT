@@ -7,6 +7,7 @@ import { useTareaStore } from '../../store/tareaStore'
 
 import TaskCriteria from '../../components/TaskCriteria'
 import TaskNotice from '../../components/TaskNotice'
+import EquiposTarea from '../../components/EquiposTarea'
 import { deliveryHelp, esEnClase, etiquetaEstadoAlumno, taskFileUrl } from '../../lib/tareas'
 
 const STATE_CLASS = {
@@ -77,6 +78,7 @@ export default function TareaDetalleAlumno() {
       </header>
 
       <TaskCriteria tarea={tareaActiva} />
+      {tareaActiva.esGrupal && <EquiposTarea tareaId={tareaActiva.id} rol="ALUMNO" onChange={() => obtenerDetalle(Number(id)).catch(() => {})} />}
       <TaskNotice error={error} />
       {tareaActiva.archivos?.length > 0 && (
         <section aria-labelledby="material-docente" className="rounded-[var(--radius-card)] border border-border bg-card p-5">
@@ -136,12 +138,13 @@ export default function TareaDetalleAlumno() {
               ? 'No necesitas subir nada: tu docente captura la calificación después de la clase.'
               : 'Puedes subir varios archivos y quitar los que ya no quieras antes de volver a enviar.'}
           </p>
+          {tareaActiva.esGrupal && !tareaActiva.miEquipo && <p className="mt-3 rounded-xl bg-warning/10 px-3 py-2 text-sm text-warning-foreground">Forma o únete a un equipo antes de entregar.</p>}
           <div className="mt-5">
             <FormEntregaTarea
               key={tareaActiva.id}
               tarea={tareaActiva}
               miEntrega={miEntrega}
-              puedeEditar={tareaActiva.puedeEditarEntrega}
+              puedeEditar={tareaActiva.puedeEditarEntrega && (!tareaActiva.esGrupal || Boolean(tareaActiva.miEquipo))}
               onSuccess={() => obtenerDetalle(Number(id)).catch(() => {})}
             />
           </div>

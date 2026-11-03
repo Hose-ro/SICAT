@@ -44,7 +44,6 @@ const MODOS = {
   institucional: {
     endpoint: '/periodos/actual/suspensiones-institucionales',
     titulo: 'Calendario escolar',
-    descripcion: 'Marca los días festivos o de suspensión oficial para toda la institución.',
     ayuda: 'Elige uno o varios días del periodo. Ningún docente tendrá clases ni pase de lista en esas fechas.',
     boton: 'Marcar festivo para todos',
   },

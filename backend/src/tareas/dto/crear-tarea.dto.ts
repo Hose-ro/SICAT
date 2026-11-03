@@ -17,6 +17,20 @@ import {
 import { EstadoTarea, TipoEntrega, TipoEvaluacion } from '@prisma/client';
 
 export class CrearTareaDto {
+  @V.IsBoolean()
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
+  @Transform(toBoolean)
+  esGrupal?: boolean;
+
+  @V.MaxLength(60)
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
+  @IsString()
+  tipoTrabajo?: string;
+
+  @V.IsBoolean()
+  @V.ValidateIf((_object, value: unknown) => value !== undefined)
+  @Transform(toBoolean)
+  equiposEditablesPorAlumnos?: boolean;
   @V.Min(1)
   @V.Max(2147483647)
   @ToNumber()

@@ -18,6 +18,7 @@ import ListaRevision from './components/tareas/ListaRevision'
 import PanelCalificacion from './components/tareas/PanelCalificacion'
 import RevisionTerminada, { ResumenRevision } from './components/tareas/RevisionTerminada'
 import useAccionesTarea from './components/tareas/useAccionesTarea'
+import EquiposTarea from '@/components/EquiposTarea'
 
 const SIN_ENTREGA = new Set(['PENDIENTE', 'NO_ENTREGADA'])
 // Campos que el API devuelve al revisar, calificar o devolver una entrega.
@@ -400,6 +401,7 @@ function TareaDetalle({ tareaId }) {
         </div>
       )}
 
+      {tarea.esGrupal && <div className="mt-5"><EquiposTarea tareaId={tarea.id} rol="DOCENTE" onChange={cargar} /></div>}
       {presencial && filas.length > 0 && (
         <Segmentado label="Cómo calificar" value={modo} onChange={setModo} className="mt-4"
           options={[{ value: 'captura', label: 'Captura en lista' }, { value: 'individual', label: 'Uno por uno' }]} />
