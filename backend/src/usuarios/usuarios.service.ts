@@ -12,6 +12,8 @@ import { RegisterDto } from '../auth/dto/register.dto';
 import { UpdateOwnProfileDto } from './dto/update-own-profile.dto';
 import { AdminUpdateUserDto } from './dto/admin-update-user.dto';
 import { inscribirAlumnosDelGrupo } from '../common/inscripciones-grupo';
+import { procesarFotoPerfil } from './foto-perfil';
+import type { AuthenticatedUser } from '../auth/auth.types';
 import {
   normalizeControlNumber,
   normalizeEmail,
@@ -262,6 +264,7 @@ export class UsuariosService {
       where: { id },
       select: {
         id: true,
+        avatar: true,
         nombre: true,
         alias: true,
         email: true,
@@ -351,6 +354,7 @@ export class UsuariosService {
         },
         select: {
           id: true,
+          avatar: true,
           nombre: true,
           alias: true,
           email: true,
@@ -363,6 +367,66 @@ export class UsuariosService {
         },
       });
     });
+  }
+
+  async guardarFotoPerfil(id: number, archivo?: { buffer?: Buffer }) {
+    if (!archivo?.buffer) throw new BadRequestException('Elige una foto');
+    const { contenido, mime, huella } = await procesarFotoPerfil(
+      archivo.buffer,
+    );
+    const datos = {
+      mime,
+      tamano: contenido.length,
+      contenido: new Uint8Array(contenido),
+    };
+    await this.prisma.$transaction([
+      this.prisma.fotoPerfil.upsert({
+        where: { usuarioId: id },
+        create: { usuarioId: id, ...datos },
+        update: datos,
+      }),
+      this.prisma.usuario.update({
+        where: { id },
+        data: { avatar: huella },
+      }),
+    ]);
+    return { avatar: huella };
+  }
+
+  async quitarFotoPerfil(id: number) {
+    await this.prisma.$transaction([
+      this.prisma.fotoPerfil.deleteMany({ where: { usuarioId: id } }),
+      this.prisma.usuario.update({ where: { id }, data: { avatar: null } }),
+    ]);
+    return { avatar: null };
+  }
+
+  /**
+   * Cualquier sesión ve las fotos del personal; las de alumnos sólo las ve
+   * el propio alumno y el personal, para que nadie recorra los ids y junte
+   * las caras de sus compañeros. Sin permiso responde igual que sin foto.
+   */
+  async leerFotoPerfil(solicitante: AuthenticatedUser, id: number) {
+    const foto = await this.prisma.fotoPerfil.findUnique({
+      where: { usuarioId: id },
+      select: {
+        mime: true,
+        contenido: true,
+        usuario: { select: { rol: true, avatar: true } },
+      },
+    });
+    const ajena =
+      solicitante.rol === Rol.ALUMNO &&
+      solicitante.id !== id &&
+      foto?.usuario.rol === Rol.ALUMNO;
+    if (!foto || !foto.usuario.avatar || ajena) {
+      throw new NotFoundException('Sin foto de perfil');
+    }
+    return {
+      mime: foto.mime,
+      contenido: Buffer.from(foto.contenido),
+      huella: foto.usuario.avatar,
+    };
   }
 
   async updateByAdmin(

@@ -1,5 +1,6 @@
 import useAsyncAction from '@/hooks/useAsyncAction'
 import { Button } from '@/components/ui/button'
+import UserAvatar from '@/components/shared/UserAvatar'
 import { confirmAction } from '@/lib/feedback'
 import { useState } from 'react'
 import { useAcademiaStore } from '../../../../store/academiaStore'
@@ -50,9 +51,7 @@ export default function ListaDocentesAcademia({ academia, onAgregarClick }) {
               className="flex items-center justify-between bg-card border border-border rounded-xl p-3 shadow-sm"
             >
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-accent text-primary-ink flex items-center justify-center text-sm font-bold">
-                  {d.nombre[0].toUpperCase()}
-                </div>
+                <UserAvatar usuario={d} />
                 <div>
                   <p className="text-sm font-medium text-foreground">{d.nombre}</p>
                   {d.email && <p className="text-xs text-muted-foreground">{d.email}</p>}

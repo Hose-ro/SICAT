@@ -4,6 +4,7 @@ import { BookOpen, CalendarClock, ChevronDown, Clock3, NotebookPen, Phone, Users
 import { Button } from '@/components/ui/button'
 import { buttonVariants } from '@/components/ui/buttonVariants'
 import SexoBadge from '@/components/SexoBadge'
+import UserAvatar from '@/components/shared/UserAvatar'
 import { cn } from '@/lib/utils'
 import api from '@/api/axios'
 import { useAuthStore } from '@/store/authStore'
@@ -399,13 +400,12 @@ function GrupoDocente({ g, j, seguimientos }) {
   const detalleId = `detalle-${g.key}`
   const contactoId = `contacto-docente-${g.key}`
   const nombre = g.docente?.nombre ?? 'Sin docente asignado'
-  const iniciales = nombre.split(/\s+/).slice(0, 2).map((p) => p[0]).join('')
   return (
     <li className="docentes-ficha">
       <div className="docentes-ficha-cuerpo">
         <div className="docentes-cabecera">
           <div className="docentes-identidad">
-            <span className="docentes-iniciales" aria-hidden="true">{iniciales}</span>
+            <UserAvatar usuario={g.docente} className="docentes-avatar" />
             <div className="min-w-0">
           {g.docente
             ? <Link className={cn(linkClass, 'docentes-nombre')} to={j.toDesde(`/jefe-carrera/docentes/${g.docente.id}`)}>{nombre}</Link>

@@ -36,6 +36,9 @@
   --muted-foreground:       oklch(0.50 0.025 264);
   --accent:                 oklch(0.94 0.02 264);
   --accent-foreground:      oklch(0.30 0.04 264);
+  /* Silueta genérica de quien no tiene foto de perfil */
+  --avatar-fondo:           oklch(0.905 0.006 264);
+  --avatar-silueta:         oklch(0.66 0.012 264);
 
   /* Status — attendance & task states */
   --destructive:            oklch(0.55 0.24 27);
@@ -203,6 +206,8 @@
   --muted-foreground: oklch(0.77 0.015 264);
   --accent: oklch(0.30 0.025 264);
   --accent-foreground: var(--foreground);
+  --avatar-fondo: oklch(0.86 0.004 264);
+  --avatar-silueta: oklch(0.58 0.008 264);
   --border: oklch(0.37 0.015 264);
   --input: var(--border);
   --ring: var(--primary);
@@ -368,7 +373,7 @@
 .sidebar.collapsed .dark-toggle__label, .sidebar.collapsed .mode-switch { display: none; }
 .sidebar.collapsed .dark-toggle { justify-content: center; padding: 10px; }
 .sidebar__user { display: flex; align-items: center; gap: 8px; padding: 8px 4px; overflow: hidden; }
-.user__avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--accent); color: var(--accent-foreground); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0; }
+.user__avatar { width: 32px; height: 32px; }
 .user__info { flex: 1; min-width: 0; }
 .user__name { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .user__role { font-size: 11px; color: var(--muted-foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -23,7 +23,7 @@
 .docentes-ficha-cuerpo { padding: 18px 20px 16px; }
 .docentes-cabecera { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .docentes-identidad { display: flex; align-items: flex-start; gap: 11px; min-width: 0; }
-.docentes-iniciales { display: grid; place-items: center; width: 34px; height: 34px; flex-shrink: 0; border-radius: 10px; background: var(--muted); color: var(--muted-foreground); font-size: .6875rem; font-weight: 600; }
+.docentes-avatar { width: 34px; height: 34px; }
 .docentes-nombre { color: var(--foreground); font-size: .9375rem; font-weight: 600; letter-spacing: -.015em; overflow-wrap: anywhere; }
 .docentes-fecha { margin-top: 3px; font-size: .75rem; color: var(--muted-foreground); }
 .docentes-antiguedad { display: inline-flex; flex-shrink: 0; align-items: center; gap: 5px; padding: 4px 7px; border-radius: 6px; background: color-mix(in oklab, var(--warning) 12%, var(--card)); color: var(--warning-foreground); font-size: .6875rem; }

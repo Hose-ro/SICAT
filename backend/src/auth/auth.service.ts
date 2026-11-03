@@ -785,6 +785,7 @@ export class AuthService {
     numeroControl: string | null;
     username: string | null;
     rol: AuthenticatedUser['rol'];
+    avatar: string | null;
     tokenVersion: number;
   }): PublicAuthUser {
     return {
@@ -794,6 +795,7 @@ export class AuthService {
       numeroControl: user.numeroControl,
       username: user.username,
       rol: user.rol,
+      avatar: user.avatar,
       tokenVersion: user.tokenVersion,
     };
   }

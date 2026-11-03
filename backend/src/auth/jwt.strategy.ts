@@ -55,6 +55,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         numeroControl: true,
         username: true,
         rol: true,
+        avatar: true,
         activo: true,
         registroAprobado: true,
         emailVerificadoAt: true,
@@ -94,6 +95,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       numeroControl: user.numeroControl,
       username: user.username,
       rol: user.rol,
+      avatar: user.avatar,
       tokenVersion: user.tokenVersion,
       sid: payload.sid,
     };

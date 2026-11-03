@@ -9,7 +9,9 @@ import { CreateAcademiaDto } from './dto/create-academia.dto';
 import { UpdateAcademiaDto } from './dto/update-academia.dto';
 
 const INCLUDE_DETAIL = {
-  docentes: { select: { id: true, nombre: true, email: true } },
+  docentes: {
+    select: { id: true, avatar: true, nombre: true, email: true },
+  },
   materias: { select: { id: true, nombre: true, clave: true, semestre: true } },
 };
 
@@ -172,7 +174,9 @@ export class AcademiasService {
     const academia = await this.prisma.academia.findUnique({
       where: { id: academiaId },
       include: {
-        docentes: { select: { id: true, nombre: true, email: true } },
+        docentes: {
+          select: { id: true, avatar: true, nombre: true, email: true },
+        },
       },
     });
     if (!academia) throw new NotFoundException('Academia no encontrada');

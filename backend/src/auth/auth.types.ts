@@ -9,6 +9,8 @@ export interface AuthenticatedUser {
   numeroControl: string | null;
   username: string | null;
   rol: Rol;
+  /** Huella de la foto de perfil; null si usa la silueta genérica. */
+  avatar: string | null;
   tokenVersion: number;
   /** Id de la fila `Sesion` que respalda el token actual (uno por dispositivo). */
   sid: string;

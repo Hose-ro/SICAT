@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { ArrowUpRight, Copy, FileChartColumn, Mail, MessagesSquare, Phone } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { buttonVariants } from '@/components/ui/buttonVariants'
+import UserAvatar from '@/components/shared/UserAvatar'
 import { BotonSeguimiento } from '../supervision/Seguimiento'
 import './perfil-docente.css'
 
@@ -10,7 +11,6 @@ export default function EncabezadoDocente({ docente, j }) {
   const [copiado, setCopiado] = useState(false)
   const [copiaManual, setCopiaManual] = useState(false)
   const manual = useRef(null)
-  const iniciales = docente.nombre.trim().split(/\s+/).slice(0, 2).map((p) => p[0]).join('')
   const alias = docente.alias?.trim()
   const telefono = docente.telefono?.replace(/[^\d+]/g, '')
   const contacto = [docente.nombre, docente.email, docente.telefono].filter(Boolean).join(' · ')
@@ -24,7 +24,7 @@ export default function EncabezadoDocente({ docente, j }) {
   return (
     <header className="docente-perfil" aria-labelledby="docente-perfil-nombre">
       <div className="docente-perfil-identidad">
-        <span className="docente-perfil-avatar" aria-hidden="true">{iniciales}</span>
+        <UserAvatar usuario={docente} className="docente-perfil-avatar" />
         <div className="min-w-0">
           {alias && <p className="docente-perfil-alias">{alias}</p>}
           <h1 id="docente-perfil-nombre">{docente.nombre}</h1>

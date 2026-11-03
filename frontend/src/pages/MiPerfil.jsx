@@ -1,11 +1,13 @@
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import api from '@/api/axios'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import CambiarPasswordForm from '@/components/CambiarPasswordForm'
 import TaskNotice from '@/components/TaskNotice'
+import UserAvatar from '@/components/shared/UserAvatar'
 import { confirmAction, notify } from '@/lib/feedback'
+import { TIPOS_FOTO, mensajeErrorFoto, prepararFotoPerfil } from '@/lib/fotoPerfil'
 import { useAuthStore } from '@/store/authStore'
 
 const ROL = { ADMIN: 'Administración', JEFE_CARRERA: 'Jefe de carrera', DOCENTE: 'Docente', ALUMNO: 'Alumno' }
@@ -42,6 +44,9 @@ export default function MiPerfil() {
   const [form, setForm] = useState({ nombre: '', alias: '', email: '', telefono: '' })
   const [errores, setErrores] = useState({})
   const [guardando, setGuardando] = useState(false)
+  const selectorFoto = useRef(null)
+  const [subiendoFoto, setSubiendoFoto] = useState(false)
+  const [errorFoto, setErrorFoto] = useState('')
 
   useEffect(() => {
     let activo = true
@@ -93,6 +98,50 @@ export default function MiPerfil() {
     }
   }
 
+  const aplicarFoto = (avatar) => {
+    setPerfil((prev) => ({ ...prev, avatar }))
+    const actual = useAuthStore.getState().user
+    if (actual) setUser({ ...actual, avatar })
+  }
+
+  const elegirFoto = async (event) => {
+    const archivo = event.target.files?.[0]
+    event.target.value = ''
+    if (!archivo) return
+    setErrorFoto('')
+    setSubiendoFoto(true)
+    try {
+      const datos = new FormData()
+      datos.append('foto', await prepararFotoPerfil(archivo))
+      const { data } = await api.put('/usuarios/perfil/foto', datos)
+      aplicarFoto(data.avatar)
+      notify('Cambiaste tu foto de perfil.', 'success')
+    } catch (err) {
+      setErrorFoto(mensajeErrorFoto(err))
+    } finally {
+      setSubiendoFoto(false)
+    }
+  }
+
+  const quitarFoto = async () => {
+    if (!(await confirmAction({
+      title: 'Quitar tu foto',
+      description: 'En su lugar se mostrará la silueta gris.',
+      confirmLabel: 'Quitar foto',
+    }))) return
+    setErrorFoto('')
+    setSubiendoFoto(true)
+    try {
+      await api.delete('/usuarios/perfil/foto')
+      aplicarFoto(null)
+      notify('Quitaste tu foto de perfil.', 'success')
+    } catch (err) {
+      setErrorFoto(mensajeErrorFoto(err))
+    } finally {
+      setSubiendoFoto(false)
+    }
+  }
+
   const campo = (clave, etiqueta, props = {}, ayuda) => (
     <div>
       <label htmlFor={`${id}-${clave}`} className="mb-1 block text-sm font-medium text-foreground">{etiqueta}</label>
@@ -129,6 +178,28 @@ export default function MiPerfil() {
           {[ROL[perfil.rol] ?? perfil.rol, identificador].filter(Boolean).join(' · ')}
         </p>
       </header>
+
+      <section aria-labelledby={`${id}-foto`} className={TARJETA}>
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+          <UserAvatar usuario={perfil} className="size-24" />
+          <div className="min-w-0 flex-1">
+            <h2 id={`${id}-foto`} className="text-lg font-semibold text-foreground">Foto de perfil</h2>
+            <p id={`${id}-foto-ayuda`} className="mt-1 text-sm text-muted-foreground">
+              JPG, PNG o WebP de hasta 15 MB. La recortamos en cuadro y le quitamos datos como la ubicación.{' '}
+              {perfil.rol === 'ALUMNO' ? 'La ven tus docentes y la escuela, no tus compañeros.' : 'La ven tus compañeros, tus alumnos y la escuela.'}
+            </p>
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <Button type="button" variant="outline" disabled={subiendoFoto} aria-describedby={`${id}-foto-ayuda`}
+                onClick={() => selectorFoto.current?.click()}>
+                {subiendoFoto ? 'Guardando…' : perfil.avatar ? 'Cambiar foto' : 'Elegir foto'}
+              </Button>
+              {perfil.avatar && <Button type="button" variant="ghost" disabled={subiendoFoto} onClick={quitarFoto}>Quitar foto</Button>}
+            </div>
+            <input ref={selectorFoto} type="file" accept={TIPOS_FOTO.join(',')} hidden onChange={elegirFoto} />
+            {errorFoto && <p role="alert" className="mt-2 text-xs font-medium text-destructive-foreground">{errorFoto}</p>}
+          </div>
+        </div>
+      </section>
 
       <section aria-labelledby={`${id}-datos`} className={TARJETA}>
         <h2 id={`${id}-datos`} className="text-lg font-semibold text-foreground">Tus datos</h2>

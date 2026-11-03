@@ -11,9 +11,20 @@ import {
   Query,
   UseGuards,
   Req,
+  Res,
   ForbiddenException,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags, ApiOperation } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Throttle } from '@nestjs/throttler';
+import type { Response } from 'express';
+import {
+  ApiBearerAuth,
+  ApiConsumes,
+  ApiTags,
+  ApiOperation,
+} from '@nestjs/swagger';
 import { UsuariosService } from './usuarios.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -25,6 +36,7 @@ import { UpdateOwnProfileDto } from './dto/update-own-profile.dto';
 import { AdminUpdateUserDto } from './dto/admin-update-user.dto';
 import { ListUsersQueryDto } from './dto/list-users-query.dto';
 import type { AuthenticatedRequest } from '../auth/auth.types';
+import { fotoPerfilUploadOptions } from './foto-perfil';
 
 @ApiTags('Usuarios')
 @ApiBearerAuth()
@@ -79,6 +91,54 @@ export class UsuariosController {
     @Body() dto: UpdateOwnProfileDto,
   ) {
     return this.usuarios.updateOwnProfile(req.user.id, dto);
+  }
+
+  @Put('perfil/foto')
+  @Throttle({ default: { limit: 10, ttl: 10 * 60_000 } })
+  @UseInterceptors(FileInterceptor('foto', fotoPerfilUploadOptions))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Cambiar mi foto de perfil (JPG, PNG o WebP)' })
+  guardarFoto(
+    @Req() req: AuthenticatedRequest,
+    @UploadedFile() foto?: Express.Multer.File,
+  ) {
+    return this.usuarios.guardarFotoPerfil(req.user.id, foto);
+  }
+
+  @Delete('perfil/foto')
+  @ApiOperation({ summary: 'Quitar mi foto de perfil' })
+  quitarFoto(@Req() req: AuthenticatedRequest) {
+    return this.usuarios.quitarFotoPerfil(req.user.id);
+  }
+
+  @Get(':id/foto')
+  @ApiOperation({ summary: 'Foto de perfil de un usuario' })
+  async foto(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: AuthenticatedRequest,
+    @Res() res: Response,
+  ) {
+    const foto = await this.usuarios.leerFotoPerfil(req.user, id);
+    const etag = `"${foto.huella}"`;
+    // Con ?v= igual a la huella vigente la URL nunca cambia de contenido;
+    // sin ella el navegador revalida. `private`: nunca en cachés compartidos.
+    const cacheControl =
+      req.query.v === foto.huella
+        ? 'private, max-age=31536000, immutable'
+        : 'private, no-cache';
+    res.set({
+      'Cache-Control': cacheControl,
+      ETag: etag,
+      'X-Content-Type-Options': 'nosniff',
+      'Content-Security-Policy': "default-src 'none'; sandbox",
+      'Cross-Origin-Resource-Policy': 'same-site',
+      'Content-Disposition': 'inline; filename="foto-perfil.webp"',
+    });
+    if (req.headers['if-none-match'] === etag) {
+      res.status(304).end();
+      return;
+    }
+    res.type(foto.mime).send(foto.contenido);
   }
 
   @Patch(':id')

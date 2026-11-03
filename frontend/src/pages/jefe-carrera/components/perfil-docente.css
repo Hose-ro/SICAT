@@ -1,6 +1,6 @@
 .docente-perfil { min-width: 0; padding-top: 24px; }
 .docente-perfil-identidad { display: flex; align-items: center; gap: 20px; }
-.docente-perfil-avatar { display: grid; place-items: center; width: 74px; height: 74px; flex-shrink: 0; border-radius: 50%; background: var(--accent); color: var(--primary-ink); font-size: 1.5rem; font-weight: 600; letter-spacing: -.04em; }
+.docente-perfil-avatar { width: 74px; height: 74px; }
 .docente-perfil-alias { margin-bottom: 7px; color: var(--primary-ink); font-size: .8125rem; font-weight: 600; letter-spacing: .025em; overflow-wrap: anywhere; }
 .docente-perfil h1 { color: var(--foreground); font-size: 2.125rem; line-height: 1.15; font-weight: 600; letter-spacing: -.035em; overflow-wrap: anywhere; }
 .docente-perfil-pertenencia { margin-top: 9px; color: var(--muted-foreground); font-size: .8125rem; }
@@ -19,7 +19,7 @@
 .docente-perfil-copia-manual input { display: block; width: 100%; min-height: 44px; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-top: 6px; color: var(--foreground); }
 @media (max-width: 639px) {
   .docente-perfil-identidad { align-items: flex-start; gap: 13px; }
-  .docente-perfil-avatar { width: 52px; height: 52px; font-size: 1.125rem; }
+  .docente-perfil-avatar { width: 52px; height: 52px; }
   .docente-perfil h1 { font-size: 1.6875rem; letter-spacing: -.025em; }
   .docente-perfil-contacto { margin: 20px 0; gap: 5px 18px; }
   .docente-perfil-contacto > a:first-child { flex-basis: 100%; }

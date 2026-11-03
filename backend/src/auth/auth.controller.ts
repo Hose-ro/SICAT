@@ -101,6 +101,7 @@ export class AuthController {
       numeroControl: req.user.numeroControl,
       username: req.user.username,
       rol: req.user.rol,
+      avatar: req.user.avatar,
     };
   }
 

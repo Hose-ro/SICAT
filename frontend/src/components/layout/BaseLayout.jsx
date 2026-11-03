@@ -28,6 +28,7 @@ import api from '@/api/axios'
 import NotificacionesBell from '@/components/shared/NotificacionesBell'
 import { useNotificacionesPolling } from '@/store/notificacionStore'
 import BrandMark from '@/components/branding/BrandMark'
+import UserAvatar from '@/components/shared/UserAvatar'
 import CambiarPasswordForm from '@/components/CambiarPasswordForm'
 import { vigilarCola } from '@/lib/colaAsistencia'
 
@@ -40,7 +41,6 @@ export function BaseLayout({ children }) {
   const role = user?.rol
   const displayName = user?.nombre || user?.username || user?.email || 'Usuario'
   const displayRole = { ADMIN: 'Administración', JEFE_CARRERA: 'Jefe de carrera', DOCENTE: 'Docente', ALUMNO: 'Alumno' }[role] ?? 'Miembro'
-  const avatarText = displayName?.[0]?.toUpperCase() || '?'
   const esDocente = role === 'DOCENTE'
 
   useEffect(() => (esDocente ? vigilarCola() : undefined), [esDocente])
@@ -272,9 +272,7 @@ export function BaseLayout({ children }) {
 
           {/* User */}
           <div className="sidebar__user">
-            <div className="user__avatar">
-              {avatarText}
-            </div>
+            <UserAvatar usuario={user} className="user__avatar" />
             <NavLink to="/perfil" className="user__info user__link" onClick={() => setMobileOpen(false)}
               aria-label={`Mi perfil: ${displayName}, ${displayRole}`}>
               <div className="user__name">{displayName}</div>
