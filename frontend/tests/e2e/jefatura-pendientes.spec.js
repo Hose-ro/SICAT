@@ -23,23 +23,23 @@ test.describe('jefatura: pendientes y seguimiento', () => {
     await page.goto('/jefe-carrera/seguimientos')
     await expect(page.getByRole('heading', { level: 1, name: 'Pendientes y seguimiento' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Por atender' })).toHaveAttribute('aria-current', 'page')
-    // Hay pendientes aunque no exista ninguna observación: se dice que no están documentados.
-    await expect(page.getByText('Sin observación registrada').first()).toBeVisible()
+    // Hay pendientes aunque no exista ninguna observación: cada caso ofrece anotarla.
+    await expect(page.getByRole('button', { name: 'Anotar observación' }).first()).toBeVisible()
     await expect(page.getByText(/Una observación documenta el seguimiento, pero no quita el pendiente/)).toHaveCount(0)
     await expect(page.getByText('Lo que requiere atención en el periodo y las observaciones que registras sobre cada caso.')).toHaveCount(0)
     await page.screenshot({ path: `${EVIDENCIA}/bandeja-escritorio-claro.png`, fullPage: true })
     expect(await axe(page)).toEqual([])
 
     // Filtro por docente y tipo: viven en la URL.
-    await page.getByLabel('Docente').selectOption({ label: 'Carlos Ruiz' })
+    await page.getByLabel('Docente', { exact: true }).selectOption({ label: 'Carlos Ruiz' })
     await page.getByRole('navigation', { name: 'Tipo de pendiente' }).getByRole('link', { name: /^Calificaciones/ }).click()
     await expect(page).toHaveURL(/docente=38/)
     await expect(page).toHaveURL(/tipo=CALIFICACIONES_PENDIENTES/)
-    const fila = page.locator('main li').filter({ hasText: '12 calificaciones de unidades cerradas sin capturar' })
+    const fila = page.locator('main li').filter({ hasText: '12 calificaciones sin capturar' })
     await expect(fila).toHaveCount(1)
 
     // Evidencia: abre la materia en su grupo directamente en unidades.
-    await fila.getByRole('link', { name: 'Ver unidades' }).click()
+    await fila.getByRole('link', { name: 'Programación orientada a objetos' }).click()
     await expect(page).toHaveURL(/\/jefe-carrera\/materias\/414\?.*oferta=9.*tab=unidades/)
     await expect(page.getByRole('link', { name: 'Unidades y calificaciones' })).toHaveAttribute('aria-current', 'page')
     await expect(page.getByRole('region', { name: 'Calificaciones de Programación orientada a objetos, grupo 3A, por unidad' })).toBeVisible()
@@ -50,41 +50,41 @@ test.describe('jefatura: pendientes y seguimiento', () => {
     await expect(page.getByRole('navigation', { name: 'Regresar' }).getByRole('link', { name: 'Materias' })).toBeVisible()
     await page.getByRole('link', { name: 'Volver a Pendientes y seguimiento' }).click()
     await expect(page).toHaveURL(/\/jefe-carrera\/seguimientos\?.*docente=38.*tipo=CALIFICACIONES_PENDIENTES|tipo=CALIFICACIONES_PENDIENTES.*docente=38/)
-    await expect(page.getByLabel('Docente')).toHaveValue('38')
+    await expect(page.getByLabel('Docente', { exact: true })).toHaveValue('38')
   })
 
   test('registrar y cerrar una observación no hace desaparecer la lista pendiente', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 1000 })
     await mockJefatura(page)
     await page.goto('/jefe-carrera/seguimientos?seccion=pendientes&tipo=ASISTENCIA_SIN_CAPTURA')
-    const filas = page.locator('main li').filter({ has: page.getByRole('link', { name: 'Ver clase' }) })
+    const filas = page.locator('main li.pendientes-fila')
     await expect(filas.first()).toBeVisible()
     const total = await filas.count()
     expect(total).toBeGreaterThan(0)
     const primera = filas.first()
-    await primera.getByRole('button', { name: 'Registrar observación' }).click()
+    await primera.getByRole('button', { name: 'Anotar observación' }).click()
     const dialog = page.getByRole('dialog')
     await dialog.getByLabel('Nota').fill('El docente capturará la lista mañana.')
     await dialog.getByRole('button', { name: 'Guardar nota' }).click()
     await expect(dialog.getByText('Nota guardada en el historial.')).toBeVisible()
     await page.keyboard.press('Escape')
-    await expect(primera.getByText(/Observación abierta/)).toBeVisible()
+    await expect(primera.getByRole('button', { name: /^(Observada|Revisar hoy)$/ })).toBeVisible()
     await expect(filas).toHaveCount(total)
 
-    await primera.getByRole('button', { name: 'Agregar nota' }).click()
+    await primera.getByRole('button', { name: /^(Observada|Revisar hoy)$/ }).click()
     await dialog.getByLabel('Nueva nota').fill('Se cierra el acuerdo; la lista sigue sin capturar.')
     await dialog.getByRole('button', { name: 'Cerrar caso' }).click()
     await dialog.getByRole('button', { name: 'Guardar y cerrar' }).click()
     await expect(dialog).toBeHidden()
     // El seguimiento queda cerrado, pero el pendiente académico continúa.
-    await expect(primera.getByText(/Cerrado el/)).toBeVisible()
+    await expect(primera.getByRole('button', { name: 'Cerrada' })).toBeVisible()
     await expect(filas).toHaveCount(total)
     await page.screenshot({ path: `${EVIDENCIA}/bandeja-observacion-cerrada.png`, fullPage: true })
 
     // Observaciones registradas muestra el caso cerrado y que la causa sigue.
     await page.getByRole('link', { name: 'Observaciones registradas' }).click()
     await page.getByRole('link', { name: /^Cerrados/ }).click()
-    await expect(page.getByText('La lista sigue sin captura completa')).toBeVisible()
+    await expect(page.getByText('La lista de asistencia sigue sin captura completa')).toBeVisible()
   })
 
   test('enlaces anteriores de observaciones y fallo de una sola fuente', async ({ page }) => {
@@ -99,7 +99,7 @@ test.describe('jefatura: pendientes y seguimiento', () => {
     await page.goto('/jefe-carrera/seguimientos?carrera=1&periodo=2026-B')
     await expect(page.getByRole('alert').filter({ hasText: 'No se pudo consultar el seguimiento' })).toBeVisible()
     await expect(page.getByText('Observación no disponible').first()).toBeVisible()
-    await expect(page.getByText('Sin observación registrada')).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Anotar observación' })).toHaveCount(0)
     await page.screenshot({ path: `${EVIDENCIA}/bandeja-error-observaciones.png`, fullPage: true })
 
     // Filtros sin resultados se distinguen de una carrera sin pendientes.
@@ -116,7 +116,7 @@ test.describe('jefatura: pendientes y seguimiento', () => {
     await page.goto('/jefe-carrera/seguimientos?carrera=1&periodo=2026-A')
     await expect(page.getByText('Periodo anterior · consulta')).toBeVisible()
     await expect(page.getByText(/Periodo anterior: las observaciones solo se consultan/)).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Registrar observación' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Anotar observación' })).toHaveCount(0)
     await page.goto('/jefe-carrera/materias/414?carrera=1&periodo=2026-A')
     await expect(page.getByRole('button', { name: 'Incorporar alumno' })).toHaveCount(0)
   })
@@ -182,7 +182,7 @@ test.describe('jefatura: pendientes y seguimiento', () => {
     await expect(agenda).toBeVisible()
     // Filtros secundarios plegados, con la modalidad a la vista.
     await expect(page.getByLabel('Modalidad')).toBeVisible()
-    await expect(page.getByLabel('Docente')).toBeHidden()
+    await expect(page.getByLabel('Docente', { exact: true })).toBeHidden()
     const primeraClase = await page.locator('section[aria-label] button').first().boundingBox()
     expect(primeraClase.y).toBeLessThan(844)
     expect(await sinDesborde(page)).toBe(true)

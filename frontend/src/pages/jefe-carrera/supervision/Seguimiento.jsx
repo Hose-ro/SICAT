@@ -1,5 +1,5 @@
 import { useId, useRef, useState } from 'react'
-import { LoaderCircle, NotebookPen, RefreshCw } from 'lucide-react'
+import { LoaderCircle, MessageSquareCheck, MessageSquarePlus, NotebookPen, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import Modal from '@/components/Modal'
 import { cn } from '@/lib/utils'
@@ -161,18 +161,40 @@ export function FormSeguimiento({ j, caso, seguimientoId, onGuardado, onCancelar
 }
 
 /** Botón «Registrar observación» con su estado; abre el formulario en un diálogo. */
-export function BotonSeguimiento({ j, caso, titulo, contexto, size = 'sm', className }) {
+/**
+ * Botón que abre la observación del caso. `compacto` resume el estado en el
+ * propio botón (Anotar, Observada, Revisar hoy, Cerrada) para listas largas.
+ */
+export function BotonSeguimiento({ j, caso, titulo, contexto, size = 'sm', className, compacto = false }) {
   const [abierto, setAbierto] = useState(false)
   const seguimientos = useSeguimientos({ carreraId: j.carreraId, periodo: j.periodo })
   const seguimiento = seguimientos.buscar(caso)
   if (j.historico && !seguimiento) return null
   const etiqueta = seguimiento ? (j.historico ? 'Ver observación' : 'Agregar nota') : 'Registrar observación'
+  const estado = !seguimiento ? null : !seguimiento.abierto ? 'cerrada' : seguimiento.fechaRevision && seguimiento.fechaRevision <= hoyClave() ? 'revisar' : 'abierta'
   return (
     <span className={cn('inline-flex flex-wrap items-center gap-x-2 gap-y-1', className)}>
-      <Button variant="outline" size={size} onClick={() => setAbierto(true)}>
-        <NotebookPen aria-hidden="true" /> {etiqueta}
-      </Button>
-      <EstadoSeguimiento seguimiento={seguimiento} />
+      {compacto ? (
+        <Button
+          variant="outline"
+          size={size}
+          className="seguimiento-compacto"
+          data-estado={estado ?? undefined}
+          aria-label={seguimiento ? undefined : 'Anotar observación'}
+          title={seguimiento ? etiqueta : undefined}
+          onClick={() => setAbierto(true)}
+        >
+          {seguimiento ? <MessageSquareCheck aria-hidden="true" /> : <MessageSquarePlus aria-hidden="true" />}
+          {{ abierta: 'Observada', revisar: 'Revisar hoy', cerrada: 'Cerrada' }[estado] ?? 'Anotar'}
+        </Button>
+      ) : (
+        <>
+          <Button variant="outline" size={size} onClick={() => setAbierto(true)}>
+            <NotebookPen aria-hidden="true" /> {etiqueta}
+          </Button>
+          <EstadoSeguimiento seguimiento={seguimiento} />
+        </>
+      )}
       <Modal open={abierto} onClose={() => setAbierto(false)} title={titulo} description={contexto} wide>
         <FormSeguimiento j={j} caso={caso} onCancelar={() => setAbierto(false)} onGuardado={(s) => { if (!s.abierto) setAbierto(false) }} />
       </Modal>

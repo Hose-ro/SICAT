@@ -118,7 +118,7 @@ function Resumen({ j, resumen, grupo, ofertas, reportes, expediente, abrirAlumno
         <Cifra label="Incorporados de otros grupos" value={expediente.data ? incorporados : '—'} />
         <Cifra label="Materias" value={ofertas.length} />
         <Cifra label="Alumnos en riesgo" value={grupo.alumnosRiesgo} tono={grupo.alumnosRiesgo ? 'text-warning-foreground' : undefined} />
-        <Cifra label="Listas por completar" value={listas.length} tono={listas.length ? 'text-warning-foreground' : undefined} />
+        <Cifra label="Listas de asistencia por completar" value={listas.length} tono={listas.length ? 'text-warning-foreground' : undefined} />
         <Cifra label="Calificaciones pendientes" value={ofertas.reduce((n, o) => n + o.resumen.calificacionesPendientes, 0)} />
       </dl>
 

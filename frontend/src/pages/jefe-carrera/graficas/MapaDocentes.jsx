@@ -38,10 +38,10 @@ export default function MapaDocentes({ j, resumen, docentes }) {
   return (
     <div className="viz mt-6">
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
-        <span className="text-foreground">Registro de listas por semana</span>
+        <span className="text-foreground">Registro de listas de asistencia por semana</span>
         <span className="flex flex-wrap gap-x-3 gap-y-1">
           {CLASES.map((c) => <span key={c.texto} className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-[3px]" style={{ background: c.color }} />{c.texto}</span>)}
-          <span className="inline-flex items-center gap-1.5"><span className="viz-cell--vacia size-2.5 rounded-[3px] border border-border" />Sin clases con lista esperada</span>
+          <span className="inline-flex items-center gap-1.5"><span className="viz-cell--vacia size-2.5 rounded-[3px] border border-border" />Sin clases con lista de asistencia esperada</span>
         </span>
         <label className="ml-auto inline-flex min-h-11 cursor-pointer items-center gap-2 text-[0.8125rem] text-foreground">
           <input type="checkbox" checked={tabla} onChange={(e) => setTabla(e.target.checked)} className="size-[17px] accent-primary" />
@@ -50,12 +50,12 @@ export default function MapaDocentes({ j, resumen, docentes }) {
       </div>
 
       {!filas.length ? (
-        <p className="mt-4 border-y border-border py-6 text-sm text-muted-foreground">Ningún docente de esta lista tiene clases concluidas con lista esperada en el periodo.</p>
+        <p className="mt-4 border-y border-border py-6 text-sm text-muted-foreground">Ningún docente de esta lista tiene clases concluidas con lista de asistencia esperada en el periodo.</p>
       ) : tabla ? <Tabla filas={filas} semanas={semanas} /> : <Mapa j={j} filas={filas} semanas={semanas} />}
 
       <p className="mt-3 text-xs text-muted-foreground">
         La línea vertical de «Periodo» marca la meta de {META} %. Las celdas rayadas no tenían clases con lista esperada, por ejemplo una semana sin sábado en Mixto o con suspensión.
-        {sinClases > 0 && ` ${plural(sinClases, 'docente de la lista no aparece', 'docentes de la lista no aparecen')} porque no tiene clases concluidas con lista esperada en el periodo.`}
+        {sinClases > 0 && ` ${plural(sinClases, 'docente de la lista no aparece', 'docentes de la lista no aparecen')} porque no tiene clases concluidas con lista de asistencia esperada en el periodo.`}
       </p>
     </div>
   )
@@ -95,7 +95,7 @@ function Mapa({ j, filas, semanas }) {
     <div ref={marco} className="relative mt-4">
     <div ref={contenedor} className="viz-plot overflow-x-auto pb-1" onPointerLeave={() => setActiva(null)} onScroll={() => setActiva(null)}>
       <table className="viz-heat text-[0.8125rem]">
-        <caption className="sr-only">Registro de listas por docente y semana. Usa las flechas para recorrer las celdas; cada celda abre el horario de esa semana.</caption>
+        <caption className="sr-only">Registro de listas de asistencia por docente y semana. Usa las flechas para recorrer las celdas; cada celda abre el horario de esa semana.</caption>
         <thead>
           <tr className="text-xs text-muted-foreground">
             <th scope="col" className="sticky left-0 z-[1] bg-background pb-2 pr-4 text-left font-medium">Docente</th>
@@ -127,7 +127,7 @@ function Mapa({ j, filas, semanas }) {
                       tabIndex={f === 0 && k === 0 ? 0 : -1}
                       data-celda={`${f}-${k}`}
                       data-activo={enFoco ? '' : undefined}
-                      aria-label={vacia ? `${x.nombre}, semana del ${w.rango}: sin clases con lista esperada. Abrir horario.` : `${x.nombre}, semana del ${w.rango}: ${c.cobertura} %, ${c.completas} de ${c.esperadas} listas completas. Abrir horario.`}
+                      aria-label={vacia ? `${x.nombre}, semana del ${w.rango}: sin clases con lista de asistencia esperada. Abrir horario.` : `${x.nombre}, semana del ${w.rango}: ${c.cobertura} %, ${c.completas} de ${c.esperadas} listas de asistencia completas. Abrir horario.`}
                       className={cn('viz-cell', vacia && 'viz-cell--vacia', w.enCurso && 'opacity-60')}
                       style={vacia ? undefined : { background: clase(c.cobertura).color }}
                       onPointerEnter={(e) => mostrar(f, k, e.currentTarget)}
@@ -163,9 +163,9 @@ function Mapa({ j, filas, semanas }) {
       <div className="viz-tooltip" data-oculto={s ? undefined : ''} style={{ left: pos.x, top: pos.y, width: 240, transform: pos.arriba ? 'translateY(-100%)' : undefined }} role="status" aria-live="polite">
         {s && <>
           <div className="text-muted-foreground">{d.nombre} · semana del {sem.rango}{sem.enCurso ? ' (en curso)' : ''}</div>
-          {s.cobertura == null ? <div className="mt-1">Sin clases con lista esperada</div> : <>
+          {s.cobertura == null ? <div className="mt-1">Sin clases con lista de asistencia esperada</div> : <>
             <div className="mt-1.5"><span className="viz-key viz-key--caja" style={{ background: clase(s.cobertura).color }} /><b>{s.cobertura} %</b> <span className="text-muted-foreground">de cobertura</span></div>
-            <div className="text-muted-foreground">{s.completas} de {s.esperadas} listas completas{s.tardias ? `, ${plural(s.tardias, 'tardía', 'tardías')}` : ''}</div>
+            <div className="text-muted-foreground">{s.completas} de {s.esperadas} listas de asistencia completas{s.tardias ? `, ${plural(s.tardias, 'tardía', 'tardías')}` : ''}</div>
             {s.sinCompleta > 0 && <div className="text-muted-foreground">{[s.sinCaptura && `${s.sinCaptura} sin captura`, s.parciales && plural(s.parciales, 'parcial', 'parciales')].filter(Boolean).join(' · ')}</div>}
           </>}
           {s.suspendidas > 0 && <div className="mt-1 text-xs text-muted-foreground">{plural(s.suspendidas, 'clase suspendida', 'clases suspendidas')}; no cuentan.</div>}

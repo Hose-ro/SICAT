@@ -20,7 +20,7 @@ export function claveCaso(caso) {
 }
 
 export const TIPOS_SEGUIMIENTO = {
-  ASISTENCIA_SIN_CAPTURA: 'Listas sin captura',
+  ASISTENCIA_SIN_CAPTURA: 'Listas de asistencia sin captura',
   ALUMNO_RIESGO: 'Alumnos en riesgo',
   CALIFICACIONES_PENDIENTES: 'Calificaciones pendientes',
   SEGUIMIENTO_DOCENTE: 'Docentes',

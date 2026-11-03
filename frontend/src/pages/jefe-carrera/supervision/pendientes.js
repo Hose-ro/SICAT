@@ -7,7 +7,7 @@ import { claveCaso } from './useSeguimientos'
  * caso propio y se documentan, si hace falta, como observación con el docente.
  */
 export const TIPOS_PENDIENTE = {
-  ASISTENCIA_SIN_CAPTURA: { label: 'Listas sin captura completa', corto: 'Listas', caso: true },
+  ASISTENCIA_SIN_CAPTURA: { label: 'Listas de asistencia sin captura', corto: 'Listas de asistencia', caso: true },
   CALIFICACIONES_PENDIENTES: { label: 'Calificaciones pendientes', corto: 'Calificaciones', caso: true },
   ALUMNO_RIESGO: { label: 'Alumnos en riesgo', corto: 'Alumnos en riesgo', caso: true },
   ENTREGAS: { label: 'Entregas sin revisar', corto: 'Entregas', caso: false },

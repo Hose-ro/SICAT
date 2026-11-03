@@ -40,7 +40,7 @@ export function pasosDeJefatura({ resumen, reuniones, revision = {}, j }) {
       clave: 'docentes',
       titulo: 'Conoce a tus docentes',
       detalle: docentes.length
-        ? 'Revisa la carga de cada docente y cómo va su captura de listas y calificaciones.'
+        ? 'Revisa la carga de cada docente y cómo va su captura de listas de asistencia y calificaciones.'
         : 'Aparecen cuando capturan su horario con grupos de tu carrera.',
       hecho: docentes.length > 0 && Boolean(revision.docentes),
       accion: 'Ver docentes',

@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
+import { CalendarX2, ChevronRight, ClipboardX, FilePen, Inbox, Layers, UserRoundX } from 'lucide-react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import Modal from '@/components/Modal'
 import SexoBadge from '@/components/SexoBadge'
-import { cn } from '@/lib/utils'
 import { MOTIVOS_RIESGO, estadoClase } from './supervision/estados'
 import { fechaCorta, fechaHoraCorta, haceTiempo, modalidadTexto, plural } from './supervision/formato'
 import { TIPOS_PENDIENTE, calendariosFaltantes, conteoPorTipo, filtrarPendientes, pendientesAcademicos } from './supervision/pendientes'
@@ -19,6 +19,8 @@ const VISTAS = [
 ]
 
 const POR_PAGINA = 40
+/** Pendientes que muestra cada tipo dentro de «Todos». */
+const PREVIA = 3
 
 /**
  * Sección de la vista. Los enlaces anteriores con ?vista=abiertos|hoy|cerrados
@@ -60,7 +62,7 @@ function contextoCaso(s, resumen, j) {
       const modalidad = resumen.ofertas.flatMap((o) => o.horarios).find((h) => h.id === ref.horarioId)?.grupo?.modalidad
       return {
         enlace: { label: 'Ver clase', to: j.toDesde('/jefe-carrera/horarios', { fecha: ref.fecha, clase: id, modalidad: modalidad === 'MIXTO' ? 'MIXTO' : undefined }) },
-        causa: pendiente ? { texto: 'La lista sigue sin captura completa', tono: 'pendiente' } : { texto: 'Ya no aparece entre las listas pendientes; abre la clase para confirmar su estado', tono: 'sin-verificar' },
+        causa: pendiente ? { texto: 'La lista de asistencia sigue sin captura completa', tono: 'pendiente' } : { texto: 'Ya no aparece entre las listas de asistencia pendientes; abre la clase para confirmar su estado', tono: 'sin-verificar' },
       }
     }
     case 'ALUMNO_RIESGO': {
@@ -146,7 +148,7 @@ function Pendientes({ j, resumen, seguimientos }) {
   if (vacia) {
     return (
       <Vacio titulo="La carrera todavía no tiene grupos ni materias en el periodo" accion={<Link className={linkClass} to={j.to('/dashboard')}>Ver la guía en Inicio</Link>}>
-        Sin oferta no hay listas, calificaciones ni alumnos que supervisar. Este espacio se llena cuando haya grupos con materias asignadas.
+        Sin oferta no hay listas de asistencia, calificaciones ni alumnos que supervisar.
       </Vacio>
     )
   }
@@ -159,73 +161,53 @@ function Pendientes({ j, resumen, seguimientos }) {
   const docentes = [...new Map(items.flatMap((p) => p.docentes).map((d) => [String(d.id), d.nombre])).entries()].sort((a, b) => a[1].localeCompare(b[1], 'es'))
   const haySinDocente = items.some((p) => !p.docentes.length)
   const grupos = [...resumen.grupos].sort((a, b) => a.semestre - b.semestre || a.nombre.localeCompare(b.nombre, 'es'))
-  const titulo = tipo ? TIPOS_PENDIENTE[tipo].label : 'Todo lo que requiere atención'
+  const titulo = tipo ? TIPOS_PENDIENTE[tipo].label : 'Todos los pendientes'
+  const elegirTipo = () => { setLimite(POR_PAGINA); window.scrollTo({ top: 0 }) }
 
   return (
-    <section aria-labelledby="pendientes-titulo" className="mt-6">
-      <div className="pendientes-filtros">
-        <span id="pendientes-tipo-label" className="pendientes-filtro-label">Tipo de pendiente</span>
-        <nav aria-label="Tipo de pendiente" className="pendientes-tipos">
-          {[['', 'Todos', null], ...Object.entries(TIPOS_PENDIENTE).map(([valor, t]) => [valor, t.corto, conteo[valor]])]
-            .map(([valor, label, n]) => (
-              <Link
-                key={valor || 'todos'}
-                to={enlaceTipo(valor)}
-                aria-current={tipo === valor ? 'true' : undefined}
-                className="pendientes-tipo"
-                onClick={() => setLimite(POR_PAGINA)}
-              >
-                {label}
-                {n != null && <span className="pendientes-tipo-conteo">{n}</span>}
-              </Link>
-            ))}
-        </nav>
-        <select
-          aria-labelledby="pendientes-tipo-label"
-          className={`${selectClass} pendientes-tipo-movil`}
-          value={tipo}
-          onChange={(e) => { set({ seccion: 'pendientes', tipo: e.target.value }); setLimite(POR_PAGINA) }}
-        >
-          <option value="">Todos los tipos</option>
-          {Object.entries(TIPOS_PENDIENTE).map(([valor, t]) => <option key={valor} value={valor}>{t.label} ({conteo[valor]})</option>)}
+    <section aria-labelledby="pendientes-titulo" className="pendientes mt-6">
+      <nav aria-label="Tipo de pendiente" className="pendientes-tipos">
+        {[['', 'Todos', filtroSinTipo.length], ...Object.entries(TIPOS_PENDIENTE).map(([valor, t]) => [valor, t.corto, conteo[valor]])]
+          .map(([valor, label, n]) => (
+            <Link
+              key={valor || 'todos'}
+              to={enlaceTipo(valor)}
+              aria-current={tipo === valor ? 'true' : undefined}
+              className="pendientes-tipo"
+              data-tipo={valor || undefined}
+              data-vacio={valor && !n ? '' : undefined}
+              onClick={elegirTipo}
+            >
+              {valor && <span className="pendientes-punto" aria-hidden="true" />}
+              {label}
+              <span className="pendientes-tipo-conteo">{n}</span>
+            </Link>
+          ))}
+      </nav>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <select aria-label="Docente" value={docente} onChange={(e) => set({ docente: e.target.value })} className={`${selectClass} pendientes-select`}>
+          <option value="">Todos los docentes</option>
+          {haySinDocente && <option value="sin-docente">Sin docente asignado</option>}
+          {docentes.map(([id, nombre]) => <option key={id} value={id}>{nombre}</option>)}
         </select>
-
-        <div className="mt-4 flex flex-wrap items-end gap-3">
-          <label className="w-full sm:w-64">
-            <span className="text-xs font-medium text-muted-foreground">Docente</span>
-            <select value={docente} onChange={(e) => set({ docente: e.target.value })} className={`${selectClass} mt-1.5`}>
-              <option value="">Todos los docentes</option>
-              {haySinDocente && <option value="sin-docente">Sin docente asignado</option>}
-              {docentes.map(([id, nombre]) => <option key={id} value={id}>{nombre}</option>)}
-            </select>
-          </label>
-          <label className="w-full sm:w-48">
-            <span className="text-xs font-medium text-muted-foreground">Grupo</span>
-            <select value={grupo} onChange={(e) => set({ grupo: e.target.value })} className={`${selectClass} mt-1.5`}>
-              <option value="">Todos los grupos</option>
-              {grupos.map((g) => <option key={g.id} value={g.id}>{g.nombre} · {modalidadTexto(g.modalidad)}</option>)}
-            </select>
-          </label>
-          {filtrando && <Button variant="ghost" className="min-h-11" onClick={() => set({ docente: '', grupo: '' })}>Restablecer filtros</Button>}
-        </div>
+        <select aria-label="Grupo" value={grupo} onChange={(e) => set({ grupo: e.target.value })} className={`${selectClass} pendientes-select`}>
+          <option value="">Todos los grupos</option>
+          {grupos.map((g) => <option key={g.id} value={g.id}>{g.nombre} · {modalidadTexto(g.modalidad)}</option>)}
+        </select>
+        {filtrando && <Button variant="ghost" className="min-h-11" onClick={() => set({ docente: '', grupo: '' })}>Restablecer filtros</Button>}
       </div>
 
-      <div className="mt-7 mb-3">
-        <h2 id="pendientes-titulo" className="text-[1.1875rem] font-semibold tracking-[-0.015em] text-foreground">
-          {titulo}
-          {visibles.length > 0 && <span className="ml-2 text-sm font-normal tabular-nums text-muted-foreground">{visibles.length}</span>}
-        </h2>
-        {j.historico && <p className="mt-1 text-xs text-muted-foreground">Periodo anterior: las observaciones solo se consultan.</p>}
-      </div>
+      <h2 id="pendientes-titulo" className="sr-only">{titulo}</h2>
+      {j.historico && <p className="mt-4 text-xs text-muted-foreground">Periodo anterior: las observaciones solo se consultan.</p>}
 
       {sinCalendario.length > 0 && (!tipo || tipo === 'ASISTENCIA_SIN_CAPTURA') && (
-        <p className="mb-3 rounded-[var(--radius-item)] border border-warning/35 bg-warning/18 px-4 py-3 text-xs text-foreground">
-          <b className="font-medium">Listas no evaluables en {sinCalendario.map((c) => modalidadTexto(c.modalidad)).join(' y ')}.</b>{' '}
-          Falta su calendario escolar del periodo: sus clases no aparecen como pendientes, así que la ausencia de listas no significa que estén al día.
+        <p className="mt-5 rounded-[var(--radius-item)] border border-warning/35 bg-warning/18 px-4 py-3 text-xs text-foreground">
+          <b className="font-medium">Listas de asistencia no evaluables en {sinCalendario.map((c) => modalidadTexto(c.modalidad)).join(' y ')}:</b> falta su calendario escolar del periodo.
         </p>
       )}
       {seguimientos.error && (
-        <div role="alert" className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-item)] border border-warning/35 bg-warning/18 px-4 py-3 text-[0.8125rem] text-foreground">
+        <div role="alert" className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-item)] border border-warning/35 bg-warning/18 px-4 py-3 text-[0.8125rem] text-foreground">
           <span>No se pudo consultar el seguimiento: los pendientes se muestran completos, pero no si ya tienen observación.</span>
           <Button variant="outline" size="sm" onClick={seguimientos.reintentar}>Reintentar</Button>
         </div>
@@ -234,17 +216,35 @@ function Pendientes({ j, resumen, seguimientos }) {
       {!items.length ? (
         <Vacio titulo="Sin pendientes detectados en el periodo">
           {sinCalendario.length
-            ? 'Calificaciones, entregas, unidades, asignaciones y riesgo al corriente. Las listas de la modalidad sin calendario no se pueden evaluar.'
-            : 'Listas, calificaciones, entregas, unidades, asignaciones y alumnos sin señales que atender.'}
+            ? 'Las listas de asistencia de la modalidad sin calendario no se pueden evaluar.'
+            : 'Listas de asistencia, calificaciones, entregas, unidades y alumnos al corriente.'}
         </Vacio>
       ) : !visibles.length ? (
-        <Vacio titulo="Ningún pendiente coincide con los filtros" accion={<Button variant="outline" onClick={() => set(filtrando ? { docente: '', grupo: '' } : { tipo: '' })}>{filtrando ? 'Restablecer filtros' : 'Ver todos los tipos'}</Button>}>
-          Hay {plural(items.length, 'pendiente', 'pendientes')} en el periodo fuera de esta selección.
-        </Vacio>
+        <Vacio titulo="Ningún pendiente coincide con los filtros" accion={<Button variant="outline" onClick={() => set(filtrando ? { docente: '', grupo: '' } : { tipo: '' })}>{filtrando ? 'Restablecer filtros' : 'Ver todos los tipos'}</Button>} />
+      ) : !tipo ? (
+        <div className="pendientes-secciones">
+          {Object.keys(TIPOS_PENDIENTE).map((valor) => {
+            const lista = visibles.filter((p) => p.tipo === valor)
+            if (!lista.length) return null
+            return (
+              <section key={valor} aria-labelledby={`pendientes-${valor}`}>
+                <Link to={enlaceTipo(valor)} className="pendientes-categoria" onClick={elegirTipo}>
+                  <IconoPendiente tipo={valor} />
+                  <h3 id={`pendientes-${valor}`}>{TIPOS_PENDIENTE[valor].label}</h3>
+                  <span className="pendientes-categoria-conteo">{lista.length}</span>
+                  {lista.length > PREVIA && <span className="pendientes-categoria-ver">Ver todas<ChevronRight aria-hidden="true" /></span>}
+                </Link>
+                <ul className="pendientes-lista">
+                  {lista.slice(0, PREVIA).map((p) => <FilaPendiente key={p.key} p={p} j={j} seguimientos={seguimientos} />)}
+                </ul>
+              </section>
+            )
+          })}
+        </div>
       ) : (
         <>
-          <ul className="divide-y divide-border border-y border-border">
-            {visibles.slice(0, limite).map((p) => <FilaPendiente key={p.key} p={p} j={j} seguimientos={seguimientos} mostrarTipo={!tipo} />)}
+          <ul className="pendientes-lista mt-6">
+            {visibles.slice(0, limite).map((p) => <FilaPendiente key={p.key} p={p} j={j} seguimientos={seguimientos} />)}
           </ul>
           {visibles.length > limite && (
             <Button variant="ghost" className="mt-2 min-h-11" onClick={() => setLimite((n) => n + POR_PAGINA)}>
@@ -257,9 +257,35 @@ function Pendientes({ j, resumen, seguimientos }) {
   )
 }
 
+
+/** El icono acompaña siempre al color de la categoría. */
+const ICONOS_PENDIENTE = {
+  ASISTENCIA_SIN_CAPTURA: ClipboardX,
+  CALIFICACIONES_PENDIENTES: FilePen,
+  ALUMNO_RIESGO: UserRoundX,
+  ENTREGAS: Inbox,
+  UNIDAD: Layers,
+  ASIGNACION: CalendarX2,
+}
+
+function IconoPendiente({ tipo }) {
+  const Icono = ICONOS_PENDIENTE[tipo]
+  return <span className="pendientes-icono" data-tipo={tipo} aria-hidden="true"><Icono strokeWidth={1.9} /></span>
+}
+
 const nombres = (lista) => lista.map((x) => x.nombre).join(', ')
 
-/** Qué se detectó, dónde y la evidencia; cada tipo con su propio destino. */
+/** Semanas o días transcurridos, en corto. */
+function haceCorto(clave) {
+  const texto = haceTiempo(clave)
+  const m = texto.match(/^Hace (\d+) (días|semanas?)$/)
+  return m ? `${m[1]} ${m[2].startsWith('d') ? 'd' : 'sem'}` : texto.toLowerCase()
+}
+
+/**
+ * Lo que identifica el caso (materia o alumno), qué falla, dónde y quién.
+ * La categoría ya la dice su sección o el filtro, así que no se repite.
+ */
 function describir(p, j) {
   const docentes = p.docentes.length ? nombres(p.docentes) : 'Sin docente asignado'
   const grupos = p.grupos.map((g) => `Grupo ${g.nombre}`).join(', ')
@@ -267,99 +293,89 @@ function describir(p, j) {
     case 'ASISTENCIA_SIN_CAPTURA': {
       const c = p.clase
       return {
-        titulo: c.estado === 'CAPTURA_PARCIAL' ? `Captura parcial (${c.registros} de ${c.alumnos})` : estadoClase(c.estado).label,
-        contexto: [c.materia.nombre, grupos, docentes],
-        cuando: { fecha: `${fechaCorta(c.fecha)}, ${c.horaInicio}`, hace: haceTiempo(c.fecha) },
+        titulo: c.materia.nombre,
+        estado: c.estado === 'CAPTURA_PARCIAL' ? `Parcial · ${c.registros} de ${c.alumnos}` : c.estado === 'SIN_CAPTURA' ? null : estadoClase(c.estado).label,
+        contexto: [grupos, docentes],
+        cuando: { fecha: `${fechaCorta(c.fecha)}, ${c.horaInicio}`, hace: haceCorto(c.fecha) },
         evidencia: { label: 'Ver clase', to: j.toDesde('/jefe-carrera/horarios', { fecha: c.fecha, clase: c.id, modalidad: c.grupo.modalidad === 'MIXTO' ? 'MIXTO' : undefined }) },
       }
     }
     case 'CALIFICACIONES_PENDIENTES':
       return {
-        titulo: plural(p.cantidad, 'calificación de unidad cerrada sin capturar', 'calificaciones de unidades cerradas sin capturar'),
-        contexto: [p.materia.nombre, grupos, docentes],
+        titulo: p.materia.nombre,
+        estado: plural(p.cantidad, 'calificación sin capturar', 'calificaciones sin capturar'),
+        contexto: [grupos, docentes],
         evidencia: { label: 'Ver unidades', to: j.toDesde(`/jefe-carrera/materias/${p.materia.id}`, { oferta: p.oferta.grupo.id, tab: 'unidades' }) },
       }
     case 'ALUMNO_RIESGO':
       return {
         titulo: p.alumno.nombre,
         alumno: p.alumno,
-        contexto: [p.motivos.map((m) => MOTIVOS_RIESGO[m] ?? m).join(' · '), p.materias.join(', '), grupos],
+        estado: p.motivos.map((m) => MOTIVOS_RIESGO[m] ?? m).join(' · '),
+        contexto: [p.materias.join(', '), grupos],
         evidencia: p.grupos[0] ? { label: 'Ver expediente', to: j.toDesde(`/jefe-carrera/grupos/${p.alumno.causas[0].grupo.id}`, { tab: 'alumnos', alumno: p.alumno.id }) } : null,
       }
     case 'ENTREGAS':
       return {
-        titulo: plural(p.cantidad, 'entrega recibida sin revisar', 'entregas recibidas sin revisar'),
-        contexto: [p.materia.nombre, grupos, docentes],
+        titulo: p.materia.nombre,
+        estado: `${p.cantidad} sin revisar`,
+        contexto: [grupos, docentes],
         evidencia: { label: 'Ver materia en el grupo', to: j.toDesde(`/jefe-carrera/materias/${p.materia.id}`, { oferta: p.oferta.grupo.id }) },
       }
     case 'UNIDAD':
       return {
-        titulo: `${p.unidad.nombre}: ${p.senal}`,
-        contexto: [p.materia.nombre, grupos, docentes],
+        titulo: p.materia.nombre,
+        estado: `${p.unidad.nombre}: ${p.senal}`,
+        contexto: [grupos, docentes],
         evidencia: { label: 'Ver unidades', to: j.toDesde(`/jefe-carrera/materias/${p.materia.id}`, { oferta: p.oferta?.grupo.id, tab: 'unidades' }) },
       }
     case 'ASIGNACION':
       return {
-        titulo: p.faltaDocente && p.faltaHorario ? 'Sin docente ni horario' : p.faltaDocente ? 'Sin docente asignado' : 'Sin horario registrado',
-        contexto: [p.materia.nombre, grupos, p.docentes.length ? docentes : null],
+        titulo: p.materia.nombre,
+        estado: p.faltaDocente && p.faltaHorario ? 'Sin docente ni horario' : p.faltaDocente ? 'Sin docente' : 'Sin horario',
+        contexto: [grupos, p.docentes.length ? docentes : null],
         evidencia: { label: 'Ver materia en el grupo', to: j.toDesde(`/jefe-carrera/materias/${p.materia.id}`, { oferta: p.oferta.grupo.id }) },
-        nota: 'Lo corrige el docente al capturar su horario o coordinación desde Horarios.',
       }
     default:
       return { titulo: p.key, contexto: [], evidencia: null }
   }
 }
 
-function FilaPendiente({ p, j, seguimientos, mostrarTipo }) {
+function FilaPendiente({ p, j, seguimientos }) {
   const d = describir(p, j)
   const tipo = TIPOS_PENDIENTE[p.tipo]
-  const seguimiento = tipo.caso ? seguimientos.buscar(p.caso) : null
   return (
-    <li className="grid gap-3 py-4 md:grid-cols-[minmax(0,1fr)_10rem_minmax(0,15rem)] md:gap-6">
+    <li className="pendientes-fila">
       <div className="min-w-0">
-        {mostrarTipo && <p className="text-xs text-muted-foreground">{tipo.label}</p>}
-        <p className="flex items-center gap-2 text-sm font-medium text-foreground">
+        <p className="pendientes-titulo">
           {d.alumno && <SexoBadge sexo={d.alumno.sexo} />}
-          <span className="min-w-0">{d.titulo}</span>
+          {d.evidencia ? <Link className="pendientes-enlace" to={d.evidencia.to} title={d.evidencia.label}>{d.titulo}</Link> : <span>{d.titulo}</span>}
+          {d.estado && <span className="pendientes-estado" data-tipo={p.tipo}>{d.estado}</span>}
         </p>
-        <p className="mt-0.5 text-xs text-muted-foreground">{d.contexto.filter(Boolean).join(' · ')}</p>
-        {d.nota && <p className="mt-0.5 text-xs text-muted-foreground">{d.nota}</p>}
+        <p className="pendientes-meta">{d.contexto.filter(Boolean).join(' · ')}</p>
       </div>
-      <p className="text-[0.8125rem] text-muted-foreground max-md:text-xs">
-        {d.cuando ? <><span className="text-foreground first-letter:uppercase">{d.cuando.fecha}</span><span className="block text-xs">{d.cuando.hace}</span></> : <span className="max-md:hidden">—</span>}
+      <p className="pendientes-cuando">
+        {d.cuando && <><span className="text-foreground first-letter:uppercase">{d.cuando.fecha}</span><span className="pendientes-hace">{d.cuando.hace}</span></>}
       </p>
-      <div className="flex flex-col items-start gap-2 md:items-end">
-        {d.evidencia && <Link className={cn(linkClass, 'inline-flex min-h-11 items-center text-[0.8125rem] md:min-h-0')} to={d.evidencia.to}>{d.evidencia.label}</Link>}
-        <EstadoObservacion p={p} j={j} d={d} seguimientos={seguimientos} seguimiento={seguimiento} />
+      <div className="pendientes-acciones">
+        {tipo.caso && <EstadoObservacion j={j} p={p} d={d} seguimientos={seguimientos} />}
       </div>
     </li>
   )
 }
 
-/** Estado de la observación del caso; sin caso propio se dice dónde documentarlo. */
-function EstadoObservacion({ p, j, d, seguimientos, seguimiento }) {
-  if (!TIPOS_PENDIENTE[p.tipo].caso) {
-    const unico = p.docentes.length === 1 ? p.docentes[0] : null
-    return (
-      <p className="text-xs text-muted-foreground md:text-right">
-        Sin caso propio de observación.{' '}
-        {unico && <Link className={cn(linkClass, 'inline-flex min-h-11 items-center md:min-h-0')} to={j.toDesde(`/jefe-carrera/docentes/${unico.id}`)}>Documentar con {unico.nombre}</Link>}
-      </p>
-    )
-  }
-  if (seguimientos.cargando) return <p className="text-xs text-muted-foreground">Consultando observación…</p>
-  if (seguimientos.error) return <p className="text-xs text-muted-foreground">Observación no disponible</p>
+/** Botón de observación del caso; los tipos sin caso propio no lo llevan. */
+function EstadoObservacion({ p, j, d, seguimientos }) {
+  if (seguimientos.cargando) return <span className="text-xs text-muted-foreground">Consultando…</span>
+  if (seguimientos.error) return <span className="text-xs text-muted-foreground">Observación no disponible</span>
   return (
-    <div className="flex flex-col items-start gap-1 md:items-end">
-      {!seguimiento && <p className="text-xs text-warning-foreground">Sin observación registrada</p>}
-      <BotonSeguimiento
-        j={j}
-        caso={p.caso}
-        titulo={d.alumno ? `Observación sobre ${d.alumno.nombre}` : `${d.titulo} · ${d.contexto[0] ?? ''}`}
-        contexto={d.contexto.filter(Boolean).join(' · ')}
-        className="md:justify-end"
-      />
-    </div>
+    <BotonSeguimiento
+      compacto
+      j={j}
+      caso={p.caso}
+      titulo={d.alumno ? `Observación sobre ${d.alumno.nombre}` : `${d.titulo} · ${d.contexto[0] ?? ''}`}
+      contexto={[d.estado ?? TIPOS_PENDIENTE[p.tipo].label, ...d.contexto].filter(Boolean).join(' · ')}
+    />
   )
 }
 

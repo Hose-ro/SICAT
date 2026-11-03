@@ -188,11 +188,11 @@ function Informe({ j, resumen }) {
               vacio="Sin docentes con clases en la carrera."
             />
           </Seccion>
-          <Seccion {...seccion('listas')} conteo={data.listasPendientes.length} titulo="Listas sin captura o parciales">
+          <Seccion {...seccion('listas')} conteo={data.listasPendientes.length} titulo="Listas de asistencia sin captura o parciales">
             <Tabla
               columnas={['Fecha', 'Horario', 'Materia', 'Grupo', 'Docente', 'Estado']}
               filas={data.listasPendientes.map((l) => [fechaCorta(l.fecha), `${l.horaInicio}–${l.horaFin}`, l.materia, l.grupo, l.docente, l.estado === 'CAPTURA_PARCIAL' ? `Captura parcial (${l.registros} de ${l.alumnos})` : 'Sin captura'])}
-              vacio="Todas las listas del intervalo están completas."
+              vacio="Todas las listas de asistencia del intervalo están completas."
             />
           </Seccion>
           <Seccion {...seccion('avance')} conteo={data.avance.length} titulo="Avance de unidades por materia y grupo" descripcion="Estado al día de hoy; las unidades son de la materia y se comparten entre grupos.">
@@ -251,8 +251,8 @@ function Totales({ data }) {
       titulo: `En el intervalo · ${fechaSinDia(data.intervalo.desde)} al ${fechaSinDia(data.intervalo.hasta)}`,
       filas: [
         ['Clases con lista esperada', t.clasesEsperadas],
-        ['Listas completas', t.listasCompletas],
-        ['Listas sin captura o parciales', t.listasPendientes],
+        ['Listas de asistencia completas', t.listasCompletas],
+        ['Listas de asistencia sin captura o parciales', t.listasPendientes],
         ['Cobertura de captura', porcentaje(t.cobertura)],
         ['Observaciones', t.seguimientos],
       ],

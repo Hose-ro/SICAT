@@ -325,7 +325,7 @@ function ClaseCard({
       </>
     )
   } else if (sesion?.id) {
-    acciones = <Button variant="outline" type="button" onClick={onTomarAsistencia}>Editar lista</Button>
+    acciones = <Button variant="outline" type="button" onClick={onTomarAsistencia}>Editar lista de asistencia</Button>
   } else if (!clase.unidadActiva) {
     ayuda = unidadPendiente
       ? `Para pasar lista, inicia ${unidadPendiente.nombre}.`
@@ -541,7 +541,7 @@ function HistorialTable({ items, onEditar, onVer, onExportarPdf, onExportarExcel
                   {item.suspendida ? 'No aplica' : item.unidad?.nombre ?? 'Sin unidad'}
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {item.suspendida ? <span className="rounded-full bg-destructive/18 px-3 py-1 text-xs font-semibold text-destructive-foreground">No requiere lista</span> : <>
+                  {item.suspendida ? <span className="rounded-full bg-destructive/18 px-3 py-1 text-xs font-semibold text-destructive-foreground">No requiere lista de asistencia</span> : <>
                   <StatPill label="A" value={item.resumen?.asistencias ?? 0} tone="emerald" />
                   <StatPill label="F" value={item.resumen?.faltas ?? 0} tone="rose" />
                   <StatPill label="R" value={item.resumen?.retardos ?? 0} tone="amber" />
@@ -1048,7 +1048,7 @@ function AlumnoMateriaCard({ item }) {
         <p className={`flex items-center gap-1.5 text-xs ${(resumen.sinRegistro ?? 0) > 0 ? 'text-warning-foreground' : 'text-muted-foreground'}`}>
           {(resumen.sinRegistro ?? 0) > 0 && <AlertTriangle className="size-3.5 shrink-0" aria-hidden="true" />}
           {(resumen.sinRegistro ?? 0) > 0
-            ? `${resumen.sinRegistro} ${resumen.sinRegistro === 1 ? 'clase' : 'clases'} sin lista todavía`
+            ? `${resumen.sinRegistro} ${resumen.sinRegistro === 1 ? 'clase' : 'clases'} sin lista de asistencia todavía`
             : `Última clase: ${formatDate(ultimaSesion)}`}
         </p>
         <Link to={`/alumno/materias/${materia.id}`}
@@ -1379,7 +1379,7 @@ function ClasesAtrasadasSection({
                               <p className="mt-1 text-xs text-muted-foreground">
                                 {formatTime(item.horaInicio)} - {formatTime(item.horaFin)}
                                 {item.unidad ? ` · ${item.unidad.nombre}` : ' · sin unidad iniciada'}
-                                {item.estado === 'SIN_CAPTURA' && ' · sesión abierta sin lista'}
+                                {item.estado === 'SIN_CAPTURA' && ' · sesión abierta sin lista de asistencia'}
                               </p>
                               {sinUnidad && (
                                 <p id={ayudaId} className="mt-1 text-xs leading-relaxed text-warning-foreground">
@@ -1635,7 +1635,7 @@ function DocenteAsistenciasView() {
 
   const handleFinalizeClass = useAsyncAction(async (clase) => {
     if (!clase?.sesion?.id) return
-    if (!(await confirmAction({ title: 'Finalizar clase', description: 'La clase se cerrará y los alumnos sin captura quedarán como falta. Comprueba la lista antes de continuar.', confirmLabel: 'Finalizar clase' }))) return
+    if (!(await confirmAction({ title: 'Finalizar clase', description: 'La clase se cerrará y los alumnos sin captura quedarán como falta. Comprueba la lista de asistencia antes de continuar.', confirmLabel: 'Finalizar clase' }))) return
 
     setMensaje('')
     try {

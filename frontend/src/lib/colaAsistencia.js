@@ -88,12 +88,12 @@ export function procesarCola() {
         const resultado = await api.post('/asistencias/pasar-lista', { claseSesionId: item.sesionId, registros: item.registros })
         quitarDeCola(item.sesionId)
         borrarBorrador(item.sesionId)
-        notify(`Se envió la lista de ${item.materia ?? 'la clase'} que quedó pendiente.`, 'success')
+        notify(`Se envió la lista de asistencia de ${item.materia ?? 'la clase'} que quedó pendiente.`, 'success')
         window.dispatchEvent(new CustomEvent(EVENTO_COLA, { detail: { sesionId: item.sesionId, registros: item.registros, resultado } }))
       } catch (error) {
         if (sinConexion(error)) break
         quitarDeCola(item.sesionId)
-        notify(`No se pudo enviar la lista de ${item.materia ?? 'la clase'}: ${error.response?.data?.message ?? 'el servidor la rechazó'}. Ábrela de nuevo para revisarla.`)
+        notify(`No se pudo enviar la lista de asistencia de ${item.materia ?? 'la clase'}: ${error.response?.data?.message ?? 'el servidor la rechazó'}. Ábrela de nuevo para revisarla.`)
         window.dispatchEvent(new CustomEvent(EVENTO_COLA, { detail: { sesionId: item.sesionId, error: true } }))
       }
     }

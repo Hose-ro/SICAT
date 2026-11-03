@@ -58,12 +58,12 @@ export default function TendenciaCobertura({ j, resumen }) {
         </label>
       </div>
       {!hayDatos ? (
-        <div className="inicio-tendencia-vacia"><ChartColumn className="inicio-icono" aria-hidden="true" /><p>Todavía no hay clases concluidas con lista esperada para esta modalidad en el periodo.</p></div>
+        <div className="inicio-tendencia-vacia"><ChartColumn className="inicio-icono" aria-hidden="true" /><p>Todavía no hay clases concluidas con lista de asistencia esperada para esta modalidad en el periodo.</p></div>
       ) : (
         <>
           <p className="registro-conclusion">
             {ultimaCerrada
-              ? <>Última semana cerrada, {ultimaCerrada.rango}: <strong>{ultimaCerrada.completas} de {ultimaCerrada.esperadas} listas completas ({ultimaCerrada.cobertura} %)</strong>. {ultimaCerrada.cobertura >= META ? 'Meta alcanzada.' : `Por debajo de la meta de ${META} %.`}</>
+              ? <>Última semana cerrada, {ultimaCerrada.rango}: <strong>{ultimaCerrada.completas} de {ultimaCerrada.esperadas} listas de asistencia completas ({ultimaCerrada.cobertura} %)</strong>. {ultimaCerrada.cobertura >= META ? 'Meta alcanzada.' : `Por debajo de la meta de ${META} %.`}</>
               : 'La primera semana sigue en curso. Su resultado puede cambiar hasta que termine.'}
             {racha >= 2 && ` Van ${racha} semanas cerradas evaluables seguidas por debajo de la meta.`}
           </p>
@@ -74,7 +74,7 @@ export default function TendenciaCobertura({ j, resumen }) {
                 <div className="registro-eje" aria-hidden="true">
                   {[100, 75, 50, 25, 0].map((valor) => <span key={valor} style={{ bottom: `${valor}%` }}>{valor} %</span>)}
                 </div>
-                <div ref={scrollRef} className="registro-scroll" tabIndex={0} role="region" aria-label="Gráfica semanal de listas completas">
+                <div ref={scrollRef} className="registro-scroll" tabIndex={0} role="region" aria-label="Gráfica semanal de listas de asistencia completas">
                   <div className="registro-semanas" role="radiogroup" aria-label="Semana del registro de asistencias" aria-describedby={`${nombre}-ayuda`}>
                     <div className="registro-rejilla" aria-hidden="true">
                       {[0, 25, 50, 75, 100].map((valor) => <span key={valor} style={{ bottom: `${valor}%` }} />)}
@@ -83,7 +83,7 @@ export default function TendenciaCobertura({ j, resumen }) {
                     {serie.map((s) => (
                       <label key={s.lunes} ref={seleccionada.lunes === s.lunes ? semanaRef : null} className={cn('registro-semana', seleccionada.lunes === s.lunes && 'registro-semana-elegida')}>
                         <input type="radio" name={`${nombre}-semana`} className="sr-only" checked={seleccionada.lunes === s.lunes} onChange={() => setSemana(s.lunes)}
-                          aria-label={`Semana del ${s.rango}${s.enCurso ? ', en curso' : ''}: ${s.cobertura == null ? 'sin clases concluidas con lista esperada' : `${s.completas} de ${s.esperadas} listas completas, ${s.cobertura} %`}`} />
+                          aria-label={`Semana del ${s.rango}${s.enCurso ? ', en curso' : ''}: ${s.cobertura == null ? 'sin clases concluidas con lista de asistencia esperada' : `${s.completas} de ${s.esperadas} listas de asistencia completas, ${s.cobertura} %`}`} />
                         <span className="registro-porcentaje" aria-hidden="true">{s.cobertura == null ? '—' : `${s.cobertura} %`}</span>
                         <span className="registro-pista" aria-hidden="true">
                           {s.cobertura != null && <span className={cn('registro-barra', s.enCurso && 'registro-barra-actual')} style={{ height: `${s.cobertura}%` }} />}
@@ -100,7 +100,7 @@ export default function TendenciaCobertura({ j, resumen }) {
           )}
         </>
       )}
-      <p className="registro-nota">Se cuentan solo las clases concluidas con lista esperada. Las suspendidas no entran en el cálculo. Las listas completas incluyen las registradas tarde. Este registro no confirma la presencia física del docente.</p>
+      <p className="registro-nota">Se cuentan solo las clases concluidas con lista de asistencia esperada. Las suspendidas no entran en el cálculo. Las listas de asistencia completas incluyen las registradas tarde. Este registro no confirma la presencia física del docente.</p>
     </section>
   )
 }
@@ -113,7 +113,7 @@ function DetalleSemana({ semana: s, j, modalidad }) {
         <span>{s.cobertura == null ? (s.enCurso ? 'En curso · sin clases evaluables todavía' : 'Sin clases evaluables') : s.enCurso ? 'En curso · resultado provisional' : s.cobertura >= META ? 'Meta alcanzada' : `Debajo de la meta de ${META} %`}</span>
       </div>
       <dl className="registro-cifras">
-        <div><dt>Listas completas</dt><dd>{s.completas} de {s.esperadas}</dd></div>
+        <div><dt>Listas de asistencia completas</dt><dd>{s.completas} de {s.esperadas}</dd></div>
         <div><dt>Sin completar</dt><dd>{s.sinCompleta}<span>{s.sinCaptura} sin captura · {plural(s.parciales, 'parcial', 'parciales')}</span></dd></div>
         <div><dt>Registradas tarde</dt><dd>{s.tardias}</dd></div>
         <div><dt>Clases suspendidas</dt><dd>{s.suspendidas}</dd></div>
@@ -130,7 +130,7 @@ function TablaSemanas({ serie }) {
         <caption className="sr-only">Registro de asistencias por semana</caption>
         <thead>
           <tr className="border-b border-border bg-muted text-left text-xs text-muted-foreground">
-            {['Semana', 'Clases evaluables', 'Listas completas', 'Sin completar', 'Registradas tarde', 'Suspendidas', 'Listas completas (%)'].map((titulo, i) => <th key={titulo} scope="col" className={cn('px-4 py-3 font-medium', i > 0 && 'text-right')}>{titulo}</th>)}
+            {['Semana', 'Clases evaluables', 'Listas de asistencia completas', 'Sin completar', 'Registradas tarde', 'Suspendidas', 'Listas de asistencia completas (%)'].map((titulo, i) => <th key={titulo} scope="col" className={cn('px-4 py-3 font-medium', i > 0 && 'text-right')}>{titulo}</th>)}
           </tr>
         </thead>
         <tbody>

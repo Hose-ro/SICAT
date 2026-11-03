@@ -7,7 +7,7 @@ import MapaDocentes from './graficas/MapaDocentes'
 import { JefaturaPage, Segmento, Vacio, selectClass } from './supervision/ui'
 
 // «Registro de listas» (antes «Cobertura»).
-const DEFINICION_REGISTRO = 'Listas completas entre clases ya concluidas con lista esperada. No cuentan suspensiones, clases sin inscritos ni calendarios sin configurar. Es evidencia de captura en SICAT, no de asistencia del docente.'
+const DEFINICION_REGISTRO = 'Listas de asistencia completas entre clases ya concluidas con lista de asistencia esperada. No cuentan suspensiones, clases sin inscritos ni calendarios sin configurar. Es evidencia de captura en SICAT, no de asistencia del docente.'
 
 /** Asignaciones agrupadas por materia: cada materia una vez, con sus grupos. */
 function materiasDe(asignaciones) {
@@ -28,7 +28,7 @@ const ORDENES = {
   pendientes: { label: 'Más pendientes primero', comparar: (a, b) => (b.listasPendientes + b.calificacionesPendientes + b.entregasPendientes) - (a.listasPendientes + a.calificacionesPendientes + a.entregasPendientes) },
   // Sin captura en el periodo va antes que una captura antigua; sin clases en el periodo, al final.
   captura: { label: 'Captura más antigua primero', comparar: (a, b) => (b.tieneMetricas - a.tieneMetricas) || (a.ultimaCaptura ?? '').localeCompare(b.ultimaCaptura ?? '') },
-  cobertura: { label: 'Menor registro de listas primero', comparar: (a, b) => (a.clasesEsperadas ? a.cobertura : 101) - (b.clasesEsperadas ? b.cobertura : 101) },
+  cobertura: { label: 'Menor registro de listas de asistencia primero', comparar: (a, b) => (a.clasesEsperadas ? a.cobertura : 101) - (b.clasesEsperadas ? b.cobertura : 101) },
 }
 
 /** «hoy, 10:47», «ayer», «hace 3 días»: la frescura importa más que la fecha exacta. */
@@ -40,7 +40,7 @@ function capturaTexto(iso) {
 /** Sólo lo que falta; si no falta nada, una sola marca de «Al día». */
 function Pendientes({ d }) {
   const items = [
-    [d.listasPendientes, 'lista', 'listas'],
+    [d.listasPendientes, 'lista de asistencia', 'listas de asistencia'],
     [d.calificacionesPendientes, 'calificación', 'calificaciones'],
     [d.entregasPendientes, 'entrega', 'entregas'],
   ].filter(([n]) => n > 0)
@@ -64,7 +64,7 @@ function TarjetaDocente({ d, j, i }) {
   return (
     <li className="docente-tarjeta relative flex flex-col rounded-[var(--radius-item)] border border-border bg-card p-5" style={{ '--i': i }}>
       <div className="flex items-center gap-4">
-        <AnilloProgreso pct={pct} etiqueta="Registro de listas" />
+        <AnilloProgreso pct={pct} etiqueta="Registro de listas de asistencia" />
         <div className="min-w-0 flex-1">
           {/* El nombre cubre toda la tarjeta (enlace estirado); los grupos quedan por encima. */}
           {d.periodoReferencia
@@ -73,7 +73,7 @@ function TarjetaDocente({ d, j, i }) {
           <p className="mt-0.5 text-xs text-muted-foreground">
             {!d.tieneMetricas ? `Sin clases en ${periodoTexto(j.periodo)}` : (
               <>
-                {d.clasesEsperadas ? `${d.listasCompletas} de ${d.clasesEsperadas} listas` : 'Sin clases concluidas'}
+                {d.clasesEsperadas ? `${d.listasCompletas} de ${d.clasesEsperadas} listas de asistencia` : 'Sin clases concluidas'}
                 {' · '}
                 {d.ultimaCaptura ? `capturó ${capturaTexto(d.ultimaCaptura)}` : <span className="font-medium text-destructive-foreground">sin capturas aún</span>}
               </>
@@ -176,7 +176,7 @@ export default function JefeDocentes() {
             )}
             <details className="mt-3 text-xs text-muted-foreground">
               <summary className="inline-flex min-h-11 cursor-pointer list-none items-center gap-1 rounded-md hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-8">
-                Cifras de {periodoTexto(j.periodo)} · <span className="underline decoration-dotted underline-offset-4">¿qué mide el registro de listas?</span>
+                Cifras de {periodoTexto(j.periodo)} · <span className="underline decoration-dotted underline-offset-4">¿qué mide el registro de listas de asistencia?</span>
               </summary>
               <p className="max-w-2xl pb-2 leading-relaxed">{DEFINICION_REGISTRO} Los grupos con borde punteado son de otro periodo.</p>
             </details>

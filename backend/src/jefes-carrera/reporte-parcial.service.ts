@@ -363,8 +363,8 @@ export class ReporteParcialService {
       totales,
       notas: [
         'A = alumnos inscritos; B = acreditados en primera (PO) o segunda oportunidad (SO); C = porcentaje acreditado.',
-        'D y E = alumnos no acreditados al corte y su porcentaje; F y G = alumnos que no se presentaron en ninguna lista capturada y su porcentaje.',
-        'Una lista sin captura no se usa para clasificar deserción. Las filas con calificación pendiente permanecen dentro de no acreditados al corte.',
+        'D y E = alumnos no acreditados al corte y su porcentaje; F y G = alumnos que no se presentaron en ninguna lista de asistencia capturada y su porcentaje.',
+        'Una lista de asistencia sin captura no se usa para clasificar deserción. Las filas con calificación pendiente permanecen dentro de no acreditados al corte.',
       ],
     };
   }

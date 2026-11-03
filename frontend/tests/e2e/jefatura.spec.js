@@ -119,7 +119,7 @@ test.describe('jefatura de carrera', () => {
     await expect(page.getByRole('button', { name: 'Comparar' })).toHaveCount(0)
     const lista = page.getByRole('list', { name: 'Docentes de la carrera' })
     const carlos = lista.getByRole('listitem').filter({ has: page.getByRole('link', { name: 'Carlos Ruiz' }) })
-    await expect(carlos.getByText('Registro de listas: 98%')).toBeAttached()
+    await expect(carlos.getByText('Registro de listas de asistencia: 98%')).toBeAttached()
     await expect(carlos.getByRole('list', { name: 'Pendientes de Carlos Ruiz' }).getByText('12 calificaciones')).toBeVisible()
     const tarjeta = lista.getByRole('listitem').filter({ has: page.getByRole('link', { name: 'Laura Méndez' }) })
     await expect(tarjeta.getByRole('list', { name: 'Materias de Laura Méndez' })).toBeVisible()
@@ -277,7 +277,7 @@ test.describe('jefatura de carrera', () => {
     await expect(page.getByRole('heading', { level: 2, name: /^Calificaciones pendientes/ })).toBeVisible()
     await expect(page.getByRole('navigation', { name: 'Tipo de pendiente' }).getByRole('link', { name: /^Calificaciones/ })).toHaveAttribute('aria-current', 'true')
     // Exactamente las asignaciones del indicador: la suma coincide con él.
-    const filas = await page.locator('main li').filter({ hasText: /calificaci(ón|ones) de unidad(es)? cerrada(s)? sin capturar/ }).allTextContents()
+    const filas = await page.locator('main li').filter({ hasText: /\d+ calificaci(ón|ones) sin capturar/ }).allTextContents()
     expect(filas).toHaveLength(2)
     expect(filas.reduce((n, t) => n + Number(t.match(/(\d+) calificaci/)[1]), 0)).toBe(15)
     // Las cuatro tarjetas abren su conjunto con el mismo patrón y vuelven a Inicio.
@@ -308,8 +308,8 @@ test.describe('jefatura de carrera', () => {
     await page.goto('/dashboard')
     await expect(page.getByText('Pendientes de lista no evaluables en Escolarizado y Mixto')).toBeVisible()
     await page.getByText('Resumen del periodo y otras revisiones', { exact: true }).click()
-    await expect(page.getByText('Listas no evaluables')).toBeVisible()
-    await expect(page.getByText('Listas al día')).toHaveCount(0)
+    await expect(page.getByText('Listas de asistencia no evaluables')).toBeVisible()
+    await expect(page.getByText('Listas de asistencia al día')).toHaveCount(0)
   })
 
   test('auditoría F05: reuniones no aparentan depender del periodo', async ({ page }) => {
@@ -377,7 +377,7 @@ test.describe('jefatura de carrera', () => {
     await seleccionada.focus()
     await page.keyboard.press('ArrowLeft')
     await expect(semanas.locator('input:checked')).not.toHaveAttribute('aria-label', anterior)
-    await expect(tendencia.getByRole('status')).toContainText('Listas completas')
+    await expect(tendencia.getByRole('status')).toContainText('Listas de asistencia completas')
     await expect(tendencia.getByText('Meta 90 %', { exact: true })).toBeVisible()
     await tendencia.getByLabel('Ver como tabla').check()
     await expect(tendencia.getByRole('table', { name: 'Registro de asistencias por semana' })).toBeVisible()
@@ -386,7 +386,7 @@ test.describe('jefatura de carrera', () => {
 
     await tendencia.getByRole('link', { name: 'Ver por docente' }).click()
     await expect(page).toHaveURL(/\/jefe-carrera\/docentes\?.*vista=semanas/)
-    const mapa = page.getByRole('table', { name: /Registro de listas por docente y semana/ })
+    const mapa = page.getByRole('table', { name: /Registro de listas de asistencia por docente y semana/ })
     await expect(mapa).toBeVisible()
     const celda = mapa.getByRole('link', { name: /^Laura Méndez, semana del .*Abrir horario\.$/ }).last()
     await expect(celda).toHaveAttribute('href', /\/jefe-carrera\/horarios\?.*vista=semana.*docente=37/)

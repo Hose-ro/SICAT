@@ -272,7 +272,7 @@ export class SeguimientosService {
         if (!horario) throw fuera();
         return {
           ref: { tipo: dto.tipo, horarioId: horario.id, fecha: dto.fecha },
-          titulo: `Lista sin captura · ${horario.materia.nombre} · ${horario.grupo?.nombre ?? 'sin grupo'}`,
+          titulo: `Lista de asistencia sin captura · ${horario.materia.nombre} · ${horario.grupo?.nombre ?? 'sin grupo'}`,
           mensaje: `${fechaLegible(dto.fecha)}, ${horario.horaInicio}–${horario.horaFin} · ${horario.docente.nombre}`,
           referenciaTipo: 'Clase',
           referenciaId: horario.id,

@@ -31,7 +31,7 @@ test('jefatura nueva: bienvenida una vez y sólo "Empieza por aquí" en Inicio',
   await expect(guia).toContainText('0 de 4 pasos listos')
   await expect(guia.locator('[aria-current="step"]')).toContainText('Revisa la retícula de tu carrera')
   // Nada de "todo al día" con la carrera vacía.
-  await expect(page.getByText('Listas al día')).toHaveCount(0)
+  await expect(page.getByText('Listas de asistencia al día')).toHaveCount(0)
   await expect(page.getByText('Oferta completa')).toHaveCount(0)
 
   await page.reload()

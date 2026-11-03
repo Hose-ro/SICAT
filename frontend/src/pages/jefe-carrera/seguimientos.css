@@ -1,17 +1,82 @@
-.pendientes-filtros { container-type: inline-size; }
-.pendientes-filtro-label { display: block; margin-bottom: 8px; color: var(--muted-foreground); font-size: .75rem; font-weight: 500; }
-.pendientes-tipos { display: flex; flex-wrap: wrap; gap: 4px; width: fit-content; max-width: 100%; padding: 4px; border-radius: 10px; background: var(--muted); }
-.pendientes-tipo { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 8px 12px; border-radius: 7px; color: var(--muted-foreground); font-size: .8125rem; line-height: 1.4; text-decoration: none; white-space: nowrap; transition: background-color 150ms ease, color 150ms ease; }
-.pendientes-tipo[aria-current=true] { background: var(--accent); color: var(--primary-ink); font-weight: 500; }
-.pendientes-tipo:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
-.pendientes-tipo-conteo { display: inline-flex; justify-content: center; min-width: 24px; padding: 2px 6px; border-radius: 5px; background: var(--secondary); color: var(--muted-foreground); font-size: .75rem; font-variant-numeric: tabular-nums; }
-.pendientes-tipo[aria-current=true] .pendientes-tipo-conteo { background: var(--card); color: var(--primary-ink); }
-.pendientes-tipo-movil { display: none; }
-@media (hover: hover) and (pointer: fine) {
-  .pendientes-tipo:hover { color: var(--foreground); background: var(--secondary); }
-  .pendientes-tipo[aria-current=true]:hover { background: var(--accent); color: var(--primary-ink); }
+/* Pendientes por tipo. Cada tipo tiene un tono (misma luminosidad y croma
+   relativo en todos, para que ninguno grite más) y siempre su icono. */
+.pendientes {
+  container-type: inline-size;
+  --pend-fondo-l: 0.955;
+  --pend-fondo-c: 0.3;
+  --pend-tinta-l: 0.47;
+  --pend-punto-l: 0.63;
+  --pend-ease: cubic-bezier(0.23, 1, 0.32, 1);
 }
-@container (max-width: 760px) {
-  .pendientes-tipos { display: none; }
-  .pendientes-tipo-movil { display: block; min-height: 44px; width: 100%; font-size: 1rem; }
+.dark .pendientes { --pend-fondo-l: 0.3; --pend-fondo-c: 0.4; --pend-tinta-l: 0.85; --pend-punto-l: 0.72; }
+.pendientes [data-tipo="ASISTENCIA_SIN_CAPTURA"] { --h: 264; --c: 0.16; }
+.pendientes [data-tipo="CALIFICACIONES_PENDIENTES"] { --h: 305; --c: 0.15; }
+.pendientes [data-tipo="ALUMNO_RIESGO"] { --h: 25; --c: 0.17; }
+.pendientes [data-tipo="ENTREGAS"] { --h: 68; --c: 0.13; }
+.pendientes [data-tipo="UNIDAD"] { --h: 190; --c: 0.1; }
+.pendientes [data-tipo="ASIGNACION"] { --h: 255; --c: 0.03; }
+.pendientes :is(.pendientes-icono, .pendientes-estado, .pendientes-tipo[data-tipo][aria-current=true]) {
+  background: oklch(var(--pend-fondo-l) calc(var(--c) * var(--pend-fondo-c)) var(--h));
+  color: oklch(var(--pend-tinta-l) var(--c) var(--h));
+}
+
+/* Filtro por tipo */
+.pendientes-tipos { display: flex; flex-wrap: wrap; gap: 6px; }
+.pendientes-tipo { display: inline-flex; flex: none; align-items: center; gap: 7px; min-height: 40px; padding: 0 13px; border: 1px solid var(--border); border-radius: 999px; background: var(--card); color: var(--muted-foreground); font-size: .8125rem; white-space: nowrap; text-decoration: none; transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease, transform 160ms var(--pend-ease); }
+.pendientes-tipo:active { transform: scale(0.97); }
+.pendientes-tipo[data-vacio] { border-style: dashed; }
+.pendientes-tipo:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.pendientes-tipo-conteo { font-size: .75rem; font-variant-numeric: tabular-nums; }
+.pendientes-punto { width: 8px; height: 8px; border-radius: 50%; background: oklch(var(--pend-punto-l) var(--c) var(--h)); }
+.pendientes-tipo[aria-current=true] { border-color: transparent; background: var(--foreground); color: var(--background); font-weight: 500; }
+.pendientes-tipo[data-tipo][aria-current=true] { box-shadow: inset 0 0 0 1px oklch(var(--pend-punto-l) var(--c) var(--h) / .45); }
+@media (hover: hover) and (pointer: fine) {
+  .pendientes-tipo:not([aria-current=true]):hover { color: var(--foreground); border-color: var(--muted-foreground); }
+}
+.pendientes-select { width: auto; min-width: 12rem; }
+
+/* Secciones de «Todos» */
+.pendientes-secciones { display: grid; gap: 32px; margin-top: 28px; }
+.pendientes-categoria { display: flex; align-items: center; gap: 10px; padding-bottom: 10px; color: var(--foreground); text-decoration: none; border-radius: 10px; }
+.pendientes-categoria h3 { font-size: 1rem; font-weight: 600; letter-spacing: -0.01em; }
+.pendientes-categoria-conteo { color: var(--muted-foreground); font-size: .875rem; font-variant-numeric: tabular-nums; }
+.pendientes-categoria-ver { display: inline-flex; align-items: center; gap: 2px; margin-left: auto; color: var(--primary-ink); font-size: .8125rem; font-weight: 500; }
+.pendientes-categoria-ver svg { width: 15px; height: 15px; transition: transform 160ms var(--pend-ease); }
+.pendientes-categoria:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+@media (hover: hover) and (pointer: fine) {
+  .pendientes-categoria:hover .pendientes-categoria-ver svg { transform: translateX(2px); }
+}
+.pendientes-icono { display: inline-grid; flex: none; place-items: center; width: 2rem; height: 2rem; border-radius: 9px; }
+.pendientes-icono svg { width: 17px; height: 17px; }
+
+/* Filas */
+.pendientes-lista { border-top: 1px solid var(--border); }
+.pendientes-fila { display: grid; grid-template-columns: minmax(0, 1fr) 11.5rem 8rem; align-items: center; column-gap: 20px; padding: 13px 0; border-bottom: 1px solid var(--border); }
+.pendientes-titulo { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; color: var(--foreground); font-size: .875rem; font-weight: 500; }
+.pendientes-enlace { color: inherit; text-decoration: none; text-underline-offset: 3px; text-decoration-color: var(--border); border-radius: 4px; }
+.pendientes-enlace:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+@media (hover: hover) and (pointer: fine) {
+  .pendientes-enlace:hover { text-decoration-line: underline; }
+}
+.pendientes-estado { display: inline-flex; align-items: center; min-height: 22px; padding: 1px 8px; border-radius: 6px; font-size: .75rem; font-weight: 500; }
+.pendientes-meta { margin-top: 3px; color: var(--muted-foreground); font-size: .75rem; }
+.pendientes-cuando { color: var(--muted-foreground); font-size: .8125rem; white-space: nowrap; }
+.pendientes-hace { margin-left: 8px; font-size: .75rem; font-variant-numeric: tabular-nums; }
+.pendientes-acciones { display: flex; justify-content: flex-end; }
+
+/* Botón compacto de observación */
+.seguimiento-compacto { transition: background-color 150ms ease, transform 160ms var(--pend-ease, ease-out); }
+.seguimiento-compacto:active { transform: scale(0.97); }
+.seguimiento-compacto[data-estado=abierta] { border-color: transparent; background: color-mix(in oklch, var(--success) 12%, transparent); color: var(--success-foreground); }
+.seguimiento-compacto[data-estado=revisar] { border-color: transparent; background: color-mix(in oklch, var(--warning) 22%, transparent); color: var(--warning-foreground); }
+.seguimiento-compacto[data-estado=cerrada] { border-color: transparent; background: none; color: var(--muted-foreground); }
+
+@container (max-width: 640px) {
+  .pendientes-tipos { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+  .pendientes-tipos::-webkit-scrollbar { display: none; }
+  .pendientes-select { flex: 1 1 100%; min-height: 44px; font-size: 1rem; }
+  .pendientes-fila { grid-template-columns: minmax(0, 1fr) auto; row-gap: 6px; column-gap: 12px; }
+  .pendientes-cuando { grid-row: 2; font-size: .75rem; }
+  .pendientes-acciones { grid-row: 1 / span 2; grid-column: 2; }
+  .pendientes-acciones .seguimiento-compacto { min-height: 44px; }
 }

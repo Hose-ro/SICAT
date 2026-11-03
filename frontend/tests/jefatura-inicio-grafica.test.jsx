@@ -25,7 +25,7 @@ afterEach(() => vi.useRealTimers())
 describe('lectura del registro de asistencias', () => {
   it('distingue la última semana cerrada, la semana en curso, el cero y la ausencia de clases', () => {
     render(vista())
-    expect(screen.getByText(/Última semana cerrada/).textContent).toContain('0 de 2 listas completas (0 %)')
+    expect(screen.getByText(/Última semana cerrada/).textContent).toContain('0 de 2 listas de asistencia completas (0 %)')
     expect(screen.getByRole('radio', { name: /5 – 10 oct.*sin clases concluidas/ }).checked).toBe(false)
     expect(screen.getByRole('radio', { name: /19 – 24 oct.*0 %/ }).checked).toBe(true)
     fireEvent.click(screen.getByRole('radio', { name: /26 – 31 oct, en curso/ }))
@@ -39,7 +39,7 @@ describe('lectura del registro de asistencias', () => {
   it('filtra modalidades, conserva cantidades y ofrece tabla sin perder tardías ni suspendidas', () => {
     render(vista())
     fireEvent.click(screen.getByRole('button', { name: 'Mixto', exact: true }))
-    expect(screen.getByText(/Última semana cerrada/).textContent).toContain('1 de 2 listas completas (50 %)')
+    expect(screen.getByText(/Última semana cerrada/).textContent).toContain('1 de 2 listas de asistencia completas (50 %)')
     fireEvent.click(screen.getByRole('button', { name: 'Todas', exact: true }))
     fireEvent.click(screen.getByRole('radio', { name: /12 – 17 oct.*9 de 12.*75 %/ }))
     const detalle = screen.getByRole('status')

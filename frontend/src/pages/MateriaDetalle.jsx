@@ -233,7 +233,7 @@ export default function MateriaDetalle() {
                   </div>
                   {esDocente && (
                     <Link to={`/docente/pasar-lista/${sesion.id}`} className="text-sm font-medium text-primary-ink underline-offset-4 hover:underline">
-                      Editar lista
+                      Editar lista de asistencia
                     </Link>
                   )}
                 </li>

@@ -32,7 +32,7 @@ test('la materia lleva su contexto a las otras pantallas y no usa tarjetas de m√
   await expect(nav.getByRole('link', { name: 'Asistencias' })).toHaveAttribute('href', '/asistencias?materia=1&grupo=1')
   await expect(nav.getByRole('link', { name: 'Tareas' })).toHaveAttribute('href', '/tareas?materia=1&grupo=1')
   await expect(nav.getByRole('link', { name: 'Calificaciones' })).toHaveAttribute('href', '/calificaciones?materia=1&grupo=1')
-  await expect(page.getByRole('link', { name: 'Editar lista' })).toHaveAttribute('href', '/docente/pasar-lista/33')
+  await expect(page.getByRole('link', { name: 'Editar lista de asistencia' })).toHaveAttribute('href', '/docente/pasar-lista/33')
   await expect(page.getByRole('link', { name: 'Nueva tarea' })).toHaveAttribute('href', '/docente/tareas/crear?materiaId=1&grupoId=1')
   expect(await azules(page)).toBeLessThanOrEqual(1)
 })

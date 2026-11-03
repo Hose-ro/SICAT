@@ -299,9 +299,9 @@ export class InformeService {
   private filasTotales(informe: Informe): Array<[string, string | number]> {
     const t = informe.totales;
     return [
-      ['Clases con lista esperada', t.clasesEsperadas],
-      ['Listas completas', t.listasCompletas],
-      ['Listas sin captura o parciales', t.listasPendientes],
+      ['Clases con lista de asistencia esperada', t.clasesEsperadas],
+      ['Listas de asistencia completas', t.listasCompletas],
+      ['Listas de asistencia sin captura o parciales', t.listasPendientes],
       ['Cobertura de captura', porcentaje(t.cobertura)],
       [
         'Calificaciones de unidad pendientes (al corte)',
@@ -340,7 +340,7 @@ export class InformeService {
         vacio: 'Sin docentes con clases en la carrera.',
       },
       {
-        titulo: 'Listas sin captura o parciales',
+        titulo: 'Listas de asistencia sin captura o parciales',
         columnas: ['Fecha', 'Horario', 'Materia', 'Grupo', 'Docente', 'Estado'],
         anchos: [16, 14, 32, 10, 28, 22],
         filas: informe.listasPendientes.map((l): Fila => [
@@ -353,7 +353,7 @@ export class InformeService {
             ? `Captura parcial (${l.registros} de ${l.alumnos})`
             : ESTADO_LISTA[l.estado],
         ]),
-        vacio: 'Todas las listas del intervalo están completas.',
+        vacio: 'Todas las listas de asistencia del intervalo están completas.',
       },
       {
         titulo: 'Avance de unidades por materia y grupo',

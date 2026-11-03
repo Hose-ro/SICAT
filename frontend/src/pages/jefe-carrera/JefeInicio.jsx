@@ -77,7 +77,7 @@ function pendientesPorDocente(resumen) {
 
 function resumenGrupo(g) {
   return [
-    g.listas.length && plural(g.listas.length, 'lista sin captura completa', 'listas sin captura completa'),
+    g.listas.length && plural(g.listas.length, 'lista de asistencia sin captura completa', 'listas de asistencia sin captura completa'),
     g.calificacionesTotal && plural(g.calificacionesTotal, 'calificación de unidad pendiente', 'calificaciones de unidad pendientes'),
     g.entregasTotal && plural(g.entregasTotal, 'entrega sin revisar', 'entregas sin revisar'),
     g.unidades.length && plural(g.unidades.length, 'unidad por revisar', 'unidades por revisar'),
@@ -161,9 +161,9 @@ function ContenidoCarrera({ j, resumen, reuniones, guia, ventana }) {
   // Sin calendario no hay clases evaluables: cero pendientes no significa listas al día.
   const sinCalendario = calendariosFaltantes(resumen)
   const evaluables = resumen.calendarios.some((c) => c.configurado && !sinCalendario.includes(c))
-  const listasVacio = !sinCalendario.length ? 'Listas al día'
-    : evaluables ? `Listas al día en ${resumen.calendarios.filter((c) => c.configurado).map((c) => modalidadTexto(c.modalidad)).join(' y ')}`
-      : 'Listas no evaluables'
+  const listasVacio = !sinCalendario.length ? 'Listas de asistencia al día'
+    : evaluables ? `Listas de asistencia al día en ${resumen.calendarios.filter((c) => c.configurado).map((c) => modalidadTexto(c.modalidad)).join(' y ')}`
+      : 'Listas de asistencia no evaluables'
 
   return (
     <>
@@ -172,7 +172,7 @@ function ContenidoCarrera({ j, resumen, reuniones, guia, ventana }) {
         <Aviso
           titulo={`Pendientes de lista no evaluables en ${sinCalendario.map((c) => modalidadTexto(c.modalidad)).join(' y ')}`}
         >
-          Falta configurar el calendario escolar de {sinCalendario.length === 1 ? 'esa modalidad' : 'esas modalidades'} para el periodo. Mientras tanto sus clases no cuentan como pendientes, así que un cero no significa que las listas estén al día. Lo configura coordinación en Calendario escolar.
+          Falta configurar el calendario escolar de {sinCalendario.length === 1 ? 'esa modalidad' : 'esas modalidades'} para el periodo. Mientras tanto sus clases no cuentan como pendientes, así que un cero no significa que las listas de asistencia estén al día. Lo configura coordinación en Calendario escolar.
         </Aviso>
       )}
 
@@ -211,8 +211,8 @@ function ContenidoCarrera({ j, resumen, reuniones, guia, ventana }) {
         ) : (
           <p className="border-y border-border py-6 text-sm text-muted-foreground">
             {sinCalendario.length && !evaluables
-              ? 'Sin pendientes de calificaciones, entregas ni unidades. Las listas no se pueden evaluar hasta configurar el calendario.'
-              : 'Sin pendientes de docentes en el periodo: listas, calificaciones, entregas y unidades al corriente.'}
+              ? 'Sin pendientes de calificaciones, entregas ni unidades. Las listas de asistencia no se pueden evaluar hasta configurar el calendario.'
+              : 'Sin pendientes de docentes en el periodo: listas de asistencia, calificaciones, entregas y unidades al corriente.'}
           </p>
         )}
       </section>
@@ -222,7 +222,7 @@ function ContenidoCarrera({ j, resumen, reuniones, guia, ventana }) {
       <details className="inicio-secundario mt-10">
         <summary className="inicio-desplegable">Resumen del periodo y otras revisiones</summary>
         <ResumenCards j={j} indicadores={indicadores} listasVacio={listasVacio} unidadesPorRevisar={unidadesPorRevisar} ofertaIncompleta={ofertaIncompleta} />
-        {intervalo && <p className="inicio-periodo">Listas revisadas del {fechaBreve(intervalo.desde)} al {fechaBreve(intervalo.hasta)}</p>}
+        {intervalo && <p className="inicio-periodo">Listas de asistencia revisadas del {fechaBreve(intervalo.desde)} al {fechaBreve(intervalo.hasta)}</p>}
         <div className="inicio-principal">
           <RequiereAtencion j={j} grupos={grupos} riesgos={riesgos} seguimientos={seguimientos} ofertaIncompleta={ofertaIncompleta} />
         </div>
@@ -239,7 +239,7 @@ function ContenidoCarrera({ j, resumen, reuniones, guia, ventana }) {
 function ResumenCards({ j, indicadores, listasVacio, unidadesPorRevisar, ofertaIncompleta }) {
   const conjunto = (tipo) => j.toDesde('/jefe-carrera/seguimientos', { seccion: 'pendientes', tipo })
   const cards = [
-    { titulo: 'Asistencia', icono: CalendarClock, value: indicadores.listasPendientes, label: indicadores.listasPendientes === 1 ? 'Lista por completar' : 'Listas por completar', vacio: listasVacio, to: conjunto('ASISTENCIA_SIN_CAPTURA'), pie: 'Registro de listas en el periodo' },
+    { titulo: 'Asistencia', icono: CalendarClock, value: indicadores.listasPendientes, label: indicadores.listasPendientes === 1 ? 'Lista de asistencia por completar' : 'Listas de asistencia por completar', vacio: listasVacio, to: conjunto('ASISTENCIA_SIN_CAPTURA'), pie: 'Registro de listas de asistencia en el periodo' },
     { titulo: 'Calificaciones', icono: BookOpen, value: indicadores.calificacionesPendientes, label: indicadores.calificacionesPendientes === 1 ? 'Calificación pendiente' : 'Calificaciones pendientes', vacio: 'Sin calificaciones pendientes', to: conjunto('CALIFICACIONES_PENDIENTES'), pie: unidadesPorRevisar ? plural(unidadesPorRevisar, 'Unidad por revisar', 'Unidades por revisar') : 'Unidades al corriente', pieTo: unidadesPorRevisar ? conjunto('UNIDAD') : null },
     { titulo: 'Alumnos', icono: UsersRound, value: indicadores.alumnosRiesgo, label: indicadores.alumnosRiesgo === 1 ? 'Alumno en riesgo' : 'Alumnos en riesgo', vacio: 'Sin alumnos en riesgo', to: conjunto('ALUMNO_RIESGO'), pie: 'Situación académica' },
     { titulo: 'Asignaciones', icono: BookOpen, value: ofertaIncompleta, label: ofertaIncompleta === 1 ? 'Materia sin docente u horario' : 'Materias sin docente u horario', vacio: 'Oferta completa', to: conjunto('ASIGNACION'), pie: 'Asignación de docentes y horarios' },
@@ -321,7 +321,7 @@ function RequiereAtencion({ j, grupos, riesgos, seguimientos, ofertaIncompleta }
           ))}
         </ul>
       ) : (
-        <p className="inicio-sin-pendientes"><NotebookPen className="inicio-icono" aria-hidden="true" /><span>Sin revisiones para hoy, listas atrasadas ni alumnos en riesgo.</span></p>
+        <p className="inicio-sin-pendientes"><NotebookPen className="inicio-icono" aria-hidden="true" /><span>Sin revisiones para hoy, listas de asistencia atrasadas ni alumnos en riesgo.</span></p>
       )}
     </section>
   )
@@ -410,7 +410,7 @@ function GrupoDocente({ g, j, seguimientos }) {
           {g.docente
             ? <Link className={cn(linkClass, 'docentes-nombre')} to={j.toDesde(`/jefe-carrera/docentes/${g.docente.id}`)}>{nombre}</Link>
             : <span className="text-[0.9375rem] font-medium text-warning-foreground">{nombre}</span>}
-              <p className="docentes-fecha">{g.desde ? `Pendiente más antiguo: ${fechaCorta(g.desde)}` : 'Sin listas pendientes'}</p>
+              <p className="docentes-fecha">{g.desde ? `Pendiente más antiguo: ${fechaCorta(g.desde)}` : 'Sin listas de asistencia pendientes'}</p>
             </div>
           </div>
           {g.desde && <span className="docentes-antiguedad"><Clock3 aria-hidden="true" />{haceTiempo(g.desde)}</span>}

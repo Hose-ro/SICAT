@@ -9,7 +9,7 @@ import { JefaturaPage, Segmento, Vacio, linkClass } from './supervision/ui'
 function textoPendientes(g) {
   if (g.listas == null) return g.periodoDisponible ? `Consulta ${periodoTexto(g.periodoConsulta)}` : 'Periodo no compatible con supervisión'
   if (!g.listas && !g.calificaciones) return 'Sin pendientes detectados'
-  return [g.listas && `${g.listas} ${g.listas === 1 ? 'lista' : 'listas'}`, g.calificaciones && `${g.calificaciones} ${g.calificaciones === 1 ? 'calificación' : 'calificaciones'}`].filter(Boolean).join(' · ')
+  return [g.listas && `${g.listas} ${g.listas === 1 ? 'lista de asistencia' : 'listas de asistencia'}`, g.calificaciones && `${g.calificaciones} ${g.calificaciones === 1 ? 'calificación' : 'calificaciones'}`].filter(Boolean).join(' · ')
 }
 
 export default function JefeGrupos() {
