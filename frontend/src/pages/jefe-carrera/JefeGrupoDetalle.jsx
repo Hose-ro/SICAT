@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { Info } from 'lucide-react'
 import api from '@/api/axios'
 import { Button } from '@/components/ui/button'
 import SexoBadge from '@/components/SexoBadge'
@@ -8,12 +9,14 @@ import MapaRiesgoGrupo from './graficas/MapaRiesgoGrupo'
 import AlumnoExpediente from './supervision/AlumnoExpediente'
 import HorarioCarrera from './supervision/HorarioCarrera'
 import { CRITERIO_RIESGO, MOTIVOS_RIESGO } from './supervision/estados'
-import { modalidadTexto, semestreTexto } from './supervision/formato'
+import { modalidadTexto, plural, semestreTexto } from './supervision/formato'
 import { Promedio } from './supervision/notas'
 import UnidadesOferta from './supervision/UnidadesOferta'
 import { mensajeError } from './supervision/useJefatura'
 import { estadoConjunto, reintentarReportes, resumenAlumno, useReportes } from './supervision/useReportes'
-import { Aviso, AvisoParcial, Cifra, JefaturaPage, Pestanas, SeccionTitulo, Vacio, linkClass, selectClass } from './supervision/ui'
+import { Aviso, AvisoParcial, JefaturaPage, Pestanas, Vacio, linkClass, selectClass } from './supervision/ui'
+import { Senal } from './supervision/senales'
+import './supervision/consulta.css'
 
 const TABS = [
   { value: 'resumen', label: 'Resumen' },
@@ -43,7 +46,7 @@ export default function JefeGrupoDetalle() {
   return (
     <JefaturaPage
       titulo={(r) => { const grupo = r.grupos.find((g) => g.id === Number(id)); return grupo && `Grupo ${grupo.nombre}` }}
-      subtitulo={(r) => { const grupo = r.grupos.find((g) => g.id === Number(id)); return grupo && `${semestreTexto(grupo.semestre)} · ${modalidadTexto(grupo.modalidad)}` }}
+      subtitulo={(r) => { const grupo = r.grupos.find((g) => g.id === Number(id)); return grupo && `${semestreTexto(grupo.semestre)} · ${modalidadTexto(grupo.modalidad)} · ${plural(grupo.alumnosBase ?? 0, 'alumno', 'alumnos')}` }}
       volver={{ to: '/jefe-carrera/grupos', label: 'Grupos y alumnos' }}
     >
       {({ j, resumen }) => <Contenido j={j} resumen={resumen} grupoId={Number(id)} />}
@@ -101,94 +104,100 @@ function Contenido({ j, resumen, grupoId }) {
   )
 }
 
-function unidadActual(reporte) {
-  const unidades = reporte?.unidades ?? []
-  return unidades.find((u) => u.status === 'ACTIVA') ?? null
-}
-
 function Resumen({ j, resumen, grupo, ofertas, reportes, expediente, abrirAlumno, mapaTo }) {
   const incorporados = (expediente.data?.alumnos ?? []).filter((a) => a.origen === 'INCORPORADO').length
   const listas = resumen.pendientes.filter((c) => c.grupo.id === grupo.id)
   const riesgos = resumen.riesgos.filter((a) => a.causas.some((c) => c.grupo.id === grupo.id))
   const conjunto = estadoConjunto(reportes, ofertas.map((o) => `${o.materia.id}:${grupo.id}`))
+  const calificaciones = ofertas.reduce((n, o) => n + o.resumen.calificacionesPendientes, 0)
+  const entregas = ofertas.reduce((n, o) => n + o.resumen.entregasPendientes, 0)
+  const alDia = !grupo.alumnosRiesgo && !listas.length && !calificaciones && !entregas
   return (
-    <>
-      <dl className="mt-6 grid grid-cols-2 gap-x-8 gap-y-4 border-b border-border pb-6 sm:grid-cols-3 lg:grid-cols-6">
-        <Cifra label="Alumnos del grupo" value={grupo.alumnosBase} />
-        <Cifra label="Incorporados de otros grupos" value={expediente.data ? incorporados : '—'} />
-        <Cifra label="Materias" value={ofertas.length} />
-        <Cifra label="Alumnos en riesgo" value={grupo.alumnosRiesgo} tono={grupo.alumnosRiesgo ? 'text-warning-foreground' : undefined} />
-        <Cifra label="Listas de asistencia por completar" value={listas.length} tono={listas.length ? 'text-warning-foreground' : undefined} />
-        <Cifra label="Calificaciones pendientes" value={ofertas.reduce((n, o) => n + o.resumen.calificacionesPendientes, 0)} />
-      </dl>
+    <div className="consulta">
+      {/* Solo lo que requiere atención; lo que está en cero no se muestra. */}
+      <p className="consulta-atencion">
+        {grupo.alumnosRiesgo > 0 && <Senal tipo="riesgo">{plural(grupo.alumnosRiesgo, 'alumno en riesgo', 'alumnos en riesgo')}</Senal>}
+        <Senal tipo="listas" n={listas.length} />
+        <Senal tipo="calificaciones" n={calificaciones} />
+        <Senal tipo="entregas" n={entregas} />
+        {alDia && <span className="text-[0.8125rem] text-muted-foreground">Sin pendientes en el periodo</span>}
+        {incorporados > 0 && <span className="consulta-tenue">{plural(incorporados, 'alumno incorporado de otro grupo', 'alumnos incorporados de otros grupos')}</span>}
+      </p>
 
-      <section className="mt-8" aria-labelledby="grupo-materias">
-        <SeccionTitulo id="grupo-materias" titulo="Materias y docentes" descripcion="La unidad actual pertenece a cada materia del grupo, no al alumno." />
+      <section className="consulta-bloque" aria-labelledby="grupo-materias">
+        <div className="consulta-bloque-cabeza"><h2 id="grupo-materias">Materias</h2></div>
         <AvisoParcial conjunto={conjunto} total={ofertas.length} onReintentar={reintentarReportes} />
         {ofertas.length ? (
-          <div role="region" tabIndex={0} aria-label="Materias y docentes del grupo" className="overflow-x-auto rounded-[var(--radius-item)] border border-border bg-card focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40">
-            <table className="w-full min-w-[820px] border-collapse text-[0.8125rem]">
-              <thead>
-                <tr className="border-b border-border bg-background text-left text-xs text-muted-foreground">
-                  <th scope="col" className="px-4 py-2.5 font-medium">Materia</th>
-                  <th scope="col" className="px-4 py-2.5 font-medium">Docente</th>
-                  <th scope="col" className="px-4 py-2.5 font-medium">Unidad actual</th>
-                  <th scope="col" className="px-4 py-2.5 text-right font-medium">Inscritos</th>
-                  <th scope="col" className="px-4 py-2.5 text-right font-medium">En riesgo</th>
-                  <th scope="col" className="px-4 py-2.5 text-right font-medium">Calif. pendientes</th>
-                  <th scope="col" className="px-4 py-2.5 text-right font-medium">Entregas por revisar</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ofertas.map((o) => {
-                  const estadoReporte = reportes[`${o.materia.id}:${grupo.id}`]
-                  const reporte = estadoReporte?.data
-                  const actual = unidadActual(reporte)
-                  const cerradas = (reporte?.unidades ?? []).filter((u) => u.status === 'FINALIZADA').length
-                  return (
-                    <tr key={o.id} className="border-b border-border last:border-b-0">
-                      <th scope="row" className="px-4 py-3 text-left font-medium">
-                        <Link className={cn(linkClass, 'text-foreground')} to={j.toDesde(`/jefe-carrera/materias/${o.materia.id}`, { oferta: grupo.id })}>{o.materia.nombre}</Link>
-                        <span className="block text-xs font-normal text-muted-foreground">{o.materia.clave}</span>
-                      </th>
-                      <td className="px-4 py-3">
-                        {o.docentes.length ? o.docentes.map((d) => <Link key={d.id} className={cn(linkClass, 'block')} to={j.toDesde(`/jefe-carrera/docentes/${d.id}`)}>{d.nombre}</Link>) : <span className="text-muted-foreground">Sin docente asignado</span>}
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground">
-                        {reporte ? <>{actual?.nombre ?? 'Sin unidad en curso'}<span className="block text-xs">{cerradas} de {reporte.unidades.length} cerradas</span></> : estadoReporte?.error ? <span className="text-warning-foreground">No disponible</span> : 'Cargando…'}
-                      </td>
-                      <td className="px-4 py-3 text-right tabular-nums">{o.resumen.alumnos}</td>
-                      <td className={cn('px-4 py-3 text-right tabular-nums', o.resumen.alumnosRiesgo ? 'font-semibold text-warning-foreground' : 'text-muted-foreground')}>{o.resumen.alumnosRiesgo}</td>
-                      <td className="px-4 py-3 text-right tabular-nums">{o.resumen.calificacionesPendientes}</td>
-                      <td className="px-4 py-3 text-right tabular-nums">{o.resumen.entregasPendientes}</td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+          <ul className="consulta-lista">
+            {ofertas.map((o) => {
+              const estadoReporte = reportes[`${o.materia.id}:${grupo.id}`]
+              const unidades = estadoReporte?.data?.unidades ?? []
+              const actual = unidades.findIndex((u) => u.status === 'ACTIVA') + 1
+              const listasMateria = listas.filter((c) => c.materia.id === o.materia.id).length
+              return (
+                <li key={o.id} className="consulta-gmateria">
+                  <div className="min-w-0">
+                    <Link className="consulta-nombre" to={j.toDesde(`/jefe-carrera/materias/${o.materia.id}`, { oferta: grupo.id })}>{o.materia.nombre}</Link>
+                    <p className="consulta-tenue consulta-meta">
+                      {o.docentes.length
+                        ? o.docentes.map((d, i) => <span key={d.id}>{i > 0 && ', '}<Link className="hover:text-primary-ink" to={j.toDesde(`/jefe-carrera/docentes/${d.id}`)}>{d.nombre}</Link></span>)
+                        : <span className="consulta-falta">Sin docente asignado</span>}
+                      {' · '}{plural(o.resumen.alumnos, 'inscrito', 'inscritos')}
+                    </p>
+                  </div>
+                  <div className="consulta-unidades">
+                    {unidades.length ? (
+                      <>
+                        <span className="consulta-segmentos" aria-hidden="true">{unidades.map((u) => <span key={u.id ?? u.nombre} data-estado={u.status} />)}</span>
+                        <span className="consulta-tenue">{actual ? `Unidad ${actual} de ${unidades.length}` : `${unidades.filter((u) => u.status === 'FINALIZADA').length} de ${unidades.length} cerradas`}</span>
+                      </>
+                    ) : <span className="consulta-tenue">{estadoReporte?.error ? 'Unidades no disponibles' : estadoReporte?.data ? 'Sin unidades' : 'Cargando…'}</span>}
+                  </div>
+                  <div className="consulta-senales">
+                    {o.resumen.alumnosRiesgo > 0 && <Senal tipo="riesgo">{o.resumen.alumnosRiesgo} en riesgo</Senal>}
+                    <Senal tipo="listas" n={listasMateria} />
+                    <Senal tipo="calificaciones" n={o.resumen.calificacionesPendientes} />
+                    <Senal tipo="entregas" n={o.resumen.entregasPendientes} />
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
         ) : <Vacio titulo="Sin materias en el periodo">El grupo no tiene materias asignadas en este periodo.</Vacio>}
       </section>
 
-      <section className="mt-10" aria-labelledby="grupo-riesgo">
-        <SeccionTitulo id="grupo-riesgo" titulo="Alumnos en riesgo" descripcion={`Criterio vigente: ${CRITERIO_RIESGO.charAt(0).toLowerCase()}${CRITERIO_RIESGO.slice(1)}`} accion={riesgos.length > 0 && <Link className={cn(linkClass, 'inline-flex min-h-11 items-center text-[0.8125rem]')} to={mapaTo}>Ver mapa por materia</Link>} />
+      <section className="consulta-bloque" aria-labelledby="grupo-riesgo">
+        <div className="consulta-bloque-cabeza">
+          <h2 id="grupo-riesgo">Alumnos en riesgo</h2>
+          <details className="consulta-criterio">
+            <summary><Info aria-hidden="true" />Criterio</summary>
+            <p>{CRITERIO_RIESGO}</p>
+          </details>
+          {riesgos.length > 0 && <Link className={cn(linkClass, 'ml-auto inline-flex min-h-11 items-center text-[0.8125rem]')} to={mapaTo}>Ver mapa por materia</Link>}
+        </div>
         {riesgos.length ? (
-          <ul className="divide-y divide-border border-y border-border">
+          <ul className="consulta-lista">
             {riesgos.map((a) => (
-              <li key={a.id} className="flex flex-wrap items-start justify-between gap-3 py-3.5">
-                <div className="min-w-0">
+              <li key={a.id} className="consulta-riesgo">
+                <span className="flex min-w-0 items-center gap-2">
+                  {a.sexo && <SexoBadge sexo={a.sexo} />}
                   <button type="button" onClick={() => abrirAlumno(a.id)} className={cn(linkClass, 'text-left text-sm text-foreground')}>{a.nombre}</button>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {a.causas.filter((c) => c.grupo.id === grupo.id).map((c) => `${c.materia.nombre} (${c.unidad?.nombre ?? 'unidad'}): ${c.motivos.map((m) => MOTIVOS_RIESGO[m] ?? m).join(', ')}`).join(' · ')}
-                  </p>
-                </div>
-                {a.numeroControl && <span className="text-xs tabular-nums text-muted-foreground">{a.numeroControl}</span>}
+                </span>
+                <span className="consulta-tenue tabular-nums">{a.numeroControl ?? ''}</span>
+                <span className="consulta-causas">
+                  {a.causas.filter((c) => c.grupo.id === grupo.id).map((c) => (
+                    <span key={`${c.materia.id}`} className="consulta-causa">
+                      <span className="consulta-tenue">{c.materia.nombre}</span>
+                      {c.motivos.map((m) => <span key={m} className="consulta-motivo" data-motivo={m}>{MOTIVOS_RIESGO[m] ?? m}</span>)}
+                    </span>
+                  ))}
+                </span>
               </li>
             ))}
           </ul>
-        ) : <p className="border-t border-border py-5 text-sm text-muted-foreground">Sin alumnos con señales de riesgo en las materias del grupo.</p>}
+        ) : <p className="mt-3 border-t border-border py-5 text-sm text-muted-foreground">Sin alumnos con señales de riesgo en las materias del grupo.</p>}
       </section>
-    </>
+    </div>
   )
 }
 

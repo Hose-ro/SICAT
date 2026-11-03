@@ -90,7 +90,7 @@ test.describe('jefatura de carrera', () => {
     await page.screenshot({ path: 'audit/jefatura-grupos.png', fullPage: true })
     expect(await axe(page)).toEqual([])
 
-    await page.getByRole('link', { name: '7A', exact: true }).click()
+    await page.getByRole('link', { name: /^7A / }).click()
     await expect(page.getByRole('link', { name: 'Resumen' })).toHaveAttribute('aria-current', 'page')
     await page.getByRole('link', { name: /^Alumnos/ }).click()
     await expect(page.getByText('Incorporado · grupo base 9A')).toBeVisible()
@@ -156,20 +156,20 @@ test.describe('jefatura de carrera', () => {
     await page.setViewportSize({ width: 1440, height: 1000 })
     const requests = await mockJefatura(page)
     await page.goto('/jefe-carrera/materias')
-    await page.getByRole('button', { name: /materias? en (un grupo|grupos) sin docente/ }).click()
-    await expect(page).toHaveURL(/vista=ofertas&revision=sin-docente/)
-    await expect(page.getByText('Sin docente asignado').first()).toBeVisible()
-    await expect(page.getByText(/Quién lo corrige/)).toBeVisible()
-    const filtro = page.getByLabel('Revisión de la asignación')
-    await expect(filtro).toHaveValue('sin-docente')
-    await filtro.selectOption('')
+    const revision = page.getByRole('group', { name: 'Revisión de la oferta' })
+    await revision.getByRole('button', { name: /^Sin docente/ }).click()
+    await expect(page).toHaveURL(/revision=sin-docente/)
+    await expect(revision.getByRole('button', { name: /^Sin docente/ })).toHaveAttribute('aria-pressed', 'true')
+    await expect(page.locator('.consulta-oferta').filter({ hasText: 'Sin docente' }).first()).toBeVisible()
+    await revision.getByRole('button', { name: /^Todas/ }).click()
     await expect(page).not.toHaveURL(/revision=/)
     await page.screenshot({ path: 'audit/jefatura-materias.png', fullPage: true })
-    await page.getByRole('button', { name: /materias? del ciclo sin grupo/ }).click()
+    await page.getByRole('button', { name: 'Retícula', exact: true }).click()
+    await page.getByRole('group', { name: 'Semestres de la retícula' }).getByRole('button', { name: /^Sin grupo en/ }).click()
     await expect(page).toHaveURL(/sinGrupo=1/)
     await expect(page.getByText('Sin grupo en el periodo').first()).toBeVisible()
     // Solo las del ciclo sin grupo: nada con grupo y nada de otro ciclo.
-    await expect(page.getByText(/En \d+ grupos? este periodo/)).toHaveCount(0)
+    await expect(page.locator('.consulta-oferta')).toHaveCount(0)
     await expect(page.getByText('Taller de ética')).toHaveCount(0)
 
     await page.goto('/jefe-carrera/materias/414?carrera=1&periodo=2026-B')
@@ -297,7 +297,7 @@ test.describe('jefatura de carrera', () => {
     await expect(page.getByText('No disponible').first()).toBeVisible()
     await expect(page.getByText(/Sin señales/)).toHaveCount(0)
     await page.goto('/jefe-carrera/grupos/8?carrera=1&periodo=2026-B')
-    await expect(page.getByRole('cell', { name: 'No disponible' }).first()).toBeVisible()
+    await expect(page.getByText('Unidades no disponibles').first()).toBeVisible()
   })
 
   test('auditoría F07: sin calendario no se afirma «Listas al día»', async ({ page }) => {
@@ -320,7 +320,7 @@ test.describe('jefatura de carrera', () => {
     await expect(page.getByLabel('Periodo escolar')).toHaveCount(0)
     await expect(page.getByText(/solo consulta/)).toHaveCount(0)
     await page.goto('/jefe-carrera/materias?carrera=1&periodo=2026-A&vista=reticula')
-    await expect(page.getByText('Catálogo compartido entre periodos.')).toBeVisible()
+    await expect(page.getByText(/Catálogo compartido entre periodos/)).toBeVisible()
   })
 
   test('auditoría F16: la asistencia de la reunión se confirma, no se presupone', async ({ page }) => {
@@ -353,16 +353,16 @@ test.describe('jefatura de carrera', () => {
     await page.setViewportSize({ width: 1440, height: 1000 })
     await mockJefatura(page)
     await page.goto('/jefe-carrera/grupos')
-    await page.getByPlaceholder('Buscar grupo').fill('7')
+    await page.getByPlaceholder('Buscar alumno o grupo').fill('7')
     await expect(page).toHaveURL(/q=7/)
-    await page.getByRole('link', { name: '7A', exact: true }).click()
+    await page.getByRole('link', { name: /^7A / }).click()
     await page.getByRole('link', { name: /^Alumnos/ }).click()
     await page.goBack()
     await expect(page.getByRole('link', { name: 'Resumen' })).toHaveAttribute('aria-current', 'page')
     // El enlace «← Grupos» del expediente vuelve al listado con su búsqueda.
     await page.locator('main').getByRole('link', { name: 'Grupos y alumnos', exact: true }).click()
     await expect(page).toHaveURL(/q=7/)
-    await expect(page.getByPlaceholder('Buscar grupo')).toHaveValue('7')
+    await expect(page.getByPlaceholder('Buscar alumno o grupo')).toHaveValue('7')
   })
 
   test('gráficas: tendencia en Inicio y cobertura por docente y semana', async ({ page }) => {
@@ -399,20 +399,22 @@ test.describe('jefatura de carrera', () => {
     await expect(page.getByRole('combobox', { name: /^Docente/ })).toHaveValue('37')
   })
 
-  test('riesgo: comparativo en Grupos y mapa alumno × materia', async ({ page }) => {
+  test('riesgo: fichas de Grupos y mapa alumno × materia', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 1000 })
     await mockJefatura(page)
     await page.goto('/jefe-carrera/grupos')
-    const comparativo = page.getByRole('region', { name: 'Riesgo por grupo' })
-    await expect(comparativo).toBeVisible()
-    // El grupo con más riesgo va primero y su enlace abre la pestaña Riesgo.
-    const primero = comparativo.getByRole('link').first()
-    await expect(primero).toHaveAccessibleName(/^1A, Escolarizado: 40 % en riesgo, 2 de 5 alumnos, 1 reprobando/)
-    await expect(comparativo.getByText('Calificación 2, asistencia 2, entregas 1')).toBeVisible()
+    // Cada ficha dice cuántos alumnos están en riesgo y de ellos cuántos reprueban.
+    const ficha = page.getByRole('link', { name: /^1A / })
+    await expect(ficha).toContainText('2 en riesgo')
+    await expect(ficha).toHaveAccessibleName(/2 en riesgo ?, 1 reprobando/)
+    await page.getByRole('button', { name: /^Con alumnos en riesgo/ }).click()
+    await expect(page).toHaveURL(/riesgo=1/)
+    await expect(page.getByRole('link', { name: /^5A / })).toHaveCount(0)
     await page.screenshot({ path: 'audit/jefatura-riesgo-grupos.png', fullPage: true })
     expect(await axe(page)).toEqual([])
 
-    await primero.click()
+    await ficha.click()
+    await page.getByRole('link', { name: /^Riesgo/ }).click()
     await expect(page).toHaveURL(/\/jefe-carrera\/grupos\/8\?.*tab=riesgo/)
     await expect(page.getByRole('link', { name: /^Riesgo/ })).toHaveAttribute('aria-current', 'page')
     const mapa = page.getByRole('table', { name: /Estado de cada alumno en cada materia/ })
@@ -490,10 +492,9 @@ test.describe('jefatura de carrera', () => {
     await page.goto('/jefe-carrera/materias')
     // La oferta del periodo es la vista de trabajo; la retícula es el catálogo y ahí vive «Agregar».
     await expect(page.getByRole('button', { name: 'Oferta del periodo' })).toHaveAttribute('aria-pressed', 'true')
-    await expect(page.getByText(/Materias impartidas en grupos activos de Ago–Dic 2026/)).toBeVisible()
     await expect(page.getByRole('button', { name: 'Agregar a la retícula' })).toHaveCount(0)
     await page.getByRole('button', { name: 'Retícula', exact: true }).click()
-    await expect(page.getByText('Catálogo compartido entre periodos.')).toBeVisible()
+    await expect(page.getByText(/Catálogo compartido entre periodos/)).toBeVisible()
 
     await page.getByRole('button', { name: 'Agregar a la retícula' }).click()
     const dialog = page.getByRole('dialog', { name: 'Agregar materia' })

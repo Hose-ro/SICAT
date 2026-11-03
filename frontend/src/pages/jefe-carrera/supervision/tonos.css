@@ -1,0 +1,59 @@
+/* Tonos por señal de supervisión, compartidos por Pendientes, Grupos y
+   Materias. Misma luminosidad y croma relativo en todos para que ninguno
+   grite más; el color acompaña siempre a un texto o a un icono. */
+:root {
+  --tono-fondo-l: 0.955;
+  --tono-fondo-c: 0.3;
+  --tono-tinta-l: 0.47;
+  --tono-punto-l: 0.63;
+  --tono-reprobando: oklch(0.58 0.19 25);
+  --tono-riesgo: oklch(0.76 0.15 70);
+  --tono-neutro: oklch(0.88 0.01 264);
+  --ease-salida: cubic-bezier(0.23, 1, 0.32, 1);
+}
+.dark {
+  --tono-fondo-l: 0.3;
+  --tono-fondo-c: 0.4;
+  --tono-tinta-l: 0.85;
+  --tono-punto-l: 0.72;
+  --tono-reprobando: oklch(0.66 0.19 25);
+  --tono-riesgo: oklch(0.8 0.15 72);
+  --tono-neutro: oklch(0.36 0.015 264);
+}
+[data-tono="ASISTENCIA_SIN_CAPTURA"] { --h: 264; --c: 0.16; }
+[data-tono="CALIFICACIONES_PENDIENTES"] { --h: 305; --c: 0.15; }
+[data-tono="ALUMNO_RIESGO"] { --h: 25; --c: 0.17; }
+[data-tono="ENTREGAS"] { --h: 68; --c: 0.13; }
+[data-tono="UNIDAD"] { --h: 190; --c: 0.1; }
+[data-tono="ASIGNACION"] { --h: 255; --c: 0.03; }
+
+.tono-fondo, .senal, .filtro-chip[data-tono][aria-current=true], .filtro-chip[data-tono][aria-pressed=true] {
+  background: oklch(var(--tono-fondo-l) calc(var(--c) * var(--tono-fondo-c)) var(--h));
+  color: oklch(var(--tono-tinta-l) var(--c) var(--h));
+}
+.tono-punto { width: 8px; height: 8px; flex: none; border-radius: 50%; background: oklch(var(--tono-punto-l) var(--c) var(--h)); }
+
+/* Señal: qué falta, con su cifra. */
+.senal { display: inline-flex; align-items: center; max-width: 100%; min-height: 22px; padding: 1px 8px; border-radius: 6px; font-size: .75rem; font-weight: 500; line-height: 1.35; }
+
+/* Filtro en forma de píldora; activo con aria-current (enlace) o aria-pressed (botón). */
+.filtros-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.filtros-chips-sep { width: 1px; height: 20px; margin: 0 4px; background: var(--border); }
+.filtro-chip { display: inline-flex; flex: none; align-items: center; gap: 7px; min-height: 38px; padding: 0 13px; border: 1px solid var(--border); border-radius: 999px; background: var(--card); color: var(--muted-foreground); font: inherit; font-size: .8125rem; white-space: nowrap; text-decoration: none; cursor: pointer; transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease, transform 160ms var(--ease-salida); }
+.filtro-chip:active:not(:disabled) { transform: scale(0.97); }
+.filtro-chip[data-vacio], .filtro-chip:disabled { border-style: dashed; cursor: default; }
+.filtro-chip:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.filtro-chip-n { font-size: .75rem; font-variant-numeric: tabular-nums; }
+.filtro-chip:is([aria-current=true], [aria-pressed=true]) { border-color: transparent; background: var(--foreground); color: var(--background); font-weight: 500; }
+.filtro-chip[data-tono]:is([aria-current=true], [aria-pressed=true]) { box-shadow: inset 0 0 0 1px oklch(var(--tono-punto-l) var(--c) var(--h) / .45); }
+@media (hover: hover) and (pointer: fine) {
+  .filtro-chip:not([aria-current=true]):not([aria-pressed=true]):not(:disabled):hover { color: var(--foreground); border-color: var(--muted-foreground); }
+}
+@media (max-width: 640px) {
+  .filtros-chips { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+  .filtros-chips::-webkit-scrollbar { display: none; }
+  .filtro-chip { min-height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .filtro-chip { transition-duration: 0ms; }
+}

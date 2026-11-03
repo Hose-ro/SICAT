@@ -1,0 +1,103 @@
+/* Consulta académica de jefatura: Grupos, detalle de grupo y Materias.
+   Tonos y filtros en tonos.css. */
+.consulta { container-type: inline-size; }
+.consulta-tenue { color: var(--muted-foreground); font-size: .75rem; }
+
+/* Buscador y controles */
+.consulta-controles { display: grid; gap: 12px; margin-top: 20px; }
+.consulta-fila-controles { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.consulta-buscar { position: relative; display: flex; flex: 1 1 18rem; max-width: 30rem; }
+.consulta-buscar svg { position: absolute; left: 12px; top: 50%; width: 16px; height: 16px; color: var(--muted-foreground); transform: translateY(-50%); pointer-events: none; }
+.consulta-buscar input { width: 100%; height: 44px; padding: 0 12px 0 36px; border: 1px solid var(--border); border-radius: .75rem; background: var(--card); color: var(--foreground); font: inherit; font-size: .875rem; outline: none; transition: border-color 150ms ease, box-shadow 150ms ease; }
+.consulta-buscar input:focus-visible { border-color: var(--ring); box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring) 30%, transparent); }
+
+/* Libro por semestre: la etiqueta en el margen izquierdo */
+.consulta-libro { margin-top: 24px; border-top: 1px solid var(--border); }
+.consulta-semestre { display: grid; grid-template-columns: 8rem minmax(0, 1fr); gap: 16px; padding: 20px 0; border-bottom: 1px solid var(--border); }
+.consulta-semestre-titulo { padding-top: 6px; color: var(--muted-foreground); font-size: .8125rem; font-weight: 500; }
+.consulta-semestre-accion { margin-top: 6px; }
+
+/* Fichas de grupo */
+.fichas-grupo { display: grid; grid-template-columns: repeat(auto-fill, minmax(15.5rem, 1fr)); gap: 12px; }
+.ficha-grupo { display: grid; align-content: start; gap: 12px; height: 100%; padding: 14px 16px; border: 1px solid var(--border); border-radius: 16px; background: var(--card); color: var(--foreground); text-decoration: none; transition: border-color 150ms ease, box-shadow 200ms var(--ease-salida), transform 160ms var(--ease-salida); }
+/* Gana a la regla táctil de jefatura que vuelve inline-flex los enlaces dentro de listas. */
+.consulta .fichas-grupo > li > a.ficha-grupo { display: grid; min-height: 0; align-items: initial; }
+a.ficha-grupo:active { transform: scale(0.985); }
+@media (hover: hover) and (pointer: fine) {
+  a.ficha-grupo:hover { border-color: color-mix(in oklch, var(--primary) 45%, var(--border)); box-shadow: 0 6px 18px -10px oklch(0.3 0.08 264 / .35); }
+}
+.ficha-grupo:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.ficha-grupo > *, .consulta-riesgo > *, .consulta-gmateria > *, .consulta-materia > * { min-width: 0; }
+.ficha-grupo-cabeza { display: flex; align-items: baseline; gap: 8px; }
+.ficha-grupo-nombre { font-size: 1.375rem; font-weight: 600; letter-spacing: -0.02em; }
+.ficha-grupo-alumnos { margin-left: auto; color: var(--muted-foreground); font-size: .75rem; font-variant-numeric: tabular-nums; }
+.consulta-etiqueta { padding: 1px 7px; border: 1px solid var(--border); border-radius: 6px; color: var(--muted-foreground); font-size: .6875rem; font-weight: 500; }
+.ficha-grupo-puntos { display: grid; grid-template-columns: repeat(16, 7px); gap: 4px; }
+.ficha-grupo-puntos span { width: 7px; height: 7px; border-radius: 50%; background: var(--tono-neutro); }
+.ficha-grupo-puntos span[data-estado=reprobando] { background: var(--tono-reprobando); }
+.ficha-grupo-puntos span[data-estado=riesgo] { background: var(--tono-riesgo); }
+.ficha-grupo-pie { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; min-height: 22px; font-size: .75rem; }
+.ficha-grupo-riesgo { color: var(--destructive-foreground); font-weight: 500; }
+
+/* Resultados de alumnos */
+.consulta-resultados { max-width: 44rem; margin-top: 12px; border: 1px solid var(--border); border-radius: 14px; background: var(--card); }
+.consulta-resultados li + li { border-top: 1px solid var(--border); }
+.consulta-alumno { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; min-height: 48px; padding: 8px 14px; font-size: .8125rem; }
+
+/* Materias */
+.consulta-lista > li + li { border-top: 1px solid color-mix(in oklch, var(--border) 70%, transparent); }
+.consulta-materia { display: grid; grid-template-columns: minmax(0, 17rem) minmax(0, 1fr); align-items: start; gap: 8px 24px; padding: 10px 0; }
+.consulta-materia:first-child { padding-top: 0; }
+.consulta-materia:last-child { padding-bottom: 0; }
+.consulta-nombre { color: var(--foreground); font-size: .875rem; font-weight: 500; text-decoration: none; text-underline-offset: 3px; text-decoration-color: var(--border); border-radius: 4px; }
+a.consulta-nombre:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+@media (hover: hover) and (pointer: fine) { a.consulta-nombre:hover { text-decoration-line: underline; } }
+.consulta-meta { margin-top: 2px; }
+.consulta-ofertas { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.consulta-oferta { display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 3px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--card); color: var(--foreground); font-size: .8125rem; text-decoration: none; transition: border-color 150ms ease, transform 160ms var(--ease-salida); }
+.consulta-oferta:has(.senal) { padding-right: 4px; }
+.consulta-oferta b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.consulta-oferta:active { transform: scale(0.97); }
+.consulta-oferta:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+@media (hover: hover) and (pointer: fine) { .consulta-oferta:hover { border-color: var(--muted-foreground); } }
+.consulta-falta { color: var(--warning-foreground); font-weight: 500; }
+.consulta-acciones { display: flex; align-items: center; gap: 4px; }
+
+/* Detalle de grupo */
+.consulta-atencion { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 20px; }
+.consulta-bloque { margin-top: 32px; }
+.consulta-bloque-cabeza { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; }
+.consulta-bloque-cabeza h2 { color: var(--foreground); font-size: 1rem; font-weight: 600; letter-spacing: -0.01em; }
+.consulta-bloque .consulta-lista { margin-top: 10px; border-block: 1px solid var(--border); }
+.consulta-gmateria { display: grid; grid-template-columns: minmax(0, 1fr) 11rem minmax(0, 16rem); align-items: center; gap: 6px 24px; padding: 12px 0; }
+.consulta-unidades { display: grid; gap: 5px; }
+.consulta-segmentos { display: flex; gap: 3px; }
+.consulta-segmentos span { flex: 1; height: 6px; border-radius: 3px; background: var(--tono-neutro); }
+.consulta-segmentos span[data-estado=FINALIZADA] { background: var(--primary); }
+.consulta-segmentos span[data-estado=ACTIVA] { background: color-mix(in oklch, var(--primary) 40%, var(--tono-neutro)); }
+.consulta-senales { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.consulta-criterio summary { display: inline-flex; align-items: center; gap: 4px; min-height: 32px; color: var(--muted-foreground); font-size: .75rem; cursor: pointer; list-style: none; border-radius: 6px; }
+.consulta-criterio summary::-webkit-details-marker { display: none; }
+.consulta-criterio summary svg { width: 14px; height: 14px; }
+.consulta-criterio summary:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.consulta-criterio[open] summary { color: var(--foreground); }
+.consulta-criterio p { max-width: 62ch; margin: 2px 0 6px; color: var(--muted-foreground); font-size: .8125rem; }
+.consulta-riesgo { display: grid; grid-template-columns: minmax(0, 14rem) 5rem minmax(0, 1fr); align-items: center; gap: 6px 16px; padding: 12px 0; }
+.consulta-causas { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.consulta-causa { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; max-width: 100%; }
+.consulta-motivo { padding: 1px 7px; border-radius: 6px; background: color-mix(in oklch, var(--tono-riesgo) 22%, transparent); color: var(--warning-foreground); font-size: .75rem; font-weight: 500; }
+.consulta-motivo[data-motivo=CALIFICACION_BAJA] { background: color-mix(in oklch, var(--tono-reprobando) 16%, transparent); color: var(--destructive-foreground); }
+
+@container (max-width: 700px) {
+  .consulta-semestre { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .consulta-semestre-titulo { display: flex; align-items: center; justify-content: space-between; padding-top: 0; }
+  .consulta-semestre-accion { margin-top: 0; }
+  .fichas-grupo { grid-template-columns: minmax(0, 1fr); }
+  .consulta-materia, .consulta-gmateria, .consulta-riesgo { grid-template-columns: minmax(0, 1fr); }
+  .consulta-senales { justify-content: flex-start; }
+  .consulta-buscar { max-width: none; }
+  .consulta-buscar input { font-size: 1rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ficha-grupo, .consulta-oferta { transition-duration: 0ms; }
+}

@@ -9,6 +9,7 @@ import { fechaCorta, fechaHoraCorta, haceTiempo, modalidadTexto, plural } from '
 import { TIPOS_PENDIENTE, calendariosFaltantes, conteoPorTipo, filtrarPendientes, pendientesAcademicos } from './supervision/pendientes'
 import { Aviso, Esqueleto, JefaturaPage, Pestanas, Vacio, linkClass, selectClass } from './supervision/ui'
 import { BotonSeguimiento, EstadoSeguimiento, FormSeguimiento } from './supervision/Seguimiento'
+import { FiltroChip } from './supervision/senales'
 import { TIPOS_SEGUIMIENTO, esParaHoy, useSeguimientos } from './supervision/useSeguimientos'
 import './seguimientos.css'
 
@@ -166,22 +167,12 @@ function Pendientes({ j, resumen, seguimientos }) {
 
   return (
     <section aria-labelledby="pendientes-titulo" className="pendientes mt-6">
-      <nav aria-label="Tipo de pendiente" className="pendientes-tipos">
+      <nav aria-label="Tipo de pendiente" className="filtros-chips">
         {[['', 'Todos', filtroSinTipo.length], ...Object.entries(TIPOS_PENDIENTE).map(([valor, t]) => [valor, t.corto, conteo[valor]])]
           .map(([valor, label, n]) => (
-            <Link
-              key={valor || 'todos'}
-              to={enlaceTipo(valor)}
-              aria-current={tipo === valor ? 'true' : undefined}
-              className="pendientes-tipo"
-              data-tipo={valor || undefined}
-              data-vacio={valor && !n ? '' : undefined}
-              onClick={elegirTipo}
-            >
-              {valor && <span className="pendientes-punto" aria-hidden="true" />}
+            <FiltroChip key={valor || 'todos'} to={enlaceTipo(valor)} activo={tipo === valor} tipo={valor || undefined} n={valor ? n : filtroSinTipo.length} onClick={elegirTipo}>
               {label}
-              <span className="pendientes-tipo-conteo">{n}</span>
-            </Link>
+            </FiltroChip>
           ))}
       </nav>
 
@@ -270,7 +261,7 @@ const ICONOS_PENDIENTE = {
 
 function IconoPendiente({ tipo }) {
   const Icono = ICONOS_PENDIENTE[tipo]
-  return <span className="pendientes-icono" data-tipo={tipo} aria-hidden="true"><Icono strokeWidth={1.9} /></span>
+  return <span className="pendientes-icono tono-fondo" data-tono={tipo} aria-hidden="true"><Icono strokeWidth={1.9} /></span>
 }
 
 const nombres = (lista) => lista.map((x) => x.nombre).join(', ')
@@ -350,7 +341,7 @@ function FilaPendiente({ p, j, seguimientos }) {
         <p className="pendientes-titulo">
           {d.alumno && <SexoBadge sexo={d.alumno.sexo} />}
           {d.evidencia ? <Link className="pendientes-enlace" to={d.evidencia.to} title={d.evidencia.label}>{d.titulo}</Link> : <span>{d.titulo}</span>}
-          {d.estado && <span className="pendientes-estado" data-tipo={p.tipo}>{d.estado}</span>}
+          {d.estado && <span className="senal" data-tono={p.tipo}>{d.estado}</span>}
         </p>
         <p className="pendientes-meta">{d.contexto.filter(Boolean).join(' · ')}</p>
       </div>
