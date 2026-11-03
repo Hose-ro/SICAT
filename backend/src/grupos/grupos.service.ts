@@ -59,7 +59,9 @@ export function seccionDelNombre(nombre: string, modalidad: ModalidadGrupo) {
 
 const INCLUDE_LIST = {
   carrera: { select: { id: true, nombre: true, codigo: true } },
-  _count: { select: { alumnos: true, materias: true } },
+  _count: {
+    select: { alumnos: { where: { activo: true } }, materias: true },
+  },
 };
 
 const INCLUDE_DETAIL = {
@@ -94,7 +96,9 @@ type GrupoDocentePayload = Prisma.GrupoGetPayload<{
   include: {
     carrera: { select: { id: true; nombre: true; codigo: true } };
     docentes: { select: { id: true } };
-    _count: { select: { alumnos: true; materias: true } };
+    _count: {
+      select: { alumnos: { where: { activo: true } }; materias: true };
+    };
     horarios: {
       select: {
         dias: true;
@@ -336,7 +340,9 @@ export class GruposService {
     return {
       carrera: { select: { id: true, nombre: true, codigo: true } },
       docentes: { where: { id: docenteId }, select: { id: true } },
-      _count: { select: { alumnos: true, materias: true } },
+      _count: {
+        select: { alumnos: { where: { activo: true } }, materias: true },
+      },
       horarios: {
         where: { docenteId, activo: true },
         select: {

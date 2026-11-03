@@ -14,6 +14,7 @@ import {
 import { PrismaService } from '../prisma.service';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import { asegurarCarreraDeJefe } from '../common/materia-ownership';
+import { horarioVigente, usuarioActivo } from '../common/usuarios-activos';
 import { instanteEnZona, partesEnZona } from '../common/zona-horaria.util';
 import { construirEventoUnico } from '../calendario/ics';
 import {
@@ -48,10 +49,14 @@ const reunionInclude = {
     orderBy: { formato: 'asc' },
   },
   convocados: {
+    // Un docente desactivado cuenta como eliminado: ni aparece ni se le pide
+    // asistencia en el acta.
+    where: { docente: usuarioActivo },
     include: { docente: { select: docenteCampos } },
     orderBy: { docente: { nombre: 'asc' } },
   },
   clasesJustificadas: {
+    where: { docente: usuarioActivo },
     select: {
       docenteId: true,
       motivo: true,
@@ -158,7 +163,11 @@ export class ReunionesService {
         rol: 'DOCENTE',
         activo: true,
         OR: [
-          { horariosDocente: { some: { activo: true, grupo: grupoActivo } } },
+          {
+            horariosDocente: {
+              some: { ...horarioVigente, grupo: grupoActivo },
+            },
+          },
           {
             docenteMaterias: {
               some: { carreraId, grupos: { some: grupoActivo } },

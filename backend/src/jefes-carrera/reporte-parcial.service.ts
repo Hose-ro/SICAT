@@ -13,6 +13,7 @@ import { join } from 'node:path';
 import { CalificacionesService } from '../calificaciones/calificaciones.service';
 import { CALIFICACION_APROBATORIA } from '../common/desempeno.util';
 import { getCurrentAcademicPeriod } from '../common/periodo.util';
+import { horarioVigente, usuarioActivo } from '../common/usuarios-activos';
 import { PrismaService } from '../prisma.service';
 import type { ReporteParcialQueryDto } from './dto/reporte-parcial.dto';
 import {
@@ -443,7 +444,7 @@ export class ReporteParcialService {
     );
     const [horarios, materias] = await Promise.all([
       this.prisma.horarioMateria.findMany({
-        where: { activo: true, grupoId: { in: grupoIds } },
+        where: { ...horarioVigente, grupoId: { in: grupoIds } },
         select: {
           docente: { select: { id: true, nombre: true } },
           grupoId: true,
@@ -452,7 +453,7 @@ export class ReporteParcialService {
       this.prisma.materia.findMany({
         where: {
           carreraId: { in: carreraIds },
-          docenteId: { not: null },
+          docente: usuarioActivo,
           grupos: { some: { id: { in: grupoIds } } },
         },
         select: {

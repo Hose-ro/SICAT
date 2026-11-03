@@ -13,6 +13,7 @@ import { UpdateHorarioDto } from './dto/update-horario.dto';
 import { ValidarConflictoHorarioDto } from './dto/validar-conflicto-horario.dto';
 import { hayConflictoHorario } from './utils/conflicto-horario.util';
 import { inscribirAlumnosDelGrupo } from '../common/inscripciones-grupo';
+import { horarioVigente } from '../common/usuarios-activos';
 
 const ORDEN_DIAS: Record<string, number> = {
   lunes: 1,
@@ -160,7 +161,7 @@ export class HorariosService {
         ...(filters.docenteId ? { docenteId: filters.docenteId } : {}),
         ...(filters.aulaId ? { aulaId: filters.aulaId } : {}),
         ...(filters.grupoId ? { grupoId: filters.grupoId } : {}),
-        activo: filters.activo ?? true,
+        ...((filters.activo ?? true) ? horarioVigente : { activo: false }),
       },
       include: HORARIO_INCLUDE,
     });
@@ -520,7 +521,7 @@ export class HorariosService {
 
   obtenerMateriasSinDocente() {
     return this.prisma.materia.findMany({
-      where: { horarios: { none: { activo: true } } },
+      where: { horarios: { none: horarioVigente } },
       include: {
         aula: true,
         carrera: { select: { id: true, nombre: true } },
@@ -1048,7 +1049,7 @@ export class HorariosService {
       where: {
         materiaId: payload.materiaId,
         grupoId: payload.grupoId,
-        activo: true,
+        ...horarioVigente,
         docenteId: { not: payload.docenteId },
         ...(ignorados.length > 0 ? { id: { notIn: ignorados } } : {}),
       },
@@ -1097,7 +1098,7 @@ export class HorariosService {
           : [ignorarHorarioId];
 
     const where: Prisma.HorarioMateriaWhereInput = {
-      activo: true,
+      ...horarioVigente,
       ...(ignorados.length > 0 ? { id: { notIn: ignorados } } : {}),
       ...(tipo === 'docente'
         ? { docenteId: entidadId }

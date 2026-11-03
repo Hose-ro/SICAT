@@ -7,7 +7,7 @@ describe('SupervisionService - catálogos de jefatura', () => {
     nombre: 'Redes',
     clave: 'ISC-10',
     semestre: 7,
-    docente: { id: 4, nombre: 'Docente', email: null },
+    docente: { id: 4, nombre: 'Docente', email: null, activo: true },
     unidades: [],
     grupos: [
       {
@@ -71,6 +71,7 @@ describe('SupervisionService - catálogos de jefatura', () => {
           horarios: expect.objectContaining({
             where: {
               activo: true,
+              docente: { activo: true },
               grupo: { carreraId: 1, activo: true },
             },
           }),
@@ -81,6 +82,21 @@ describe('SupervisionService - catálogos de jefatura', () => {
     expect(ofertas[0].docentes).toEqual([
       expect.objectContaining({ id: 4, nombre: 'Docente' }),
     ]);
+  });
+
+  it('un titular desactivado deja la oferta sin docente', async () => {
+    const { prisma, service } = crearServicio();
+    prisma.materia.findMany.mockResolvedValue([
+      {
+        ...materia,
+        docente: { ...materia.docente, id: 5, activo: false },
+        horarios: [],
+      },
+    ]);
+
+    const ofertas = await (service as any).ofertas(1);
+
+    expect(ofertas[0].docentes).toEqual([]);
   });
 
   it('incluye etiquetas institucionales equivalentes en el periodo de supervisión', async () => {

@@ -7,6 +7,11 @@ import {
 import { Prisma, TipoAlertaCarrera } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { getCurrentAcademicPeriod } from '../common/periodo.util';
+import {
+  docenteVigente,
+  horarioVigente,
+  usuarioActivo,
+} from '../common/usuarios-activos';
 import { formatearFechaClave, parsearFechaClave } from '../clases/clases.utils';
 import { RegistrarSeguimientoDto } from './dto/seguimiento.dto';
 import {
@@ -22,7 +27,7 @@ import {
 type Consulta = { carreraId: number; periodo?: string };
 
 const seguimientoInclude = {
-  responsable: { select: { id: true, nombre: true } },
+  responsable: { select: { id: true, nombre: true, activo: true } },
   notas: {
     orderBy: { createdAt: 'asc' },
     include: { autor: { select: { id: true, nombre: true } } },
@@ -88,7 +93,32 @@ export class SeguimientosService {
       },
       include: seguimientoInclude,
     });
-    return seguimientos.map((s) => this.presentar(s)).sort(ordenSeguimientos);
+    const alumnoIds = seguimientos
+      .filter((s) => s.referenciaTipo === 'Alumno')
+      .flatMap((s) => (s.referenciaId ? [s.referenciaId] : []));
+    const alumnosInactivos = new Set(
+      alumnoIds.length
+        ? (
+            await this.prisma.usuario.findMany({
+              where: { activo: false, id: { in: alumnoIds } },
+              select: { id: true },
+            })
+          ).map((u) => u.id)
+        : [],
+    );
+    // Las clases y observaciones de un docente desactivado, y las de un
+    // alumno desactivado, ya no cuentan.
+    const vigente = (s: SeguimientoDb) =>
+      s.referenciaTipo === 'Alumno'
+        ? !alumnosInactivos.has(s.referenciaId ?? 0)
+        : !(
+            ['Clase', 'Docente'].includes(s.referenciaTipo ?? '') &&
+            s.responsable?.activo === false
+          );
+    return seguimientos
+      .filter(vigente)
+      .map((s) => this.presentar(s))
+      .sort(ordenSeguimientos);
   }
 
   async registrar(
@@ -229,6 +259,7 @@ export class SeguimientosService {
         const horario = await this.prisma.horarioMateria.findFirst({
           where: {
             id: dto.horarioId,
+            docente: usuarioActivo,
             materia: { carreraId },
             grupo: { id: { in: grupoIds }, carreraId },
           },
@@ -251,7 +282,12 @@ export class SeguimientosService {
       case 'ALUMNO_RIESGO': {
         if (!dto.alumnoId) throw new BadRequestException('Indica el alumno');
         const alumno = await this.prisma.usuario.findFirst({
-          where: { id: dto.alumnoId, rol: 'ALUMNO', carreraId },
+          where: {
+            id: dto.alumnoId,
+            rol: 'ALUMNO',
+            carreraId,
+            ...usuarioActivo,
+          },
           select: {
             id: true,
             nombre: true,
@@ -293,8 +329,9 @@ export class SeguimientosService {
               id: true,
               nombre: true,
               docenteId: true,
+              docente: { select: { activo: true } },
               horarios: {
-                where: { grupoId: dto.grupoId, activo: true },
+                where: { grupoId: dto.grupoId, ...horarioVigente },
                 select: { docenteId: true },
                 take: 1,
               },
@@ -316,7 +353,8 @@ export class SeguimientosService {
           referenciaTipo: 'Oferta',
           referenciaId: materia.id,
           responsableId:
-            materia.horarios[0]?.docenteId ?? materia.docenteId ?? null,
+            materia.horarios[0]?.docenteId ??
+            (materia.docente?.activo ? materia.docenteId : null),
         };
       }
       case 'SEGUIMIENTO_DOCENTE': {
@@ -325,6 +363,7 @@ export class SeguimientosService {
           where: {
             id: dto.docenteId,
             rol: 'DOCENTE',
+            ...usuarioActivo,
             OR: [
               {
                 horariosDocente: {
@@ -372,7 +411,7 @@ export class SeguimientosService {
       fechaRevision: s.fechaSeguimiento
         ? formatearFechaClave(s.fechaSeguimiento)
         : null,
-      responsable: s.responsable,
+      responsable: docenteVigente(s.responsable),
       referencia: leerHuella(s.fingerprint),
       creadoEn: s.createdAt.toISOString(),
       actualizadoEn: s.updatedAt.toISOString(),

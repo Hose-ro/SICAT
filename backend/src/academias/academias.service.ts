@@ -5,11 +5,13 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { usuarioActivo } from '../common/usuarios-activos';
 import { CreateAcademiaDto } from './dto/create-academia.dto';
 import { UpdateAcademiaDto } from './dto/update-academia.dto';
 
 const INCLUDE_DETAIL = {
   docentes: {
+    where: usuarioActivo,
     select: { id: true, avatar: true, nombre: true, email: true },
   },
   materias: { select: { id: true, nombre: true, clave: true, semestre: true } },
@@ -31,7 +33,11 @@ export class AcademiasService {
   findAll() {
     return this.prisma.academia.findMany({
       where: { activo: true },
-      include: { _count: { select: { docentes: true, materias: true } } },
+      include: {
+        _count: {
+          select: { docentes: { where: usuarioActivo }, materias: true },
+        },
+      },
       orderBy: { nombre: 'asc' },
     });
   }
@@ -175,6 +181,7 @@ export class AcademiasService {
       where: { id: academiaId },
       include: {
         docentes: {
+          where: usuarioActivo,
           select: { id: true, avatar: true, nombre: true, email: true },
         },
       },

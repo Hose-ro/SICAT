@@ -1915,7 +1915,8 @@ function AdminAsistenciasView() {
       obtenerHistorial({}),
     ])
       .then(([docentesRes, gruposRes]) => {
-        setDocentes(docentesRes.data)
+        // Un docente desactivado cuenta como eliminado: no se ofrece.
+        setDocentes(docentesRes.data.filter((docente) => docente.activo))
         setGrupos(gruposRes.data)
       })
       .catch(() => {})

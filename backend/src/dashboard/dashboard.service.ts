@@ -5,6 +5,7 @@ import {
   EstadoRevision,
   EstadoTarea,
   EstadoUnidad,
+  Prisma,
   Rol,
 } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
@@ -21,6 +22,7 @@ import {
   materiasDelDocenteWhere,
 } from '../common/materia-ownership';
 import { gruposDelDocenteWhere } from '../common/grupo-ownership';
+import { horarioVigente, usuarioActivo } from '../common/usuarios-activos';
 import {
   getAcademicPeriodStart,
   getCurrentAcademicPeriod,
@@ -162,6 +164,7 @@ export class DashboardService {
       // periodo en curso.
       this.prisma.asistencia.findMany({
         where: {
+          alumno: usuarioActivo,
           claseSesion: {
             docenteId,
             fecha: { gte: getAcademicPeriodStart() },
@@ -175,6 +178,7 @@ export class DashboardService {
       }),
       this.prisma.entregaTarea.findMany({
         where: {
+          alumno: usuarioActivo,
           tarea: { docenteId },
           estadoRevision: { in: REVISIONES_SIN_CALIFICAR },
         },
@@ -188,6 +192,7 @@ export class DashboardService {
           estado: 'ACEPTADA',
           periodo,
           materia: materiasActivas,
+          alumno: usuarioActivo,
         },
         select: { materiaId: true, grupoId: true, alumnoId: true },
       }),
@@ -202,7 +207,7 @@ export class DashboardService {
         select: {
           id: true,
           nombre: true,
-          _count: { select: { alumnos: true } },
+          _count: { select: { alumnos: { where: usuarioActivo } } },
         },
         orderBy: { nombre: 'asc' },
       }),
@@ -525,6 +530,13 @@ export class DashboardService {
    */
   async obtenerPanelAdmin() {
     const periodo = getCurrentAcademicPeriod();
+    // Un docente desactivado cuenta como eliminado: su materia queda sin
+    // docente y sus horarios dejan de contar.
+    const materiaIncompleta: Prisma.MateriaWhereInput[] = [
+      { docenteId: null },
+      { docente: { activo: false } },
+      { horarios: { none: horarioVigente } },
+    ];
     const inicioDeHoy = new Date();
     inicioDeHoy.setHours(0, 0, 0, 0);
     const inicioDeManana = new Date(inicioDeHoy);
@@ -579,15 +591,15 @@ export class DashboardService {
       // es trabajo pendiente del admin, no una métrica.
       this.prisma.materia.findMany({
         where: {
-          OR: [{ docenteId: null }, { horarios: { none: { activo: true } } }],
+          OR: materiaIncompleta,
         },
         select: {
           id: true,
           nombre: true,
           clave: true,
-          docenteId: true,
+          docente: { select: { activo: true } },
           carrera: { select: { nombre: true } },
-          _count: { select: { horarios: { where: { activo: true } } } },
+          _count: { select: { horarios: { where: horarioVigente } } },
         },
         orderBy: { nombre: 'asc' },
         take: 6,
@@ -595,9 +607,7 @@ export class DashboardService {
     ]);
 
     const totalMateriasIncompletas = await this.prisma.materia.count({
-      where: {
-        OR: [{ docenteId: null }, { horarios: { none: { activo: true } } }],
-      },
+      where: { OR: materiaIncompleta },
     });
 
     return {
@@ -620,7 +630,7 @@ export class DashboardService {
         nombre: materia.nombre,
         clave: materia.clave,
         carrera: materia.carrera?.nombre ?? null,
-        sinDocente: materia.docenteId === null,
+        sinDocente: !materia.docente?.activo,
         sinHorario: materia._count.horarios === 0,
       })),
       totalMateriasIncompletas,

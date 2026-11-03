@@ -24,7 +24,9 @@ function alertaGuardada(extra: Record<string, unknown> = {}) {
     mensaje: 'Acuerdos y revisiones con el docente',
     estado: 'EN_SEGUIMIENTO',
     fechaSeguimiento: null,
-    responsable: { id: 41, nombre: 'Laura Méndez' },
+    referenciaTipo: 'Docente',
+    referenciaId: 41,
+    responsable: { id: 41, nombre: 'Laura Méndez', activo: true },
     createdAt: ahora,
     updatedAt: ahora,
     notas: [
@@ -58,7 +60,7 @@ function crear() {
       findFirst: jest.fn(),
       findUniqueOrThrow: jest.fn().mockResolvedValue(alertaGuardada()),
     },
-    usuario: { findFirst: jest.fn() },
+    usuario: { findFirst: jest.fn(), findMany: jest.fn() },
     horarioMateria: { findFirst: jest.fn() },
     grupo: {
       findMany: jest.fn().mockResolvedValue([
@@ -124,9 +126,50 @@ describe('SeguimientosService', () => {
     );
     expect(lista[0]).toMatchObject({
       abierto: true,
+      responsable: { id: 41, nombre: 'Laura Méndez' },
       referencia: { tipo: 'SEGUIMIENTO_DOCENTE', docenteId: 41 },
       notas: [{ autor: 'Jefa', texto: 'Hablé con la docente' }],
     });
+    expect(prisma.usuario.findMany).not.toHaveBeenCalled();
+  });
+
+  it('oculta los casos de docentes y alumnos desactivados', async () => {
+    const { service, prisma } = crear();
+    prisma.alertaCarrera.findMany.mockResolvedValue([
+      alertaGuardada({
+        id: 1,
+        responsable: { id: 41, nombre: 'Laura Méndez', activo: false },
+      }),
+      alertaGuardada({
+        id: 2,
+        referenciaTipo: 'Alumno',
+        referenciaId: 8,
+        responsable: null,
+      }),
+      alertaGuardada({
+        id: 3,
+        referenciaTipo: 'Alumno',
+        referenciaId: 9,
+        responsable: null,
+      }),
+      alertaGuardada({
+        id: 4,
+        referenciaTipo: 'Oferta',
+        referenciaId: 2,
+        responsable: { id: 41, nombre: 'Laura Méndez', activo: false },
+      }),
+    ]);
+    prisma.usuario.findMany.mockResolvedValue([{ id: 8 }]);
+
+    const lista = await service.listar(9, { carreraId: 3, periodo });
+
+    expect(prisma.usuario.findMany).toHaveBeenCalledWith({
+      where: { activo: false, id: { in: [8, 9] } },
+      select: { id: true },
+    });
+    expect(lista.map((s) => s.id).sort()).toEqual([3, 4]);
+    // La oferta sigue, pero ya sin el docente desactivado como responsable.
+    expect(lista.find((s) => s.id === 4)?.responsable).toBeNull();
   });
 
   it('los periodos anteriores son de solo consulta', async () => {

@@ -7,6 +7,7 @@ import {
   TipoTokenAuth,
 } from '@prisma/client';
 import { createHash, randomBytes } from 'crypto';
+import { horarioVigente } from '../common/usuarios-activos';
 import { PrismaService } from '../prisma.service';
 import { PeriodosService } from '../periodos/periodos.service';
 import { MODALIDADES, modalidadDeHorario } from '../common/modalidad.util';
@@ -160,7 +161,7 @@ export class CalendarioService {
         })
       : usuario.grupoId
         ? await this.prisma.horarioMateria.findMany({
-            where: { grupoId: usuario.grupoId, activo: true },
+            where: { grupoId: usuario.grupoId, ...horarioVigente },
             select: HORARIO_SELECT,
           })
         : [];

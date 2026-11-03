@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
+import { docenteVigente } from '../common/usuarios-activos';
 import { PrismaService } from '../prisma.service';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import { UsuariosService } from '../usuarios/usuarios.service';
@@ -40,7 +41,22 @@ const ALUMNO_PUBLICO = {
     sexo: true,
   },
 } as const;
-const DOCENTE_PUBLICO = { select: { id: true, nombre: true } } as const;
+const DOCENTE_PUBLICO = {
+  select: { id: true, nombre: true, activo: true },
+} as const;
+
+/** El alumno no ve como titular a un docente desactivado. */
+function sinDocenteInactivo<
+  T extends { materia: { docente: { activo: boolean } | null } },
+>(inscripciones: T[]) {
+  return inscripciones.map((inscripcion) => ({
+    ...inscripcion,
+    materia: {
+      ...inscripcion.materia,
+      docente: docenteVigente(inscripcion.materia.docente),
+    },
+  }));
+}
 
 @Injectable()
 export class InscripcionesService {
@@ -95,11 +111,13 @@ export class InscripcionesService {
   }
 
   async obtenerMisSolicitudes(alumnoId: number) {
-    return this.prisma.inscripcion.findMany({
-      where: { alumnoId },
-      include: { materia: { include: { docente: DOCENTE_PUBLICO } } },
-      orderBy: { createdAt: 'desc' },
-    });
+    return sinDocenteInactivo(
+      await this.prisma.inscripcion.findMany({
+        where: { alumnoId },
+        include: { materia: { include: { docente: DOCENTE_PUBLICO } } },
+        orderBy: { createdAt: 'desc' },
+      }),
+    );
   }
 
   async obtenerPendientes(docenteId: number) {
@@ -646,13 +664,15 @@ export class InscripcionesService {
 
   async obtenerMisMaterias(alumnoId: number, periodo?: string) {
     const periodoNormalizado = normalizeAcademicPeriod(periodo);
-    return this.prisma.inscripcion.findMany({
-      where: {
-        alumnoId,
-        estado: 'ACEPTADA',
-        periodo: periodoNormalizado,
-      },
-      include: { materia: { include: { docente: DOCENTE_PUBLICO } } },
-    });
+    return sinDocenteInactivo(
+      await this.prisma.inscripcion.findMany({
+        where: {
+          alumnoId,
+          estado: 'ACEPTADA',
+          periodo: periodoNormalizado,
+        },
+        include: { materia: { include: { docente: DOCENTE_PUBLICO } } },
+      }),
+    );
   }
 }

@@ -5,6 +5,7 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { ModalidadGrupo, Rol } from '@prisma/client';
+import { horarioVigente } from '../common/usuarios-activos';
 import { PrismaService } from '../prisma.service';
 import {
   formatearFechaClave,
@@ -566,7 +567,7 @@ export class PeriodosService {
     };
     const horarios = alumno?.grupoId
       ? await this.prisma.horarioMateria.findMany({
-          where: { grupoId: alumno.grupoId, activo: true },
+          where: { grupoId: alumno.grupoId, ...horarioVigente },
           select: {
             id: true,
             docenteId: true,

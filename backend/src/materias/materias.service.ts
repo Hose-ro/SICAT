@@ -17,10 +17,18 @@ import {
   materiasDelDocenteWhere,
 } from '../common/materia-ownership';
 import { estadoSegunFechas, unidadesIniciales } from '../common/unidades.util';
+import { docenteVigente, usuarioActivo } from '../common/usuarios-activos';
 import { ActualizarUnidadesDto } from './dto/actualizar-unidades.dto';
 import { CreateMateriaDto } from './dto/create-materia.dto';
 import { UpdateMateriaDto } from './dto/update-materia.dto';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
+
+/** Un docente desactivado no figura como titular: la materia queda sin docente. */
+function conTitularVigente<T extends { docente: { activo: boolean } | null }>(
+  materia: T,
+) {
+  return { ...materia, docente: docenteVigente(materia.docente) };
+}
 
 @Injectable()
 export class MateriasService {
@@ -80,8 +88,8 @@ export class MateriasService {
     return this.findOne(materia.id);
   }
 
-  findAll(carreraId?: number, semestre?: number, docenteId?: number) {
-    return this.prisma.materia.findMany({
+  async findAll(carreraId?: number, semestre?: number, docenteId?: number) {
+    const materias = await this.prisma.materia.findMany({
       where: {
         ...(carreraId && { carreraId }),
         ...(semestre && { semestre }),
@@ -94,6 +102,7 @@ export class MateriasService {
         docente: {
           select: {
             id: true,
+            activo: true,
             nombre: true,
             email: true,
             academias: { select: { id: true, nombre: true } },
@@ -113,6 +122,7 @@ export class MateriasService {
       },
       orderBy: { nombre: 'asc' },
     });
+    return materias.map(conTitularVigente);
   }
 
   async findForAlumno(alumnoId: number) {
@@ -131,6 +141,7 @@ export class MateriasService {
               docente: {
                 select: {
                   id: true,
+                  activo: true,
                   nombre: true,
                   email: true,
                   academias: { select: { id: true, nombre: true } },
@@ -152,7 +163,7 @@ export class MateriasService {
           },
         },
       });
-      return grupo?.materias ?? [];
+      return (grupo?.materias ?? []).map(conTitularVigente);
     }
 
     // Fallback: filter by carrera+semestre from profile
@@ -160,12 +171,13 @@ export class MateriasService {
     if (alumno?.carreraId) where.carreraId = alumno.carreraId;
     if (alumno?.semestre) where.semestre = alumno.semestre;
 
-    return this.prisma.materia.findMany({
+    const materias = await this.prisma.materia.findMany({
       where: Object.keys(where).length > 0 ? where : undefined,
       include: {
         docente: {
           select: {
             id: true,
+            activo: true,
             nombre: true,
             email: true,
             academias: { select: { id: true, nombre: true } },
@@ -185,6 +197,7 @@ export class MateriasService {
       },
       orderBy: { nombre: 'asc' },
     });
+    return materias.map(conTitularVigente);
   }
 
   /**
@@ -209,7 +222,7 @@ export class MateriasService {
           clave: true,
           semestre: true,
           carreraId: true,
-          docente: { select: { id: true, nombre: true } },
+          docente: { select: { id: true, nombre: true, activo: true } },
         },
         orderBy: { nombre: 'asc' },
       }),
@@ -223,10 +236,13 @@ export class MateriasService {
       reticula.map((materia) => [materia.clave, materia.semestre]),
     );
 
-    return materias.filter((materia) => {
-      const semestre = materia.semestre ?? semestrePorClave.get(materia.clave);
-      return semestre === grupo.semestre;
-    });
+    return materias
+      .filter((materia) => {
+        const semestre =
+          materia.semestre ?? semestrePorClave.get(materia.clave);
+        return semestre === grupo.semestre;
+      })
+      .map(conTitularVigente);
   }
 
   /**
@@ -290,6 +306,7 @@ export class MateriasService {
         docente: {
           select: {
             id: true,
+            activo: true,
             nombre: true,
             email: true,
             academias: { select: { id: true, nombre: true } },
@@ -312,7 +329,7 @@ export class MateriasService {
           orderBy: { fecha: 'desc' },
         },
         inscripciones: {
-          where: { estado: 'ACEPTADA' },
+          where: { estado: 'ACEPTADA', alumno: usuarioActivo },
           include: {
             alumno: {
               select: {
@@ -339,7 +356,7 @@ export class MateriasService {
     // El detalle de la materia muestra el estado de cada unidad: se deriva de
     // sus fechas, igual que en UnidadesService, para que nunca se contradigan.
     return {
-      ...materia,
+      ...conTitularVigente(materia),
       unidades: materia.unidades?.map((unidad) => ({
         ...unidad,
         status: estadoSegunFechas(unidad.fechaInicio, unidad.fechaFin),
@@ -354,6 +371,7 @@ export class MateriasService {
         docente: {
           select: {
             id: true,
+            activo: true,
             nombre: true,
             academias: { select: { id: true, nombre: true } },
           },
@@ -373,7 +391,7 @@ export class MateriasService {
     });
     if (!materia)
       throw new NotFoundException('Materia no encontrada con esa clave');
-    return materia;
+    return conTitularVigente(materia);
   }
 
   async update(id: number, dto: UpdateMateriaDto, actor?: ActorMateria) {

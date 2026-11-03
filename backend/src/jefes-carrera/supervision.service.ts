@@ -10,6 +10,11 @@ import { PrismaService } from '../prisma.service';
 import { CalificacionesService } from '../calificaciones/calificaciones.service';
 import { getCurrentAcademicPeriod } from '../common/periodo.util';
 import {
+  docenteVigente,
+  horarioVigente,
+  usuarioActivo,
+} from '../common/usuarios-activos';
+import {
   combinarFechaYHora,
   formatearFechaClave,
   horarioAplicaEnFecha,
@@ -215,14 +220,14 @@ export class SupervisionService {
         grupos: { some: gruposActivos },
       },
       include: {
-        docente: { select: persona },
+        docente: { select: { ...persona, activo: true } },
         unidades: { orderBy: { orden: 'asc' } },
         grupos: {
           where: gruposActivos,
           select: grupoCampos,
         },
         horarios: {
-          where: { activo: true, grupo: gruposActivos },
+          where: { ...horarioVigente, grupo: gruposActivos },
           include: horarioInclude,
         },
       },
@@ -231,11 +236,12 @@ export class SupervisionService {
     return materias.flatMap((m) =>
       m.grupos.map((grupo) => {
         const horarios = m.horarios.filter((h) => h.grupoId === grupo.id);
+        const titular = docenteVigente(m.docente);
         const docentes = [
           ...new Map(
             [
               ...horarios.map((h) => h.docente),
-              ...(m.docente ? [m.docente] : []),
+              ...(titular ? [titular] : []),
             ].map((d) => [d.id, d]),
           ).values(),
         ];
@@ -613,7 +619,7 @@ export class SupervisionService {
     ] = await Promise.all([
       this.prisma.horarioMateria.findMany({
         where: {
-          activo: true,
+          ...horarioVigente,
           ...(filtros.docenteId ? { docenteId: filtros.docenteId } : {}),
           ...(filtros.grupoId ? { grupoId: filtros.grupoId } : {}),
           materia: { carreraId: consulta.carreraId },
@@ -663,6 +669,7 @@ export class SupervisionService {
           periodoClave: periodo,
           fecha: { gte: desde, lte: hasta },
           docente: {
+            ...usuarioActivo,
             horariosDocente: {
               some: {
                 activo: true,
@@ -809,7 +816,11 @@ export class SupervisionService {
   ) {
     await this.alcance(usuarioId, consulta.carreraId);
     const sesion = await this.prisma.claseSesion.findFirst({
-      where: { id: sesionId, materia: { carreraId: consulta.carreraId } },
+      where: {
+        id: sesionId,
+        materia: { carreraId: consulta.carreraId },
+        docente: usuarioActivo,
+      },
       include: {
         materia: { select: { id: true, nombre: true, clave: true } },
         docente: { select: { id: true, nombre: true, email: true } },
@@ -821,6 +832,7 @@ export class SupervisionService {
           },
         },
         asistencias: {
+          where: { alumno: usuarioActivo },
           include: {
             alumno: {
               select: {
@@ -1089,7 +1101,7 @@ export class SupervisionService {
             where: {
               materiaId: dto.materiaId,
               grupoId: dto.grupoId,
-              activo: true,
+              ...horarioVigente,
             },
           });
           if (!destino.length)
@@ -1098,7 +1110,7 @@ export class SupervisionService {
             );
           const horariosActuales = await tx.horarioMateria.findMany({
             where: {
-              activo: true,
+              ...horarioVigente,
               OR: actuales.map((i) => ({
                 materiaId: i.materiaId,
                 grupoId: i.grupoId ?? alumno.grupoId,

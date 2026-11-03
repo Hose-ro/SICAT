@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { EstadoAsistencia, Sexo, TipoNotificacion } from '@prisma/client';
 import { estaEnRiesgo } from '../common/riesgo.util';
+import { horarioVigente } from '../common/usuarios-activos';
 import { PrismaService } from '../prisma.service';
 import { PasarListaDto } from './dto/pasar-lista.dto';
 import { ActualizarAsistenciaDto } from './dto/actualizar-asistencia.dto';
@@ -413,7 +414,7 @@ export class AsistenciasService {
 
     const horarios = alumno?.grupoId
       ? await this.prisma.horarioMateria.findMany({
-          where: { materiaId, grupoId: alumno.grupoId, activo: true },
+          where: { materiaId, grupoId: alumno.grupoId, ...horarioVigente },
           select: {
             id: true,
             docenteId: true,
@@ -1289,7 +1290,7 @@ export class AsistenciasService {
     const docenteScope = actor.rol === 'ADMIN' ? filters.docenteId : actor.id;
     const horarios = await this.prisma.horarioMateria.findMany({
       where: {
-        activo: true,
+        ...horarioVigente,
         ...(docenteScope ? { docenteId: docenteScope } : {}),
         ...(filters.materiaId ? { materiaId: filters.materiaId } : {}),
         ...(filters.grupoId ? { grupoId: filters.grupoId } : {}),
