@@ -25,7 +25,8 @@ test.describe('jefatura: pendientes y seguimiento', () => {
     await expect(page.getByRole('link', { name: 'Por atender' })).toHaveAttribute('aria-current', 'page')
     // Hay pendientes aunque no exista ninguna observación: se dice que no están documentados.
     await expect(page.getByText('Sin observación registrada').first()).toBeVisible()
-    await expect(page.getByText(/Una observación documenta el seguimiento, pero no quita el pendiente/)).toBeVisible()
+    await expect(page.getByText(/Una observación documenta el seguimiento, pero no quita el pendiente/)).toHaveCount(0)
+    await expect(page.getByText('Lo que requiere atención en el periodo y las observaciones que registras sobre cada caso.')).toHaveCount(0)
     await page.screenshot({ path: `${EVIDENCIA}/bandeja-escritorio-claro.png`, fullPage: true })
     expect(await axe(page)).toEqual([])
 
@@ -104,8 +105,9 @@ test.describe('jefatura: pendientes y seguimiento', () => {
     // Filtros sin resultados se distinguen de una carrera sin pendientes.
     await page.goto('/jefe-carrera/seguimientos?carrera=1&periodo=2026-B&grupo=13&tipo=CALIFICACIONES_PENDIENTES')
     await expect(page.getByText('Ningún pendiente coincide con los filtros')).toBeVisible()
-    await page.getByRole('button', { name: 'Quitar filtros' }).first().click()
+    await page.getByRole('button', { name: 'Restablecer filtros' }).first().click()
     await expect(page).not.toHaveURL(/grupo=13/)
+    await expect(page).toHaveURL(/tipo=CALIFICACIONES_PENDIENTES/)
   })
 
   test('periodo histórico: consulta sin registrar observaciones', async ({ page }) => {

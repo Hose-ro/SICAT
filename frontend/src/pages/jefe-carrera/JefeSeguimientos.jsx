@@ -10,6 +10,7 @@ import { TIPOS_PENDIENTE, calendariosFaltantes, conteoPorTipo, filtrarPendientes
 import { Aviso, Esqueleto, JefaturaPage, Pestanas, Vacio, linkClass, selectClass } from './supervision/ui'
 import { BotonSeguimiento, EstadoSeguimiento, FormSeguimiento } from './supervision/Seguimiento'
 import { TIPOS_SEGUIMIENTO, esParaHoy, useSeguimientos } from './supervision/useSeguimientos'
+import './seguimientos.css'
 
 const VISTAS = [
   { value: 'abiertos', label: 'Abiertos', filtro: (s) => s.abierto },
@@ -91,7 +92,7 @@ const TONO_CAUSA = { pendiente: 'text-warning-foreground', resuelto: 'text-succe
 
 export default function JefeSeguimientos() {
   return (
-    <JefaturaPage titulo="Pendientes y seguimiento" subtitulo="Lo que requiere atención en el periodo y las observaciones que registras sobre cada caso.">
+    <JefaturaPage titulo="Pendientes y seguimiento">
       {({ j, resumen }) => <Contenido j={j} resumen={resumen} />}
     </JefaturaPage>
   )
@@ -162,39 +163,51 @@ function Pendientes({ j, resumen, seguimientos }) {
 
   return (
     <section aria-labelledby="pendientes-titulo" className="mt-6">
-      <nav aria-label="Tipo de pendiente" className="flex flex-wrap gap-2">
-        {[['', 'Todos', null], ...Object.entries(TIPOS_PENDIENTE).map(([valor, t]) => [valor, t.corto, conteo[valor]])]
-          .filter(([valor, , n]) => !valor || n > 0 || valor === tipo)
-          .map(([valor, label, n]) => (
-            <Link
-              key={valor || 'todos'}
-              to={enlaceTipo(valor)}
-              aria-current={tipo === valor ? 'true' : undefined}
-              className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-border bg-card px-3.5 text-[0.8125rem] text-foreground transition-colors duration-150 hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40 aria-[current=true]:border-primary/50 aria-[current=true]:bg-accent aria-[current=true]:font-medium md:min-h-9"
-            >
-              {label}
-              {n != null && <span className="tabular-nums text-muted-foreground">{n}</span>}
-            </Link>
-          ))}
-      </nav>
+      <div className="pendientes-filtros">
+        <span id="pendientes-tipo-label" className="pendientes-filtro-label">Tipo de pendiente</span>
+        <nav aria-label="Tipo de pendiente" className="pendientes-tipos">
+          {[['', 'Todos', null], ...Object.entries(TIPOS_PENDIENTE).map(([valor, t]) => [valor, t.corto, conteo[valor]])]
+            .map(([valor, label, n]) => (
+              <Link
+                key={valor || 'todos'}
+                to={enlaceTipo(valor)}
+                aria-current={tipo === valor ? 'true' : undefined}
+                className="pendientes-tipo"
+                onClick={() => setLimite(POR_PAGINA)}
+              >
+                {label}
+                {n != null && <span className="pendientes-tipo-conteo">{n}</span>}
+              </Link>
+            ))}
+        </nav>
+        <select
+          aria-labelledby="pendientes-tipo-label"
+          className={`${selectClass} pendientes-tipo-movil`}
+          value={tipo}
+          onChange={(e) => { set({ seccion: 'pendientes', tipo: e.target.value }); setLimite(POR_PAGINA) }}
+        >
+          <option value="">Todos los tipos</option>
+          {Object.entries(TIPOS_PENDIENTE).map(([valor, t]) => <option key={valor} value={valor}>{t.label} ({conteo[valor]})</option>)}
+        </select>
 
-      <div className="mt-4 flex flex-wrap items-end gap-3">
-        <label className="w-full sm:w-64">
-          <span className="text-xs font-medium text-muted-foreground">Docente</span>
-          <select value={docente} onChange={(e) => set({ docente: e.target.value })} className={`${selectClass} mt-1.5`}>
-            <option value="">Todos los docentes</option>
-            {haySinDocente && <option value="sin-docente">Sin docente asignado</option>}
-            {docentes.map(([id, nombre]) => <option key={id} value={id}>{nombre}</option>)}
-          </select>
-        </label>
-        <label className="w-full sm:w-48">
-          <span className="text-xs font-medium text-muted-foreground">Grupo</span>
-          <select value={grupo} onChange={(e) => set({ grupo: e.target.value })} className={`${selectClass} mt-1.5`}>
-            <option value="">Todos los grupos</option>
-            {grupos.map((g) => <option key={g.id} value={g.id}>{g.nombre} · {modalidadTexto(g.modalidad)}</option>)}
-          </select>
-        </label>
-        {(filtrando || tipo) && <Button variant="ghost" className="min-h-11" onClick={() => set({ docente: '', grupo: '', tipo: '' })}>Quitar filtros</Button>}
+        <div className="mt-4 flex flex-wrap items-end gap-3">
+          <label className="w-full sm:w-64">
+            <span className="text-xs font-medium text-muted-foreground">Docente</span>
+            <select value={docente} onChange={(e) => set({ docente: e.target.value })} className={`${selectClass} mt-1.5`}>
+              <option value="">Todos los docentes</option>
+              {haySinDocente && <option value="sin-docente">Sin docente asignado</option>}
+              {docentes.map(([id, nombre]) => <option key={id} value={id}>{nombre}</option>)}
+            </select>
+          </label>
+          <label className="w-full sm:w-48">
+            <span className="text-xs font-medium text-muted-foreground">Grupo</span>
+            <select value={grupo} onChange={(e) => set({ grupo: e.target.value })} className={`${selectClass} mt-1.5`}>
+              <option value="">Todos los grupos</option>
+              {grupos.map((g) => <option key={g.id} value={g.id}>{g.nombre} · {modalidadTexto(g.modalidad)}</option>)}
+            </select>
+          </label>
+          {filtrando && <Button variant="ghost" className="min-h-11" onClick={() => set({ docente: '', grupo: '' })}>Restablecer filtros</Button>}
+        </div>
       </div>
 
       <div className="mt-7 mb-3">
@@ -202,10 +215,7 @@ function Pendientes({ j, resumen, seguimientos }) {
           {titulo}
           {visibles.length > 0 && <span className="ml-2 text-sm font-normal tabular-nums text-muted-foreground">{visibles.length}</span>}
         </h2>
-        <p className="mt-1 max-w-3xl text-xs text-muted-foreground">
-          Detectado en el resumen del periodo. Una observación documenta el seguimiento, pero no quita el pendiente: sale de aquí cuando su causa se corrige en SICAT.
-          {j.historico && ' Periodo anterior: las observaciones solo se consultan.'}
-        </p>
+        {j.historico && <p className="mt-1 text-xs text-muted-foreground">Periodo anterior: las observaciones solo se consultan.</p>}
       </div>
 
       {sinCalendario.length > 0 && (!tipo || tipo === 'ASISTENCIA_SIN_CAPTURA') && (
@@ -228,7 +238,7 @@ function Pendientes({ j, resumen, seguimientos }) {
             : 'Listas, calificaciones, entregas, unidades, asignaciones y alumnos sin señales que atender.'}
         </Vacio>
       ) : !visibles.length ? (
-        <Vacio titulo="Ningún pendiente coincide con los filtros" accion={<Button variant="outline" onClick={() => set({ docente: '', grupo: '', tipo: '' })}>Quitar filtros</Button>}>
+        <Vacio titulo="Ningún pendiente coincide con los filtros" accion={<Button variant="outline" onClick={() => set(filtrando ? { docente: '', grupo: '' } : { tipo: '' })}>{filtrando ? 'Restablecer filtros' : 'Ver todos los tipos'}</Button>}>
           Hay {plural(items.length, 'pendiente', 'pendientes')} en el periodo fuera de esta selección.
         </Vacio>
       ) : (
