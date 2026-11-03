@@ -459,13 +459,28 @@ function RankingFaltas({ items }) {
   )
 }
 
-function HistorialTable({ items, onEditar, onVer, onExportarPdf, onExportarExcel, abierto = false, onToggle }) {
+// Un historial acotado (p. ej. al llegar desde una materia) debe decirlo y
+// poder abrirse completo; si no, parece que las demás sesiones se perdieron.
+function AvisoFiltroHistorial({ filtro, onQuitarFiltro }) {
+  if (!filtro) return null
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border bg-primary/5 px-5 py-3 text-xs text-muted-foreground">
+      <span className="min-w-0">Mostrando sólo: <span className="font-medium text-foreground">{filtro}</span></span>
+      {onQuitarFiltro && (
+        <Button variant="outline" size="sm" onClick={onQuitarFiltro}>Ver todo el historial</Button>
+      )}
+    </div>
+  )
+}
+
+function HistorialTable({ items, onEditar, onVer, onExportarPdf, onExportarExcel, abierto = false, onToggle, filtro = '', onQuitarFiltro }) {
   const panelId = useId()
 
   if (items.length === 0) {
     return (
-      <div className="rounded-[var(--radius-card)] border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
-        No hay registros con los filtros actuales.
+      <div className="overflow-hidden rounded-[var(--radius-card)] border border-dashed border-border bg-card">
+        <p className="p-8 text-center text-sm text-muted-foreground">No hay registros con los filtros actuales.</p>
+        <AvisoFiltroHistorial filtro={filtro} onQuitarFiltro={onQuitarFiltro} />
       </div>
     )
   }
@@ -495,6 +510,8 @@ function HistorialTable({ items, onEditar, onVer, onExportarPdf, onExportarExcel
           <ChevronDown aria-hidden="true" className={`size-4 transition-transform ${abierto ? 'rotate-180' : ''}`} />
         </span>
       </button>
+
+      <AvisoFiltroHistorial filtro={filtro} onQuitarFiltro={onQuitarFiltro} />
 
       {abierto && (
         <div id={panelId} className="border-t border-border">
@@ -1463,7 +1480,7 @@ function ClasesOpcionalesReunion({ items, procesando, deshabilitado, onPasarList
 
 function DocenteAsistenciasView() {
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const materiaInicial = searchParams.get('materia') ?? ''
   const grupoInicial = materiaInicial ? searchParams.get('grupo') ?? '' : ''
   const {
@@ -1588,6 +1605,12 @@ function DocenteAsistenciasView() {
 
     return () => clearInterval(interval)
   }, [cargarPanelDocente, obtenerHistorial, cargarAtrasadas, materiaInicial, grupoInicial])
+
+  // Quitar ?materia/&grupo recarga todo el historial desde el efecto inicial.
+  const verTodoElHistorial = () => {
+    setFilters({ materiaId: '', grupoId: '', unidadId: '', fecha: '', semana: '', mes: '' })
+    setSearchParams({}, { replace: true })
+  }
 
   const clasesHoy = panelDocente?.clasesHoy ?? []
   const clasePrincipal = panelDocente?.claseActual ?? panelDocente?.proximaClase ?? null
@@ -1823,13 +1846,8 @@ function DocenteAsistenciasView() {
         <ReporteAsistenciasCalendario
           grupoInicial={grupoInicial}
           materiaInicial={materiaInicial}
-          onVer={(reporte) => {
-            const next = { materiaId: reporte.materiaId, grupoId: reporte.opciones.grupoId, unidadId: reporte.opciones.unidadId, fecha: reporte.opciones.fecha, semana: '', mes: '' }
-            setFilters(next)
-            setHistorialAbierto(true)
-            obtenerHistorial(next).catch(() => setMensaje('No se pudo actualizar el historial. Puedes revisar el estado del reporte en su vista previa.'))
-            setVistaPrevia(reporte)
-          }}
+          // La vista previa trae su propio filtro; el historial no se toca.
+          onVer={setVistaPrevia}
         />
 
         <ReporteAcumuladoCard
@@ -1859,6 +1877,8 @@ function DocenteAsistenciasView() {
           onVer={(item) => setVistaPrevia({ materiaId: item.materia.id, opciones: opcionesReporteItem(item), descripcion: describirSesion(item) })}
           onExportarPdf={(item) => exportar(item.materia.id, { formato: 'pdf', ...opcionesReporteItem(item) })}
           onExportarExcel={(item) => exportar(item.materia.id, { formato: 'excel', ...opcionesReporteItem(item) })}
+          filtro={filters.materiaId ? describirFiltro(filters, { materias, grupos: opcionesFiltros.grupos ?? [] }) : ''}
+          onQuitarFiltro={verTodoElHistorial}
         />
       </section>
 

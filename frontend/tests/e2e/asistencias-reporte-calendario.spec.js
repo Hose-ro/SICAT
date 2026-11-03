@@ -80,3 +80,31 @@ test('reporte por día: una unidad sin sesiones lo dice en lugar de mostrar un c
   await expect(card).toContainText('No hay sesiones registradas para esta unidad y grupo')
   await expect(card.getByRole('button', { name: /ver reporte de/ })).toHaveCount(0)
 })
+
+test('reporte por día: abrir un día no deja el historial filtrado a esa fecha', async ({ page }) => {
+  await mockCalendario(page)
+  const historiales = []
+  page.on('request', (req) => { if (req.url().includes('/asistencias/historial')) historiales.push(new URL(req.url()).search) })
+  await page.goto('/asistencias')
+  const card = page.getByRole('region', { name: 'Reporte por día' })
+  await card.getByLabel('Grupo').selectOption('1')
+  await card.getByLabel('Materia').selectOption('1')
+  await card.getByLabel('Unidad').selectOption('1')
+  await card.getByRole('button', { name: /10 de septiembre de 2026: ver reporte/ }).click()
+  await expect(page.getByRole('dialog', { name: 'Vista previa del reporte' })).toBeVisible()
+  expect(historiales.some((query) => query.includes('fecha='))).toBe(false)
+  await expect(page.getByText('Mostrando sólo:')).toHaveCount(0)
+})
+
+test('historial: al llegar desde una materia avisa del filtro y permite ver todo', async ({ page }) => {
+  await mockCalendario(page)
+  await page.goto('/asistencias?materia=1&grupo=1')
+  await expect(page.getByText('Mostrando sólo:')).toContainText('Matemáticas')
+  const [request] = await Promise.all([
+    page.waitForRequest((req) => req.url().includes('/asistencias/historial') && !new URL(req.url()).search),
+    page.getByRole('button', { name: 'Ver todo el historial' }).click(),
+  ])
+  expect(new URL(request.url()).search).toBe('')
+  await expect(page).toHaveURL(/\/asistencias$/)
+  await expect(page.getByText('Mostrando sólo:')).toHaveCount(0)
+})
