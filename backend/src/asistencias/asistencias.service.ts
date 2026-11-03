@@ -726,8 +726,13 @@ export class AsistenciasService {
       materiaId?: number;
       grupoId?: number;
       docenteId?: number;
+      unidadId?: number;
+      orden?: string;
     },
   ) {
+    if (actor.rol === 'DOCENTE' && filters.orden === 'grupo') {
+      return this.obtenerOpcionesReportePorGrupo(actor.id, filters);
+    }
     const docenteId = actor.rol === 'ADMIN' ? filters.docenteId : actor.id;
 
     const materias = await this.prisma.materia.findMany({
@@ -867,6 +872,112 @@ export class AsistenciasService {
       unidades: materia.unidades,
       fechasClase,
       mesesClase,
+    };
+  }
+
+  /** Opciones del reporte docente: cada paso se valida con su horario real. */
+  private async obtenerOpcionesReportePorGrupo(
+    docenteId: number,
+    filters: { grupoId?: number; materiaId?: number; unidadId?: number },
+  ) {
+    const grupos = await this.prisma.grupo.findMany({
+      where: {
+        activo: true,
+        horarios: {
+          some: {
+            docenteId,
+            activo: true,
+            materia: { pausas: { none: { docenteId } } },
+          },
+        },
+      },
+      select: {
+        id: true,
+        nombre: true,
+        semestre: true,
+        modalidad: true,
+        periodo: true,
+      },
+      orderBy: [{ semestre: 'asc' }, { nombre: 'asc' }],
+    });
+    const vacio = {
+      grupos,
+      materias: [],
+      unidades: [],
+      fechasClase: [],
+      mesesClase: [],
+      diasClase: [],
+    };
+    if (!filters.grupoId) return vacio;
+    if (!grupos.some((g) => g.id === filters.grupoId)) {
+      throw new ForbiddenException('No impartes clases en este grupo');
+    }
+    const materias = await this.prisma.materia.findMany({
+      where: {
+        horarios: {
+          some: { docenteId, grupoId: filters.grupoId, activo: true },
+        },
+        pausas: { none: { docenteId } },
+      },
+      select: {
+        id: true,
+        nombre: true,
+        clave: true,
+        unidades: {
+          select: { id: true, nombre: true, orden: true },
+          orderBy: { orden: 'asc' },
+        },
+      },
+      orderBy: [{ nombre: 'asc' }, { clave: 'asc' }],
+    });
+    const opciones = {
+      ...vacio,
+      materias: materias.map((m) => ({
+        id: m.id,
+        nombre: m.nombre,
+        clave: m.clave,
+      })),
+    };
+    if (!filters.materiaId) return opciones;
+    const materia = materias.find((m) => m.id === filters.materiaId);
+    if (!materia)
+      throw new ForbiddenException(
+        'No impartes esta materia en el grupo seleccionado',
+      );
+    if (
+      filters.unidadId &&
+      !materia.unidades.some((u) => u.id === filters.unidadId)
+    ) {
+      throw new BadRequestException(
+        'La unidad no pertenece a la materia seleccionada',
+      );
+    }
+    if (!filters.unidadId) return { ...opciones, unidades: materia.unidades };
+    const sesiones = await this.prisma.claseSesion.findMany({
+      where: {
+        docenteId,
+        grupoId: filters.grupoId,
+        materiaId: materia.id,
+        unidadId: filters.unidadId,
+      },
+      select: { fecha: true },
+      orderBy: { fecha: 'asc' },
+    });
+    const conteos = new Map<string, number>();
+    sesiones.forEach((s) => {
+      const fecha = formatearFechaClave(s.fecha);
+      conteos.set(fecha, (conteos.get(fecha) ?? 0) + 1);
+    });
+    const fechasClase = [...conteos.keys()].sort();
+    return {
+      ...opciones,
+      unidades: materia.unidades,
+      fechasClase,
+      mesesClase: [...new Set(fechasClase.map((f) => f.slice(0, 7)))],
+      diasClase: fechasClase.map((fecha) => ({
+        fecha,
+        sesiones: conteos.get(fecha)!,
+      })),
     };
   }
 

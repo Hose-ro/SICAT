@@ -11,6 +11,7 @@ import { useAsistenciaStore } from '../store/asistenciaStore'
 import SexoBadge from '../components/SexoBadge'
 import AsistenciaSesionPanel from './docente/components/AsistenciaSesionPanel'
 import VistaPreviaReporteModal from './docente/components/VistaPreviaReporteModal'
+import ReporteAsistenciasCalendario from './docente/components/ReporteAsistenciasCalendario'
 
 function formatDate(value) {
   if (!value) return 'Sin fecha'
@@ -1497,7 +1498,6 @@ function DocenteAsistenciasView() {
     fechasClase: [],
     mesesClase: [],
   })
-  const [opcionesLoading, setOpcionesLoading] = useState(false)
   const [opcionesError, setOpcionesError] = useState('')
   const [atrasadasLoading, setAtrasadasLoading] = useState(true)
   const [atrasadasError, setAtrasadasError] = useState('')
@@ -1510,7 +1510,6 @@ function DocenteAsistenciasView() {
 
     const requestId = opcionesRequestId.current + 1
     opcionesRequestId.current = requestId
-    setOpcionesLoading(true)
     setOpcionesError('')
 
     try {
@@ -1535,8 +1534,6 @@ function DocenteAsistenciasView() {
         setOpcionesError(getApiErrorMessage(error, 'No se pudieron comprobar los grupos y fechas de esta materia.'))
       }
       return null
-    } finally {
-      if (requestId === opcionesRequestId.current) setOpcionesLoading(false)
     }
   }
 
@@ -1596,11 +1593,6 @@ function DocenteAsistenciasView() {
   const clasePrincipal = panelDocente?.claseActual ?? panelDocente?.proximaClase ?? null
 
   const materias = opcionesFiltros.materias ?? []
-  const grupos = opcionesFiltros.grupos ?? []
-  const fechasClase = opcionesFiltros.fechasClase ?? []
-  const mesesClase = opcionesFiltros.mesesClase ?? []
-  const unidades = opcionesFiltros.unidades ?? []
-  const resumenFiltro = describirFiltro(filters, { materias, grupos, unidades })
 
   // Pasar lista vive en su propia pantalla, igual que desde Inicio.
   const abrirPaseDeLista = (sesionId) => navigate(`/docente/pasar-lista/${sesionId}`)
@@ -1741,74 +1733,6 @@ function DocenteAsistenciasView() {
     }
   }
 
-  const applyFilters = () => {
-    setHistorialAbierto(true)
-    return cargarTodo(filters)
-  }
-
-  // Exporta el conjunto filtrado completo, no una sola sesión.
-  const exportarFiltrado = (formato) => {
-    if (!filters.materiaId) return
-    return exportar(filters.materiaId, {
-      formato,
-      grupoId: filters.grupoId || undefined,
-      unidadId: filters.unidadId || undefined,
-      fecha: filters.fecha || undefined,
-      semana: filters.semana || undefined,
-      mes: filters.mes || undefined,
-    })
-  }
-
-  const handleFilterChange = (key, value) => {
-    if (key === 'materiaId') {
-      opcionesRequestId.current += 1
-      setOpcionesLoading(Boolean(value))
-      setOpcionesError('')
-      setOpcionesFiltros((current) => ({
-        ...current,
-        grupos: [],
-        unidades: [],
-        fechasClase: [],
-        mesesClase: [],
-      }))
-      if (value) {
-        cargarOpcionesFiltros(value)
-      }
-    } else if (key === 'grupoId') {
-      opcionesRequestId.current += 1
-      setOpcionesFiltros((current) => ({ ...current, fechasClase: [], mesesClase: [] }))
-      cargarOpcionesFiltros(filters.materiaId, value)
-    }
-
-    setFilters((prev) => {
-      const next = { ...prev, [key]: value }
-      if (key === 'fecha' && value) {
-        next.semana = ''
-        next.mes = ''
-      }
-      if (key === 'semana' && value) {
-        next.fecha = ''
-        next.mes = ''
-      }
-      if (key === 'mes' && value) {
-        next.fecha = ''
-        next.semana = ''
-      }
-      if (key === 'materiaId') {
-        next.grupoId = ''
-        next.unidadId = ''
-        next.fecha = ''
-        next.semana = ''
-        next.mes = ''
-      }
-      if (key === 'grupoId') {
-        next.fecha = ''
-        next.semana = ''
-        next.mes = ''
-      }
-      return next
-    })
-  }
 
   return (
     <div className="space-y-6">
@@ -1896,6 +1820,18 @@ function DocenteAsistenciasView() {
           )}
         </div>
 
+        <ReporteAsistenciasCalendario
+          grupoInicial={grupoInicial}
+          materiaInicial={materiaInicial}
+          onVer={(reporte) => {
+            const next = { materiaId: reporte.materiaId, grupoId: reporte.opciones.grupoId, unidadId: reporte.opciones.unidadId, fecha: reporte.opciones.fecha, semana: '', mes: '' }
+            setFilters(next)
+            setHistorialAbierto(true)
+            obtenerHistorial(next).catch(() => setMensaje('No se pudo actualizar el historial. Puedes revisar el estado del reporte en su vista previa.'))
+            setVistaPrevia(reporte)
+          }}
+        />
+
         <ReporteAcumuladoCard
           materias={materias}
           materiaSugeridaId={clasePrincipal?.materiaId}
@@ -1904,37 +1840,6 @@ function DocenteAsistenciasView() {
           onVer={({ materiaId, grupoId, descripcion }) => setVistaPrevia({ materiaId, opciones: { grupoId }, descripcion })}
         />
 
-        <FiltroToolbar
-          filters={filters}
-          onChange={handleFilterChange}
-          onApply={applyFilters}
-          materias={materias}
-          grupos={grupos}
-          unidades={unidades}
-          fechasClase={fechasClase}
-          mesesClase={mesesClase}
-          gruposLoading={opcionesLoading}
-          fechasLoading={opcionesLoading}
-          gruposRestringidos
-        />
-
-        <div className="flex flex-col gap-2 rounded-[var(--radius-card)] border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-foreground">Reporte de lo filtrado</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">{resumenFiltro}</p>
-            {!filters.materiaId && (
-              <p id="export-filtrado-ayuda" className="mt-1 text-xs text-muted-foreground">
-                Elige una materia para poder guardar el reporte.
-              </p>
-            )}
-          </div>
-          <ExportActions
-            onExportPdf={() => exportarFiltrado('pdf')}
-            onExportExcel={() => exportarFiltrado('excel')}
-            disabled={!filters.materiaId}
-            ayudaId={!filters.materiaId ? 'export-filtrado-ayuda' : undefined}
-          />
-        </div>
 
         {opcionesError && (
           <p role="alert" className="rounded-2xl border border-destructive/45 bg-destructive/18 px-4 py-3 text-sm text-destructive-foreground">

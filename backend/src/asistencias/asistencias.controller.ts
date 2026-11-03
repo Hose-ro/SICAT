@@ -182,11 +182,15 @@ export class AsistenciasController {
     @Query('materiaId') materiaId?: string,
     @Query('grupoId') grupoId?: string,
     @Query('docenteId') docenteId?: string,
+    @Query('unidadId') unidadId?: string,
+    @Query('orden') orden?: string,
   ) {
     return this.asistenciasService.obtenerFiltrosDisponibles(req.user, {
       materiaId: materiaId ? parseInt(materiaId, 10) : undefined,
       grupoId: grupoId ? parseInt(grupoId, 10) : undefined,
       docenteId: docenteId ? parseInt(docenteId, 10) : undefined,
+      unidadId: unidadId ? parseInt(unidadId, 10) : undefined,
+      orden,
     });
   }
 
