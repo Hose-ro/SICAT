@@ -1,7 +1,8 @@
 import { Button } from '@/components/ui/button'
 import { useState } from 'react'
-import { Download, KeyRound, Printer } from 'lucide-react'
+import { FileSpreadsheet, FileText, KeyRound, Printer } from 'lucide-react'
 import Modal from '@/components/Modal'
+import { generarCodigosActivacionPdf } from '@/lib/codigosActivacionPdf'
 import api from '../../../../api/axios'
 
 function mensajeError(error, fallback) {
@@ -12,22 +13,18 @@ function mensajeError(error, fallback) {
 const escaparHtml = (texto) =>
   String(texto ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
 
-function descargarCsv(grupo, alumnos) {
-  const celda = (valor) => `"${String(valor ?? '').replace(/"/g, '""')}"`
-  const filas = [
+const nombreArchivo = (grupo) => `codigos-activacion-${grupo.nombre.replace(/\s+/g, '-').toLowerCase()}`
+
+async function descargarExcel(grupo, alumnos) {
+  const XLSX = await import('xlsx')
+  const hoja = XLSX.utils.aoa_to_sheet([
     ['Número de control', 'Nombre', 'Código de activación'],
-    ...alumnos.map((a) => [a.numeroControl, a.nombre, a.codigo]),
-  ]
-  // BOM para que Excel respete los acentos.
-  const contenido = `﻿${filas.map((fila) => fila.map(celda).join(',')).join('\r\n')}`
-  const url = URL.createObjectURL(new Blob([contenido], { type: 'text/csv;charset=utf-8' }))
-  const enlace = document.createElement('a')
-  enlace.href = url
-  enlace.download = `codigos-activacion-${grupo.nombre.replace(/\s+/g, '-').toLowerCase()}.csv`
-  document.body.appendChild(enlace)
-  enlace.click()
-  enlace.remove()
-  URL.revokeObjectURL(url)
+    ...alumnos.map((a) => [a.numeroControl ?? '', a.nombre, a.codigo]),
+  ])
+  hoja['!cols'] = [{ wch: 18 }, { wch: 40 }, { wch: 22 }]
+  const libro = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(libro, hoja, 'Códigos')
+  XLSX.writeFile(libro, `${nombreArchivo(grupo)}.xlsx`)
 }
 
 /** Una hoja con un recorte por alumno, para repartir en papel. */
@@ -133,12 +130,31 @@ export default function ModalCodigosActivacion({ grupo, onClose }) {
         <div className="space-y-4">
           <p role="status" className="rounded-xl border border-warning/40 bg-warning/18 px-3 py-2 text-sm text-foreground">
             Se generaron {alumnos.length} código{alumnos.length === 1 ? '' : 's'}, vigentes {resultado.vigenciaDias} días.
-            Descárgalos o imprímelos ahora: al cerrar esta ventana ya no se pueden volver a ver.
+            Descárgalos en Excel o PDF, o imprímelos ahora: al cerrar esta ventana ya no se pueden volver a ver.
           </p>
           <div className="flex flex-wrap gap-2">
-            <Button type="button" onClick={() => descargarCsv(grupo, alumnos)}>
-              <Download aria-hidden="true" />
-              Descargar lista (CSV)
+            <Button
+              type="button"
+              onClick={() =>
+                descargarExcel(grupo, alumnos).catch(() => setError('No se pudo generar el archivo de Excel. Intenta de nuevo.'))
+              }
+            >
+              <FileSpreadsheet aria-hidden="true" />
+              Descargar Excel
+            </Button>
+            <Button
+              type="button"
+              onClick={() =>
+                generarCodigosActivacionPdf({
+                  grupo,
+                  alumnos,
+                  vigenciaDias: resultado.vigenciaDias,
+                  nombreArchivo: nombreArchivo(grupo),
+                }).catch(() => setError('No se pudo generar el PDF. Intenta de nuevo.'))
+              }
+            >
+              <FileText aria-hidden="true" />
+              Descargar PDF
             </Button>
             <Button
               type="button"

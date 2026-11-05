@@ -536,6 +536,58 @@ export class ReportesService {
     return terminar();
   }
 
+  async generarPdfCalificacionesCaptura(reporte: any): Promise<Buffer> {
+    const { doc, terminar } = crearPdfInstitucional({
+      titulo: 'Calificaciones para captura',
+      subtitulo:
+        `${reporte.materia?.clave ?? ''} ${reporte.materia?.nombre ?? ''}`.trim() ||
+        undefined,
+    });
+
+    tablaDatos(doc, [
+      ['Docente', reporte.materia?.docente?.nombre ?? '-'],
+      ['Grupo', reporte.grupoSeleccionado?.nombre ?? 'Todos los grupos'],
+      ['Unidad', reporte.unidadSeleccionada?.nombre ?? 'Todas las unidades'],
+      [
+        'Generado',
+        new Date(reporte.generatedAt).toLocaleString('es-MX', {
+          timeZone: zonaHoraria(),
+        }),
+      ],
+    ]);
+
+    tituloSeccion(doc, 'Alumnos');
+    tabla(doc, {
+      columnas: [
+        'No. control',
+        'Alumno',
+        'Sexo',
+        'Calificación',
+        'Unidad',
+        'Estado',
+      ],
+      anchos: [15, 31, 7, 12, 22, 13],
+      alinear: ['left', 'left', 'center', 'center', 'left', 'left'],
+      tamano: 8,
+      vacio: 'Sin alumnos con los filtros elegidos.',
+      filas: (reporte.rows ?? []).map((row) => {
+        const calificacion = this.valorCalificacion(
+          this.obtenerCalificacionFinal(row),
+        );
+        return [
+          row.alumno?.numeroControl ?? '-',
+          row.alumno?.nombre ?? '',
+          letraSexo(row.alumno?.sexo) || '-',
+          calificacion === '' ? '-' : calificacion,
+          row.unidad?.nombre ?? '-',
+          this.estadoCalificacionLabel(row.estado),
+        ];
+      }),
+    });
+
+    return terminar();
+  }
+
   async generarExcelCalificacionesCaptura(reporte: any): Promise<Buffer> {
     const workbook = new ExcelJS.Workbook();
     const captura = workbook.addWorksheet('Captura');
@@ -670,24 +722,6 @@ export class ReportesService {
     return Buffer.from(buffer);
   }
 
-  async generarCsvCalificacionesCaptura(reporte: any): Promise<Buffer> {
-    const rows = [
-      ['No. control', 'Alumno', 'Sexo', 'Calificacion', 'Unidad', 'Estado'],
-      ...(reporte.rows ?? []).map((row) => [
-        row.alumno?.numeroControl ?? '',
-        row.alumno?.nombre ?? '',
-        letraSexo(row.alumno?.sexo),
-        this.valorCalificacion(this.obtenerCalificacionFinal(row)),
-        row.unidad?.nombre ?? '',
-        this.estadoCalificacionLabel(row.estado),
-      ]),
-    ];
-    const csv = rows
-      .map((row) => row.map((cell) => this.csvCell(cell)).join(','))
-      .join('\n');
-    return Buffer.from(`\uFEFF${csv}`, 'utf8');
-  }
-
   private valorCalificacion(value: unknown) {
     return typeof value === 'number' ? value : '';
   }
@@ -706,11 +740,5 @@ export class ReportesService {
     if (estado === 'APROBADO') return 'Aprobado';
     if (estado === 'REQUIERE_ATENCION') return 'Requiere atencion';
     return 'Pendiente';
-  }
-
-  private csvCell(value: unknown) {
-    const text = String(value ?? '');
-    if (!/[",\n]/.test(text)) return text;
-    return `"${text.replace(/"/g, '""')}"`;
   }
 }

@@ -59,22 +59,61 @@ describe('ReportesService sexo del alumno', () => {
     expect(sheet.getCell('C9').value).toBe('');
   });
 
-  it('agrega la columna Sexo al CSV de calificaciones', async () => {
-    const csv = (
-      await service.generarCsvCalificacionesCaptura({
-        rows: [
-          {
-            alumno: { nombre: 'Beto', numeroControl: '456', sexo: 'HOMBRE' },
-            calificacionFinal: 90,
-            unidad: { nombre: 'Unidad 1' },
-            estado: 'APROBADO',
-          },
-        ],
-      })
-    ).toString('utf8');
+  it('agrega la columna Sexo al Excel de calificaciones', async () => {
+    const buffer = await service.generarExcelCalificacionesCaptura({
+      rows: [
+        {
+          alumno: { nombre: 'Beto', numeroControl: '456', sexo: 'HOMBRE' },
+          calificacionFinal: 90,
+          unidad: { nombre: 'Unidad 1' },
+          estado: 'APROBADO',
+        },
+      ],
+    });
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer as never);
+    const sheet = workbook.getWorksheet('Captura') as ExcelJS.Worksheet;
 
-    expect(csv).toContain('No. control,Alumno,Sexo,Calificacion');
-    expect(csv).toContain('456,Beto,H,90');
+    expect(sheet.getRow(1).values).toEqual([
+      undefined,
+      'No. control',
+      'Alumno',
+      'Sexo',
+      'Calificacion',
+      'Unidad',
+      'Estado',
+    ]);
+    expect(sheet.getRow(2).values).toEqual([
+      undefined,
+      '456',
+      'Beto',
+      'H',
+      90,
+      'Unidad 1',
+      'Aprobado',
+    ]);
+  });
+
+  it('genera el PDF de calificaciones aunque falten calificaciones', async () => {
+    const buffer = await service.generarPdfCalificacionesCaptura({
+      generatedAt: new Date().toISOString(),
+      materia: {
+        clave: 'MAT-1',
+        nombre: 'Cálculo',
+        docente: { nombre: 'Eva' },
+      },
+      rows: [
+        {
+          alumno: { nombre: 'Beto', numeroControl: '456', sexo: 'HOMBRE' },
+          calificacionFinal: 90,
+          unidad: { nombre: 'Unidad 1' },
+          estado: 'APROBADO',
+        },
+        { alumno: { nombre: 'Ana', numeroControl: '123' }, estado: null },
+      ],
+    });
+
+    expect(buffer.subarray(0, 4).toString()).toBe('%PDF');
   });
 
   it('agrega la columna Sexo a las hojas de alumnos del reporte de tareas', async () => {

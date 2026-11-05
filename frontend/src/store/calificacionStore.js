@@ -113,8 +113,7 @@ export const useCalificacionStore = create((set) => ({
         params: limpiarFiltros({ ...filters, formato }),
         responseType: 'blob',
       })
-      const extension = formato === 'csv' ? 'csv' : 'xlsx'
-      descargarArchivo(response.data, `${nombreBase}.${extension}`)
+      descargarArchivo(response.data, `${nombreBase}.${formato === 'pdf' ? 'pdf' : 'xlsx'}`)
     } catch (error) {
       set({ error: (await leerMensajeBlob(error.response?.data)) || 'No se pudo generar la exportación' })
       throw error

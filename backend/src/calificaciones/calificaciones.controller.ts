@@ -232,13 +232,13 @@ export class CalificacionesController {
       .join('-')
       .toLowerCase();
 
-    if (formato === 'csv') {
+    if (formato === 'pdf') {
       const buffer =
-        await this.reportesService.generarCsvCalificacionesCaptura(reporte);
-      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        await this.reportesService.generarPdfCalificacionesCaptura(reporte);
+      res.setHeader('Content-Type', 'application/pdf');
       res.setHeader(
         'Content-Disposition',
-        `attachment; filename=calificaciones-captura-${suffix}.csv`,
+        `attachment; filename=calificaciones-captura-${suffix}.pdf`,
       );
       return res.send(buffer);
     }

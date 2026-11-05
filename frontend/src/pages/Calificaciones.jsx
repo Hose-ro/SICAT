@@ -2,8 +2,8 @@ import { Button } from '@/components/ui/button'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import {
-  Download,
   FileSpreadsheet,
+  FileText,
   LayoutGrid,
   List,
   RefreshCcw,
@@ -905,11 +905,11 @@ function DocenteCalificaciones() {
             <Button variant="outline"
               type="button"
               disabled={!canExport || downloading !== null}
-              onClick={() => handleExport('csv')}
-              className="inline-flex items-center justify-center gap-2 border px-5 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+              onClick={() => handleExport('pdf')}
+              className="inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <Download className="h-4 w-4" />
-              {downloading === 'csv' ? 'Generando...' : 'CSV'}
+              <FileText className="h-4 w-4" />
+              {downloading === 'pdf' ? 'Generando...' : 'PDF'}
             </Button>
           </div>
         </div>
