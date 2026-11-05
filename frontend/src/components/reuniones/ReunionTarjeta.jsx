@@ -33,7 +33,8 @@ export default function ReunionTarjeta({ reunion: r, acciones, aviso, barra, pie
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <h3 className={cn('text-[0.9375rem] font-semibold text-foreground', cancelada && 'line-through decoration-muted-foreground')}>{r.titulo}</h3>
-            <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', estado.clase)}>{estado.label}</span>
+            {/* «Programada» es lo normal: sólo se marca una reunión finalizada o cancelada. */}
+            {r.estado !== 'PROGRAMADA' && <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', estado.clase)}>{estado.label}</span>}
             {r.tipo === 'EXTRAORDINARIA' && <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">{TIPO_REUNION[r.tipo]}</span>}
           </div>
           <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[0.8125rem] text-muted-foreground">
