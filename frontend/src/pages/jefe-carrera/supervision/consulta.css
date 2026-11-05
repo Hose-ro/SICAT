@@ -112,8 +112,12 @@ a.consulta-nombre:focus-visible { outline: 2px solid var(--ring); outline-offset
 .grupo-riesgo .viz-riesgo svg { display: none; }
 .grupo-riesgo .viz-riesgo--reprobado { background: color-mix(in oklab, var(--destructive) 12%, var(--background)); color: var(--destructive-foreground); }
 .grupo-riesgo .viz-riesgo--alerta { background: color-mix(in oklab, var(--warning) 16%, var(--background)); color: var(--warning-foreground); }
-.grupo-riesgo .viz-muestra.viz-riesgo--reprobado { box-shadow: inset 0 0 0 1px var(--destructive-foreground); }
-.grupo-riesgo .viz-muestra.viz-riesgo--alerta { box-shadow: inset 0 0 0 1px var(--warning-foreground); }
+/* Leyenda en puntos del color de la cifra: un cuadro con borde se leía como casilla para marcar. */
+.grupo-riesgo .viz-muestra { width: 8px; height: 8px; border-radius: 999px; box-shadow: none; }
+.grupo-riesgo .viz-muestra.viz-riesgo--reprobado { background: var(--destructive-foreground); }
+.grupo-riesgo .viz-muestra.viz-riesgo--alerta { background: var(--warning-foreground); }
+.grupo-riesgo .viz-muestra.viz-riesgo--ok { background: var(--viz-riesgo-ok-tinta); }
+.grupo-riesgo .viz-muestra.viz-riesgo--sin, .grupo-riesgo .viz-muestra.viz-cell--vacia { background: transparent; box-shadow: inset 0 0 0 1px var(--viz-axis); }
 @media (max-width: 639px) {
   .grupo-riesgo .viz-heat tbody th { min-width: 145px; max-width: 170px; }
   .grupo-riesgo .viz-heat tbody th button { max-width: 145px; }

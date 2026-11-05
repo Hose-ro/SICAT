@@ -30,7 +30,6 @@ export default function JefeReuniones() {
       sinResumen
       alcance="global"
       titulo="Reuniones de academia"
-      subtitulo="Programa las juntas de la carrera y convoca a los docentes. El acta y sus acuerdos son opcionales."
       accion={<Button onClick={() => setDialogo({ tipo: 'form', reunion: null })}><Plus aria-hidden="true" /> Programar reunión</Button>}
     >
       {({ j }) => <Contenido j={j} dialogo={dialogo} setDialogo={setDialogo} />}
@@ -150,7 +149,7 @@ function Contenido({ j, dialogo, setDialogo }) {
           label="Reuniones"
           value={vista}
           onChange={(v) => { const n = new URLSearchParams(params); if (v === 'historial') n.set('vista', v); else n.delete('vista'); setParams(n, { replace: true }) }}
-          options={[{ value: 'proximas', label: `Próximas (${proximas.length})` }, { value: 'historial', label: `Historial (${pasadas.length})` }]}
+          options={[{ value: 'proximas', label: <>Próximas <span className="ml-1 tabular-nums text-xs text-muted-foreground">{proximas.length}</span></> }, { value: 'historial', label: <>Historial <span className="ml-1 tabular-nums text-xs text-muted-foreground">{pasadas.length}</span></> }]}
         />
         {estado.error && <p role="alert" className="text-xs text-warning-foreground">{estado.error}</p>}
       </div>

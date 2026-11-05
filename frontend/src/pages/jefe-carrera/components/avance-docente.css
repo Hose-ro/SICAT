@@ -11,7 +11,7 @@
 .avance-resumen-pendientes svg { width: 13px; height: 13px; flex-shrink: 0; align-self: center; }
 .avance-sin-pendientes { color: var(--success-foreground); }
 .avance-cierre { margin-top: 8px; font-size: .8125rem; color: var(--foreground); }
-.avance-expandir { flex-shrink: 0; min-height: 44px; height: auto; padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--accent); color: var(--primary-ink); font-size: .8125rem; }
+.avance-expandir { flex-shrink: 0; min-height: 44px; height: auto; padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px; background: transparent; color: var(--foreground); font-size: .8125rem; }
 .avance-flecha { transition: transform 200ms cubic-bezier(.22, 1, .36, 1); }
 .avance-flecha-abierta { transform: rotate(180deg); }
 .avance-contenido[hidden] { display: none; }
@@ -36,7 +36,7 @@
 .avance-seleccion > svg { width: 15px; height: 15px; flex-shrink: 0; align-self: flex-start; margin-top: 2px; }
 .avance-seleccion strong { font-weight: 500; color: var(--foreground); }
 .avance-senal { margin-top: 5px; color: var(--warning-foreground); }
-.avance-atencion { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 8px 12px; padding: 8px 14px; border-radius: 8px; background: color-mix(in oklab, var(--warning) 12%, var(--card)); color: var(--warning-foreground); margin: 4px 0 18px; font-size: .8125rem; }
+.avance-atencion { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 8px 12px; padding: 8px 0; border-top: 1px solid var(--border); color: var(--foreground); margin: 4px 0 18px; font-size: .8125rem; }
 .avance-atencion > span { display: flex; align-items: center; gap: 9px; }
 .avance-atencion svg { width: 15px; height: 15px; flex-shrink: 0; }
 .avance-revisar { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-size: .8125rem; font-weight: 600; border-radius: 5px; }

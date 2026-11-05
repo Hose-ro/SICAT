@@ -50,7 +50,8 @@
   .filtro-chip:not([aria-current=true]):not([aria-pressed=true]):not(:disabled):hover { color: var(--foreground); border-color: var(--muted-foreground); }
 }
 @media (max-width: 640px) {
-  .filtros-chips { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+  /* Tira a todo lo ancho que se desvanece al borde: se lee como desplazable, no como texto cortado. */
+  .filtros-chips { flex-wrap: nowrap; overflow-x: auto; margin-inline: -16px; padding: 0 16px 2px; scroll-padding-inline: 16px; scrollbar-width: none; mask-image: linear-gradient(to right, black calc(100% - 32px), transparent); }
   .filtros-chips::-webkit-scrollbar { display: none; }
   .filtro-chip { min-height: 44px; }
 }

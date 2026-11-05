@@ -95,26 +95,25 @@ export function JefaturaPage({ titulo, subtitulo, accion, volver, children, sinR
 function ContextoBar({ j, resumen, alcance }) {
   return (
     <div className="print-hidden border-b border-border pb-4 text-[0.8125rem]">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-2">
+      {/* En el teléfono: carrera en una línea y debajo periodo + actualizar, sin el texto de la hora. */}
+      <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap sm:justify-between sm:gap-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-2 max-sm:contents">
           {j.carreras.length > 1 ? (
-            <label className="min-w-0">
+            <label className="min-w-0 max-sm:basis-full">
               <span className="sr-only">Carrera</span>
               <select value={j.carreraId} onChange={(e) => j.setCarrera(e.target.value)} className={cn(selectClass, 'h-11 max-w-[22rem] font-medium md:h-9')}>
                 {j.carreras.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
               </select>
             </label>
           ) : (
-            <strong className="font-medium text-foreground">{j.carrera?.nombre}</strong>
+            <strong className="font-medium text-foreground max-sm:basis-full max-sm:truncate max-sm:text-xs max-sm:font-normal max-sm:text-muted-foreground">{j.carrera?.nombre}</strong>
           )}
-          <span aria-hidden="true" className="text-muted-foreground">·</span>
-          {alcance === 'global' ? (
-            <span className="rounded-md border border-border px-2 py-0.5 text-xs text-muted-foreground">Todas las fechas · no depende del periodo</span>
-          ) : (
+          {alcance === 'global' ? null : (
             <>
-              <label>
+              <span aria-hidden="true" className="text-muted-foreground max-sm:hidden">·</span>
+              <label className="max-sm:min-w-0 max-sm:flex-1">
                 <span className="sr-only">Periodo escolar</span>
-                <select value={j.periodo} onChange={(e) => j.setPeriodo(e.target.value)} className={cn(selectClass, 'h-11 w-auto font-medium md:h-9')}>
+                <select value={j.periodo} onChange={(e) => j.setPeriodo(e.target.value)} className={cn(selectClass, 'h-11 w-auto font-medium max-sm:w-full md:h-9')}>
                   {j.periodos.map((p) => <option key={p} value={p}>{periodoTexto(p)}{p === j.periodoActual ? ' (actual)' : ''}</option>)}
                 </select>
               </label>
@@ -136,8 +135,8 @@ function ContextoBar({ j, resumen, alcance }) {
 /** Hora de los datos y un solo botón que refresca todo lo que se ve en la vista. */
 function EstadoActualizacion({ resumen, onActualizar }) {
   const actualizar = (
-    <Button variant="ghost" size="sm" className="max-md:min-h-11" onClick={onActualizar} disabled={resumen.actualizando}>
-      <RefreshCw aria-hidden="true" className={cn(resumen.actualizando && 'animate-spin')} /> {resumen.error && resumen.data ? 'Reintentar' : 'Actualizar'}
+    <Button variant="ghost" size="sm" className="max-md:min-h-11 max-sm:min-w-11" onClick={onActualizar} disabled={resumen.actualizando}>
+      <RefreshCw aria-hidden="true" className={cn(resumen.actualizando && 'animate-spin')} /> <span className="max-sm:sr-only">{resumen.error && resumen.data ? 'Reintentar' : 'Actualizar'}</span>
     </Button>
   )
   if (resumen.error && resumen.data) {
@@ -152,9 +151,9 @@ function EstadoActualizacion({ resumen, onActualizar }) {
   if (!resumen.actualizado) return null
   return (
     <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-      <p role="status" className="flex items-center gap-1.5">
+      <p role="status" className="flex items-center gap-1.5 max-sm:sr-only">
         {resumen.actualizando && <LoaderCircle className="size-3.5 animate-spin" aria-hidden="true" />}
-        {resumen.actualizando ? 'Actualizando…' : `Datos al ${new Date(resumen.actualizado).toLocaleString('es-MX', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`}
+        {resumen.actualizando ? 'Actualizando…' : `Datos al ${new Date(resumen.actualizado).toLocaleString('es-MX', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })}`}
       </p>
       {actualizar}
     </div>

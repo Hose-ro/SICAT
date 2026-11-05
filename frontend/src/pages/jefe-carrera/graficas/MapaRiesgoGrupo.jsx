@@ -58,7 +58,7 @@ export default function MapaRiesgoGrupo({ j, grupo, ofertas, reportes, expedient
           onCelda={(x) => abrirAlumno(x.alumno.id)}
           onAlumno={(x) => abrirAlumno(x.alumno.id)}
           activa={(x) => alumnoActivo === x.alumno.id}
-          encabezadoAccion="Obs."
+          encabezadoAccion="Observación"
           accionFila={(x) => x.enRiesgo > 0 && (
             <BotonSeguimiento
               compacto
@@ -71,7 +71,7 @@ export default function MapaRiesgoGrupo({ j, grupo, ofertas, reportes, expedient
           )}
         />
       ) : (
-        <Vacio titulo={conjunto.completo ? 'Sin alumnos en riesgo' : 'Sin señales en las materias consultadas'} />
+        <Vacio titulo={conjunto.completo ? 'Sin alumnos en riesgo' : 'Sin alumnos en riesgo en las materias consultadas'} />
       )}
     </section>
   )

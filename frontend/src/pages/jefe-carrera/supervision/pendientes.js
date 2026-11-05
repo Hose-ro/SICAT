@@ -12,7 +12,7 @@ export const TIPOS_PENDIENTE = {
   ALUMNO_RIESGO: { label: 'Alumnos en riesgo', corto: 'Alumnos en riesgo', caso: true },
   ENTREGAS: { label: 'Entregas sin revisar', corto: 'Entregas', caso: false },
   UNIDAD: { label: 'Unidades por revisar', corto: 'Unidades', caso: false },
-  ASIGNACION: { label: 'Materias sin docente u horario', corto: 'Asignaciones', caso: false },
+  ASIGNACION: { label: 'Materias sin docente u horario', corto: 'Sin docente u horario', caso: false },
 }
 
 const ORDEN_TIPOS = Object.keys(TIPOS_PENDIENTE)

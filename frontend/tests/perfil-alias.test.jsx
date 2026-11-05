@@ -9,7 +9,7 @@ import './setup'
 
 vi.mock('@/api/axios', () => ({ default: { get: vi.fn(), patch: vi.fn() } }))
 vi.mock('@/components/CambiarPasswordForm', () => ({ default: () => null }))
-vi.mock('@/pages/jefe-carrera/supervision/Seguimiento', () => ({ BotonSeguimiento: () => <button>Registrar observación</button> }))
+vi.mock('@/pages/jefe-carrera/supervision/Seguimiento', () => ({ BotonSeguimiento: () => <button>Anotar observación</button> }))
 vi.mock('@/lib/feedback', () => ({ notify: vi.fn(), confirmAction: vi.fn() }))
 const docente = { id: 2, nombre: 'Edgar Lopez Aguirre', rol: 'DOCENTE', email: 'edgar@example.com', telefono: '4421234567', alias: null, pertenencia: 'Imparte en esta carrera' }
 beforeEach(() => { vi.clearAllMocks(); useAuthStore.setState({ user: docente }); api.get.mockResolvedValue({ data: docente }) })

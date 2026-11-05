@@ -165,12 +165,12 @@ export function FormSeguimiento({ j, caso, seguimientoId, onGuardado, onCancelar
  * Botón que abre la observación del caso. `compacto` resume el estado en el
  * propio botón (Anotar, Observada, Revisar hoy, Cerrada) para listas largas.
  */
-export function BotonSeguimiento({ j, caso, titulo, contexto, size = 'sm', className, compacto = false }) {
+export function BotonSeguimiento({ j, caso, titulo, contexto, size = 'sm', className, compacto = false, etiquetaNueva = 'Registrar observación' }) {
   const [abierto, setAbierto] = useState(false)
   const seguimientos = useSeguimientos({ carreraId: j.carreraId, periodo: j.periodo })
   const seguimiento = seguimientos.buscar(caso)
   if (j.historico && !seguimiento) return null
-  const etiqueta = seguimiento ? (j.historico ? 'Ver observación' : 'Agregar nota') : 'Registrar observación'
+  const etiqueta = seguimiento ? (j.historico ? 'Ver observación' : 'Agregar nota') : etiquetaNueva
   const estado = !seguimiento ? null : !seguimiento.abierto ? 'cerrada' : seguimiento.fechaRevision && seguimiento.fechaRevision <= hoyClave() ? 'revisar' : 'abierta'
   return (
     <span className={cn('inline-flex flex-wrap items-center gap-x-2 gap-y-1', className)}>

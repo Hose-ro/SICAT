@@ -9,6 +9,8 @@ import { JefaturaPage, Segmento, Vacio, selectClass } from './supervision/ui'
 // «Registro de listas» (antes «Cobertura»).
 const DEFINICION_REGISTRO = 'Listas de asistencia completas entre clases ya concluidas con lista de asistencia esperada. No cuentan suspensiones, clases sin inscritos ni calendarios sin configurar. Es evidencia de captura en SICAT, no de asistencia del docente.'
 
+const BUSCAR_DESDE = 12
+
 /** Asignaciones agrupadas por materia: cada materia una vez, con sus grupos. */
 function materiasDe(asignaciones) {
   const porMateria = new Map()
@@ -74,8 +76,10 @@ function TarjetaDocente({ d, j, i }) {
             {!d.tieneMetricas ? `Sin clases en ${periodoTexto(j.periodo)}` : (
               <>
                 {d.clasesEsperadas ? `${d.listasCompletas} de ${d.clasesEsperadas} listas de asistencia` : 'Sin clases concluidas'}
-                {' · '}
-                {d.ultimaCaptura ? `capturó ${capturaTexto(d.ultimaCaptura)}` : <span className="font-medium text-destructive-foreground">sin capturas aún</span>}
+                {/* «Sin capturas» sólo si de verdad no hay ninguna lista completa; con listas completas y sin fecha se omite. */}
+                {d.ultimaCaptura
+                  ? ` · capturó ${capturaTexto(d.ultimaCaptura)}`
+                  : d.clasesEsperadas > 0 && !d.listasCompletas && <> · <span className="font-medium text-destructive-foreground">sin capturas aún</span></>}
               </>
             )}
           </p>
@@ -123,7 +127,7 @@ export default function JefeDocentes() {
   const set = (k, v) => { const n = new URLSearchParams(params); if (v) n.set(k, v); else n.delete(k); setParams(n, { replace: true }) }
 
   return (
-    <JefaturaPage titulo="Docentes" subtitulo="Carga académica y registro de cada docente dentro de esta carrera.">
+    <JefaturaPage titulo="Docentes">
       {({ j, resumen }) => {
         const ofertas = new Map((resumen.catalogo?.ofertas ?? resumen.ofertas).map((o) => [o.id, o]))
         const metricas = new Map(resumen.docentes.map((d) => [d.id, d]))
@@ -155,11 +159,14 @@ export default function JefeDocentes() {
           <>
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <Segmento label="Vista" value={vista} onChange={(v) => set('vista', v === 'tarjetas' ? '' : v)} options={[{ value: 'tarjetas', label: 'Tarjetas' }, { value: 'semanas', label: 'Por semana' }]} />
-              <label className="relative min-w-[220px] flex-1 sm:max-w-sm">
-                <span className="sr-only">Buscar docente</span>
-                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-                <input type="search" value={busqueda} onChange={(e) => set('q', e.target.value)} placeholder="Buscar docente" className="h-11 w-full rounded-[0.7rem] border border-border bg-card pl-9 pr-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40" />
-              </label>
+              {/* Con pocos docentes la lista cabe a la vista: el buscador sólo estorba. */}
+              {(docentesActivos.length > BUSCAR_DESDE || busqueda) && (
+                <label className="relative min-w-[220px] flex-1 sm:max-w-sm">
+                  <span className="sr-only">Buscar docente</span>
+                  <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+                  <input type="search" value={busqueda} onChange={(e) => set('q', e.target.value)} placeholder="Buscar docente" className="h-11 w-full rounded-[0.7rem] border border-border bg-card pl-9 pr-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40" />
+                </label>
+              )}
               <Segmento label="Mostrar" value={filtro} onChange={(v) => set('filtro', v)} options={[{ value: '', label: 'Todos' }, { value: 'pendientes', label: 'Con pendientes' }]} />
               <label className="w-full sm:w-60">
                 <span className="sr-only">Ordenar docentes</span>
@@ -176,7 +183,7 @@ export default function JefeDocentes() {
             )}
             <details className="mt-3 text-xs text-muted-foreground">
               <summary className="inline-flex min-h-11 cursor-pointer list-none items-center gap-1 rounded-md hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-8">
-                Cifras de {periodoTexto(j.periodo)} · <span className="underline decoration-dotted underline-offset-4">¿qué mide el registro de listas de asistencia?</span>
+                <span className="underline decoration-dotted underline-offset-4">¿Qué mide el registro de listas?</span>
               </summary>
               <p className="max-w-2xl pb-2 leading-relaxed">{DEFINICION_REGISTRO} Los grupos con borde punteado son de otro periodo.</p>
             </details>

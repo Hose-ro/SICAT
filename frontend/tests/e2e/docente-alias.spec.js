@@ -44,7 +44,7 @@ for (const width of [1440, 390]) {
     expect(axe.violations.map((v) => v.id)).toEqual([])
     expect(await header.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true)
     await header.screenshot({ path: testInfo.outputPath('perfil-con-alias.png') })
-    await header.getByRole('button', { name: 'Registrar observación' }).click()
+    await header.getByRole('button', { name: 'Anotar observación' }).click()
     await expect(page.getByRole('dialog', { name: 'Observación con Laura Méndez' })).toBeVisible()
     await page.keyboard.press('Escape')
 

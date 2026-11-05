@@ -36,7 +36,7 @@ function PendientesHorario({ items, headingId }) {
   }
 
   return (
-    <section aria-labelledby={headingId} className="mb-4 rounded-[var(--radius-item)] border border-warning-foreground/25 bg-warning/35">
+    <section aria-labelledby={headingId} className="mb-4 rounded-[var(--radius-item)] border border-border bg-card">
       <h3 id={headingId} className="text-sm font-semibold text-foreground">
         <button
           type="button"
@@ -46,7 +46,7 @@ function PendientesHorario({ items, headingId }) {
           className="flex min-h-11 w-full items-center justify-between gap-3 rounded-[var(--radius-item)] px-4 py-3 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
           <span>
-            Pendientes de programar
+            Sin horario
             <span className="ml-2 rounded-full bg-card px-2 py-0.5 text-xs font-medium tabular-nums text-muted-foreground">{items.length}</span>
           </span>
           <ChevronDown aria-hidden="true" className={cn('size-4 shrink-0 text-muted-foreground transition-transform duration-200 motion-reduce:transition-none', abierto && 'rotate-180')} />
@@ -54,7 +54,7 @@ function PendientesHorario({ items, headingId }) {
       </h3>
       <div id={panelId} hidden={!abierto} className="px-4 pb-3.5">
         <p className="text-xs text-foreground">
-          Estas asignaciones pertenecen al periodo, pero todavía no tienen días y horas; por eso no pueden colocarse en la cuadrícula.
+          Materias del periodo sin días ni horas capturados.
         </p>
         <ul className="mt-3 grid gap-2 text-xs sm:grid-cols-2 xl:grid-cols-3">
           {items.map((item) => (
@@ -227,7 +227,7 @@ export default function HorarioCarrera({ j, resumen, fijo = {}, titulo = 'Horari
               Solo incidencias
             </label>
             <Button variant="outline" className="min-h-11 px-3.5" onClick={() => v.set({ agenda: verAgenda ? '0' : '1' })}>
-              {verAgenda ? 'Ver matriz' : 'Ver agenda'}
+              {verAgenda ? 'Ver cuadrícula' : 'Ver agenda'}
             </Button>
           </div>
         </div>
@@ -295,15 +295,17 @@ function FiltrosHorario({ v, fijo, movil, semestres, gruposOpciones, gruposModal
       <option value="MIXTO">Mixto (sábado)</option>
     </Filtro>
   )
+  // En el horario de un docente ya se ven sólo sus grupos: semestre y grupo no filtran nada útil.
+  const porGrupo = !fijo.grupoId && !fijo.docenteId
   const secundarios = (
     <>
-      {!fijo.grupoId && (
+      {porGrupo && (
         <Filtro label="Semestre" value={v.semestre} onChange={(value) => v.set({ semestre: value, grupo: null })}>
           <option value="">Todos los semestres</option>
           {semestres.map((s) => <option key={s} value={s}>{semestreTexto(s)}</option>)}
         </Filtro>
       )}
-      {!fijo.grupoId && (
+      {porGrupo && (
         <Filtro label="Grupo" value={v.grupo} onChange={(value) => v.set({ grupo: value })}>
           <option value="">Todos los grupos</option>
           {gruposOpciones.map((g) => <option key={g.id} value={g.id}>{g.nombre}</option>)}
@@ -321,11 +323,11 @@ function FiltrosHorario({ v, fijo, movil, semestres, gruposOpciones, gruposModal
   // En el teléfono la fecha y la agenda van primero: la modalidad (que define el
   // calendario) queda a la vista y el resto se pliega con un resumen de lo aplicado.
   const aplicados = [
-    !fijo.grupoId && v.semestre && semestreTexto(Number(v.semestre)),
-    !fijo.grupoId && v.grupo && `Grupo ${gruposModalidad.find((g) => String(g.id) === v.grupo)?.nombre ?? v.grupo}`,
+    porGrupo && v.semestre && semestreTexto(Number(v.semestre)),
+    porGrupo && v.grupo && `Grupo ${gruposModalidad.find((g) => String(g.id) === v.grupo)?.nombre ?? v.grupo}`,
     !fijo.docenteId && v.docente && (docentes.find((d) => String(d.id) === v.docente)?.nombre ?? 'Docente'),
   ].filter(Boolean)
-  const haySecundarios = !fijo.grupoId || !fijo.docenteId
+  const haySecundarios = !fijo.docenteId
   return (
     <div className="mb-4 space-y-2">
       {modalidadFiltro}
@@ -504,7 +506,7 @@ function Agenda({ dias, clases, abrir, fijo }) {
                           <small className="mt-1 block text-xs text-muted-foreground">
                             {[fijo.grupoId ? null : c.grupo.nombre, fijo.docenteId ? null : c.docente.nombre, c.aula?.nombre].filter(Boolean).join(' · ')}
                           </small>
-                          {c.conflictos?.length > 0 && <small className="mt-1 block text-xs font-medium text-destructive-foreground">Conflicto de horario</small>}
+                          {c.conflictos?.length > 0 && <small className="mt-1 block text-xs font-medium text-destructive-foreground">Conflicto: {[...new Set(c.conflictos)].join(', ').toLowerCase()}</small>}
                         </span>
                         <span className={cn('text-xs font-medium max-sm:col-start-2', estado.texto)}>{estado.label}</span>
                       </button>

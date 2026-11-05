@@ -79,15 +79,14 @@ function AgendaClases({ j, clases, ahora }) {
       {restantes.length > 0 && (
         <>
           <Button
-            className="hoy-expandir" variant={expandido ? 'secondary' : 'default'}
+            className="hoy-expandir" variant="outline"
             aria-expanded={expandido} aria-controls={panelId}
             onClick={() => setExpandido((v) => !v)}
           >
-            {expandido ? 'Mostrar solo la clase destacada' : `Ver ${restantes.length === 1 ? 'la otra clase' : `las otras ${restantes.length} clases`}`}
+            {expandido ? 'Ver menos' : `Ver ${restantes.length === 1 ? 'la otra clase' : `las otras ${restantes.length} clases`}`}
             <ChevronDown aria-hidden="true" className={cn('hoy-expandir-icono', expandido && 'hoy-expandir-icono-abierto')} />
           </Button>
           <div id={panelId} hidden={!expandido} className="hoy-restantes">
-            <div className="hoy-restantes-titulo"><h3>Las demás clases de hoy</h3><span>En orden de horario</span></div>
             <div className="hoy-tarjetas">
               {restantes.map((c) => <TarjetaClase key={c.id} clase={c} j={j} />)}
             </div>

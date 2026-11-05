@@ -10,7 +10,7 @@ import { resumenAlumno } from '@/lib/resumenFilas'
 export const ESTADO_CELDA = {
   REPROBADO: { label: 'Reprobado', clase: 'viz-riesgo--reprobado' },
   EN_RIESGO: { label: 'Faltas o entregas', clase: 'viz-riesgo--alerta' },
-  APROBADO: { label: 'Sin señales', clase: 'viz-riesgo--ok' },
+  APROBADO: { label: 'Sin riesgo', clase: 'viz-riesgo--ok' },
   SIN_CALIFICAR: { label: 'Sin calificar', clase: 'viz-riesgo--sin' },
   NO_INSCRITO: { label: 'No inscrito', clase: 'viz-cell--vacia' },
   NO_DISPONIBLE: { label: 'No disponible', clase: 'viz-riesgo--sin' },

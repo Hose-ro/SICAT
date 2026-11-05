@@ -39,7 +39,7 @@ export default function EncabezadoDocente({ docente, j }) {
       </div>
       {copiaManual && <label className="docente-perfil-copia-manual">Selecciona y copia el contacto<input ref={manual} readOnly value={contacto} onFocus={() => manual.current?.select()} /></label>}
       <div className="docente-perfil-acciones">
-        <BotonSeguimiento j={j} caso={{ tipo: 'SEGUIMIENTO_DOCENTE', docenteId: docente.id }} titulo={`Observación con ${docente.nombre}`} contexto="Acuerdos y revisiones con el docente. Cada nota queda con tu nombre y la fecha." size="default" className="docente-perfil-observar" />
+        <BotonSeguimiento j={j} caso={{ tipo: 'SEGUIMIENTO_DOCENTE', docenteId: docente.id }} titulo={`Observación con ${docente.nombre}`} etiquetaNueva="Anotar observación" contexto="Acuerdos y revisiones con el docente. Cada nota queda con tu nombre y la fecha." size="default" className="docente-perfil-observar" />
         <Link className={`${buttonVariants({ variant: 'outline' })} docente-perfil-reporte`} to={`/reportes/parcial-semestre?carreraId=${j.carreraId}&docenteId=${docente.id}`}><FileChartColumn aria-hidden="true" />Ver reporte parcial<ArrowUpRight aria-hidden="true" /></Link>
         <span className="docente-perfil-seguimiento"><MessagesSquare aria-hidden="true" />Seguimiento del docente</span>
       </div>

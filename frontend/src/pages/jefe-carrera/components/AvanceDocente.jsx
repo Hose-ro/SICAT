@@ -61,7 +61,7 @@ function AvanceMateria({ oferta: o, j, inicialmenteAbierta }) {
           {o.cierre && <p className="avance-cierre">{textoCierre(o.cierre)}</p>}
         </div>
         <Button
-          variant="secondary" className="avance-expandir" aria-expanded={abierta} aria-controls={`${id}-detalle`}
+          variant="outline" className="avance-expandir" aria-expanded={abierta} aria-controls={`${id}-detalle`}
           aria-label={`${abierta ? 'Contraer' : 'Expandir'} ${o.materia.nombre}, grupo ${o.grupo.nombre}`}
           onClick={() => setAbierta((v) => !v)}
         >

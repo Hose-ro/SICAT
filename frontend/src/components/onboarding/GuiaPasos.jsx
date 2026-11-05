@@ -13,7 +13,7 @@ import { guardar, leer } from './almacen'
  * lleva directo a la acción. `textos` trae { principal, pendiente, listo,
  * subtituloListo }; `atajos` son los enlaces de "listo" ({ to, label }).
  */
-export default function GuiaPasos({ pasos, claveGuia, textos, atajos = [], onComoFunciona, principal = false }) {
+export default function GuiaPasos({ pasos, claveGuia, textos, atajos = [], onComoFunciona, principal = false, plegable = false }) {
   const [estadoGuia, setEstadoGuia] = useState(() => leer(claveGuia))
   const hechos = pasos.filter((paso) => paso.hecho).length
   const actual = pasos.findIndex((paso) => !paso.hecho)
@@ -33,6 +33,66 @@ export default function GuiaPasos({ pasos, claveGuia, textos, atajos = [], onCom
   }
 
   if (completo && (oculta || estadoGuia !== 'en-curso')) return null
+  const lista = (
+    <ol className="mt-2">
+      {pasos.map((paso, i) => {
+        const esActual = i === actual
+        return (
+          <li key={paso.titulo} className={cn('flex flex-col gap-3 border-border py-4 sm:flex-row sm:items-center sm:gap-5', i > 0 && 'border-t')} aria-current={esActual ? 'step' : undefined}>
+            <span
+              aria-hidden="true"
+              className={cn(
+                'grid size-8 shrink-0 place-items-center rounded-full text-sm font-semibold tabular-nums',
+                paso.hecho ? 'bg-success/22 text-success-foreground' : esActual ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground',
+              )}
+            >
+              {paso.hecho ? <Check className="size-4" /> : i + 1}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="flex flex-wrap items-center gap-2">
+                <b className={cn('font-medium', paso.hecho ? 'text-muted-foreground' : 'text-foreground')}>{paso.titulo}</b>
+                {paso.hecho && <Chip tone="success">Listo</Chip>}
+                {esActual && <Chip tone="accent">Empieza aquí</Chip>}
+              </p>
+              {!paso.hecho && <p className="mt-1 text-sm text-muted-foreground">{paso.detalle}</p>}
+              <span className="sr-only">{paso.hecho ? 'Paso completado.' : 'Paso pendiente.'}</span>
+            </div>
+            {!paso.hecho && (
+              <Link
+                className={buttonVariants({ variant: esActual ? 'default' : 'outline', className: 'min-h-11 self-start sm:min-h-0 sm:self-auto' })}
+                to={paso.destino}
+                onClick={paso.alAbrir}
+              >
+                {paso.accion}
+                <ArrowRight aria-hidden="true" />
+              </Link>
+            )}
+          </li>
+        )
+      })}
+    </ol>
+  )
+
+  const comoFunciona = (
+    <p className="mt-2 border-t border-border pt-4 text-sm text-muted-foreground">
+      ¿Primera vez aquí?{' '}
+      <button type="button" className="font-medium text-primary-ink underline-offset-4 hover:underline" onClick={onComoFunciona}>Ver cómo funciona SICAT</button>
+    </p>
+  )
+
+  // Con el trabajo en marcha la guía queda en una línea plegada, sin avance ni explicación.
+  if (plegable && !principal && !completo) {
+    return (
+      <details id="primeros-pasos" tabIndex={-1} className="border-t border-border">
+        <summary className="cursor-pointer py-4 text-[0.9375rem] font-semibold text-foreground">
+          {textos.pendiente} <span className="font-normal text-muted-foreground">· {hechos} de {pasos.length}</span>
+        </summary>
+        {lista}
+        {comoFunciona}
+      </details>
+    )
+  }
+
   if (oculta) {
     return (
       <p className="text-sm text-muted-foreground">
@@ -70,49 +130,10 @@ export default function GuiaPasos({ pasos, claveGuia, textos, atajos = [], onCom
           {atajos.map((atajo) => <Link key={atajo.to} className={buttonVariants({ variant: 'outline' })} to={atajo.to}>{atajo.label}</Link>)}
         </div>
       ) : (
-        <ol className="mt-2">
-          {pasos.map((paso, i) => {
-            const esActual = i === actual
-            return (
-              <li key={paso.titulo} className={cn('flex flex-col gap-3 border-border py-4 sm:flex-row sm:items-center sm:gap-5', i > 0 && 'border-t')} aria-current={esActual ? 'step' : undefined}>
-                <span
-                  aria-hidden="true"
-                  className={cn(
-                    'grid size-8 shrink-0 place-items-center rounded-full text-sm font-semibold tabular-nums',
-                    paso.hecho ? 'bg-success/22 text-success-foreground' : esActual ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground',
-                  )}
-                >
-                  {paso.hecho ? <Check className="size-4" /> : i + 1}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="flex flex-wrap items-center gap-2">
-                    <b className={cn('font-medium', paso.hecho ? 'text-muted-foreground' : 'text-foreground')}>{paso.titulo}</b>
-                    {paso.hecho && <Chip tone="success">Listo</Chip>}
-                    {esActual && <Chip tone="accent">Empieza aquí</Chip>}
-                  </p>
-                  {!paso.hecho && <p className="mt-1 text-sm text-muted-foreground">{paso.detalle}</p>}
-                  <span className="sr-only">{paso.hecho ? 'Paso completado.' : 'Paso pendiente.'}</span>
-                </div>
-                {!paso.hecho && (
-                  <Link
-                    className={buttonVariants({ variant: esActual ? 'default' : 'outline', className: 'min-h-11 self-start sm:min-h-0 sm:self-auto' })}
-                    to={paso.destino}
-                    onClick={paso.alAbrir}
-                  >
-                    {paso.accion}
-                    <ArrowRight aria-hidden="true" />
-                  </Link>
-                )}
-              </li>
-            )
-          })}
-        </ol>
+        lista
       )}
 
-      <p className="mt-2 border-t border-border pt-4 text-sm text-muted-foreground">
-        ¿Primera vez aquí?{' '}
-        <button type="button" className="font-medium text-primary-ink underline-offset-4 hover:underline" onClick={onComoFunciona}>Ver cómo funciona SICAT</button>
-      </p>
+      {comoFunciona}
     </section>
   )
 }

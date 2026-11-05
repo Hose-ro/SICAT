@@ -15,7 +15,7 @@ function leerRevision(clave) {
 }
 
 /** Primeros pasos del jefe de carrera, por usuario y por carrera. */
-export default function PrimerosPasosJefatura({ j, resumen, reuniones, userId, onComoFunciona, principal = false }) {
+export default function PrimerosPasosJefatura({ j, resumen, reuniones, userId, onComoFunciona, principal = false, plegable = false }) {
   const base = `${userId}.${j.carreraId}`
   const claveRevision = `sicat.jefatura.revision.${base}`
   const [revision, setRevision] = useState(() => leerRevision(claveRevision))
@@ -43,6 +43,7 @@ export default function PrimerosPasosJefatura({ j, resumen, reuniones, userId, o
       atajos={atajos}
       onComoFunciona={onComoFunciona}
       principal={principal}
+      plegable={plegable}
     />
   )
 }

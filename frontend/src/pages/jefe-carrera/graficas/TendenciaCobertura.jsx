@@ -57,15 +57,10 @@ export default function TendenciaCobertura({ j, resumen }) {
         </label>
       </div>
       {!hayDatos ? (
-        <div className="inicio-tendencia-vacia"><ChartColumn className="inicio-icono" aria-hidden="true" /><p>Todavía no hay clases concluidas con lista de asistencia esperada para esta modalidad en el periodo.</p></div>
+        <div className="inicio-tendencia-vacia"><ChartColumn className="inicio-icono" aria-hidden="true" /><p>Aún no hay semanas con clases concluidas.</p></div>
       ) : (
         <>
-          <p className="registro-conclusion">
-            {ultimaCerrada
-              ? <>Última semana cerrada, {ultimaCerrada.rango}: <strong>{ultimaCerrada.completas} de {ultimaCerrada.esperadas} listas de asistencia completas ({ultimaCerrada.cobertura} %)</strong>. {ultimaCerrada.cobertura >= META ? 'Meta alcanzada.' : `Por debajo de la meta de ${META} %.`}</>
-              : 'La primera semana sigue en curso. Su resultado puede cambiar hasta que termine.'}
-            {racha >= 2 && ` Van ${racha} semanas cerradas evaluables seguidas por debajo de la meta.`}
-          </p>
+          {racha >= 2 && <p className="registro-conclusion text-warning-foreground">{racha} semanas seguidas bajo la meta.</p>}
           {tabla ? <TablaSemanas serie={serie} /> : (
             <>
               <div className="registro-grafica">
@@ -84,7 +79,7 @@ export default function TendenciaCobertura({ j, resumen }) {
                           aria-label={`Semana del ${s.rango}${s.enCurso ? ', en curso' : ''}: ${s.cobertura == null ? 'sin clases concluidas con lista de asistencia esperada' : `${s.completas} de ${s.esperadas} listas de asistencia completas, ${s.cobertura} %`}`} />
                         <span className="registro-porcentaje" aria-hidden="true">{s.cobertura == null ? '—' : `${s.cobertura} %`}</span>
                         <span className="registro-pista" aria-hidden="true">
-                          {s.cobertura != null && <span className={cn('registro-barra', s.enCurso && 'registro-barra-actual')} style={{ height: `${s.cobertura}%` }} />}
+                          {s.cobertura != null && <span className={cn('registro-barra', s.enCurso ? 'registro-barra-actual' : s.cobertura < META && 'registro-barra-baja')} style={{ height: `${s.cobertura}%` }} />}
                           {s.cobertura === 0 && <span className="registro-cero" />}
                         </span>
                         <span className="registro-fecha" aria-hidden="true">{s.etiqueta}<span>{s.enCurso ? 'En curso' : s.cobertura == null ? 'Sin clases' : s.cobertura < META ? 'Bajo la meta' : ''}</span></span>

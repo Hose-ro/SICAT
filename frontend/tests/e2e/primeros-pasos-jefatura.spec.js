@@ -50,8 +50,10 @@ test('carrera a medias: la guía señala la oferta y abre el formulario de reuni
   await page.goto('/dashboard')
 
   await expect(page.getByRole('dialog', { name: 'Cómo funciona SICAT' })).toHaveCount(0)
-  const guia = page.getByRole('region', { name: 'Termina de preparar tu carrera' })
-  await expect(guia).toContainText('1 de 4 pasos listos')
+  // Con la carrera en marcha la guía queda plegada al final de Inicio.
+  const guia = page.locator('details#primeros-pasos')
+  await expect(guia.locator('summary')).toContainText('Termina de preparar tu carrera · 1 de 4')
+  await guia.locator('summary').click()
   await expect(guia.locator('[aria-current="step"]')).toContainText('sin docente o sin horario')
   // El resto de Inicio sigue ahí.
   await expect(page.getByRole('heading', { name: 'Clases de hoy' })).toBeVisible()

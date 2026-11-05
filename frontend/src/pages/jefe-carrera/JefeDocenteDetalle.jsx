@@ -39,7 +39,7 @@ function Contenido({ j, resumen, docenteId }) {
       <Carga ofertas={ofertas} docente={docente} j={j} />
       <Registro docente={docente} clases={clases} error={error} reintentar={reintentar} intervalo={resumen.intervalo} j={j} />
       <AvanceDocente key={`${j.carreraId}:${j.periodo}:${docenteId}`} ofertas={ofertas} j={j} />
-      <HorarioCarrera j={j} resumen={resumen} fijo={{ docenteId }} titulo="Horario semanal" descripcion="Solo las clases de este docente en la carrera." headingId="horario-docente" />
+      <HorarioCarrera j={j} resumen={resumen} fijo={{ docenteId }} titulo="Horario semanal" descripcion={null} headingId="horario-docente" />
     </>
   )
 }
@@ -52,9 +52,26 @@ function horasBloque(h) {
 function Carga({ ofertas, docente, j }) {
   return (
     <section className="mt-8" aria-labelledby="carga-docente">
-      <SeccionTitulo id="carga-docente" titulo="Carga académica" descripcion={`${docente.horasSemanales} horas a la semana, calculadas con la duración y los días de cada bloque.`} />
+      <SeccionTitulo id="carga-docente" titulo="Carga académica" descripcion={`${docente.horasSemanales} h/sem`} />
       {ofertas.length ? (
-        <div role="region" tabIndex={0} aria-label="Carga académica" className="overflow-x-auto rounded-[var(--radius-item)] border border-border bg-card focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40">
+        <>
+        {/* En el teléfono cada materia es una fila apilada: la tabla de cinco columnas no cabe. */}
+        <ul className="divide-y divide-border rounded-[var(--radius-item)] border border-border bg-card text-[0.8125rem] sm:hidden">
+          {ofertas.map((o) => {
+            const bloques = o.horarios.filter((h) => h.docenteId === docente.id)
+            return (
+              <li key={o.id} className="px-4 py-3">
+                <Link className={cn(linkClass, 'font-medium text-foreground')} to={j.toDesde(`/jefe-carrera/materias/${o.materia.id}`, { oferta: o.grupo.id })}>{o.materia.nombre}</Link>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  <Link className={linkClass} to={j.toDesde(`/jefe-carrera/grupos/${o.grupo.id}`)}>Grupo {o.grupo.nombre}</Link>
+                  {' · '}{modalidadTexto(o.grupo.modalidad)} · {Math.round(bloques.reduce((n, h) => n + horasBloque(h), 0) * 10) / 10} h/sem · {o.resumen.alumnos} inscritos
+                </p>
+                {bloques.map((h) => <span key={h.id} className="mt-0.5 block text-xs tabular-nums text-muted-foreground">{diasTexto(h.dias)} · {h.horaInicio}–{h.horaFin}{h.aula ? ` · ${h.aula.nombre}` : ''}</span>)}
+              </li>
+            )
+          })}
+        </ul>
+        <div role="region" tabIndex={0} aria-label="Carga académica" className="overflow-x-auto rounded-[var(--radius-item)] border max-sm:hidden border-border bg-card focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40">
           <table className="w-full min-w-[720px] border-collapse text-[0.8125rem]">
             <thead>
               <tr className="border-b border-border bg-background text-left text-xs text-muted-foreground">
@@ -86,6 +103,7 @@ function Carga({ ofertas, docente, j }) {
             </tbody>
           </table>
         </div>
+        </>
       ) : <Vacio titulo="Sin carga en el periodo" />}
     </section>
   )
@@ -103,7 +121,7 @@ function Registro({ docente, clases, error, reintentar, intervalo, j }) {
     { label: 'Lista completa a tiempo', valor: cuenta('LISTA_COMPLETA'), tono: 'success' },
     { label: 'Registro tardío', valor: cuenta('REGISTRO_TARDIO'), tono: 'success-suave' },
     { label: 'Captura parcial', valor: cuenta('CAPTURA_PARCIAL'), tono: 'warning' },
-    { label: 'Sin evidencia de registro', valor: cuenta('SIN_CAPTURA'), tono: 'destructive' },
+    { label: 'Sin captura', valor: cuenta('SIN_CAPTURA'), tono: 'destructive' },
   ]
 
   return (
@@ -111,7 +129,7 @@ function Registro({ docente, clases, error, reintentar, intervalo, j }) {
       <SeccionTitulo
         id="registro-docente"
         titulo="Registro de clases y asistencia"
-        descripcion={intervalo ? `Clases concluidas del ${fechaBreve(intervalo.desde)} al ${fechaBreve(intervalo.hasta)}, sin suspensiones ni días fuera del calendario.` : null}
+        descripcion={intervalo ? `${fechaBreve(intervalo.desde)} – ${fechaBreve(intervalo.hasta)}` : null}
       />
       {error && !clases ? <Aviso tono="error" titulo="No se pudo consultar el registro" accion={<button type="button" className={linkClass} onClick={reintentar}>Reintentar</button>}>{error}</Aviso> : !clases ? (
         <div className="h-24 animate-pulse rounded-[var(--radius-item)] bg-muted" aria-busy="true" />
@@ -128,7 +146,7 @@ function Registro({ docente, clases, error, reintentar, intervalo, j }) {
               <div className="min-w-0">
                 <h3 className="text-sm font-semibold text-foreground">Registro de listas de asistencia</h3>
                 <p className="mt-1 text-[0.8125rem] text-muted-foreground">
-                  {elegibles.length ? <><span className="font-semibold tabular-nums text-foreground">{completas} de {elegibles.length}</span> clases elegibles con lista completa.</> : 'Todavía no hay clases elegibles en el intervalo.'}
+                  {elegibles.length ? <><span className="font-semibold tabular-nums text-foreground">{completas} de {elegibles.length}</span> clases con lista completa.</> : 'Aún no hay clases concluidas.'}
                 </p>
               </div>
             </div>
@@ -141,7 +159,7 @@ function Registro({ docente, clases, error, reintentar, intervalo, j }) {
                 </span>
               </AnilloSegmentos>
               <div className="min-w-0 flex-1">
-                <h3 className="text-sm font-semibold text-foreground">Estado de las clases elegibles</h3>
+                <h3 className="text-sm font-semibold text-foreground">Estado de las clases</h3>
                 <dl className="mt-2 space-y-1.5 text-[0.8125rem]">
                   {estados.map((e) => (
                     <div key={e.tono} className="flex items-center gap-2">
@@ -154,13 +172,12 @@ function Registro({ docente, clases, error, reintentar, intervalo, j }) {
               </div>
             </div>
           </div>
-          <p className="mt-3 text-xs text-muted-foreground">La falta de captura no prueba ausencia del docente; confírmala en una observación.</p>
 
           {sinEvidencia.length ? (
             <details className="plegable group mt-6" open={sinEvidencia.length <= 5}>
               <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-md border-b border-border pb-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
                 <span className="flex items-center gap-2">
-                  <h3 className="text-sm font-semibold text-foreground">Clases sin evidencia de registro</h3>
+                  <h3 className="text-sm font-semibold text-foreground">Clases sin lista de asistencia completa</h3>
                   <span className="rounded-full bg-warning/15 px-2 py-0.5 text-xs font-semibold tabular-nums text-warning-foreground dark:bg-warning/20">{sinEvidencia.length}</span>
                 </span>
                 <span className="flex items-center gap-1 text-xs text-muted-foreground">

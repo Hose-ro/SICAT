@@ -26,7 +26,7 @@ const PANTALLAS = [
   {
     icono: CalendarCheck,
     titulo: 'Tu día a día',
-    texto: 'Empieza por «Requiere atención» en Inicio. «Ver detalle» y «Ver clase» muestran lo registrado; sin captura no se prueba que la clase no se impartiera. «Registrar observación» guarda el acuerdo con tu nombre y fecha.',
+    texto: 'En Inicio ves las clases de hoy, los alumnos en riesgo y los pendientes de cada docente. «Anotar observación» guarda el acuerdo con tu nombre y fecha.',
   },
   {
     icono: FileBarChart,

@@ -53,7 +53,7 @@ const porcentaje = (v) => (v == null ? 'Sin clases' : `${v} %`)
 
 export default function JefeReportes() {
   return (
-    <JefaturaPage titulo="Informes" subtitulo="Prepara un informe de tu carrera para consultar o compartir.">
+    <JefaturaPage titulo="Informes">
       {/* Cambiar de carrera o periodo empieza un informe nuevo: nada del anterior se conserva. */}
       {({ j, resumen }) => <TiposInforme key={`${j.carreraId}|${j.periodo}`} j={j} resumen={resumen} />}
     </JefaturaPage>
@@ -75,31 +75,26 @@ const SECCIONES = [
   {
     id: 'cobertura',
     titulo: 'Registro de listas por docente',
-    descripcion: 'Listas completas, parciales, sin captura y tardías.',
     tiempo: 'intervalo',
   },
   {
     id: 'listas',
     titulo: 'Listas pendientes de captura',
-    descripcion: 'Clases con listas incompletas o sin registro.',
     tiempo: 'intervalo',
   },
   {
     id: 'avance',
     titulo: 'Avance académico por materia y grupo',
-    descripcion: 'Unidades, calificaciones pendientes y cierre del curso.',
     tiempo: 'corte',
   },
   {
     id: 'riesgo',
     titulo: 'Alumnos en riesgo',
-    descripcion: 'Alumnos, materias y motivos del riesgo actual.',
     tiempo: 'corte',
   },
   {
     id: 'seguimientos',
     titulo: 'Observaciones de seguimiento',
-    descripcion: 'Notas y estado de los casos documentados.',
     tiempo: 'intervalo',
   },
 ]
@@ -330,14 +325,11 @@ export function Informe({ j, resumen }) {
               </fieldset>
               <fieldset className="mt-8 min-w-0">
                 <legend className="text-sm font-medium">Contenido del informe</legend>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  El resumen se incluye siempre. Elige el detalle que necesitas.
-                </p>
                 <div className="mt-3 divide-y divide-border border-y border-border">
                   {SECCIONES.map((s) => (
                     <label
                       key={s.id}
-                      className="flex min-h-20 cursor-pointer items-center gap-3 py-3 hover:bg-muted/40"
+                      className="flex min-h-14 cursor-pointer items-center gap-3 py-3 hover:bg-muted/40"
                     >
                       <input
                         type="checkbox"
@@ -347,7 +339,6 @@ export function Informe({ j, resumen }) {
                       />
                       <span className="min-w-0 flex-1">
                         <strong className="block text-sm font-medium">{s.titulo}</strong>
-                        <span className="mt-1 block text-xs text-muted-foreground">{s.descripcion}</span>
                       </span>
                       <span className="w-20 shrink-0 text-right text-xs text-muted-foreground">
                         {s.tiempo === 'corte' ? 'Al corte actual' : 'Del intervalo'}
@@ -420,7 +411,7 @@ export function Informe({ j, resumen }) {
                         {...seccion('cobertura')}
                         conteo={data.docentes.length}
                         titulo="Registro de listas por docente"
-                        descripcion="Clases concluidas con lista esperada en el intervalo. El registro en SICAT es evidencia de captura; no confirma presencia física del docente."
+                        descripcion="Clases concluidas del intervalo."
                       >
                         <Tabla
                           columnas={[
@@ -471,7 +462,7 @@ export function Informe({ j, resumen }) {
                         {...seccion('avance')}
                         conteo={data.avance.length}
                         titulo="Avance de unidades por materia y grupo"
-                        descripcion="Estado al día de hoy; las unidades son de la materia y se comparten entre grupos."
+                        descripcion="Al corte de hoy."
                       >
                         <Tabla
                           columnas={[
@@ -504,7 +495,7 @@ export function Informe({ j, resumen }) {
                         {...seccion('riesgo')}
                         conteo={data.riesgos.length}
                         titulo="Alumnos en riesgo"
-                        descripcion="Al corte de hoy, con el mismo criterio de Inicio y Grupos."
+                        descripcion="Al corte de hoy."
                       >
                         <Tabla
                           columnas={['Alumno', 'Número de control', 'Grupo', 'Materias', 'Motivos']}

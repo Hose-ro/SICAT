@@ -7,7 +7,7 @@ import SexoBadge from '@/components/SexoBadge'
 import { MOTIVOS_RIESGO, estadoClase } from './supervision/estados'
 import { fechaCorta, fechaHoraCorta, haceTiempo, modalidadTexto, plural } from './supervision/formato'
 import { TIPOS_PENDIENTE, calendariosFaltantes, conteoPorTipo, filtrarPendientes, pendientesAcademicos } from './supervision/pendientes'
-import { Aviso, Esqueleto, JefaturaPage, Pestanas, Vacio, linkClass, selectClass } from './supervision/ui'
+import { Aviso, Esqueleto, JefaturaPage, Pestanas, Segmento, Vacio, linkClass, selectClass } from './supervision/ui'
 import { BotonSeguimiento, EstadoSeguimiento, FormSeguimiento } from './supervision/Seguimiento'
 import { FiltroChip } from './supervision/senales'
 import { TIPOS_SEGUIMIENTO, esParaHoy, useSeguimientos } from './supervision/useSeguimientos'
@@ -399,21 +399,15 @@ function Observaciones({ j, resumen, seguimientos }) {
   return (
     <section aria-labelledby="observaciones-titulo" className="mt-6">
       <h2 id="observaciones-titulo" className="sr-only">Observaciones registradas</h2>
-      <p className="max-w-3xl text-xs text-muted-foreground">
-        Acuerdos y revisiones del periodo. Cada nota queda con su autor y su fecha. Cerrar una observación no corrige el pendiente: si la causa sigue, aparece en «Por atender».
-      </p>
-      <Pestanas
-        label="Vista de observaciones"
-        activa={vista.value}
-        items={VISTAS.map((v) => {
-          const query = new URLSearchParams(params)
-          query.set('seccion', 'observaciones')
-          query.set('vista', v.value)
-          return { value: v.value, label: v.label, count: filtrados.filter(v.filtro).length, to: `?${query}` }
-        })}
-      />
-
-      <div className="mt-5 flex flex-wrap items-end gap-3">
+      {/* Sin observaciones no hay nada que filtrar: sólo el estado vacío. */}
+      {seguimientos.lista.length > 0 && (
+      <div className="flex flex-wrap items-end gap-3">
+        <Segmento
+          label="Vista de observaciones"
+          value={vista.value}
+          onChange={(v) => set({ seccion: 'observaciones', vista: v })}
+          options={VISTAS.map((v) => ({ value: v.value, label: <>{v.label} <span className="ml-1 tabular-nums text-xs text-muted-foreground">{filtrados.filter(v.filtro).length}</span></> }))}
+        />
         <label className="w-full sm:w-56">
           <span className="text-xs font-medium text-muted-foreground">Tipo de caso</span>
           <select value={tipo} onChange={(e) => set({ tipo: e.target.value })} className={`${selectClass} mt-1.5`}>
@@ -421,15 +415,18 @@ function Observaciones({ j, resumen, seguimientos }) {
             {Object.entries(TIPOS_SEGUIMIENTO).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
         </label>
-        <label className="w-full sm:w-64">
-          <span className="text-xs font-medium text-muted-foreground">Docente</span>
-          <select value={docente} onChange={(e) => set({ docente: e.target.value })} className={`${selectClass} mt-1.5`}>
-            <option value="">Todos los docentes</option>
-            {responsables.map(([id, nombre]) => <option key={id} value={id}>{nombre}</option>)}
-          </select>
-        </label>
+        {(responsables.length > 1 || docente) && (
+          <label className="w-full sm:w-64">
+            <span className="text-xs font-medium text-muted-foreground">Docente</span>
+            <select value={docente} onChange={(e) => set({ docente: e.target.value })} className={`${selectClass} mt-1.5`}>
+              <option value="">Todos los docentes</option>
+              {responsables.map(([id, nombre]) => <option key={id} value={id}>{nombre}</option>)}
+            </select>
+          </label>
+        )}
         {(tipo || docente) && <Button variant="ghost" className="min-h-11" onClick={() => set({ tipo: '', docente: '' })}>Quitar filtros</Button>}
       </div>
+      )}
 
       {visibles.length ? (
         <ul className="mt-5 divide-y divide-border border-y border-border">
@@ -464,7 +461,7 @@ function Observaciones({ j, resumen, seguimientos }) {
         <Vacio titulo={seguimientos.lista.length ? 'Nada en esta vista' : 'Todavía no hay observaciones en el periodo'}>
           {seguimientos.lista.length
             ? (tipo || docente ? 'Ninguna observación coincide con los filtros.' : vista.value === 'hoy' ? 'Ningún caso abierto tiene revisión programada para hoy.' : 'No hay casos en esta vista.')
-            : 'Regístralas desde «Por atender», el detalle de una clase o la ficha de un docente. Aquí quedará el historial.'}
+            : 'Se anotan desde «Por atender», una clase o la ficha de un docente.'}
         </Vacio>
       )}
 

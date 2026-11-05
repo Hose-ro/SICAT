@@ -83,7 +83,7 @@ test.describe('jefatura: pendientes y seguimiento', () => {
 
     // Observaciones registradas muestra el caso cerrado y que la causa sigue.
     await page.getByRole('link', { name: 'Observaciones registradas' }).click()
-    await page.getByRole('link', { name: /^Cerrados/ }).click()
+    await page.getByRole('button', { name: /^Cerrados/ }).click()
     await expect(page.getByText('La lista de asistencia sigue sin captura completa')).toBeVisible()
   })
 
@@ -92,7 +92,8 @@ test.describe('jefatura: pendientes y seguimiento', () => {
     await mockJefatura(page)
     await page.goto('/jefe-carrera/seguimientos?vista=hoy')
     await expect(page.getByRole('link', { name: 'Observaciones registradas' })).toHaveAttribute('aria-current', 'page')
-    await expect(page.getByRole('link', { name: /^Para revisar hoy/ })).toHaveAttribute('aria-current', 'page')
+    // Sin observaciones no hay vistas ni filtros: sólo el estado vacío.
+    await expect(page.getByText('Todavía no hay observaciones en el periodo')).toBeVisible()
 
     // Si las observaciones fallan, los pendientes no desaparecen ni se leen como cero.
     await page.route('**/api/jefe-carrera/seguimientos**', (route) => route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ message: 'Servicio no disponible' }) }))

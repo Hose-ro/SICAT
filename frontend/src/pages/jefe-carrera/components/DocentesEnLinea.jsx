@@ -50,12 +50,11 @@ export default function DocentesEnLinea({ j }) {
     <aside aria-labelledby="docentes-en-linea" className="docentes-en-linea">
       <div className="flex items-center justify-between gap-3">
         <h2 id="docentes-en-linea" className="text-base font-semibold">
-          Docentes en línea
+          En clase ahora
         </h2>
         <Clock3 aria-hidden="true" className="size-4 text-muted-foreground" />
       </div>
-      <p className="mt-1 text-xs text-muted-foreground">En clase según el horario · {hora}</p>
-      <p className="mt-2 text-xs text-muted-foreground">El registro de asistencia indica actividad en SICAT.</p>
+      <p className="mt-1 text-xs text-muted-foreground">Según el horario · {hora}</p>
       {error ? (
         <div role="alert" className="mt-5 text-sm">
           <p>No se pudo actualizar el estado de las clases.</p>
@@ -68,7 +67,7 @@ export default function DocentesEnLinea({ j }) {
           Consultando docentes…
         </p>
       ) : !docentes.size ? (
-        <p className="mt-6 text-sm text-muted-foreground">No hay docentes con clase en este momento.</p>
+        <p className="mt-4 text-sm text-muted-foreground">Nadie tiene clase ahora.</p>
       ) : (
         <ul className="mt-5 divide-y divide-border">
           {[...docentes.values()]

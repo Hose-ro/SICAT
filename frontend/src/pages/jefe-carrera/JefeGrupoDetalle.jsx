@@ -97,7 +97,7 @@ function Contenido({ j, resumen, grupoId }) {
       {tab === 'riesgo' && <MapaRiesgoGrupo j={j} grupo={grupo} ofertas={ofertas} reportes={reportes} expediente={expediente} abrirAlumno={abrirAlumno} alumnoActivo={alumnoAbierto?.id} />}
       {tab === 'alumnos' && <Alumnos grupo={grupo} ofertas={ofertas} reportes={reportes} expediente={expediente} abrirAlumno={abrirAlumno} />}
       {tab === 'materias' && <MateriasUnidades j={j} ofertas={ofertas} reportes={reportes} />}
-      {tab === 'horario' && <HorarioCarrera j={j} resumen={resumen} fijo={{ grupoId }} titulo={`Horario de ${grupo.nombre}`} descripcion="Las mismas vistas del horario general, solo con este grupo." />}
+      {tab === 'horario' && <HorarioCarrera j={j} resumen={resumen} fijo={{ grupoId }} titulo={`Horario de ${grupo.nombre}`} descripcion={null} />}
 
       <AlumnoExpediente j={j} alumno={alumnoAbierto} ofertas={ofertas} enRiesgo={Boolean(alumnoAbierto && resumen.riesgos.some((a) => a.id === alumnoAbierto.id))} cargando={Boolean(alumnoId && expediente.cargando)} onClose={cerrarAlumno} />
     </>
