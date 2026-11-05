@@ -230,13 +230,17 @@ export class SupervisionService {
           where: { ...horarioVigente, grupo: gruposActivos },
           include: horarioInclude,
         },
+        _count: { select: { horarios: { where: { activo: true } } } },
       },
       orderBy: [{ semestre: 'asc' }, { nombre: 'asc' }],
     });
     return materias.flatMap((m) =>
       m.grupos.map((grupo) => {
         const horarios = m.horarios.filter((h) => h.grupoId === grupo.id);
-        const titular = docenteVigente(m.docente);
+        // Con horarios, `Materia.docenteId` sólo refleja el del primer bloque
+        // de cualquier grupo: quien imparte en cada grupo lo dicen sus bloques.
+        // El titular cuenta únicamente si la materia no tiene horarios.
+        const titular = m._count.horarios ? null : docenteVigente(m.docente);
         const docentes = [
           ...new Map(
             [
@@ -294,7 +298,12 @@ export class SupervisionService {
       periodo,
       materiaId,
       grupoId,
-      { inicio: calendario.inicio, fin: corteActual ? new Date(Math.min(calendario.fin.getTime(), Date.now())) : calendario.fin },
+      {
+        inicio: calendario.inicio,
+        fin: corteActual
+          ? new Date(Math.min(calendario.fin.getTime(), Date.now()))
+          : calendario.fin,
+      },
       [periodo, grupo.periodo],
     );
     return { ...reporte, periodo, grupo, calendario, avanceCompartido: true };

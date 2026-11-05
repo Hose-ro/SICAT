@@ -27,6 +27,7 @@ describe('SupervisionService - catálogos de jefatura', () => {
         docente: { id: 4, nombre: 'Docente', email: null },
       },
     ],
+    _count: { horarios: 1 },
   };
 
   function crearServicio() {
@@ -91,12 +92,58 @@ describe('SupervisionService - catálogos de jefatura', () => {
         ...materia,
         docente: { ...materia.docente, id: 5, activo: false },
         horarios: [],
+        _count: { horarios: 0 },
       },
     ]);
 
     const ofertas = await (service as any).ofertas(1);
 
     expect(ofertas[0].docentes).toEqual([]);
+  });
+
+  it('el titular no se asigna a grupos de la materia donde no tiene horario', async () => {
+    const { prisma, service } = crearServicio();
+    const mixto = {
+      ...materia.grupos[0],
+      id: 21,
+      nombre: '706-SA',
+      modalidad: 'MIXTO',
+    };
+    prisma.materia.findMany.mockResolvedValue([
+      { ...materia, grupos: [...materia.grupos, mixto] },
+    ]);
+
+    const ofertas = await (service as any).ofertas(1);
+
+    expect(ofertas.find((o: any) => o.grupo.id === 20).docentes).toEqual([
+      expect.objectContaining({ id: 4 }),
+    ]);
+    expect(ofertas.find((o: any) => o.grupo.id === 21).docentes).toEqual([]);
+  });
+
+  it('sin horarios, el titular cubre todos los grupos de la materia', async () => {
+    const { prisma, service } = crearServicio();
+    const mixto = {
+      ...materia.grupos[0],
+      id: 21,
+      nombre: '706-SA',
+      modalidad: 'MIXTO',
+    };
+    prisma.materia.findMany.mockResolvedValue([
+      {
+        ...materia,
+        grupos: [...materia.grupos, mixto],
+        horarios: [],
+        _count: { horarios: 0 },
+      },
+    ]);
+
+    const ofertas = await (service as any).ofertas(1);
+
+    expect(ofertas.map((o: any) => o.docentes.map((d: any) => d.id))).toEqual([
+      [4],
+      [4],
+    ]);
   });
 
   it('incluye etiquetas institucionales equivalentes en el periodo de supervisión', async () => {

@@ -13,6 +13,7 @@ import {
   asegurarAccesoMateria,
   asegurarCarreraDeJefe,
   esDocenteDeMateria,
+  gruposPropios,
   materiasActivasDelDocenteWhere,
   materiasDelDocenteWhere,
 } from '../common/materia-ownership';
@@ -270,14 +271,26 @@ export class MateriasService {
             modalidad: true,
           },
         },
+        horarios: {
+          where: { activo: true },
+          select: { docenteId: true, grupoId: true },
+        },
         _count: { select: { inscripciones: true } },
         ...(docenteId && incluirPausadas
           ? { pausas: { where: { docenteId }, select: { docenteId: true } } }
           : {}),
       },
     });
-    if (!docenteId || !incluirPausadas) return materias;
-    return materias.map(({ pausas, ...materia }) => ({
+    // Una materia se comparte entre grupos con distinto docente: cada quien
+    // sólo ve los grupos en los que da clase.
+    const propias = materias.map(({ horarios, ...materia }) => ({
+      ...materia,
+      grupos: docenteId
+        ? gruposPropios({ ...materia, horarios }, docenteId)
+        : materia.grupos,
+    }));
+    if (!docenteId || !incluirPausadas) return propias;
+    return propias.map(({ pausas, ...materia }) => ({
       ...materia,
       pausada: pausas.length > 0,
     }));

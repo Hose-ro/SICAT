@@ -10,10 +10,18 @@ export interface ActorMateria {
 }
 
 /**
- * Un docente imparte la materia si la tiene asignada directamente o si tiene un
- * horario activo en ella. La asignación directa (`Materia.docenteId`) sólo
- * guarda un docente, así que en cuanto la misma materia se da en varios grupos
- * deja de ser suficiente por sí sola.
+ * La asignación directa (`Materia.docenteId`) sólo guarda un docente y, en
+ * cuanto hay horarios, se sincroniza con el del primer bloque de cualquier
+ * grupo. Por eso sólo cuenta si la materia no tiene horarios activos: con
+ * horarios, cada docente imparte únicamente en los grupos de sus bloques.
+ */
+function asignacionDirectaWhere(docenteId: number): Prisma.MateriaWhereInput {
+  return { docenteId, horarios: { none: { activo: true } } };
+}
+
+/**
+ * Un docente imparte la materia si tiene un horario activo en ella o, cuando
+ * la materia aún no tiene horarios, si la tiene asignada directamente.
  */
 export async function esDocenteDeMateria(
   prisma: PrismaLike,
@@ -22,7 +30,7 @@ export async function esDocenteDeMateria(
   grupoId?: number | null,
 ): Promise<boolean> {
   const asignacionDirecta = await prisma.materia.count({
-    where: { id: materiaId, docenteId },
+    where: { id: materiaId, ...asignacionDirectaWhere(docenteId) },
   });
   if (asignacionDirecta > 0) return true;
 
@@ -42,8 +50,33 @@ export function materiasDelDocenteWhere(
   docenteId: number,
 ): Prisma.MateriaWhereInput {
   return {
-    OR: [{ docenteId }, { horarios: { some: { docenteId, activo: true } } }],
+    OR: [
+      asignacionDirectaWhere(docenteId),
+      { horarios: { some: { docenteId, activo: true } } },
+    ],
   };
+}
+
+/**
+ * Grupos de la materia en los que el docente da clase: los de sus horarios
+ * activos (un bloque sin grupo, heredado, cubre todos) o todos si la tiene
+ * asignada directamente y aún no hay horarios.
+ */
+export function gruposPropios<G extends { id: number }>(
+  materia: {
+    docenteId: number | null;
+    grupos: G[];
+    horarios: Array<{ docenteId: number; grupoId: number | null }>;
+  },
+  docenteId: number,
+): G[] {
+  if (!materia.horarios.length) {
+    return materia.docenteId === docenteId ? materia.grupos : [];
+  }
+  const propios = materia.horarios.filter((h) => h.docenteId === docenteId);
+  if (propios.some((h) => h.grupoId === null)) return materia.grupos;
+  const ids = new Set(propios.map((h) => h.grupoId));
+  return materia.grupos.filter((grupo) => ids.has(grupo.id));
 }
 
 /**
@@ -117,15 +150,18 @@ export async function asegurarAccesoMateria(
 /**
  * Fragmentos `{ materiaId, grupoId? }` para filtrar filas con materia y grupo
  * (tareas, calificaciones) con la misma regla que `esDocenteDeMateria`: la
- * asignación directa cubre todos los grupos y cada horario activo sólo el
- * suyo. Evita repetir la consulta por cada fila.
+ * asignación directa (materia sin horarios) cubre todos los grupos y cada
+ * horario activo sólo el suyo. Evita repetir la consulta por cada fila.
  */
 export async function clasesDelDocenteWhere(
   prisma: PrismaLike,
   docenteId: number,
 ): Promise<Array<{ materiaId: number; grupoId?: number | null }>> {
   const [directas, horarios] = await Promise.all([
-    prisma.materia.findMany({ where: { docenteId }, select: { id: true } }),
+    prisma.materia.findMany({
+      where: asignacionDirectaWhere(docenteId),
+      select: { id: true },
+    }),
     prisma.horarioMateria.findMany({
       where: { docenteId, activo: true },
       select: { materiaId: true, grupoId: true },
@@ -139,32 +175,32 @@ export async function clasesDelDocenteWhere(
 }
 
 /**
- * Docente responsable de una materia en un grupo: la asignación directa y, si
- * no la hay, el docente del horario activo de ese grupo. Se usa cuando un ADMIN
- * crea recursos "a nombre" del docente que imparte la clase.
+ * Docente responsable de una materia en un grupo: el del horario activo de ese
+ * grupo y, si la materia no tiene horarios, la asignación directa. Se usa
+ * cuando un ADMIN crea recursos "a nombre" del docente que imparte la clase.
  */
 export async function docenteResponsableDeMateria(
   prisma: PrismaLike,
   materiaId: number,
   grupoId?: number | null,
 ): Promise<number | null> {
-  const materia = await prisma.materia.findUnique({
-    where: { id: materiaId },
-    select: { docenteId: true },
-  });
-  if (materia?.docenteId) return materia.docenteId;
   const horario = await prisma.horarioMateria.findFirst({
     where: { materiaId, activo: true, ...(grupoId ? { grupoId } : {}) },
     select: { docenteId: true },
     orderBy: { id: 'asc' },
   });
-  return horario?.docenteId ?? null;
+  if (horario) return horario.docenteId;
+  const materia = await prisma.materia.findFirst({
+    where: { id: materiaId, horarios: { none: { activo: true } } },
+    select: { docenteId: true },
+  });
+  return materia?.docenteId ?? null;
 }
 
 /**
  * Grupos de la materia en los que el actor da clase, para ofrecerle copiar
  * algo (p. ej. sus criterios de evaluación) a sus otros grupos: todos si es
- * ADMIN o el docente asignado a la materia; si no, los de sus horarios activos.
+ * ADMIN; si no, los de `gruposPropios`.
  */
 export async function gruposDelDocenteEnMateria(
   prisma: PrismaLike,
@@ -179,17 +215,13 @@ export async function gruposDelDocenteEnMateria(
         select: { id: true, nombre: true },
         orderBy: { nombre: 'asc' },
       },
+      horarios: {
+        where: { activo: true },
+        select: { docenteId: true, grupoId: true },
+      },
     },
   });
   if (!materia) return [];
-  if (!actor || actor.rol === 'ADMIN' || materia.docenteId === actor.id) {
-    return materia.grupos;
-  }
-  const horarios = await prisma.horarioMateria.findMany({
-    where: { materiaId, docenteId: actor.id, activo: true },
-    select: { grupoId: true },
-    distinct: ['grupoId'],
-  });
-  const propios = new Set(horarios.map((horario) => horario.grupoId));
-  return materia.grupos.filter((grupo) => propios.has(grupo.id));
+  if (!actor || actor.rol === 'ADMIN') return materia.grupos;
+  return gruposPropios(materia, actor.id);
 }

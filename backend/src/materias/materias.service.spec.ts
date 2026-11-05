@@ -468,9 +468,10 @@ describe('MateriasService', () => {
     });
 
     it('mis materias excluye las pausadas salvo que se pidan, y entonces las marca', async () => {
+      const propia = { docenteId: 5, grupos: [], horarios: [] };
       materiaFindMany.mockResolvedValue([
-        { ...materia, pausas: [{ docenteId: 5 }] },
-        { ...materia, id: 8, pausas: [] },
+        { ...materia, ...propia, pausas: [{ docenteId: 5 }] },
+        { ...materia, ...propia, id: 8, pausas: [] },
       ]);
 
       await service.findByDocente(5);
@@ -496,6 +497,30 @@ describe('MateriasService', () => {
         [7, true],
         [8, false],
       ]);
+    });
+
+    it('mis materias sólo trae los grupos en los que el docente tiene horario', async () => {
+      materiaFindMany.mockResolvedValue([
+        {
+          ...materia,
+          // El titular se sincroniza con el primer bloque de cualquier grupo.
+          docenteId: 5,
+          grupos: [
+            { id: 1, nombre: '103A' },
+            { id: 2, nombre: '103-SA' },
+            { id: 3, nombre: '103B' },
+          ],
+          horarios: [
+            { docenteId: 5, grupoId: 1 },
+            { docenteId: 6, grupoId: 3 },
+          ],
+        },
+      ]);
+
+      const [propia] = await service.findByDocente(5);
+
+      expect(propia.grupos).toEqual([{ id: 1, nombre: '103A' }]);
+      expect(propia).not.toHaveProperty('horarios');
     });
   });
 
