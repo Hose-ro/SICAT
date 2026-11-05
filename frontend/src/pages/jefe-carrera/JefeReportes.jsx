@@ -262,7 +262,7 @@ export function Informe({ j, resumen }) {
           </li>
         ))}
       </ol>
-      <div className="mt-8 grid min-w-0 items-start gap-8 xl:grid-cols-[minmax(0,1fr)_17rem]">
+      <div className="mt-8 min-w-0">
         <section className="min-w-0" aria-labelledby="informe-paso">
           <h2
             id="informe-paso"
@@ -639,47 +639,6 @@ export function Informe({ j, resumen }) {
             )}
           </footer>
         </section>
-        <aside className="min-w-0 rounded-[var(--radius-item)] bg-muted p-5" aria-label="Resumen del informe">
-          <h2 className="flex items-center gap-2 text-sm font-semibold">
-            <FileText aria-hidden="true" className="size-4" />
-            Tu informe
-          </h2>
-          <dl className="mt-5 space-y-4 text-xs">
-            <div>
-              <dt className="text-muted-foreground">Carrera</dt>
-              <dd className="mt-1 font-medium">{j.carrera?.nombre ?? resumen.carrera?.nombre}</dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">Periodo</dt>
-              <dd className="mt-1 font-medium">{periodoTexto(j.periodo)}</dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">Intervalo elegido</dt>
-              <dd className="mt-1 font-medium">{intervalo}</dd>
-            </div>
-          </dl>
-          <div className="mt-5 border-t border-border pt-4">
-            <h3 className="text-xs font-semibold">Contenido incluido</h3>
-            <ul className="mt-3 space-y-2 text-xs">
-              {['Resumen general', ...elegidas.map((s) => s.titulo)].map((texto) => (
-                <li key={texto} className="flex gap-2">
-                  <Check aria-hidden="true" className="size-3.5 shrink-0" />
-                  {texto}
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="mt-5 border-t border-border pt-4 text-xs text-muted-foreground">
-            <h3 className="font-semibold text-foreground">Dos referencias de tiempo</h3>
-            <p className="mt-2">
-              <b>Del intervalo:</b> listas y observaciones de las fechas elegidas.
-            </p>
-            <p className="mt-2">
-              <b>Al corte:</b> avance académico y alumnos en riesgo al generar el informe.
-              {data && ` Corte: ${fechaHoraCorta(data.generadoEn)}.`}
-            </p>
-          </div>
-        </aside>
       </div>
     </>
   )
