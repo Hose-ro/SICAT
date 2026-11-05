@@ -8,7 +8,7 @@ import UserAvatar from '@/components/shared/UserAvatar'
 import { cn } from '@/lib/utils'
 import api from '@/api/axios'
 import { useAuthStore } from '@/store/authStore'
-import { CRITERIO_RIESGO, MOTIVOS_RIESGO, estadoClase, senalUnidad } from './supervision/estados'
+import { MOTIVOS_RIESGO, estadoClase, senalUnidad } from './supervision/estados'
 import { fechaCorta, haceTiempo, hoyClave, modalidadTexto, parseClave, plural } from './supervision/formato'
 import { Aviso, JefaturaPage, SeccionTitulo, linkClass } from './supervision/ui'
 import { BotonSeguimiento, EstadoSeguimiento } from './supervision/Seguimiento'
@@ -87,7 +87,7 @@ function resumenGrupo(g) {
 
 export default function JefeInicio() {
   return (
-    <JefaturaPage titulo="Inicio" subtitulo="Clases de hoy, alumnos en riesgo y pendientes de tus docentes.">
+    <JefaturaPage titulo="Inicio">
       {({ j, resumen }) => <Contenido j={j} resumen={resumen} />}
     </JefaturaPage>
   )
@@ -197,7 +197,6 @@ function ContenidoCarrera({ j, resumen, reuniones, guia, ventana }) {
         <SeccionTitulo
           id="pendientes-docentes"
           titulo="Pendientes por docente"
-          descripcion="Revisa los pendientes y registra lo que acuerdes con cada docente."
           accion={grupos.length > 0 && <Link className={cn(linkClass, 'inline-flex min-h-11 items-center text-[0.8125rem]')} to={j.toDesde('/jefe-carrera/seguimientos', { seccion: 'pendientes' })}>Abrir todos en Pendientes y seguimiento</Link>}
         />
         {grupos.length ? (
@@ -358,17 +357,9 @@ function AlumnosRiesgo({ j, riesgos, seguimientos }) {
           </Button>
         )}
       />
-      <details className="mb-4 text-xs text-muted-foreground">
-        <summary className="inline-flex min-h-11 cursor-pointer items-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">¿Cómo se identifica el riesgo?</summary>
-        <p className="max-w-3xl pb-3 leading-relaxed">{CRITERIO_RIESGO}</p>
-      </details>
       {!riesgos.length ? (
         <p className="border-y border-border py-6 text-sm text-muted-foreground">Ningún alumno cumple el criterio de riesgo en el periodo.</p>
-      ) : !abierto ? (
-        <p className="border-y border-border py-4 text-[0.8125rem] text-muted-foreground">
-          {plural(riesgos.length, 'alumno cumple', 'alumnos cumplen')} el criterio de riesgo. Abre la lista para revisar sus casos.
-        </p>
-      ) : (
+      ) : abierto && (
         <div id="lista-riesgo">
           <ul className="divide-y divide-border border-y border-border">
             {riesgos.slice(0, ALUMNOS_VISIBLES).map((alumno) => {

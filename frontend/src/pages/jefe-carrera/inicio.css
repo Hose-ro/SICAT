@@ -26,10 +26,10 @@
 .docentes-avatar { width: 34px; height: 34px; }
 .docentes-nombre { color: var(--foreground); font-size: .9375rem; font-weight: 600; letter-spacing: -.015em; overflow-wrap: anywhere; }
 .docentes-fecha { margin-top: 3px; font-size: .75rem; color: var(--muted-foreground); }
-.docentes-antiguedad { display: inline-flex; flex-shrink: 0; align-items: center; gap: 5px; padding: 4px 7px; border-radius: 6px; background: color-mix(in oklab, var(--warning) 12%, var(--card)); color: var(--warning-foreground); font-size: .6875rem; }
+.docentes-antiguedad { display: inline-flex; flex-shrink: 0; align-items: center; gap: 5px; padding: 4px 7px; border-radius: 6px; background: color-mix(in oklab, var(--destructive) 12%, var(--card)); color: var(--destructive-foreground); font-size: .6875rem; }
 .docentes-antiguedad svg { width: 12px; height: 12px; }
-.docentes-cantidades { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 14px 0 0 45px; font-size: .8125rem; color: var(--muted-foreground); }
-.docentes-cantidades strong { margin-right: 3px; color: var(--foreground); font-weight: 600; font-variant-numeric: tabular-nums; }
+.docentes-cantidades { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 14px 0 0 45px; font-size: .8125rem; color: var(--destructive-foreground); }
+.docentes-cantidades strong { margin-right: 3px; color: var(--destructive-foreground); font-weight: 600; font-variant-numeric: tabular-nums; }
 .docentes-acciones { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 10px 14px; border-top: 1px solid var(--border); background: color-mix(in oklab, var(--muted) 35%, var(--card)); }
 .docentes-acciones .sicat-button { min-height: 42px; height: auto; padding: 9px 12px; font-size: .8125rem; }
 .docentes-observar > button { border-color: color-mix(in oklab, var(--primary) 35%, var(--border)); background: var(--accent); color: var(--primary-ink); font-weight: 600; }
@@ -110,7 +110,6 @@
 .hoy-restantes-titulo h3 { font-size: .875rem; font-weight: 500; }
 .hoy-restantes-titulo > span { font-size: .75rem; color: var(--muted-foreground); }
 .hoy-tarjetas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-.hoy-nota { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px 16px; margin-top: 18px; color: var(--muted-foreground); font-size: .75rem; }
 .hoy-esqueleto { min-height: 230px; padding: 24px; border-radius: 16px; border: 1px solid var(--border); background: var(--card); }
 .hoy-esqueleto > div { height: 18px; background: var(--muted); border-radius: 5px; margin-bottom: 20px; width: 60%; }
 .hoy-esqueleto > div:first-of-type { width: 25%; height: 32px; }
@@ -174,9 +173,6 @@
 .registro-asistencias { min-width: 0; border-top: 1px solid var(--border); padding-top: 24px; }
 .registro-controles { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; }
 .registro-conclusion { margin-top: 16px; max-width: 75ch; font-size: .9375rem; line-height: 1.6; }
-.registro-ayuda, .registro-nota { color: var(--muted-foreground); font-size: .8125rem; line-height: 1.6; }
-.registro-ayuda { margin-top: 12px; }
-.registro-nota { margin-top: 16px; max-width: 85ch; }
 .registro-grafica { --registro-alto: 200px; --registro-cabecera: 32px; --registro-fecha: 56px; display: flex; margin-top: 24px; }
 .registro-eje { position: relative; flex: 0 0 48px; height: var(--registro-alto); margin-top: var(--registro-cabecera); }
 .registro-eje > span { position: absolute; right: 8px; transform: translateY(50%); color: var(--muted-foreground); font-size: .75rem; font-variant-numeric: tabular-nums; }

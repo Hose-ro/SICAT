@@ -45,7 +45,6 @@ export default function TendenciaCobertura({ j, resumen }) {
       <SeccionTitulo
         id={`${nombre}-titulo`}
         titulo="Registro de asistencias"
-        descripcion="Clases con lista completa, por semana."
         accion={<Link className={cn(linkClass, 'inline-flex min-h-11 items-center text-sm')} to={j.to('/jefe-carrera/docentes', { vista: 'semanas' })}>Ver por docente</Link>}
       />
       <div className="registro-controles">
@@ -69,13 +68,12 @@ export default function TendenciaCobertura({ j, resumen }) {
           </p>
           {tabla ? <TablaSemanas serie={serie} /> : (
             <>
-              <p id={`${nombre}-ayuda`} className="registro-ayuda">Selecciona una semana para ver sus cifras. En móvil, desliza la gráfica para recorrer el periodo.</p>
               <div className="registro-grafica">
                 <div className="registro-eje" aria-hidden="true">
                   {[100, 75, 50, 25, 0].map((valor) => <span key={valor} style={{ bottom: `${valor}%` }}>{valor} %</span>)}
                 </div>
                 <div ref={scrollRef} className="registro-scroll" tabIndex={0} role="region" aria-label="Gráfica semanal de listas de asistencia completas">
-                  <div className="registro-semanas" role="radiogroup" aria-label="Semana del registro de asistencias" aria-describedby={`${nombre}-ayuda`}>
+                  <div className="registro-semanas" role="radiogroup" aria-label="Semana del registro de asistencias">
                     <div className="registro-rejilla" aria-hidden="true">
                       {[0, 25, 50, 75, 100].map((valor) => <span key={valor} style={{ bottom: `${valor}%` }} />)}
                       <div className="registro-meta" style={{ bottom: `${META}%` }}><span>Meta {META} %</span></div>
@@ -100,7 +98,6 @@ export default function TendenciaCobertura({ j, resumen }) {
           )}
         </>
       )}
-      <p className="registro-nota">Se cuentan solo las clases concluidas con lista de asistencia esperada. Las suspendidas no entran en el cálculo. Las listas de asistencia completas incluyen las registradas tarde. Este registro no confirma la presencia física del docente.</p>
     </section>
   )
 }

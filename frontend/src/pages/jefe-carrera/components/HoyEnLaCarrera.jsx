@@ -94,10 +94,6 @@ function AgendaClases({ j, clases, ahora }) {
           </div>
         </>
       )}
-      <div className="hoy-nota">
-        <span>{plural(activas.length, 'clase programada', 'clases programadas')}{suspendidas > 0 && ` · ${plural(suspendidas, 'suspendida', 'suspendidas')}`}</span>
-        {!enHorario && !proxima && <span>La jornada terminó. No hay más clases por comenzar.</span>}
-      </div>
     </>
   )
 }
