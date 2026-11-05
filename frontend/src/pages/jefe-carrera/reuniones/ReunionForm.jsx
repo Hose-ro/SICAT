@@ -4,7 +4,7 @@ import api from '@/api/axios'
 import Modal from '@/components/Modal'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { hoyClaveLocal } from '@/lib/reuniones'
+import { hoyClaveLocal, tieneActa } from '@/lib/reuniones'
 import { academiaDe, generarApertura } from '@/lib/actaReunion'
 import { useAuthStore } from '@/store/authStore'
 import { useBorrador } from '../supervision/borrador'
@@ -15,6 +15,7 @@ const etiqueta = 'text-xs font-medium text-muted-foreground'
 
 function inicial(reunion, academia) {
   return {
+    incluirActa: tieneActa(reunion),
     academia: reunion?.academia ?? academia ?? '',
     apertura: reunion?.apertura ?? '',
     presidenteId: reunion?.presidente?.id ? String(reunion.presidente.id) : '',
@@ -159,7 +160,6 @@ export default function ReunionForm({ j, reunion, academia, onClose, onGuardada 
     const datos = {
       titulo: form.titulo.trim(),
       tipo: form.tipo,
-      numeroActa: form.numeroActa.trim() || null,
       fecha: form.fecha,
       horaInicio: form.horaInicio,
       horaFin: form.horaFin || null,
@@ -169,10 +169,7 @@ export default function ReunionForm({ j, reunion, academia, onClose, onGuardada 
       asunto: form.asunto.trim() || null,
       puntos: form.puntos.map((p) => p.trim()).filter(Boolean),
       convocados: [...convocados],
-      academia: form.academia.trim() || null,
-      apertura: form.apertura.trim() || null,
-      presidenteId: enMesa(form.presidenteId),
-      secretarioId: enMesa(form.secretarioId),
+      ...(form.incluirActa ? { numeroActa: form.numeroActa.trim() || null, academia: form.academia.trim() || null, apertura: form.apertura.trim() || null, presidenteId: enMesa(form.presidenteId), secretarioId: enMesa(form.secretarioId) } : {}),
     }
     try {
       const { data } = nueva
@@ -189,7 +186,7 @@ export default function ReunionForm({ j, reunion, academia, onClose, onGuardada 
   }
 
   return (
-    <Modal open wide onClose={onClose} busy={estado.enviando} title={nueva ? 'Programar reunión' : 'Editar reunión'} description={nueva ? 'Los convocados la verán en su Inicio con el acta y recibirán una notificación. Sus clases a esa hora quedan sin clase.' : 'Si cambias fecha, hora o lugar, se avisa a los convocados.'}>
+    <Modal open wide onClose={onClose} busy={estado.enviando} title={nueva ? 'Programar reunión' : 'Editar reunión'} description={nueva ? 'Los convocados la verán en su Inicio y recibirán una notificación. Sus clases a esa hora quedan sin clase. El acta es opcional y puedes prepararla después.' : 'Si cambias fecha, hora o lugar, se avisa a los convocados.'}>
       <form onSubmit={guardar} className="space-y-5">
         {borrador.recuperado && (
           <p role="status" className="flex flex-wrap items-center gap-2 rounded-[var(--radius-item)] border border-border bg-muted px-3 py-2 text-xs text-foreground">
@@ -211,23 +208,20 @@ export default function ReunionForm({ j, reunion, academia, onClose, onGuardada 
                 <option value="EXTRAORDINARIA">Extraordinaria</option>
               </select>
             </label>
-            <label className="block">
-              <span className={etiqueta}>Número de acta <span className="font-normal">(opcional)</span></span>
-              <input maxLength={50} value={form.numeroActa} onChange={set('numeroActa')} className={cn(campoClass, 'mt-1.5 h-11')} />
-            </label>
+
           </div>
           <div className="grid gap-4 sm:grid-cols-3">
             <label className="block">
               <span className={etiqueta}>Fecha</span>
-              <input type="date" required min={hoyClaveLocal()} value={form.fecha} onChange={set('fecha')} className={cn(campoClass, 'mt-1.5 h-11')} />
+              <input type="date" required min={hoyClaveLocal()} value={form.fecha} onChange={set('fecha')} onInput={set('fecha')} className={cn(campoClass, 'mt-1.5 h-11')} />
             </label>
             <label className="block">
               <span className={etiqueta}>Hora de inicio</span>
-              <input type="time" required value={form.horaInicio} onChange={set('horaInicio')} className={cn(campoClass, 'mt-1.5 h-11')} />
+              <input type="time" required value={form.horaInicio} onChange={set('horaInicio')} onInput={set('horaInicio')} className={cn(campoClass, 'mt-1.5 h-11')} />
             </label>
             <label className="block">
               <span className={etiqueta}>Hora de término <span className="font-normal">(opcional)</span></span>
-              <input type="time" min={form.horaInicio || undefined} value={form.horaFin} onChange={set('horaFin')} className={cn(campoClass, 'mt-1.5 h-11')} />
+              <input type="time" min={form.horaInicio || undefined} value={form.horaFin} onChange={set('horaFin')} onInput={set('horaFin')} className={cn(campoClass, 'mt-1.5 h-11')} />
             </label>
           </div>
           <div className="grid gap-4 sm:grid-cols-[12rem_minmax(0,1fr)]">
@@ -256,8 +250,15 @@ export default function ReunionForm({ j, reunion, academia, onClose, onGuardada 
           </label>
         </fieldset>
 
-        <fieldset className="space-y-4">
-          <legend className="text-sm font-semibold text-foreground">Datos del acta</legend>
+        <div className="border-y border-border py-4">
+          <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm font-medium"><input type="checkbox" checked={Boolean(form.incluirActa)} onChange={(e) => setForm((f) => ({ ...f, incluirActa: e.target.checked }))} className="size-4 accent-primary" />Preparar datos del acta ahora (opcional)</label>
+          <p className="mt-1 text-xs text-muted-foreground">Puedes programar y avisar sin acta. La convocatoria y las reglas de clases se aplican igual.</p>
+        </div>
+        {form.incluirActa && <fieldset className="space-y-4">
+          <legend className="text-sm font-semibold text-foreground">Datos del acta</legend>            <label className="block">
+              <span className={etiqueta}>Número de acta <span className="font-normal">(opcional)</span></span>
+              <input maxLength={50} value={form.numeroActa} onChange={set('numeroActa')} className={cn(campoClass, 'mt-1.5 h-11')} />
+            </label>
           <label className="block">
             <span className={etiqueta}>Academia</span>
             <input maxLength={150} value={form.academia} onChange={set('academia')} placeholder={academiaDe({ carrera: { nombre: j.carrera?.nombre } })} className={cn(campoClass, 'mt-1.5 h-11')} />
@@ -282,7 +283,7 @@ export default function ReunionForm({ j, reunion, academia, onClose, onGuardada 
             </div>
             <textarea id={`${ids}-apertura`} rows={3} maxLength={3000} value={form.apertura} onChange={set('apertura')} placeholder="Si lo dejas vacío, el acta lo redacta con la fecha, la hora y el lugar." className={cn(campoClass, 'mt-1.5 py-2.5')} />
           </div>
-        </fieldset>
+        </fieldset>}
 
         <fieldset>
           <legend className="text-sm font-semibold text-foreground">Orden del día</legend>

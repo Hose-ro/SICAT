@@ -334,7 +334,7 @@ test.describe('jefatura de carrera', () => {
     })
     await page.goto('/jefe-carrera/reuniones?vista=historial')
     const pasada = page.getByRole('listitem').filter({ has: page.getByRole('heading', { name: 'Reunión de inicio de semestre' }) })
-    await pasada.getByRole('button', { name: 'Capturar acta' }).first().click()
+    await pasada.getByRole('button', { name: 'Crear acta (opcional)' }).first().click()
     const acta = page.getByRole('dialog', { name: /Acta: Reunión de inicio de semestre/ })
     await expect(acta.getByText('0 asistieron · 0 faltaron · 3 sin confirmar')).toBeVisible()
     await acta.getByRole('button', { name: 'Finalizar reunión' }).click()

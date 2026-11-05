@@ -62,6 +62,7 @@ function Contenido({ j, resumen, materiaId }) {
         {!esDeLaParidad(materia.semestre, j.periodo) && ofertas.length > 0 && ' · se imparte fuera de su ciclo'}
       </p>
       {j.historico && <p className="mt-2 text-xs text-muted-foreground">Periodo histórico: la consulta está disponible; la incorporación solo se hace en el periodo actual.</p>}
+      {elegida && <Link className={`${linkClass} mt-3 inline-flex min-h-11 items-center text-sm`} to={j.toDesde('/jefe-carrera/reportes', { vista: 'academico', grupoId: elegida.grupo.id, materiaId })}>Consultar o descargar calificaciones y asistencia</Link>}
 
       {!elegida ? (
         <Vacio titulo="Sin grupo en el periodo">

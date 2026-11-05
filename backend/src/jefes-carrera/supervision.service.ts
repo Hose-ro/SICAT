@@ -267,6 +267,7 @@ export class SupervisionService {
     consulta: Consulta,
     materiaId: number,
     grupoId: number,
+    corteActual = false,
   ) {
     await this.alcance(usuarioId, consulta.carreraId);
     const periodo = periodoSupervision(consulta.periodo);
@@ -293,7 +294,7 @@ export class SupervisionService {
       periodo,
       materiaId,
       grupoId,
-      { inicio: calendario.inicio, fin: calendario.fin },
+      { inicio: calendario.inicio, fin: corteActual ? new Date(Math.min(calendario.fin.getTime(), Date.now())) : calendario.fin },
       [periodo, grupo.periodo],
     );
     return { ...reporte, periodo, grupo, calendario, avanceCompartido: true };

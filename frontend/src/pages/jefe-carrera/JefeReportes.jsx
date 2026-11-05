@@ -18,6 +18,7 @@ import { ESTADO_UNIDAD } from './supervision/estados'
 import { cn } from '@/lib/utils'
 import { Aviso, Esqueleto, JefaturaPage, SeccionTitulo, Vacio, selectClass } from './supervision/ui'
 import { mensajeError } from './supervision/useJefatura'
+import ReporteAcademico from './components/ReporteAcademico'
 
 const campoFecha =
   'h-11 rounded-[0.7rem] border border-border bg-card px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40'
@@ -54,9 +55,20 @@ export default function JefeReportes() {
   return (
     <JefaturaPage titulo="Informes" subtitulo="Prepara un informe de tu carrera para consultar o compartir.">
       {/* Cambiar de carrera o periodo empieza un informe nuevo: nada del anterior se conserva. */}
-      {({ j, resumen }) => <Informe key={`${j.carreraId}|${j.periodo}`} j={j} resumen={resumen} />}
+      {({ j, resumen }) => <TiposInforme key={`${j.carreraId}|${j.periodo}`} j={j} resumen={resumen} />}
     </JefaturaPage>
   )
+}
+
+function TiposInforme({ j, resumen }) {
+  const [params, setParams] = useSearchParams()
+  const vista = params.get('vista') === 'academico' ? 'academico' : 'periodo'
+  return <>
+    <nav aria-label="Tipo de informe" className="mt-6 flex gap-3 border-b border-border">
+      {[['periodo', 'Informe del periodo'], ['academico', 'Calificaciones y asistencia']].map(([id, texto]) => <button key={id} type="button" aria-current={vista === id ? 'page' : undefined} className={cn('min-h-12 border-b-2 px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', vista === id ? 'border-primary font-semibold text-foreground' : 'border-transparent text-muted-foreground')} onClick={() => setParams((p) => { const n = new URLSearchParams(p); n.set('vista', id); return n }, { replace: true })}>{texto}</button>)}
+    </nav>
+    {vista === 'academico' ? <ReporteAcademico j={j} resumen={resumen} /> : <Informe j={j} resumen={resumen} />}
+  </>
 }
 
 const SECCIONES = [

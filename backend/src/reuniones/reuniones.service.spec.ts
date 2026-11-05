@@ -136,6 +136,14 @@ describe('ReunionesService', () => {
     );
   });
 
+  it('permite una reunión sin acta y conserva avisos y justificación de clases', async () => {
+    await service.crear(9, base);
+    const data = reunionCreate.mock.calls[0][0].data;
+    expect(data).toMatchObject({ academia: null, apertura: null, numeroActa: null, presidenteId: null, secretarioId: null });
+    expect(justificarAutomatico).toHaveBeenCalledWith(expect.objectContaining({ id: 5 }), [31, 32]);
+    expect(crearVarias).toHaveBeenCalled();
+  });
+
   it('deja sin clase las clases que se cruzan y se lo dice al convocado', async () => {
     const choque = {
       horarioId: 7,

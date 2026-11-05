@@ -20,6 +20,7 @@ test.describe('acta de reunión de academia', () => {
 
     await page.getByRole('button', { name: 'Programar reunión' }).first().click()
     const form = page.getByRole('dialog', { name: 'Programar reunión' })
+    await form.getByRole('checkbox', { name: 'Preparar datos del acta ahora (opcional)' }).check()
     await form.getByLabel('Título').fill('Revisión de retícula')
     await form.getByLabel('Fecha').fill(new Date(Date.now() + 9 * 86400000).toISOString().slice(0, 10))
     await form.getByLabel('Hora de inicio').fill('13:00')
@@ -80,7 +81,7 @@ test.describe('acta de reunión de academia', () => {
     await page.goto('/jefe-carrera/reuniones')
 
     const tarjeta = page.getByRole('listitem').filter({ has: page.getByRole('heading', { name: 'Reunión ordinaria de academia' }) })
-    await tarjeta.getByRole('button', { name: 'Capturar acta' }).first().click()
+    await tarjeta.getByRole('button', { name: 'Crear acta (opcional)' }).first().click()
     const dialogo = page.getByRole('dialog', { name: /Acta: Reunión ordinaria de academia/ })
     await expect(dialogo.getByText(/Acuerdos de la reunión del .* \(Reunión de inicio de semestre\)/)).toBeVisible()
     await dialogo.getByRole('button', { name: 'Traer 1 acuerdo' }).click()

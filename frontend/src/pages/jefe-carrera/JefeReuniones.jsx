@@ -1,3 +1,4 @@
+import { tieneActa } from '@/lib/reuniones'
 import { useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { CalendarPlus, ClipboardList, FileText, Pencil, Plus, Trash2, XCircle } from 'lucide-react'
@@ -29,7 +30,7 @@ export default function JefeReuniones() {
       sinResumen
       alcance="global"
       titulo="Reuniones de academia"
-      subtitulo="Programa las juntas de la carrera, convoca a los docentes y deja el acta con sus acuerdos."
+      subtitulo="Programa las juntas de la carrera y convoca a los docentes. El acta y sus acuerdos son opcionales."
       accion={<Button onClick={() => setDialogo({ tipo: 'form', reunion: null })}><Plus aria-hidden="true" /> Programar reunión</Button>}
     >
       {({ j }) => <Contenido j={j} dialogo={dialogo} setDialogo={setDialogo} />}
@@ -119,7 +120,7 @@ function Contenido({ j, dialogo, setDialogo }) {
       <>
         {actaDisponible && (
           <Button size="sm" variant={r.estado === 'FINALIZADA' ? 'outline' : 'default'} onClick={() => setDialogo({ tipo: 'acta', reunion: r })}>
-            <ClipboardList aria-hidden="true" /> {r.estado === 'FINALIZADA' ? 'Editar acta' : 'Capturar acta'}
+            <ClipboardList aria-hidden="true" /> {r.estado === 'FINALIZADA' ? 'Editar acta' : 'Crear acta (opcional)'}
           </Button>
         )}
         {r.estado === 'PROGRAMADA' && (
@@ -135,7 +136,7 @@ function Contenido({ j, dialogo, setDialogo }) {
       <Button variant="ghost" size="sm" className="text-destructive-foreground" onClick={() => cancelar(r)}><XCircle aria-hidden="true" /> Cancelar reunión</Button>
     </div>
   )
-  const verActa = (r) => r.estado !== 'CANCELADA' && (
+  const verActa = (r) => r.estado !== 'CANCELADA' && tieneActa(r) && (
     <Button variant="ghost" size="sm" onClick={() => setDialogo({ tipo: 'ver', reunion: r })}>
       <FileText aria-hidden="true" /> Ver acta{r.documentos?.length ? ' firmada' : ''}
     </Button>
@@ -159,7 +160,7 @@ function Contenido({ j, dialogo, setDialogo }) {
           titulo={vista === 'proximas' ? 'Sin reuniones programadas' : 'Sin reuniones anteriores'}
           accion={vista === 'proximas' && <Button onClick={() => setDialogo({ tipo: 'form', reunion: null })}><Plus aria-hidden="true" /> Programar reunión</Button>}
         >
-          {vista === 'proximas' ? 'Programa una junta y se convoca automáticamente a los docentes de la carrera.' : 'Aquí quedan las reuniones pasadas, finalizadas o canceladas, con su acta.'}
+          {vista === 'proximas' ? 'Programa una junta y se convoca automáticamente a los docentes de la carrera.' : 'Aquí quedan las reuniones pasadas, finalizadas o canceladas, con acta cuando se haya creado.'}
         </Vacio>
       ) : (
         <ul className="mt-5 space-y-3">

@@ -61,5 +61,6 @@ export function useClases({ carreraId, periodo, desde, hasta, grupoId, docenteId
 
   const entry = estado[key] ?? (cache.has(key) ? { data: cache.get(key).data } : null)
   const reintentar = useCallback(() => { cache.delete(key); setEstado((s) => ({ ...s, [key]: undefined })); setIntento((n) => n + 1) }, [key])
-  return { clases: entry?.data ?? null, error: entry?.error ?? '', cargando: activo && !entry?.data && !entry?.error, reintentar }
+  const actualizar = useCallback(() => { cache.delete(key); setIntento((n) => n + 1) }, [key])
+  return { clases: entry?.data ?? null, error: entry?.error ?? '', cargando: activo && !entry?.data && !entry?.error, reintentar, actualizar }
 }

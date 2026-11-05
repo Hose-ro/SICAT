@@ -18,6 +18,7 @@ import TendenciaCobertura from './graficas/TendenciaCobertura'
 import BienvenidaJefatura from './components/BienvenidaJefatura'
 import PrimerosPasosJefatura from './components/PrimerosPasosJefatura'
 import HoyEnLaCarrera from './components/HoyEnLaCarrera'
+import DocentesEnLinea from './components/DocentesEnLinea'
 import ContactoDocente from './components/ContactoDocente'
 import ProximasReuniones from '../docente/components/ProximasReuniones'
 import '../docente/dashboard-agenda.css'
@@ -176,8 +177,9 @@ function ContenidoCarrera({ j, resumen, reuniones, guia, ventana }) {
         </Aviso>
       )}
 
-      <HoyEnLaCarrera j={j} />
-      <div className="mt-10">
+      <div className="inicio-operacion">
+        <div className="min-w-0"><HoyEnLaCarrera j={j} />
+      <div className="mt-8">
         <ProximasReuniones
           reuniones={reuniones}
           enlaceTodas={j.toDesde('/jefe-carrera/reuniones')}
@@ -185,6 +187,9 @@ function ContenidoCarrera({ j, resumen, reuniones, guia, ventana }) {
           tituloVacio="No hay reuniones de academia próximas"
           descripcionVacio="Programa una reunión desde Reuniones para convocar a los docentes de tu carrera."
         />
+      </div>
+        </div>
+        <DocentesEnLinea key={`${j.carreraId}:${j.periodo}`} j={j} />
       </div>
       <AlumnosRiesgo j={j} riesgos={riesgos} seguimientos={seguimientos} />
 

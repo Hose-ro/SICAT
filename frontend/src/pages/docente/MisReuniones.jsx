@@ -8,7 +8,7 @@ import ReunionTarjeta from '@/components/reuniones/ReunionTarjeta'
 import VisorActa from '@/components/reuniones/VisorActa'
 import ChoquesReunion from '@/pages/docente/components/ChoquesReunion'
 import { notify } from '@/lib/feedback'
-import { descargarIcs, separarReuniones } from '@/lib/reuniones'
+import { descargarIcs, separarReuniones, tieneActa } from '@/lib/reuniones'
 
 const ASISTENCIA = { true: 'Asististe', false: 'No asististe' }
 
@@ -47,7 +47,7 @@ export default function MisReuniones() {
       extra={<span>{r.carrera.nombre}{r.miAsistencia !== null && ` · ${ASISTENCIA[r.miAsistencia]}`}</span>}
       aviso={r.choques?.length > 0 && <ChoquesReunion reunion={r} onCambio={(choques) => actualizarChoques(r.id, choques)} />}
       acciones={r.estado === 'PROGRAMADA' && <Button variant="outline" size="sm" onClick={() => ics(r)}><CalendarPlus aria-hidden="true" /> Agregar a mi calendario</Button>}
-      barra={r.estado !== 'CANCELADA' && (
+      barra={r.estado !== 'CANCELADA' && tieneActa(r) && (
         <Button variant="ghost" size="sm" onClick={() => setViendo(r.id)}>
           <FileText aria-hidden="true" /> Ver acta{r.documentos?.length ? ' firmada' : ''}
         </Button>
@@ -57,7 +57,7 @@ export default function MisReuniones() {
 
   return (
     <div className="mx-auto max-w-4xl">
-      <PageHeader title="Reuniones de academia" subtitle="Juntas a las que te convocaron, con su acta. Las clases que se cruzan quedan sin clase solas; aquí decides si avisas a tus alumnos." />
+      <PageHeader title="Reuniones de academia" subtitle="Juntas a las que te convocaron; el acta aparece cuando está disponible. Las clases que se cruzan quedan sin clase solas; aquí decides si avisas a tus alumnos." />
       {reunionVista && <VisorActa reunion={reunionVista} detalle={`/reuniones/${reunionVista.id}`} onClose={() => setViendo(null)} />}
       {estado.error ? (
         <div role="alert" className="rounded-[var(--radius-item)] border border-destructive/40 bg-destructive/5 p-5 text-sm">

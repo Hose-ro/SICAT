@@ -42,3 +42,6 @@ export async function descargarIcs(reunion) {
     return (await mensajeDeBlob(error.response?.data)) ?? 'No se pudo descargar el evento.'
   }
 }
+
+/** El acta existe solo cuando se prepararon datos o se registró su contenido. */
+export const tieneActa = (r) => Boolean(r && (r.estado === 'FINALIZADA' || r.numeroActa || r.academia || r.apertura || r.presidente || r.secretario || r.horaCierre || r.observaciones || r.acuerdos?.length || r.seguimiento?.length || r.documentos?.length))
