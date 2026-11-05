@@ -28,8 +28,9 @@
 .docentes-fecha { margin-top: 3px; font-size: .75rem; color: var(--muted-foreground); }
 .docentes-antiguedad { display: inline-flex; flex-shrink: 0; align-items: center; gap: 5px; padding: 4px 7px; border-radius: 6px; background: color-mix(in oklab, var(--destructive) 12%, var(--card)); color: var(--destructive-foreground); font-size: .6875rem; }
 .docentes-antiguedad svg { width: 12px; height: 12px; }
-.docentes-cantidades { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 14px 0 0 45px; font-size: .8125rem; color: var(--destructive-foreground); }
-.docentes-cantidades strong { margin-right: 3px; color: var(--destructive-foreground); font-weight: 600; font-variant-numeric: tabular-nums; }
+.docentes-cantidades { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 14px 0 0 45px; font-size: .8125rem; }
+.docentes-cantidades > li { color: oklch(var(--tono-tinta-l) var(--c) var(--h)); }
+.docentes-cantidades strong { margin-right: 3px; color: inherit; font-weight: 600; font-variant-numeric: tabular-nums; }
 .docentes-acciones { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 10px 14px; border-top: 1px solid var(--border); background: color-mix(in oklab, var(--muted) 35%, var(--card)); }
 .docentes-acciones .sicat-button { min-height: 42px; height: auto; padding: 9px 12px; font-size: .8125rem; }
 .docentes-observar > button { border-color: color-mix(in oklab, var(--primary) 35%, var(--border)); background: var(--accent); color: var(--primary-ink); font-weight: 600; }

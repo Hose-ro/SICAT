@@ -93,7 +93,7 @@ test.describe('jefatura de carrera', () => {
     await page.getByRole('link', { name: /^7A / }).click()
     await expect(page.getByRole('link', { name: 'Resumen' })).toHaveAttribute('aria-current', 'page')
     await page.getByRole('link', { name: /^Alumnos/ }).click()
-    await expect(page.getByText('Incorporado · grupo base 9A')).toBeVisible()
+    await expect(page.getByText('Incorporado · 9A')).toBeVisible()
     await page.screenshot({ path: 'audit/jefatura-grupo-alumnos.png', fullPage: true })
     expect(await axe(page)).toEqual([])
     await page.getByRole('button', { name: 'Zoe Incorporada' }).click()
@@ -106,7 +106,7 @@ test.describe('jefatura de carrera', () => {
     await page.getByRole('link', { name: 'Materias y unidades' }).click()
     await expect(page.getByRole('region', { name: /Calificaciones de .* por unidad/ })).toBeVisible()
     await page.goto('/jefe-carrera/grupos/9?carrera=1&periodo=2026-B&tab=materias&materia=414')
-    await expect(page.getByText('Sin captura').first()).toBeVisible()
+    await expect(page.getByLabel('Sin captura').first()).toBeVisible()
     await page.screenshot({ path: 'audit/jefatura-grupo-unidades.png', fullPage: true })
   })
 
@@ -427,7 +427,8 @@ test.describe('jefatura de carrera', () => {
     const filas = mapa.locator('tbody tr')
     await expect(filas).toHaveCount(2)
     await expect(filas.first().getByRole('rowheader')).toContainText('Ana Prueba')
-    await expect(filas.first().getByRole('rowheader')).toContainText('2 materias en riesgo')
+    await expect(mapa.getByRole('columnheader', { name: /Cálculo diferencial/ })).toBeVisible()
+    await expect(filas.first().getByRole('rowheader')).not.toContainText('materias en riesgo')
     await expect(mapa.getByRole('button', { name: /^Ana Prueba, Cálculo diferencial: reprobado, promedio .*% de faltas y retardos/ })).toBeVisible()
     const entregas = mapa.getByRole('button', { name: /^Ana Prueba, Fundamentos de programación: faltas o entregas.*2 de 6 tareas vencidas sin entregar/ })
     await entregas.hover()
@@ -446,7 +447,7 @@ test.describe('jefatura de carrera', () => {
     await page.getByRole('group', { name: 'Alumnos que se muestran' }).getByRole('button', { name: 'Todos' }).click()
     await expect(filas).toHaveCount(5)
     await expect(page).toHaveURL(/ver=todos/)
-    await expect(filas.first().getByRole('button', { name: 'Registrar observación' })).toBeVisible()
+    await expect(filas.first().getByRole('button', { name: 'Anotar observación' })).toBeVisible()
   })
 
   test('riesgo: el mapa cabe en móvil con scroll propio', async ({ page }) => {

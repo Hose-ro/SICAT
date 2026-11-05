@@ -23,6 +23,7 @@ import ContactoDocente from './components/ContactoDocente'
 import ProximasReuniones from '../docente/components/ProximasReuniones'
 import '../docente/dashboard-agenda.css'
 import './inicio.css'
+import './supervision/tonos.css'
 
 const DOCENTES_VISIBLES = 3
 const ALUMNOS_VISIBLES = 4
@@ -76,13 +77,17 @@ function pendientesPorDocente(resumen) {
     })
 }
 
-function resumenGrupo(g) {
+function pendientesResumen(g) {
   return [
-    g.listas.length && plural(g.listas.length, 'lista de asistencia sin captura completa', 'listas de asistencia sin captura completa'),
-    g.calificacionesTotal && plural(g.calificacionesTotal, 'calificación de unidad pendiente', 'calificaciones de unidad pendientes'),
-    g.entregasTotal && plural(g.entregasTotal, 'entrega sin revisar', 'entregas sin revisar'),
-    g.unidades.length && plural(g.unidades.length, 'unidad por revisar', 'unidades por revisar'),
-  ].filter(Boolean)
+    { tipo: 'ASISTENCIA_SIN_CAPTURA', n: g.listas.length, texto: plural(g.listas.length, 'lista de asistencia sin captura completa', 'listas de asistencia sin captura completa') },
+    { tipo: 'CALIFICACIONES_PENDIENTES', n: g.calificacionesTotal, texto: plural(g.calificacionesTotal, 'calificación de unidad pendiente', 'calificaciones de unidad pendientes') },
+    { tipo: 'ENTREGAS', n: g.entregasTotal, texto: plural(g.entregasTotal, 'entrega sin revisar', 'entregas sin revisar') },
+    { tipo: 'UNIDAD', n: g.unidades.length, texto: plural(g.unidades.length, 'unidad por revisar', 'unidades por revisar') },
+  ].filter((p) => p.n > 0)
+}
+
+function resumenGrupo(g) {
+  return pendientesResumen(g).map((p) => p.texto)
 }
 
 export default function JefeInicio() {
@@ -412,7 +417,7 @@ function GrupoDocente({ g, j, seguimientos }) {
           {g.desde && <span className="docentes-antiguedad"><Clock3 aria-hidden="true" />{haceTiempo(g.desde)}</span>}
         </div>
         <ul className="docentes-cantidades" aria-label={`Pendientes de ${nombre}`}>
-          {resumenGrupo(g).map((texto) => { const espacio = texto.indexOf(' '); return <li key={texto}><strong>{texto.slice(0, espacio)}</strong> {texto.slice(espacio + 1)}</li> })}
+          {pendientesResumen(g).map(({ tipo, texto }) => { const espacio = texto.indexOf(' '); return <li key={tipo} data-tono={tipo}><strong>{texto.slice(0, espacio)}</strong> {texto.slice(espacio + 1)}</li> })}
         </ul>
       </div>
         <div className="docentes-acciones">

@@ -10,7 +10,7 @@ import { Aviso, Vacio } from './ui'
  * el detalle de la materia y en el del grupo con el mismo reporte en caché:
  * una sola tabla, un solo cálculo.
  */
-export default function UnidadesOferta({ oferta, estado = { cargando: true } }) {
+export default function UnidadesOferta({ oferta, estado = { cargando: true }, compacto = false }) {
   const reporte = estado.data
   if (estado.error) return <Aviso tono="error" titulo="No se pudo consultar la materia" accion={<Button variant="outline" onClick={reintentarReportes}>Reintentar</Button>}>{estado.error}</Aviso>
   if (!reporte) return <div className="mt-5 h-64 animate-pulse rounded-[var(--radius-item)] bg-muted motion-reduce:animate-none" aria-busy="true" />
@@ -25,7 +25,7 @@ export default function UnidadesOferta({ oferta, estado = { cargando: true } }) 
 
   return (
     <>
-      <ul className="mt-5 flex flex-wrap gap-2" aria-label="Avance de unidades">
+      {!compacto && <ul className="mt-5 flex flex-wrap gap-2" aria-label="Avance de unidades">
         {unidades.map((u) => {
           const info = ESTADO_UNIDAD[u.status] ?? ESTADO_UNIDAD.PENDIENTE
           const fin = fechas.get(u.id)?.fechaFin
@@ -35,16 +35,23 @@ export default function UnidadesOferta({ oferta, estado = { cargando: true } }) 
             </li>
           )
         })}
-      </ul>
+      </ul>}
       {alumnos.size ? (
         <div className="mt-4 overflow-x-auto rounded-[var(--radius-item)] border border-border bg-card focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40" role="region" aria-label={`Calificaciones de ${oferta.materia.nombre}, grupo ${oferta.grupo.nombre}, por unidad`} tabIndex={0}>
           <table className="w-full min-w-[720px] border-collapse text-[0.8125rem]">
             <thead>
               <tr className="border-b border-border bg-background text-left text-xs text-muted-foreground">
                 <th scope="col" className="sticky left-0 bg-background px-4 py-2.5 font-medium">Alumno</th>
-                {unidades.map((u) => <th key={u.id ?? u.orden} scope="col" className="px-3 py-2.5 text-right font-medium">{u.nombre}</th>)}
+                {unidades.map((u) => {
+                  const info = ESTADO_UNIDAD[u.status] ?? ESTADO_UNIDAD.PENDIENTE
+                  const fin = fechas.get(u.id)?.fechaFin
+                  return <th key={u.id ?? u.orden} scope="col" className="px-3 py-2.5 text-right font-medium">
+                    {u.nombre}
+                    {compacto && <span className="mt-1 block whitespace-nowrap text-xs font-normal text-muted-foreground">{info.label}{u.status !== 'FINALIZADA' && fin ? ` · ${new Date(fin).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', timeZone: 'UTC' })}` : ''}</span>}
+                  </th>
+                })}
                 <th scope="col" className="px-3 py-2.5 text-right font-medium">Promedio</th>
-                <th scope="col" className="px-4 py-2.5 font-medium">Observaciones del docente</th>
+                <th scope="col" className="px-4 py-2.5 font-medium">{compacto ? 'Observación' : 'Observaciones del docente'}</th>
               </tr>
             </thead>
             <tbody>
@@ -53,8 +60,8 @@ export default function UnidadesOferta({ oferta, estado = { cargando: true } }) 
                 return (
                   <tr key={alumno.id} className="border-b border-border last:border-b-0">
                     <th scope="row" className="sticky left-0 bg-card px-4 py-3 text-left font-medium text-foreground">{alumno.nombre}</th>
-                    {unidades.map((u) => <td key={u.id ?? u.orden} className="px-3 py-3 text-right"><Nota row={celdas[u.id ?? u.orden]} /></td>)}
-                    <td className="px-3 py-3 text-right"><Promedio r={r} /></td>
+                    {unidades.map((u) => <td key={u.id ?? u.orden} className="px-3 py-3 text-right"><Nota row={celdas[u.id ?? u.orden]} compacto={compacto} /></td>)}
+                    <td className="px-3 py-3 text-right"><Promedio r={r} compacto={compacto} /></td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">
                       {r.observaciones.length ? r.observaciones.map((o) => <p key={o.unidad}><b className="font-medium text-foreground">{o.unidad}:</b> {o.texto}</p>) : '—'}
                     </td>
@@ -65,7 +72,7 @@ export default function UnidadesOferta({ oferta, estado = { cargando: true } }) 
           </table>
         </div>
       ) : <Vacio titulo="Sin alumnos inscritos">La materia no tiene inscripciones aceptadas en este grupo.</Vacio>}
-      <p className="mt-2.5 text-xs text-muted-foreground">Las calificaciones son de consulta. Una celda sin captura no cuenta como cero.</p>
+      {!compacto && <p className="mt-2.5 text-xs text-muted-foreground">Las calificaciones son de consulta. Una celda sin captura no cuenta como cero.</p>}
     </>
   )
 }

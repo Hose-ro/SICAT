@@ -101,3 +101,20 @@ a.consulta-nombre:focus-visible { outline: 2px solid var(--ring); outline-offset
 @media (prefers-reduced-motion: reduce) {
   .ficha-grupo, .consulta-oferta { transition-duration: 0ms; }
 }
+.grupo-riesgo .viz-heat { width: 100%; border-spacing: 4px 0; }
+.grupo-riesgo .viz-heat thead th { padding-bottom: 16px; }
+.grupo-riesgo .viz-heat thead th:not(:first-child):not(:last-child) { min-width: 96px; white-space: normal; }
+.grupo-riesgo .viz-heat thead th > span:first-child { max-width: 132px; margin-inline: auto; text-wrap: balance; }
+.grupo-riesgo .viz-heat tbody th { min-width: 180px; padding-block: 14px; }
+.grupo-riesgo .viz-heat tbody th button { max-width: 240px; white-space: normal; }
+.grupo-riesgo .viz-heat tbody th, .grupo-riesgo .viz-heat tbody td { border-bottom: 1px solid var(--border); }
+.grupo-riesgo .viz-riesgo { min-height: 38px; }
+.grupo-riesgo .viz-riesgo svg { display: none; }
+.grupo-riesgo .viz-riesgo--reprobado { background: color-mix(in oklab, var(--destructive) 12%, var(--background)); color: var(--destructive-foreground); }
+.grupo-riesgo .viz-riesgo--alerta { background: color-mix(in oklab, var(--warning) 16%, var(--background)); color: var(--warning-foreground); }
+.grupo-riesgo .viz-muestra.viz-riesgo--reprobado { box-shadow: inset 0 0 0 1px var(--destructive-foreground); }
+.grupo-riesgo .viz-muestra.viz-riesgo--alerta { box-shadow: inset 0 0 0 1px var(--warning-foreground); }
+@media (max-width: 639px) {
+  .grupo-riesgo .viz-heat tbody th { min-width: 145px; max-width: 170px; }
+  .grupo-riesgo .viz-heat tbody th button { max-width: 145px; }
+}

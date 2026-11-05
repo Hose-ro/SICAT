@@ -10,7 +10,7 @@ const LEYENDA = ['REPROBADO', 'EN_RIESGO', 'APROBADO', 'SIN_CALIFICAR', 'NO_INSC
 const ANCHO = 260
 
 /** Colores y glifos del mapa; `estados` permite omitir los que no aplican. */
-export function LeyendaRiesgo({ estados = LEYENDA, className }) {
+export function LeyendaRiesgo({ estados = LEYENDA, className, glifos = true }) {
   return (
     <div className={cn('viz flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-muted-foreground', className)}>
       {estados.map((e) => (
@@ -19,8 +19,8 @@ export function LeyendaRiesgo({ estados = LEYENDA, className }) {
           {ESTADO_CELDA[e].label}
         </span>
       ))}
-      <span className="inline-flex items-center gap-1.5"><CalendarX2 className="size-3" aria-hidden="true" />Faltas y retardos</span>
-      <span className="inline-flex items-center gap-1.5"><FileX2 className="size-3" aria-hidden="true" />Tareas sin entregar</span>
+      {glifos && <span className="inline-flex items-center gap-1.5"><CalendarX2 className="size-3" aria-hidden="true" />Faltas y retardos</span>}
+      {glifos && <span className="inline-flex items-center gap-1.5"><FileX2 className="size-3" aria-hidden="true" />Tareas sin entregar</span>}
     </div>
   )
 }

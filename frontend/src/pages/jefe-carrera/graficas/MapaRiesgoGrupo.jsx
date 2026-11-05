@@ -2,10 +2,9 @@ import { useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import MapaRiesgo, { LeyendaRiesgo } from '@/components/graficas/MapaRiesgo'
 import { conRiesgo, matrizRiesgo } from '@/components/graficas/riesgo'
-import { plural } from '../supervision/formato'
 import { BotonSeguimiento } from '../supervision/Seguimiento'
 import { estadoConjunto, reintentarReportes } from '../supervision/useReportes'
-import { AvisoParcial, Segmento, SeccionTitulo, Vacio } from '../supervision/ui'
+import { AvisoParcial, Segmento, Vacio } from '../supervision/ui'
 
 const VISTAS = [
   { value: '', label: 'En riesgo' },
@@ -35,24 +34,21 @@ export default function MapaRiesgoGrupo({ j, grupo, ofertas, reportes, expedient
   const filas = vista === 'todos' ? matriz.filas : enRiesgo
 
   return (
-    <section className="mt-6" aria-labelledby="mapa-riesgo">
-      <SeccionTitulo
-        id="mapa-riesgo"
-        titulo="Alumnos en riesgo por materia"
-        descripcion={`${plural(enRiesgo.length, 'alumno', 'alumnos')} de ${matriz.filas.length} con señales en alguna materia. Cada celda muestra el promedio del alumno en esa materia.`}
-        accion={<Segmento label="Alumnos que se muestran" value={vista} onChange={setVista} options={VISTAS} />}
-      />
+    <section className="grupo-riesgo mt-6" aria-label="Riesgo por materia">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <LeyendaRiesgo glifos={false} />
+        <Segmento label="Alumnos que se muestran" value={vista} onChange={setVista} options={VISTAS} />
+      </div>
       <AvisoParcial conjunto={conjunto} total={ofertas.length} onReintentar={reintentarReportes} />
 
-      <LeyendaRiesgo className="mt-4" />
 
       {filas.length ? (
         <MapaRiesgo
           columnas={matriz.columnas.map((col) => ({
             id: col.id,
-            titulo: col.materia.clave || col.materia.nombre,
+            titulo: col.materia.nombre,
             nombre: col.materia.nombre,
-            detalle: col.reporte.error ? 'No disponible' : col.enRiesgo ? `${col.enRiesgo} en riesgo` : 'Sin riesgo',
+            detalle: col.reporte.error ? 'No disponible' : col.enRiesgo ? `${col.enRiesgo} en riesgo` : null,
             detalleRiesgo: col.enRiesgo > 0,
           }))}
           filas={filas}
@@ -61,11 +57,11 @@ export default function MapaRiesgoGrupo({ j, grupo, ofertas, reportes, expedient
           accion="Abrir expediente"
           onCelda={(x) => abrirAlumno(x.alumno.id)}
           onAlumno={(x) => abrirAlumno(x.alumno.id)}
-          subtituloFila={(x) => (x.enRiesgo ? `${plural(x.enRiesgo, 'materia', 'materias')} en riesgo` : x.alumno.numeroControl ?? 'Sin señales')}
           activa={(x) => alumnoActivo === x.alumno.id}
-          encabezadoAccion="Observación"
+          encabezadoAccion="Obs."
           accionFila={(x) => x.enRiesgo > 0 && (
             <BotonSeguimiento
+              compacto
               j={j}
               caso={{ tipo: 'ALUMNO_RIESGO', alumnoId: x.alumno.id }}
               titulo={`Observación de ${x.alumno.nombre}`}
@@ -75,16 +71,8 @@ export default function MapaRiesgoGrupo({ j, grupo, ofertas, reportes, expedient
           )}
         />
       ) : (
-        <Vacio titulo={conjunto.completo ? 'Nadie del grupo tiene señales de riesgo' : 'Sin señales en las materias consultadas'}>
-          {conjunto.completo
-            ? 'Ningún alumno tiene señales de riesgo en este periodo. Cambia a Todos para ver al grupo completo.'
-            : 'Faltan materias por consultar; reintenta para confirmar.'}
-        </Vacio>
+        <Vacio titulo={conjunto.completo ? 'Sin alumnos en riesgo' : 'Sin señales en las materias consultadas'} />
       )}
-
-      <p className="mt-3 max-w-3xl text-xs text-muted-foreground">
-        Una materia queda en riesgo si alguna de sus unidades lo está: calificación reprobatoria (menor a 70), faltas y retardos de 30 % o más, o 30 % o más de las tareas vencidas sin entregar. Las tareas que todavía no vencen no cuentan.
-      </p>
     </section>
   )
 }
