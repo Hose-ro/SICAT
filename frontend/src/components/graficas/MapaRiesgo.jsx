@@ -165,6 +165,7 @@ export default function MapaRiesgo({
             ) : (
               <>
                 <div className="mt-1.5"><b>{celda.promedio ?? '—'}</b> <span className="text-muted-foreground">{celda.promedio == null ? 'sin calificación' : celda.tipo === 'REAL' ? 'definitiva' : 'provisional'}</span></div>
+                {celda.promedioHastaUnidad && <div className="text-muted-foreground">Promedio hasta {celda.promedioHastaUnidad}</div>}
                 <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 tabular-nums">
                   <dt className="text-muted-foreground">Asistencia</dt>
                   <dd>{celda.asistencia.porcentaje == null ? 'Sin registros' : `${celda.asistencia.porcentaje} %`}</dd>

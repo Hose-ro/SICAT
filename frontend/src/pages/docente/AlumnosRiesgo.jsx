@@ -8,16 +8,9 @@ import Modal from '@/components/Modal'
 import TaskNotice from '@/components/TaskNotice'
 import { notify } from '@/lib/feedback'
 import { mensajeError } from '@/lib/avisos'
-import { textoMotivos } from '@/lib/desempeno'
+import { textoEntregas } from '@/lib/desempeno'
 import { cn } from '@/lib/utils'
 import api from '@/api/axios'
-
-const ESTADO = {
-  ASISTENCIA: { letra: 'A', label: 'Asistió', className: 'bg-success/22 text-success-foreground' },
-  FALTA: { letra: 'F', label: 'Falta', className: 'bg-destructive/22 text-destructive-foreground' },
-  RETARDO: { letra: 'R', label: 'Retardo', className: 'bg-warning/20 text-warning-foreground' },
-  JUSTIFICADA: { letra: 'J', label: 'Justificada', className: 'bg-muted text-muted-foreground' },
-}
 
 const FIELD = 'w-full rounded-[10px] border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40'
 
@@ -31,12 +24,15 @@ function fechaCorta(value) {
 const motivosDe = (fila) => fila.motivos ?? ['ASISTENCIA']
 const porCalificacion = (motivos) => motivos.includes('CALIFICACION_BAJA')
 
-/** La fila en la forma que entiende textoMotivos (la misma del semáforo). */
-const comoDesempeno = (fila) => ({
-  motivos: motivosDe(fila),
-  asistencia: { registradas: fila.registros, faltas: fila.faltas, retardos: fila.retardos },
-  entregas: { vencidas: fila.tareasVencidas, sinEntregar: fila.tareasSinEntregar },
-})
+function unidadesPorMotivo(fila, motivo) {
+  return (fila.unidades ?? []).filter((unidad) => unidad.motivos?.includes(motivo))
+}
+
+function calificacionesEnRiesgo(fila) {
+  return unidadesPorMotivo(fila, 'CALIFICACION_BAJA')
+    .map((unidad) => unidad.calificacion == null ? unidad.nombre : `${unidad.nombre} (${unidad.calificacion})`)
+    .join(' · ')
+}
 
 function borradorAviso(fila) {
   const nombre = fila.alumno.nombre.split(' ')[0]
@@ -49,7 +45,12 @@ function borradorAviso(fila) {
     ].filter(Boolean).join(' y ')
     frases.push(`llevas ${partes} de ${fila.registros} clases (${fila.porcentajeAusencias} %)`)
   }
-  if (porCalificacion(motivos) && fila.calificacion != null) frases.push(`tu promedio en la materia va en ${fila.calificacion}`)
+  if (porCalificacion(motivos)) {
+    const reprobadas = calificacionesEnRiesgo(fila)
+    frases.push(reprobadas
+      ? `tienes calificaciones reprobatorias en ${reprobadas}`
+      : 'tienes una calificación reprobatoria en la materia')
+  }
   if (fila.tareasSinEntregar) {
     frases.push(`tienes ${fila.tareasSinEntregar} ${fila.tareasSinEntregar === 1 ? 'tarea vencida sin entregar' : 'tareas vencidas sin entregar'}`)
   }
@@ -61,16 +62,28 @@ function borradorAviso(fila) {
   }
 }
 
-function Tendencia({ estados }) {
+function SenalesRiesgo({ fila }) {
+  const motivos = motivosDe(fila)
+  const reprobadas = calificacionesEnRiesgo(fila)
+  const faltas = unidadesPorMotivo(fila, 'ASISTENCIA').map((u) => u.nombre).join(' · ')
+  const entregas = unidadesPorMotivo(fila, 'ENTREGAS').map((u) => u.nombre).join(' · ')
   return (
-    <span role="img" className="flex gap-1" aria-label={`Últimas clases: ${estados.map((e) => ESTADO[e]?.label ?? e).join(', ')}`}>
-      {estados.map((estado, indice) => (
-        <span key={indice} aria-hidden="true"
-          className={cn('grid size-6 place-items-center rounded-md text-xs font-semibold', ESTADO[estado]?.className)}>
-          {ESTADO[estado]?.letra ?? '?'}
-        </span>
-      ))}
-    </span>
+    <ul aria-label="Señales de riesgo" className="mt-3 space-y-1 text-sm">
+      {porCalificacion(motivos) && (
+        <li><span className="font-medium text-destructive-foreground">Calificación reprobatoria</span>{reprobadas && <span className="text-muted-foreground"> · {reprobadas}</span>}</li>
+      )}
+      {motivos.includes('ASISTENCIA') && (
+        <li><span className="font-medium text-warning-foreground">Faltas y retardos</span>
+          {faltas && <span className="text-muted-foreground"> · {faltas}</span>}
+          {fila.porcentajeAusencias != null && <span className="text-muted-foreground"> · {fila.porcentajeAusencias} % en el periodo</span>}
+        </li>
+      )}
+      {(motivos.includes('ENTREGAS') || fila.tareasSinEntregar > 0) && (
+        <li><span className={motivos.includes('ENTREGAS') ? 'font-medium text-warning-foreground' : 'text-muted-foreground'}>
+          {textoEntregas({ vencidas: fila.tareasVencidas, sinEntregar: fila.tareasSinEntregar })}
+        </span>{entregas && <span className="text-muted-foreground"> · {entregas}</span>}</li>
+      )}
+    </ul>
   )
 }
 
@@ -144,57 +157,33 @@ export default function AlumnosRiesgo() {
     contenido = (
       <div className="rounded-[var(--radius-card)] border border-dashed border-border px-6 py-12 text-center">
         <p className="text-sm font-medium text-foreground">Ningún alumno está en riesgo por ahora.</p>
-        <p className="mt-1 text-sm text-muted-foreground">La lista se arma con las calificaciones, la asistencia y las entregas de cada unidad.</p>
       </div>
     )
   } else {
     contenido = (
       <ul className="space-y-3">
         {filas.map((fila) => (
-          <li key={claveFila(fila)} className="rounded-[var(--radius-card)] border border-border bg-card p-4 sm:p-5">
-            <div className="grid gap-4 @container sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+          <li key={claveFila(fila)} className="rounded-[var(--radius-item)] border border-border bg-card p-4">
+            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
               <div className="min-w-0">
                 <p className="font-medium text-foreground">{fila.alumno.nombre}</p>
                 <p className="text-sm text-muted-foreground">
                   {fila.alumno.numeroControl ? `${fila.alumno.numeroControl} · ` : ''}{fila.materia.nombre}{fila.grupo ? ` · ${fila.grupo.nombre}` : ''}
                 </p>
-                <p className="mt-2 text-sm font-medium text-warning-foreground">{textoMotivos(comoDesempeno(fila), datos.criterio).join(' · ')}</p>
-                {fila.unidades?.length > 0 && (
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {fila.unidades.map((u) => `${u.nombre}${u.calificacion != null ? `: ${u.calificacion}` : ''}`).join(' · ')}
+                <SenalesRiesgo fila={fila} />
+                {fila.calificacion != null && (
+                  <p className="mt-2 text-xs tabular-nums text-muted-foreground">
+                    {fila.promedioHastaUnidad ? `Promedio hasta ${fila.promedioHastaUnidad}` : 'Promedio de la materia'}{' '}
+                    <span className="font-semibold text-foreground">{fila.calificacion}</span>
                   </p>
                 )}
-                <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
-                  {fila.calificacion !== undefined && (
-                    <span>
-                      <span className={cn('text-lg font-semibold tabular-nums', porCalificacion(motivosDe(fila)) ? 'text-destructive-foreground' : 'text-foreground')}>{fila.calificacion ?? '—'}</span>
-                      <span className="ml-1.5 text-muted-foreground">promedio</span>
-                    </span>
-                  )}
-                  {fila.registros > 0 && (
-                    <span>
-                      <span className={cn('text-lg font-semibold tabular-nums', motivosDe(fila).includes('ASISTENCIA') ? 'text-destructive-foreground' : 'text-foreground')}>{fila.porcentajeAusencias} %</span>
-                      <span className="ml-1.5 text-muted-foreground">
-                        {fila.faltas} F · {fila.retardos} R de {fila.registros} clases
-                      </span>
-                    </span>
-                  )}
-                  {fila.tendencia?.length > 0 && <Tendencia estados={fila.tendencia} />}
-                  <span className={fila.tareasSinEntregar ? 'text-warning-foreground' : 'text-muted-foreground'}>
-                    {fila.tareasVencidas
-                      ? `${fila.tareasSinEntregar} de ${fila.tareasVencidas} tareas vencidas sin entregar`
-                      : 'Sin tareas vencidas'}
-                  </span>
-                </div>
               </div>
               <div className="flex flex-col items-start gap-1.5 sm:items-end">
                 <Button variant="outline" onClick={() => abrirAviso(fila)} disabled={!fila.grupo}
-                  title={fila.grupo ? undefined : 'Las clases sin grupo no admiten avisos'} className="gap-2">
+                  title={fila.grupo ? undefined : 'Las clases sin grupo no admiten avisos'} className="min-h-11 gap-2">
                   <Megaphone className="size-4" aria-hidden="true" />{fila.ultimoAviso ? 'Avisar de nuevo' : 'Enviar aviso'}
                 </Button>
-                <span className="text-xs text-muted-foreground">
-                  {fila.ultimoAviso ? `Avisado el ${fechaCorta(fila.ultimoAviso.createdAt)}` : 'Aún sin avisar'}
-                </span>
+                {fila.ultimoAviso && <span className="text-xs text-muted-foreground">Avisado el {fechaCorta(fila.ultimoAviso.createdAt)}</span>}
               </div>
             </div>
           </li>
@@ -211,18 +200,11 @@ export default function AlumnosRiesgo() {
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-[1.75rem] font-semibold leading-tight tracking-[-0.02em] text-foreground">Alumnos en riesgo</h1>
-          <p className="mt-1.5 text-sm text-muted-foreground">
-            {datos?.criterio?.porcentajeEntregas != null
-              ? `Con alguna unidad en riesgo: calificación reprobatoria (menor a ${datos.criterio.aprobatoria}), ${datos.criterio.porcentaje} % o más de faltas y retardos (desde ${datos.criterio.minRegistros} clases) o ${datos.criterio.porcentajeEntregas} % o más de tareas vencidas sin entregar (desde ${datos.criterio.minTareas}).`
-              : datos?.criterio
-                ? `Con ${datos.criterio.porcentaje} % o más de faltas y retardos y al menos ${datos.criterio.minRegistros} clases registradas en el periodo.`
-                : 'Calificación, asistencia y entregas del periodo en curso.'}
-          </p>
         </div>
         {materias.length > 1 && (
-          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+          <label className="flex min-w-0 max-w-full items-center gap-2 text-sm text-muted-foreground">
             Materia
-            <select className={`${FIELD} w-auto`} value={materiaId} onChange={(event) => setMateriaId(event.target.value)}>
+            <select className={cn(FIELD, 'w-auto min-w-0 max-w-full')} value={materiaId} onChange={(event) => setMateriaId(event.target.value)}>
               <option value="">Todas</option>
               {materias.map(([id, nombre]) => <option key={id} value={id}>{nombre}</option>)}
             </select>

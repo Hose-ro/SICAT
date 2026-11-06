@@ -96,7 +96,7 @@ test('inicio: riesgo por clase abre la clase y el mapa muestra todas las unidade
   await expect(seccion.getByRole('radio', { name: /^U1/ })).toHaveAttribute('aria-checked', 'true')
 })
 
-test('alumnos en riesgo: criterio completo, motivos por unidad y aviso de desempeño', async ({ page }) => {
+test('alumnos en riesgo: distingue el promedio de la unidad reprobada y envía el aviso', async ({ page }) => {
   await mockApi(page, 'DOCENTE')
   await page.route('**/api/dashboard/docente/riesgo**', (route) => route.fulfill({ json: {
     criterio: { minRegistros: 3, porcentaje: 30, aprobatoria: 70, minTareas: 2, porcentajeEntregas: 30 },
@@ -106,7 +106,7 @@ test('alumnos en riesgo: criterio completo, motivos por unidad y aviso de desemp
       materia: { id: 2, nombre: 'Física' }, grupo: { id: 2, nombre: '102B' },
       motivos: ['CALIFICACION_BAJA', 'ENTREGAS'],
       unidades: [{ id: 21, nombre: 'Unidad 1', motivos: ['CALIFICACION_BAJA'], calificacion: 62 }, { id: 22, nombre: 'Unidad 2', motivos: ['ENTREGAS'], calificacion: 85 }],
-      calificacion: 73.5, registros: 6, faltas: 1, retardos: 0, porcentajeAusencias: 17,
+      calificacion: 62, promedioHastaUnidad: 'Unidad 1', registros: 6, faltas: 1, retardos: 0, porcentajeAusencias: 17,
       tendencia: ['ASISTENCIA', 'FALTA'], tareasVencidas: 5, tareasSinEntregar: 2, ultimoAviso: null,
     }],
   } }))
@@ -117,15 +117,15 @@ test('alumnos en riesgo: criterio completo, motivos por unidad y aviso de desemp
   })
 
   await page.goto('/docente/riesgo')
-  await expect(page.getByText(/Con alguna unidad en riesgo: calificación reprobatoria \(menor a 70\)/)).toBeVisible()
   await expect(page.getByRole('alert').filter({ hasText: 'No se pudo calcular Química · 103C' })).toBeVisible()
-  await expect(page.getByText('Promedio menor a 70 · 2 de 5 tareas vencidas sin entregar')).toBeVisible()
-  await expect(page.getByText('Unidad 1: 62 · Unidad 2: 85')).toBeVisible()
+  await expect(page.getByRole('list', { name: 'Señales de riesgo' })).toContainText('Calificación reprobatoria · Unidad 1 (62)')
+  await expect(page.getByRole('list', { name: 'Señales de riesgo' })).toContainText('2 de 5 tareas vencidas sin entregar · Unidad 2')
+  await expect(page.getByText('Promedio hasta Unidad 1 62')).toBeVisible()
   const axe = await new AxeBuilder({ page }).include('main').withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()
   expect(axe.violations.map((v) => v.id)).toEqual([])
 
   await page.getByRole('button', { name: 'Enviar aviso' }).click()
-  await expect(page.getByLabel('Mensaje')).toHaveValue('Ana, tu promedio en la materia va en 73.5. Además, tienes 2 tareas vencidas sin entregar. Búscame para ver cómo ponerte al corriente.')
+  await expect(page.getByLabel('Mensaje')).toHaveValue('Ana, tienes calificaciones reprobatorias en Unidad 1 (62). Además, tienes 2 tareas vencidas sin entregar. Búscame para ver cómo ponerte al corriente.')
   await page.getByRole('dialog').getByRole('button', { name: 'Enviar aviso' }).click()
   await expect(page.getByText('Le avisaste a Ana Prueba López.')).toBeVisible()
   expect(enviado).toMatchObject({ materiaId: 2, grupoId: 2, alumnoId: 1, titulo: 'Tu desempeño en Física' })

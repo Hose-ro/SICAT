@@ -15,9 +15,16 @@ export function tipoCalificacion(row) {
 }
 
 /** Filas (alumno × unidad) de un alumno en un reporte, resumidas con las reglas de SICAT. */
-export function resumenAlumno(rows) {
-  const notas = rows.map((r) => r.calificacionFinal)
-  const tipos = rows.map(tipoCalificacion)
+export function resumenAlumno(rows, { hastaPrimeraReprobada = false } = {}) {
+  const ordenadas = hastaPrimeraReprobada
+    ? [...rows].sort((a, b) => (a.unidad?.orden ?? 0) - (b.unidad?.orden ?? 0))
+    : rows
+  const corte = hastaPrimeraReprobada
+    ? ordenadas.findIndex((r) => r.calificacionFinal != null && r.calificacionFinal < 70)
+    : -1
+  const filasPromedio = corte < 0 ? ordenadas : ordenadas.slice(0, corte + 1)
+  const notas = filasPromedio.map((r) => r.calificacionFinal)
+  const tipos = filasPromedio.map(tipoCalificacion)
   const asistencia = rows.reduce((a, r) => ({
     registradas: a.registradas + (r.asistencia?.registradas ?? 0),
     asistencias: a.asistencias + (r.asistencia?.asistencias ?? 0),
@@ -34,6 +41,7 @@ export function resumenAlumno(rows) {
   const valor = promedio(notas)
   return {
     promedio: valor,
+    promedioHastaUnidad: corte < 0 ? null : ordenadas[corte].unidad?.nombre ?? null,
     tipo: valor == null ? 'SIN_CAPTURA' : tipos.every((t) => t === 'REAL') ? 'REAL' : 'PROVISIONAL',
     calificadas: tipos.filter((t) => t !== 'SIN_CAPTURA').length,
     unidades: rows.length,

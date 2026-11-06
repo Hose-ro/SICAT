@@ -3,7 +3,7 @@ import { celdaRiesgo, comparativoGrupos, matrizRiesgo, matrizUnidades, motivosCe
 
 const fila = (alumnoId, unidad, extra = {}) => ({
   alumno: { id: alumnoId, nombre: `Alumno ${alumnoId}` },
-  unidad: { nombre: `Unidad ${unidad}` },
+  unidad: { nombre: `Unidad ${unidad}`, orden: unidad },
   calificacionFinal: 85,
   motivos: [],
   asistencia: { registradas: 10, asistencias: 9, faltas: 1, retardos: 0, justificadas: 0 },
@@ -28,6 +28,17 @@ describe('celda de riesgo alumno × materia', () => {
     expect(celdaRiesgo([fila(1, 1)]).estado).toBe('APROBADO')
     expect(celdaRiesgo([fila(1, 1, { calificacionFinal: null })]).estado).toBe('SIN_CALIFICAR')
     expect(celdaRiesgo([fila(1, 1, { calificacionFinal: null, motivos: ['ASISTENCIA'] })]).estado).toBe('EN_RIESGO')
+  })
+
+  it('promedia hasta la primera unidad por debajo de 70 según el orden académico', () => {
+    const c = celdaRiesgo([
+      fila(1, 4, { calificacionFinal: 100 }),
+      fila(1, 2, { calificacionFinal: 70 }),
+      fila(1, 3, { calificacionFinal: 60, motivos: ['CALIFICACION_BAJA'] }),
+      fila(1, 1, { calificacionFinal: null }),
+    ])
+    expect(c.promedio).toBe(65)
+    expect(c.promedioHastaUnidad).toBe('Unidad 3')
   })
 
   it('distingue no inscrito, cargando y error; un error nunca se lee como sin señales', () => {

@@ -24,7 +24,7 @@ export function celdaRiesgo(rows, reporte = { data: true }) {
   if (reporte.error) return { estado: 'NO_DISPONIBLE', rows: [] }
   if (!reporte.data) return { estado: 'CARGANDO', rows: [] }
   if (!rows.length) return { estado: 'NO_INSCRITO', rows }
-  const r = resumenAlumno(rows)
+  const r = resumenAlumno(rows, { hastaPrimeraReprobada: rows.length > 1 })
   // Reprobar (abierta o cerrada) siempre trae CALIFICACION_BAJA entre los motivos.
   const estado = rows.some((row) => row.motivos?.includes('CALIFICACION_BAJA'))
     ? 'REPROBADO'
@@ -37,6 +37,7 @@ export function celdaRiesgo(rows, reporte = { data: true }) {
     estado,
     rows,
     promedio: r.promedio,
+    promedioHastaUnidad: r.promedioHastaUnidad,
     tipo: r.tipo,
     asistencia: r.asistencia,
     tareas: r.tareas,
@@ -150,7 +151,9 @@ export function etiquetaCelda(alumno, columna, c, accion) {
   const estado = ESTADO_CELDA[c.estado].label.toLowerCase()
   if (c.estado === 'NO_INSCRITO') return `${alumno}, ${columna}: no inscrito.`
   if (c.estado === 'CARGANDO' || c.estado === 'NO_DISPONIBLE') return `${alumno}, ${columna}: ${estado}.`
-  const promedio = c.promedio == null ? 'sin promedio' : `promedio ${c.promedio}`
+  const promedio = c.promedio == null
+    ? 'sin promedio'
+    : `promedio ${c.promedio}${c.promedioHastaUnidad ? ` hasta ${c.promedioHastaUnidad}` : ''}`
   const motivos = motivosCelda(c)
   return `${alumno}, ${columna}: ${estado}, ${promedio}${motivos.length ? `. ${motivos.join('; ')}` : ''}. ${accion}.`
 }

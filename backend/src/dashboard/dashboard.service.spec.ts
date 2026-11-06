@@ -22,7 +22,7 @@ const fila = (
   }> = {},
 ) => ({
   alumno,
-  unidad: { id: 60 + unidad, nombre: `Unidad ${unidad}` },
+  unidad: { id: 60 + unidad, nombre: `Unidad ${unidad}`, orden: unidad },
   calificacionFinal: 90,
   motivos: [],
   asistencia: { registradas: 5, faltas: 0, retardos: 0 },
@@ -78,12 +78,12 @@ describe('DashboardService riesgo del docente', () => {
           tareas: { vencidas: 3, vencidasSinEntregar: 2 },
         }),
         // Beto reprueba la unidad 1 y además falta.
+        fila(beto, 2, { calificacionFinal: 75 }),
         fila(beto, 1, {
           calificacionFinal: 60,
           motivos: ['CALIFICACION_BAJA', 'ASISTENCIA'],
           asistencia: { registradas: 5, faltas: 2, retardos: 1 },
         }),
-        fila(beto, 2, { calificacionFinal: 75 }),
         fila(carla, 1),
       ],
     });
@@ -127,7 +127,8 @@ describe('DashboardService riesgo del docente', () => {
       grupo: { id: 3, nombre: '8A' },
       motivos: ['CALIFICACION_BAJA', 'ASISTENCIA'],
       unidades: [{ id: 61, nombre: 'Unidad 1', calificacion: 60 }],
-      calificacion: 67.5,
+      calificacion: 60,
+      promedioHastaUnidad: 'Unidad 1',
       registros: 10,
       faltas: 2,
       retardos: 1,

@@ -38,7 +38,7 @@ const REPORTES_EN_PARALELO = 4;
 /** Lo que se usa de cada fila (alumno × unidad) del reporte de calificaciones. */
 type FilaReporte = {
   alumno: { id: number; nombre: string; numeroControl: string | null };
-  unidad: { id: number; nombre: string };
+  unidad: { id: number; nombre: string; orden?: number };
   calificacionFinal: number | null;
   motivos: string[];
   asistencia?: { registradas: number; faltas: number; retardos: number };
@@ -415,6 +415,16 @@ export class DashboardService {
           const registros = suma((row) => row.asistencia?.registradas);
           const faltas = suma((row) => row.asistencia?.faltas);
           const retardos = suma((row) => row.asistencia?.retardos);
+          const ordenadas = [...propias].sort(
+            (a, b) => (a.unidad.orden ?? 0) - (b.unidad.orden ?? 0),
+          );
+          const corte = ordenadas.findIndex(
+            ({ calificacionFinal }) =>
+              calificacionFinal != null &&
+              calificacionFinal < CALIFICACION_APROBATORIA,
+          );
+          const filasPromedio =
+            corte < 0 ? ordenadas : ordenadas.slice(0, corte + 1);
           const { id, nombre, numeroControl } = propias[0].alumno;
           return {
             alumno: { id, nombre, numeroControl },
@@ -429,7 +439,10 @@ export class DashboardService {
                 motivos: row.motivos,
                 calificacion: row.calificacionFinal,
               })),
-            calificacion: promedio(propias.map((row) => row.calificacionFinal)),
+            calificacion: promedio(
+              filasPromedio.map((row) => row.calificacionFinal),
+            ),
+            promedioHastaUnidad: corte < 0 ? null : ordenadas[corte].unidad.nombre,
             registros,
             faltas,
             retardos,
